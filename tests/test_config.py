@@ -46,3 +46,38 @@ def test_rejects_unknown_configuration_key(repository: Path, config_factory: obj
     path.write_text(yaml.safe_dump(raw))
     with pytest.raises(InvalidConfigurationError, match="Invalid configuration"):
         load_config(path)
+
+
+def test_loads_valid_conda_environment(repository: Path, config_factory: object) -> None:
+    path = config_factory(repository)  # type: ignore[operator]
+    config = load_config(path)
+    assert config.project.conda_environment == "ai-workflow-engine"
+
+
+def test_rejects_missing_conda_environment(repository: Path, config_factory: object) -> None:
+    path = config_factory(repository)  # type: ignore[operator]
+    raw = yaml.safe_load(path.read_text())
+    del raw["project"]["conda_environment"]
+    path.write_text(yaml.safe_dump(raw))
+    with pytest.raises(InvalidConfigurationError, match="Invalid configuration"):
+        load_config(path)
+
+
+def test_rejects_empty_conda_environment(repository: Path, config_factory: object) -> None:
+    path = config_factory(repository)  # type: ignore[operator]
+    raw = yaml.safe_load(path.read_text())
+    raw["project"]["conda_environment"] = ""
+    path.write_text(yaml.safe_dump(raw))
+    with pytest.raises(InvalidConfigurationError, match="Invalid configuration"):
+        load_config(path)
+
+
+def test_rejects_whitespace_only_conda_environment(
+    repository: Path, config_factory: object
+) -> None:
+    path = config_factory(repository)  # type: ignore[operator]
+    raw = yaml.safe_load(path.read_text())
+    raw["project"]["conda_environment"] = "   \t  "
+    path.write_text(yaml.safe_dump(raw))
+    with pytest.raises(InvalidConfigurationError, match="Invalid configuration"):
+        load_config(path)

@@ -1,5 +1,6 @@
 """workflowctl command-line interface."""
 
+import sys
 import traceback
 from collections.abc import Callable
 from enum import StrEnum
@@ -16,6 +17,11 @@ from ai_workflow_engine.git.validators import check_git, matching_paths
 from ai_workflow_engine.governance.validators import check_governance, check_task_state
 from ai_workflow_engine.handover.validators import HandoverSource, check_handover
 from ai_workflow_engine.models import EngineConfig
+from ai_workflow_engine.prompt.context import build_prompt_context
+from ai_workflow_engine.prompt.models import PromptSuccess, RenderedPrompt, WorkflowStage
+from ai_workflow_engine.prompt.renderer import canonical_json, render_prompt
+from ai_workflow_engine.prompt.store import save
+from ai_workflow_engine.prompt.validator import validate_prompt
 from ai_workflow_engine.reporting.console import print_check, print_report
 from ai_workflow_engine.reporting.json_report import render_json
 from ai_workflow_engine.result import (
@@ -29,7 +35,6 @@ from ai_workflow_engine.workflow.invariants import summarize_workflow
 
 app = typer.Typer(help="Read-only deterministic governance gates for AI-assisted development.")
 console = Console()
-error_console = Console(stderr=True)
 _debug = False
 
 
@@ -81,7 +86,11 @@ def _protected(operation: Callable[[], T]) -> T:
     except Exception as exc:
         if _debug:
             traceback.print_exc()
-        error_console.print(f"ERROR: {exc}")
+        # Rich's Console.print (even with markup/highlight disabled) still soft-wraps
+        # text to the console width, corrupting the exact-bytes stderr contract. Write
+        # directly to stderr instead.
+        sys.stderr.write(f"ERROR: {exc}\n")
+        sys.stderr.flush()
         raise typer.Exit(code=2) from exc
 
 
@@ -212,6 +221,227 @@ def verify(config: ConfigOption, output: OutputOption = OutputFormat.HUMAN) -> N
         print_report(report, console)
     if report.status != Status.PASS:
         raise typer.Exit(code=1)
+
+
+prompt_app = typer.Typer(
+    help="Deterministically render, validate, and optionally store one governed workflow prompt."
+)
+app.add_typer(prompt_app, name="prompt")
+
+PROMPT_CHECK_NAME = "prompt"
+
+TaskIdOption = Annotated[str, typer.Option("--task-id")]
+StoreOption = Annotated[bool, typer.Option("--store/--no-store")]
+AllowedPathOption = Annotated[list[str], typer.Option("--allowed-path")]
+FindingOption = Annotated[list[str], typer.Option("--finding")]
+
+
+def _emit_prompt_success(
+    rendered: RenderedPrompt,
+    *,
+    stored: bool,
+    prompt_artifact: str | None,
+    metadata_artifact: str | None,
+    output: OutputFormat,
+) -> None:
+    success = PromptSuccess(
+        schema_version="1.0",
+        stored=stored,
+        prompt_artifact=prompt_artifact,
+        metadata_artifact=metadata_artifact,
+        prompt=rendered.markdown,
+        metadata=rendered.metadata,
+    )
+    if output == OutputFormat.JSON:
+        sys.stdout.buffer.write(canonical_json(success.model_dump(mode="json")) + b"\n")
+        sys.stdout.buffer.flush()
+        return
+    label_block = "\n".join(
+        [
+            f"Prompt ID: {rendered.prompt_id}",
+            f"Stage: {rendered.context.stage}",
+            f"Stored: {'yes' if stored else 'no'}",
+            f"Prompt artifact: "
+            f"{prompt_artifact if prompt_artifact is not None else '(not stored)'}",
+            f"Metadata artifact: "
+            f"{metadata_artifact if metadata_artifact is not None else '(not stored)'}",
+        ]
+    )
+    sys.stdout.write(label_block + "\n\n" + rendered.markdown)
+    sys.stdout.flush()
+
+
+def _run_prompt_command(
+    stage: WorkflowStage,
+    *,
+    config: Path,
+    task_id: str,
+    output: OutputFormat,
+    store: bool,
+    allowed_paths: list[str],
+    remediation_findings: list[str],
+) -> None:
+    context = _protected(
+        lambda: build_prompt_context(
+            load_config(config),
+            stage=stage,
+            task_id=task_id,
+            allowed_paths=allowed_paths,
+            remediation_findings=remediation_findings,
+        )
+    )
+    rendered = _protected(lambda: render_prompt(context))
+
+    check_result = _safe_check(PROMPT_CHECK_NAME, lambda: validate_prompt(rendered))
+    if check_result.status != Status.PASS:
+        _emit(check_result, output)
+        return
+
+    stored = False
+    prompt_artifact: str | None = None
+    metadata_artifact: str | None = None
+    if store:
+        paths = _protected(lambda: save(rendered))
+        stored = True
+        prompt_artifact = paths.markdown.as_posix()
+        metadata_artifact = paths.metadata.as_posix()
+
+    _emit_prompt_success(
+        rendered,
+        stored=stored,
+        prompt_artifact=prompt_artifact,
+        metadata_artifact=metadata_artifact,
+        output=output,
+    )
+
+
+@prompt_app.command("plan-review")
+def prompt_plan_review(
+    config: ConfigOption,
+    task_id: TaskIdOption,
+    output: OutputOption = OutputFormat.HUMAN,
+    store: StoreOption = True,
+) -> None:
+    _run_prompt_command(
+        "plan-review",
+        config=config,
+        task_id=task_id,
+        output=output,
+        store=store,
+        allowed_paths=[],
+        remediation_findings=[],
+    )
+
+
+@prompt_app.command("implementation")
+def prompt_implementation(
+    config: ConfigOption,
+    task_id: TaskIdOption,
+    allowed_path: AllowedPathOption,
+    output: OutputOption = OutputFormat.HUMAN,
+    store: StoreOption = True,
+) -> None:
+    _run_prompt_command(
+        "implementation",
+        config=config,
+        task_id=task_id,
+        output=output,
+        store=store,
+        allowed_paths=allowed_path,
+        remediation_findings=[],
+    )
+
+
+@prompt_app.command("implementation-review")
+def prompt_implementation_review(
+    config: ConfigOption,
+    task_id: TaskIdOption,
+    output: OutputOption = OutputFormat.HUMAN,
+    store: StoreOption = True,
+) -> None:
+    _run_prompt_command(
+        "implementation-review",
+        config=config,
+        task_id=task_id,
+        output=output,
+        store=store,
+        allowed_paths=[],
+        remediation_findings=[],
+    )
+
+
+@prompt_app.command("remediation")
+def prompt_remediation(
+    config: ConfigOption,
+    task_id: TaskIdOption,
+    allowed_path: AllowedPathOption,
+    finding: FindingOption,
+    output: OutputOption = OutputFormat.HUMAN,
+    store: StoreOption = True,
+) -> None:
+    _run_prompt_command(
+        "remediation",
+        config=config,
+        task_id=task_id,
+        output=output,
+        store=store,
+        allowed_paths=allowed_path,
+        remediation_findings=finding,
+    )
+
+
+@prompt_app.command("governance-closeout")
+def prompt_governance_closeout(
+    config: ConfigOption,
+    task_id: TaskIdOption,
+    output: OutputOption = OutputFormat.HUMAN,
+    store: StoreOption = True,
+) -> None:
+    _run_prompt_command(
+        "governance-closeout",
+        config=config,
+        task_id=task_id,
+        output=output,
+        store=store,
+        allowed_paths=[],
+        remediation_findings=[],
+    )
+
+
+@prompt_app.command("governance-review")
+def prompt_governance_review(
+    config: ConfigOption,
+    task_id: TaskIdOption,
+    output: OutputOption = OutputFormat.HUMAN,
+    store: StoreOption = True,
+) -> None:
+    _run_prompt_command(
+        "governance-review",
+        config=config,
+        task_id=task_id,
+        output=output,
+        store=store,
+        allowed_paths=[],
+        remediation_findings=[],
+    )
+
+
+@prompt_app.command("push")
+def prompt_push(
+    config: ConfigOption,
+    task_id: TaskIdOption,
+    output: OutputOption = OutputFormat.HUMAN,
+    store: StoreOption = True,
+) -> None:
+    _run_prompt_command(
+        "push",
+        config=config,
+        task_id=task_id,
+        output=output,
+        store=store,
+        allowed_paths=[],
+        remediation_findings=[],
+    )
 
 
 def main() -> None:

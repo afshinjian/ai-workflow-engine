@@ -15,6 +15,14 @@ class ProjectSettings(StrictModel):
     default_branch: str = Field(min_length=1)
     timezone: str = Field(min_length=1)
     require_upstream: bool = False
+    conda_environment: str = Field(min_length=1)
+
+    @field_validator("conda_environment")
+    @classmethod
+    def conda_environment_not_blank(cls, value: str) -> str:
+        if value.strip() == "":
+            raise ValueError("project.conda_environment must not be empty or whitespace-only")
+        return value
 
 
 class FactRule(StrictModel):

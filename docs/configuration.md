@@ -6,6 +6,10 @@ the repository after resolution; file/blob existence is not checked at config-lo
 is validated later, against whichever source (working tree, staged index, or commit) the check
 actually reads. Symlink-based and `..` traversal are rejected.
 
+`project.conda_environment` is required and must not be empty or whitespace-only. It names the
+Conda environment the rendered `workflowctl prompt` commands instruct an operator or agent to run
+verification commands in; it is never inferred from the current process environment.
+
 `governance.facts` is an optional list of deterministic mirror rules. Each rule names two or more
 files, supplies one Python regular expression, and selects a capture `group` (default 1). Set
 `required: true` to fail if any mirror omits it. Values found in multiple mirrors must be equal.

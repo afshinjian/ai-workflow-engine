@@ -6,6 +6,9 @@ from pathlib import Path
 import pytest
 import yaml
 
+from ai_workflow_engine.config import load_config
+from ai_workflow_engine.models import EngineConfig
+
 
 def git(repository: Path, *args: str) -> str:
     return subprocess.run(
@@ -67,6 +70,7 @@ def config_factory(tmp_path: Path) -> Callable[[Path], Path]:
                 "repository": str(repository),
                 "default_branch": "main",
                 "timezone": "UTC",
+                "conda_environment": "ai-workflow-engine",
             },
             "governance": {
                 "project_state": "docs/PROJECT_STATE.md",
@@ -108,3 +112,8 @@ def config_factory(tmp_path: Path) -> Callable[[Path], Path]:
         return path
 
     return factory
+
+
+@pytest.fixture
+def engine_config(repository: Path, config_factory: Callable[[Path], Path]) -> EngineConfig:
+    return load_config(config_factory(repository))

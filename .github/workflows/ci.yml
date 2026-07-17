@@ -1,0 +1,50 @@
+# Lightweight CI (task T-103): the project's standing validation set, nothing more.
+#
+# check-git is deliberately not run here: actions/checkout produces a detached HEAD with no
+# upstream, which that check correctly refuses. That is a CI-environment artifact, not a
+# repository defect; the three repository-content checks below are environment-independent.
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Format check
+        run: black --check .
+
+      - name: Type check
+        run: mypy src
+
+      - name: Tests
+        run: pytest -q
+
+      - name: Governance self-checks
+        run: |
+          python -c "
+          import os, yaml
+          config = yaml.safe_load(open('self-governance.yaml', encoding='utf-8'))
+          config['project']['repository'] = os.getcwd()
+          yaml.safe_dump(config, open('ci-governance.yaml', 'w', encoding='utf-8'))
+          "
+          workflowctl check-task-state --config ci-governance.yaml
+          workflowctl check-governance --config ci-governance.yaml
+          workflowctl check-handover --config ci-governance.yaml

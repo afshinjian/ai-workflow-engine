@@ -1,42 +1,32 @@
 project:
-  id: amozesh_konkur
-  repository: /home/afshin-jian/amozesh_konkur
+  id: ai-workflow-engine
+  repository: /home/afshin-jian/ai-workflow-engine
   default_branch: main
   timezone: Asia/Tehran
   require_upstream: true
-  conda_environment: amozesh_konkur
+  conda_environment: ai-workflow-engine
 
 governance:
   project_state: docs/PROJECT_STATE.md
   task_queue: docs/TASK_QUEUE.md
   current_task: docs/current_task.md
-  remaining_tasks: docs/remain_task.md
-  context: docs/CHATGPT_CONTEXT.md
+  remaining_tasks: docs/remaining_tasks.md
+  context: docs/CONTEXT.md
   pyproject: pyproject.toml
   facts:
     - name: version
       paths: [docs/PROJECT_STATE.md, pyproject.toml]
       pattern: '(?:Current Version[^\n]*?|^version\s*=\s*")[^0-9]*(0\.\d+\.\d+)'
       required: true
-    - name: phase
-      paths: [docs/PROJECT_STATE.md, docs/current_task.md]
-      pattern: '(?:Current Phase[^\n]*?|Active Phase:)[^\n]*?Phase\s+(\d+)'
-    - name: alembic_head
-      paths: [docs/PROJECT_STATE.md, docs/current_task.md]
-      pattern: 'Alembic head (?:stays\s+)?`?(\d+)'
 
 handover:
   manifest: handover/PROJECT_CHECKSUM.md
   files:
     - handover/PROJECT_HANDOVER.md
-    - handover/BOOTSTRAP_PROMPT.md
-    - handover/PROJECT_CHECKSUM.md
 
 protected_paths:
-  never_stage:
-    - docs/planning/plans/*_plan_recovery_*.md
-  never_commit:
-    - docs/planning/plans/*_plan_recovery_*.md
+  never_stage: []
+  never_commit: []
 
 workflow:
   maximum_current_tasks: 1
