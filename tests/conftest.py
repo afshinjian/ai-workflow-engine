@@ -62,6 +62,16 @@ def repository(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
+def repository_with_remote(repository: Path, tmp_path: Path) -> Path:
+    """The `repository` fixture with a bare local `file://` remote as upstream of `main`."""
+    remote = tmp_path / "remote.git"
+    git(remote.parent, "init", "--bare", "-b", "main", str(remote))
+    git(repository, "remote", "add", "origin", remote.as_uri())
+    git(repository, "push", "-u", "origin", "main")
+    return repository
+
+
+@pytest.fixture
 def config_factory(tmp_path: Path) -> Callable[[Path], Path]:
     def factory(repository: Path) -> Path:
         raw = {

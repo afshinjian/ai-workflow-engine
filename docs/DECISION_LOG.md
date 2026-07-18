@@ -4,6 +4,116 @@ Architectural decisions for `ai-workflow-engine`, newest first. Each entry recor
 decided, what alternatives were considered, and why — so a fresh session can understand *why*
 the code looks the way it does, not just what it does.
 
+## 2026-07-18 — `state` CLI emits a deterministic bespoke payload, not a timestamped CheckResult (T-302)
+
+**Decision:** `workflowctl state show|next|record` success output is a purpose-built canonical-JSON
+object (`{status, command, ...}`) written Rich-free to stdout, rather than a `CheckResult` routed
+through `render_json`. Failures carry `{status: "FAIL", command, finding: {code, message}}` and
+exit 1; success exits 0; usage/unexpected errors exit 2 via `_protected`.
+
+**Alternatives considered:** Emitting a `CheckResult(check_name="state", ...)` exactly as
+`docs/milestone-3-plan.md` loosely worded it ("CheckResult-style PASS"). Rejected because
+`CheckResult` carries a wall-clock `timestamp`, which would make identical state queries produce
+different bytes — at odds with this project's determinism principle and with the timestamp-free
+canonical outputs used everywhere else in the workflow layer. `show`/`next` are also queries, not
+pass/fail checks, so the `CheckResult` shape fits them poorly.
+
+**Rationale:** The Milestone 2 prompt CLI set the precedent of a bespoke success payload
+(`PromptSuccess`) with `CheckResult` reserved for validation *failures*; the state CLI follows the
+same pattern. Recorded here because it is a conscious, reviewer-flagged (T-302 review, finding N1)
+deviation from the plan's literal wording, kept for a determinism reason rather than an oversight.
+`docs/current_task.md`'s T-302 acceptance criteria describe the CLI contract without `check_name`,
+consistent with this decision.
+
+## 2026-07-18 — Milestone 4 writer is typed-methods-only; push gate reads live, not recorded (T-401)
+
+**Decision:** In the `docs/milestone-4-plan.md` contracts, (a) the writable-Git surface
+`GitWriter` exposes only typed methods (`stage_paths`, `unstage_paths`, `commit`, `push`,
+`apply_check`, `apply_patch`), each emitting one fixed argv template — there is no method that
+runs a caller-supplied argv, so dangerous forms (force push, remote-branch deletion, `reset`,
+`commit --amend`/`-a`, `add -A`) are structurally unreachable rather than blocked by a denylist;
+and (b) the push gate reads live Git state and decides on `behind == 0` computed by the exact
+Milestone 2 `rev-list --left-right --count @{upstream}...HEAD` command, without carrying
+recorded ahead/behind counts in the `PushApproval`.
+
+**Alternatives considered (all from round-1 plan-review findings):** an allowlist that runs
+arbitrary argv and scans it for denylisted tokens (rejected — B2/B3: it both false-rejects
+operand data like a commit message containing "reset" and misses real dangers like
+`push --delete`); carrying recorded ahead/behind in the approval to mirror M-2's cross-check
+(rejected — B5: M-2 needed that only because its prompt was a snapshot that could drift from
+execution; the M-4 gate reads live state, so the live computation is itself authoritative).
+
+**Rationale:** An independent round-1 plan review REJECTED the first draft with five blocking
+findings; the typed-writer redesign resolves three of them (B1 self-contradictory unstage,
+B2 operand-scanning, B3 non-airtight allowlist) at once and is a stronger safety posture for the
+project's first writable-Git milestone. The live-read push gate (B5) and the read-only `GitClient`
+extension using already-allowlisted forms (B4) are the other two. Recorded here because these are
+genuine safety-architecture choices, not typo fixes. Full history in `docs/milestone-4-plan.md`'s
+status and disposition sections.
+
+## 2026-07-18 — `AgentRunRecord` stores the agent's stdout bytes, not a re-parsed `AgentReport` (T-305)
+
+**Decision:** The stored `AgentRunRecord` does not carry a structured `AgentReport` field. The
+agent's report is preserved byte-exactly as `stdout_b64` under a committed `stdout_sha256`, and
+its material claims (verdict, changed-path judgement) live in the `verification` snapshot's
+`evidence`. The `docs/milestone-3-plan.md` "Run artifacts" wording listed "the full AgentReport"
+as a member.
+
+**Alternatives considered:** Adding a parsed `AgentReport` field alongside the raw stdout
+(rejected — it duplicates data already recoverable from `stdout_b64`, and a separately-stored
+parse could drift from the bytes that were actually digested, weakening tamper-evidence);
+storing only the report and discarding raw stdout (rejected — then non-report stdout noise and
+the exact bytes an operator saw would be lost, and a malformed-report run would have nothing to
+store).
+
+**Rationale:** Storing the exact bytes under a digest is strictly more tamper-evident than a
+re-parsed copy, and it also covers the failure cases where there is no valid report at all
+(`agent_report_invalid`, timeout). Downstream Milestone 4 consumes the verified verdict and
+patch, both already present. Recorded per the T-305 review's non-blocking finding N3 so a future
+session sees this as a conscious choice, not an omission.
+
+## 2026-07-18 — Machine-readable CLI output must bypass Rich entirely (T-104)
+
+**Decision:** All of `workflowctl`'s machine-readable stdout — every `--output json` payload and
+the `version` string — is written as plain bytes via a `_write_stdout` helper, never through
+Rich's `Console`.
+
+**Alternatives considered:** Configuring the Rich `Console` with `no_color=True` /
+`force_terminal=False` (rejected — `FORCE_COLOR` overrides those, and Rich still owns
+soft-wrapping and other transforms); leaving it and documenting "unset FORCE_COLOR" (rejected —
+a governance tool whose JSON is meant for CI consumption must not emit invalid JSON under a
+common env var).
+
+**Rationale:** Discovered during T-301's round-2 plan review: with `FORCE_COLOR` set, Rich
+injected ANSI codes into `verify --output json`, producing unparseable JSON and violating the
+stable 1.0 schema contract in `docs/architecture.md`. This is the same Rich-corruption class the
+2026-07-17 `_protected` decision fixed for stderr; T-104 extends the same bytes-not-Rich
+principle to the stdout machine paths that were missed. Human output and the Rich summary tables
+are unchanged. Also hardens the `conda run ... pytest` verification path Milestone 3 re-executes.
+
+## 2026-07-17 — Milestone 3 plan: two boundary decisions surfaced by round-1 plan review
+
+**Decision:** In the `docs/milestone-3-plan.md` contracts, (a) Milestone 3 makes **no** change
+to the target repository at all — a scoped-write agent's output is captured as a verified patch
+artifact and applying it to the working tree is deferred to Milestone 4 (the earlier `agent
+apply` verb was cut); and (b) `agent run` requires a **clean** target working tree at the
+recorded HEAD before running, so the committed-HEAD sandbox faithfully reproduces the prompt's
+working-tree-derived evidence.
+
+**Alternatives considered:** Keeping `agent apply` in M-3 (rejected — it sat adjacent to
+Milestone 4's controlled-change scope and added a third, un-allowlisted writable-Git surface on
+the real repository); building the sandbox from the dirty working tree instead of committed HEAD
+(rejected — it would make run inputs non-deterministic and diverge from the governance principle
+that committed state is the source of truth).
+
+**Rationale:** An independent round-1 plan review (fresh session, no memory of the drafting)
+returned REJECTED with three blocking findings (missing `renderer.py` in the file list;
+unspecified/non-deterministic verification-command re-execution; a task-ID slug collision hole)
+and two substantive ones (sandbox-vs-dirty-tree tension; an unverifiable lossy-stderr digest).
+All were remediated in a round-2 revision; the two items above were genuine scope/architecture
+choices worth recording, not mere typo fixes. This is the same independent-review discipline
+that caught a real regression in Milestone 2 (see the 2026-07-16 entry).
+
 ## 2026-07-17 — Master roadmap to 1.0 approved; local-commit and CI decisions
 
 **Decision:** The human approved `docs/MASTER_ROADMAP.md` as written: Stage 0 (GOV-1 closeout,

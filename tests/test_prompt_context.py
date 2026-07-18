@@ -145,7 +145,7 @@ def test_build_prompt_context_plan_review_has_no_allowed_paths_or_findings(
     assert context.remediation_findings == []
     assert context.task_id == "T-1"
     assert context.stage == "plan-review"
-    assert context.schema_version == "1.0"
+    assert context.schema_version == "1.1"
 
 
 def test_build_prompt_context_implementation_requires_allowed_paths(
@@ -690,3 +690,26 @@ def test_canonical_engine_config_rejects_wrong_nested_type(
     canonical = _canonicalize_config(engine_config)
     with pytest.raises(ValidationError):
         type(canonical)(**{**canonical.model_dump(), "project": "not-a-project"})
+
+
+def test_agents_config_changes_prompt_id(engine_config: EngineConfig) -> None:
+    # Adding an agent to the config must change the prompt identity, since `agents` is part of
+    # the canonical payload (Milestone 3, task T-303). The rendered Markdown body changes only
+    # via the prompt-id line.
+    from ai_workflow_engine.models import AgentSettings
+    from ai_workflow_engine.prompt.renderer import render_prompt
+
+    agent = AgentSettings(
+        name="reviewer",
+        executable=Path("/usr/bin/true"),
+        args=[],
+        mode="read-only",
+        timeout_seconds=60,
+        stages=["plan-review"],
+    )
+    with_agent = engine_config.model_copy(update={"agents": [agent]})
+    without = render_prompt(build_prompt_context(engine_config, stage="plan-review", task_id="T-1"))
+    withx = render_prompt(build_prompt_context(with_agent, stage="plan-review", task_id="T-1"))
+    assert without.prompt_id != withx.prompt_id
+    assert without.context.config.agents == []
+    assert withx.context.config.agents[0].name == "reviewer"

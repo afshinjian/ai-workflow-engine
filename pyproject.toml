@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ai-workflow-engine"
-version = "0.1.0"
+version = "1.0.0"
 description = "Deterministic governance gates for AI-assisted software development"
 readme = "README.md"
 license = {file = "LICENSE"}

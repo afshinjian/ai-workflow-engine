@@ -5,22 +5,36 @@ import traceback
 from collections.abc import Callable
 from enum import StrEnum
 from pathlib import Path
-from typing import Annotated, TypeVar
+from typing import Annotated, TypeVar, cast
 
 import typer
 from rich.console import Console
 
 from ai_workflow_engine import __version__
+from ai_workflow_engine.agents.artifacts import build_record, save_run
+from ai_workflow_engine.agents.runner import RunnerError, run_agent
+from ai_workflow_engine.agents.verification import verify_run
+from ai_workflow_engine.commit.gates import (
+    run_apply_patch_gate,
+    run_commit_gate,
+    run_push_gate,
+)
 from ai_workflow_engine.config import load_config
+from ai_workflow_engine.git.approval import load_commit_approval, load_push_approval
 from ai_workflow_engine.git.client import GitClient
 from ai_workflow_engine.git.validators import check_git, matching_paths
 from ai_workflow_engine.governance.validators import check_governance, check_task_state
 from ai_workflow_engine.handover.validators import HandoverSource, check_handover
 from ai_workflow_engine.models import EngineConfig
 from ai_workflow_engine.prompt.context import build_prompt_context
-from ai_workflow_engine.prompt.models import PromptSuccess, RenderedPrompt, WorkflowStage
+from ai_workflow_engine.prompt.models import (
+    WORKFLOW_STAGES,
+    PromptSuccess,
+    RenderedPrompt,
+    WorkflowStage,
+)
 from ai_workflow_engine.prompt.renderer import canonical_json, render_prompt
-from ai_workflow_engine.prompt.store import save
+from ai_workflow_engine.prompt.store import load, save
 from ai_workflow_engine.prompt.validator import validate_prompt
 from ai_workflow_engine.reporting.console import print_check, print_report
 from ai_workflow_engine.reporting.json_report import render_json
@@ -31,7 +45,10 @@ from ai_workflow_engine.result import (
     VerificationReport,
     combined_status,
 )
+from ai_workflow_engine.workflow.event_store import derive_state, record_outcome
+from ai_workflow_engine.workflow.events import Verdict, WorkflowEvent
 from ai_workflow_engine.workflow.invariants import summarize_workflow
+from ai_workflow_engine.workflow.transitions import WorkflowStateError
 
 app = typer.Typer(help="Read-only deterministic governance gates for AI-assisted development.")
 console = Console()
@@ -56,9 +73,21 @@ def callback(
     _debug = debug
 
 
+def _write_stdout(text: str) -> None:
+    """Write machine-readable output as exact bytes, bypassing Rich.
+
+    Rich's ``Console`` injects ANSI color codes whenever the environment sets ``FORCE_COLOR``
+    (and in other terminal-detection cases), which corrupts the stable 1.0 JSON contract and the
+    ``version`` string into unparseable output. Machine output therefore never goes through Rich
+    — the same reason ``_protected`` writes raw bytes to stderr (see docs/DECISION_LOG.md).
+    """
+    sys.stdout.write(text if text.endswith("\n") else text + "\n")
+    sys.stdout.flush()
+
+
 def _emit(result: CheckResult, output: OutputFormat) -> None:
     if output == OutputFormat.JSON:
-        console.print_json(render_json(result))
+        _write_stdout(render_json(result))
     else:
         print_check(result, console)
     if result.status != Status.PASS:
@@ -101,7 +130,7 @@ def _config(path: Path) -> EngineConfig:
 @app.command()
 def version() -> None:
     """Print the engine version."""
-    console.print(__version__)
+    _write_stdout(__version__)
 
 
 @app.command()
@@ -134,7 +163,7 @@ def inspect(
     if output == OutputFormat.JSON:
         import json
 
-        console.print_json(json.dumps(payload, sort_keys=True))
+        _write_stdout(json.dumps(payload, sort_keys=True, indent=2))
         return
     console.print(f"Project: {settings.project.id}")
     console.print(f"Repository: {settings.project.repository}")
@@ -216,7 +245,7 @@ def verify(config: ConfigOption, output: OutputOption = OutputFormat.HUMAN) -> N
         project_id=settings.project.id, status=combined_status(checks), checks=checks
     )
     if output == OutputFormat.JSON:
-        console.print_json(render_json(report))
+        _write_stdout(render_json(report))
     else:
         print_report(report, console)
     if report.status != Status.PASS:
@@ -245,7 +274,7 @@ def _emit_prompt_success(
     output: OutputFormat,
 ) -> None:
     success = PromptSuccess(
-        schema_version="1.0",
+        schema_version="1.1",
         stored=stored,
         prompt_artifact=prompt_artifact,
         metadata_artifact=metadata_artifact,
@@ -442,6 +471,368 @@ def prompt_push(
         allowed_paths=[],
         remediation_findings=[],
     )
+
+
+state_app = typer.Typer(
+    help="Inspect and advance the persisted, event-sourced per-task workflow state."
+)
+app.add_typer(state_app, name="state")
+
+
+def _event_payload(event: WorkflowEvent) -> dict[str, object]:
+    return event.model_dump(mode="json")
+
+
+def _check_agent_run_evidence(
+    settings: EngineConfig,
+    *,
+    task_id: str,
+    stage: str,
+    verdict: str | None,
+    run_id: str,
+) -> dict[str, object] | None:
+    """Return a FAIL payload if a cited agent-run artifact does not back this event, else None."""
+    from ai_workflow_engine.agents.artifacts import ArtifactError, load_run
+    from ai_workflow_engine.prompt.context import normalize_text
+
+    normalized_task = normalize_text(task_id)
+    try:
+        record = load_run(settings.project.id, normalized_task, stage, run_id)  # type: ignore[arg-type]
+    except ArtifactError as exc:
+        return _agent_evidence_fail("agent_run_unavailable", str(exc))
+    if record.task_id != normalized_task or record.stage != stage:
+        return _agent_evidence_fail(
+            "agent_run_target_mismatch",
+            f"agent run {run_id} is for {record.task_id}/{record.stage}, "
+            f"not {normalized_task}/{stage}",
+        )
+    if record.verification.status != "PASS":
+        return _agent_evidence_fail(
+            "agent_run_not_verified", f"agent run {run_id} did not pass verification"
+        )
+    if verdict is not None and record.verification.evidence.get("verdict") != verdict:
+        return _agent_evidence_fail(
+            "verdict_evidence_mismatch",
+            f"recorded verdict {verdict} differs from agent run {run_id}'s verdict",
+        )
+    return None
+
+
+def _agent_evidence_fail(code: str, message: str) -> dict[str, object]:
+    return {"status": "FAIL", "command": "record", "finding": {"code": code, "message": message}}
+
+
+def _emit_state(payload: dict[str, object], output: OutputFormat, human_lines: list[str]) -> None:
+    if output == OutputFormat.JSON:
+        sys.stdout.buffer.write(canonical_json(payload) + b"\n")
+        sys.stdout.buffer.flush()
+    else:
+        _write_stdout("\n".join(human_lines))
+    if payload["status"] != "PASS":
+        raise typer.Exit(code=1)
+
+
+def _stage_label(stage: object) -> str:
+    return stage if isinstance(stage, str) else "(terminal)"
+
+
+@state_app.command("show")
+def state_show(
+    config: ConfigOption,
+    task_id: TaskIdOption,
+    output: OutputOption = OutputFormat.HUMAN,
+) -> None:
+    """Show the full replayed event history and derived state for a task."""
+
+    def build() -> dict[str, object]:
+        settings = load_config(config)
+        try:
+            state = derive_state(settings.project.id, task_id)
+        except WorkflowStateError as exc:
+            return {
+                "status": "FAIL",
+                "command": "show",
+                "finding": {"code": exc.code, "message": str(exc)},
+            }
+        return {
+            "status": "PASS",
+            "command": "show",
+            "project_id": state.project_id,
+            "task_id": state.task_id,
+            "events": [_event_payload(event) for event in state.events],
+            "next_stage": state.next_stage,
+            "terminal": state.terminal,
+        }
+
+    payload = _protected(build)
+    if payload["status"] != "PASS":
+        finding = payload["finding"]
+        assert isinstance(finding, dict)
+        _emit_state(
+            payload,
+            output,
+            [f"FAIL state: {finding['message']}", f"  - {finding['code']}: {finding['message']}"],
+        )
+        return
+    events = payload["events"]
+    assert isinstance(events, list)
+    lines = [f"Task: {payload['task_id']}", f"Events: {len(events)}"]
+    for event in events:
+        assert isinstance(event, dict)
+        outcome = event["verdict"] if event["action"] == "verdict" else "completed"
+        lines.append(f"  {event['sequence']:>3}. {event['stage']} — {outcome}")
+    lines.append(f"Next stage: {_stage_label(payload['next_stage'])}")
+    _emit_state(payload, output, lines)
+
+
+@state_app.command("next")
+def state_next(
+    config: ConfigOption,
+    task_id: TaskIdOption,
+    output: OutputOption = OutputFormat.HUMAN,
+) -> None:
+    """Print the stage that may be recorded next for a task (or terminal)."""
+
+    def build() -> dict[str, object]:
+        settings = load_config(config)
+        try:
+            state = derive_state(settings.project.id, task_id)
+        except WorkflowStateError as exc:
+            return {
+                "status": "FAIL",
+                "command": "next",
+                "finding": {"code": exc.code, "message": str(exc)},
+            }
+        return {"status": "PASS", "command": "next", "next_stage": state.next_stage}
+
+    payload = _protected(build)
+    if payload["status"] != "PASS":
+        finding = payload["finding"]
+        assert isinstance(finding, dict)
+        _emit_state(
+            payload,
+            output,
+            [f"FAIL state: {finding['message']}", f"  - {finding['code']}: {finding['message']}"],
+        )
+        return
+    _emit_state(payload, output, [_stage_label(payload["next_stage"])])
+
+
+@state_app.command("record")
+def state_record(
+    config: ConfigOption,
+    task_id: TaskIdOption,
+    stage: Annotated[str, typer.Option("--stage")],
+    verdict: Annotated[str | None, typer.Option("--verdict")] = None,
+    completed: Annotated[bool, typer.Option("--completed")] = False,
+    prompt_id: Annotated[str | None, typer.Option("--prompt-id")] = None,
+    agent_run: Annotated[str | None, typer.Option("--agent-run")] = None,
+    note: Annotated[str, typer.Option("--note")] = "",
+    output: OutputOption = OutputFormat.HUMAN,
+) -> None:
+    """Record one stage outcome, enforcing the transition table and verdict rules."""
+
+    def build() -> dict[str, object]:
+        settings = load_config(config)
+        if stage not in WORKFLOW_STAGES:
+            raise typer.BadParameter(f"Unknown stage: {stage!r}", param_hint="--stage")
+        if (verdict is not None) == completed:
+            raise typer.BadParameter(
+                "Provide exactly one of --verdict or --completed",
+                param_hint="--verdict/--completed",
+            )
+        if verdict is not None and verdict not in ("APPROVED", "REJECTED"):
+            raise typer.BadParameter(
+                "--verdict must be APPROVED or REJECTED", param_hint="--verdict"
+            )
+        if agent_run is not None:
+            binding = _check_agent_run_evidence(
+                settings, task_id=task_id, stage=stage, verdict=verdict, run_id=agent_run
+            )
+            if binding is not None:
+                return binding
+        try:
+            event = record_outcome(
+                settings,
+                task_id,
+                stage=stage,
+                verdict=cast("Verdict | None", verdict),
+                prompt_id=prompt_id,
+                agent_run_id=agent_run,
+                note=note,
+            )
+        except WorkflowStateError as exc:
+            return {
+                "status": "FAIL",
+                "command": "record",
+                "finding": {"code": exc.code, "message": str(exc)},
+            }
+        next_state = derive_state(settings.project.id, task_id)
+        return {
+            "status": "PASS",
+            "command": "record",
+            "event": _event_payload(event),
+            "next_stage": next_state.next_stage,
+        }
+
+    payload = _protected(build)
+    if payload["status"] != "PASS":
+        finding = payload["finding"]
+        assert isinstance(finding, dict)
+        _emit_state(
+            payload,
+            output,
+            [f"FAIL state: {finding['message']}", f"  - {finding['code']}: {finding['message']}"],
+        )
+        return
+    event = payload["event"]
+    assert isinstance(event, dict)
+    outcome = event["verdict"] if event["action"] == "verdict" else "completed"
+    summary_line = (
+        f"Recorded event {event['sequence']}: {event['stage']} — {outcome} "
+        f"(task {event['task_id']})"
+    )
+    lines = [summary_line, f"Next stage: {_stage_label(payload['next_stage'])}"]
+    _emit_state(payload, output, lines)
+
+
+agent_app = typer.Typer(help="Run a configured non-interactive agent against a governed prompt.")
+app.add_typer(agent_app, name="agent")
+
+
+@agent_app.command("run")
+def agent_run(
+    config: ConfigOption,
+    agent_name: Annotated[str, typer.Option("--agent")],
+    task_id: TaskIdOption,
+    stage: Annotated[str, typer.Option("--stage")],
+    prompt_id: Annotated[str, typer.Option("--prompt-id")],
+    store: StoreOption = True,
+    keep_sandbox: Annotated[bool, typer.Option("--keep-sandbox/--no-keep-sandbox")] = False,
+    output: OutputOption = OutputFormat.HUMAN,
+) -> None:
+    """Execute one agent in a sandbox, verify its claims, and store the run artifact."""
+
+    def build() -> dict[str, object]:
+        settings = load_config(config)
+        if stage not in WORKFLOW_STAGES:
+            raise typer.BadParameter(f"Unknown stage: {stage!r}", param_hint="--stage")
+        agent = next((a for a in settings.agents if a.name == agent_name), None)
+        if agent is None:
+            raise typer.BadParameter(
+                f"No configured agent named {agent_name!r}", param_hint="--agent"
+            )
+        rendered = load(settings.project.id, stage, prompt_id)
+        try:
+            observation = run_agent(
+                settings,
+                agent,
+                task_id=task_id,
+                stage=stage,
+                prompt_id=prompt_id,
+                keep_sandbox=keep_sandbox,
+            )
+        except RunnerError as exc:
+            return {
+                "status": "FAIL",
+                "command": "agent-run",
+                "finding": {"code": exc.code, "message": str(exc)},
+            }
+        verification = verify_run(settings, rendered, observation)
+        stored_record: str | None = None
+        stored_patch: str | None = None
+        run_id: str | None = None
+        if store:
+            record, patch = build_record(observation, verification, project_id=settings.project.id)
+            record_path, patch_path = save_run(
+                record, patch, repository=str(settings.project.repository)
+            )
+            stored_record = record_path.as_posix()
+            stored_patch = patch_path.as_posix()
+            run_id = record.run_id
+        return {
+            "status": verification.status.value,
+            "command": "agent-run",
+            "run_id": run_id,
+            "stage": stage,
+            "verification": verification.model_dump(mode="json"),
+            "record_artifact": stored_record,
+            "patch_artifact": stored_patch,
+        }
+
+    payload = _protected(build)
+    status = payload["status"]
+    if output == OutputFormat.JSON:
+        sys.stdout.buffer.write(canonical_json(payload) + b"\n")
+        sys.stdout.buffer.flush()
+    else:
+        verification = payload.get("verification")
+        summary = verification["summary"] if isinstance(verification, dict) else payload["finding"]
+        _write_stdout(
+            "\n".join(
+                [
+                    f"Status: {status}",
+                    f"Run ID: {payload.get('run_id') or '(not stored)'}",
+                    f"Stage: {payload.get('stage')}",
+                    f"Record artifact: {payload.get('record_artifact') or '(not stored)'}",
+                    f"Summary: {summary}",
+                ]
+            )
+        )
+    if status != "PASS":
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def commit(
+    config: ConfigOption,
+    approval: Annotated[Path, typer.Option("--approval", dir_okay=False)],
+    output: OutputOption = OutputFormat.HUMAN,
+) -> None:
+    """Stage exactly the human-approved paths and create the approved commit, or refuse."""
+    settings = _config(config)
+    loaded_approval = _protected(lambda: load_commit_approval(approval))
+    result = _safe_check("commit", lambda: run_commit_gate(settings, loaded_approval, approval))
+    _emit(result, output)
+
+
+@app.command()
+def push(
+    config: ConfigOption,
+    approval: Annotated[Path, typer.Option("--approval", dir_okay=False)],
+    output: OutputOption = OutputFormat.HUMAN,
+) -> None:
+    """Verify the push preconditions against live Git and push once, or refuse."""
+    settings = _config(config)
+    loaded_approval = _protected(lambda: load_push_approval(approval))
+    result = _safe_check("push", lambda: run_push_gate(settings, loaded_approval, approval))
+    _emit(result, output)
+
+
+@app.command("apply-patch")
+def apply_patch(
+    config: ConfigOption,
+    task_id: TaskIdOption,
+    stage: Annotated[str, typer.Option("--stage")],
+    run_id: Annotated[str, typer.Option("--run-id")],
+    output: OutputOption = OutputFormat.HUMAN,
+) -> None:
+    """Apply a verified Milestone 3 patch to the working tree, gated, or refuse."""
+    settings = _config(config)
+
+    def gate() -> object:
+        if stage not in WORKFLOW_STAGES:
+            raise typer.BadParameter(f"Unknown stage: {stage!r}", param_hint="--stage")
+        return None
+
+    _protected(gate)
+    result = _safe_check(
+        "apply-patch",
+        lambda: run_apply_patch_gate(
+            settings, task_id=task_id, stage=cast(WorkflowStage, stage), run_id=run_id
+        ),
+    )
+    _emit(result, output)
 
 
 def main() -> None:

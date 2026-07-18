@@ -143,3 +143,55 @@ class GitClient:
         value = self._run(["rev-parse", "--verify", f"{commit}^{{commit}}"])
         assert isinstance(value, str)
         return value.strip()
+
+    # --- Milestone 4 read-only gate helpers (all use forms already in READ_ONLY_FORMS) ---
+
+    def staged_names(self) -> list[str]:
+        """Sorted repo-relative POSIX paths currently staged (index vs HEAD)."""
+        value = self._run(["diff", "--cached", "--name-only", "-z"])
+        assert isinstance(value, str)
+        return sorted(path for path in value.split("\0") if path)
+
+    def commit_change_names(self, parent: str, commit: str) -> list[str]:
+        """Sorted repo-relative POSIX paths changed between ``parent`` and ``commit``."""
+        value = self._run(["diff", "--name-only", "-z", "--end-of-options", parent, commit])
+        assert isinstance(value, str)
+        return sorted(path for path in value.split("\0") if path)
+
+    def commit_parent(self, commit: str) -> str:
+        """The first-parent commit hash of ``commit`` (its build-on-top-of HEAD)."""
+        value = self._run(["rev-parse", "--verify", "--end-of-options", f"{commit}^{{commit}}~1"])
+        assert isinstance(value, str)
+        return value.strip()
+
+    def commit_message(self, commit: str) -> str:
+        """The exact commit message body (``%B``) of ``commit``."""
+        value = self._run(["show", "--no-patch", "--format=%B", "--end-of-options", commit])
+        assert isinstance(value, str)
+        return value
+
+    def diff_check(self) -> bool:
+        """True when ``git diff --check`` is clean (no conflict markers / whitespace errors)."""
+        try:
+            self._run(["diff", "--check"])
+        except GitCommandError:
+            return False
+        return True
+
+    def strict_left_right_count(self) -> tuple[int, int]:
+        """Return (behind, ahead) from the exact Milestone 2 push command and strict parse.
+
+        Runs ``git rev-list --left-right --count @{upstream}...HEAD`` and requires its sole line
+        to be exactly ``"<behind>\\t<ahead>\\n"`` (two base-10 nonnegative ints, one tab, one
+        terminal newline). The lax ``ahead_behind`` is left untouched for the inspect/prompt path.
+        """
+        value = self._run(["rev-list", "--left-right", "--count", "@{upstream}...HEAD"])
+        assert isinstance(value, str)
+        if not value.endswith("\n") or value.count("\n") != 1:
+            raise GitCommandError(f"Unexpected rev-list count output: {value!r}")
+        body = value[:-1]
+        parts = body.split("\t")
+        if len(parts) != 2 or not all(part.isdigit() for part in parts):
+            raise GitCommandError(f"Unexpected rev-list count output: {value!r}")
+        behind, ahead = (int(part) for part in parts)
+        return behind, ahead

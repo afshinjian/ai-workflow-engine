@@ -365,7 +365,7 @@ def test_load_rejects_duplicate_json_keys(engine_config: EngineConfig) -> None:
     text = paths.metadata.read_text(encoding="utf-8")
     assert text.endswith("\n") and text.rstrip("\n").endswith("}")
     body_without_closing_brace = text.rstrip("\n")[:-1]
-    duplicated = body_without_closing_brace + ',"schema_version":"1.0"}\n'
+    duplicated = body_without_closing_brace + ',"schema_version":"1.1"}\n'
     paths.metadata.write_text(duplicated, encoding="utf-8")
     with pytest.raises(PromptStorageError, match="Duplicate JSON object key"):
         load(rendered.context.config.project.id, rendered.context.stage, rendered.prompt_id)
@@ -577,7 +577,7 @@ def test_stored_prompt_paths_rejects_wrong_type() -> None:
 def test_prompt_success_rejects_wrong_type(engine_config: EngineConfig) -> None:
     rendered = _rendered(engine_config)
     success = PromptSuccess(
-        schema_version="1.0",
+        schema_version="1.1",
         stored=False,
         prompt_artifact=None,
         metadata_artifact=None,
@@ -607,5 +607,17 @@ def test_load_rejects_addressing_field_tamper(engine_config: EngineConfig) -> No
     metadata_final = directory / f"{rendered.prompt_id}.json"
     other_metadata_final = directory / f"{other.prompt_id}.json"
     metadata_final.write_bytes(other_metadata_final.read_bytes())
+    with pytest.raises(PromptStorageError):
+        load(rendered.context.config.project.id, rendered.context.stage, rendered.prompt_id)
+
+
+def test_load_rejects_legacy_1_0_schema_sidecar(engine_config: EngineConfig) -> None:
+    # After the schema bump (T-303), a stored 1.0 sidecar must be rejected on load.
+    rendered = _rendered(engine_config)
+    paths = save(rendered)
+    text = paths.metadata.read_text(encoding="utf-8")
+    tampered = text.replace('"schema_version":"1.1"', '"schema_version":"1.0"')
+    assert tampered != text
+    paths.metadata.write_text(tampered, encoding="utf-8")
     with pytest.raises(PromptStorageError):
         load(rendered.context.config.project.id, rendered.context.stage, rendered.prompt_id)

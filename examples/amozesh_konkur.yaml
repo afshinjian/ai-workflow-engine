@@ -16,7 +16,7 @@ governance:
   facts:
     - name: version
       paths: [docs/PROJECT_STATE.md, pyproject.toml]
-      pattern: '(?:Current Version[^\n]*?|^version\s*=\s*")[^0-9]*(0\.\d+\.\d+)'
+      pattern: '(?:Current Version[^\n]*?|^version\s*=\s*")[^0-9]*(\d+\.\d+\.\d+)'
       required: true
     - name: phase
       paths: [docs/PROJECT_STATE.md, docs/current_task.md]
@@ -43,3 +43,20 @@ workflow:
   require_designer_approval_for_promotion: true
   allow_automatic_commit: false
   allow_automatic_push: false
+
+# Optional Milestone 3 agents. Executables must be absolute paths; existence is checked at run
+# time, not at load. `read-only` agents may take review/closeout stages; `scoped-write` agents may
+# take implementation/remediation; `push` is never permitted for any agent.
+agents:
+  - name: codex-reviewer
+    executable: /usr/bin/codex
+    args: ["review", "--json"]
+    mode: read-only
+    stages: [plan-review, implementation-review, governance-review]
+    timeout_seconds: 900
+  - name: opencode-writer
+    executable: /usr/bin/opencode
+    args: ["run"]
+    mode: scoped-write
+    stages: [implementation, remediation]
+    timeout_seconds: 1800

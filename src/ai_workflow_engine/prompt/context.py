@@ -18,6 +18,8 @@ from ai_workflow_engine.governance.validators import (
 from ai_workflow_engine.handover.validators import HandoverSource, check_handover
 from ai_workflow_engine.models import EngineConfig
 from ai_workflow_engine.prompt.models import (
+    WORKFLOW_STAGES,
+    CanonicalAgentSettings,
     CanonicalCheckResult,
     CanonicalEngineConfig,
     CanonicalFactRule,
@@ -446,12 +448,27 @@ def _canonicalize_config(config: EngineConfig) -> CanonicalEngineConfig:
         allow_automatic_commit=workflow.allow_automatic_commit,
         allow_automatic_push=workflow.allow_automatic_push,
     )
+    canonical_agents = sorted(
+        (
+            CanonicalAgentSettings(
+                name=_nfc(agent.name),
+                executable=agent.executable.as_posix(),
+                args=[_nfc(arg) for arg in agent.args],
+                mode=agent.mode,
+                timeout_seconds=agent.timeout_seconds,
+                stages=sorted(agent.stages, key=WORKFLOW_STAGES.index),
+            )
+            for agent in config.agents
+        ),
+        key=lambda agent: agent.name,
+    )
     return CanonicalEngineConfig(
         project=canonical_project,
         governance=canonical_governance,
         handover=canonical_handover,
         protected_paths=canonical_protected,
         workflow=canonical_workflow,
+        agents=canonical_agents,
     )
 
 
@@ -508,7 +525,7 @@ def build_prompt_context(
     ]
 
     return PromptContext(
-        schema_version="1.0",
+        schema_version="1.1",
         config=canonical_config,
         stage=stage,
         task_id=normalized_task_id,

@@ -16,6 +16,7 @@ from pydantic import ConfigDict, field_validator, model_validator
 from typing_extensions import TypeAliasType
 
 from ai_workflow_engine.models import StrictModel
+from ai_workflow_engine.models import WorkflowStage as WorkflowStage  # re-exported for the package
 
 
 class PromptStrictModel(StrictModel):
@@ -30,16 +31,6 @@ class PromptStrictModel(StrictModel):
 
     model_config = ConfigDict(extra="forbid", strict=True)
 
-
-WorkflowStage = Literal[
-    "plan-review",
-    "implementation",
-    "implementation-review",
-    "remediation",
-    "governance-closeout",
-    "governance-review",
-    "push",
-]
 
 WORKFLOW_STAGES: tuple[WorkflowStage, ...] = (
     "plan-review",
@@ -282,16 +273,54 @@ class CanonicalWorkflowSettings(PromptStrictModel):
     allow_automatic_push: bool
 
 
+_STAGE_INDEX: dict[str, int] = {stage: index for index, stage in enumerate(WORKFLOW_STAGES)}
+
+
+class CanonicalAgentSettings(PromptStrictModel):
+    name: str
+    executable: str
+    args: list[str]
+    mode: Literal["read-only", "scoped-write"]
+    timeout_seconds: int
+    stages: list[str]
+
+    @field_validator("stages")
+    @classmethod
+    def _stages_valid_sorted_unique(cls, value: list[str]) -> list[str]:
+        if not value:
+            raise ValueError("agent stages must be non-empty")
+        if any(stage not in _STAGE_INDEX for stage in value):
+            raise ValueError("agent stages must be workflow stages")
+        if len(set(value)) != len(value):
+            raise ValueError("agent stages must be unique")
+        if value != sorted(value, key=_STAGE_INDEX.__getitem__):
+            raise ValueError("agent stages must be sorted by workflow-stage order")
+        return value
+
+
 class CanonicalEngineConfig(PromptStrictModel):
     project: CanonicalProjectSettings
     governance: CanonicalGovernanceSettings
     handover: CanonicalHandoverSettings
     protected_paths: CanonicalProtectedPathsSettings
     workflow: CanonicalWorkflowSettings
+    agents: list[CanonicalAgentSettings]
+
+    @field_validator("agents")
+    @classmethod
+    def _agents_sorted_unique_by_name(
+        cls, value: list[CanonicalAgentSettings]
+    ) -> list[CanonicalAgentSettings]:
+        names = [agent.name for agent in value]
+        if len(set(names)) != len(names):
+            raise ValueError("agent names must be unique")
+        if names != sorted(names):
+            raise ValueError("agents must be sorted by name")
+        return value
 
 
 class PromptContext(PromptStrictModel):
-    schema_version: Literal["1.0"]
+    schema_version: Literal["1.1"]
     config: CanonicalEngineConfig
     stage: WorkflowStage
     task_id: str
@@ -318,7 +347,7 @@ class PromptContext(PromptStrictModel):
 
 
 class PromptMetadata(PromptStrictModel):
-    schema_version: Literal["1.0"]
+    schema_version: Literal["1.1"]
     prompt_id: str
     project_id: str
     task_id: str
@@ -374,7 +403,7 @@ class StoredPromptPaths(PromptStrictModel):
 
 
 class PromptSuccess(PromptStrictModel):
-    schema_version: Literal["1.0"]
+    schema_version: Literal["1.1"]
     stored: bool
     prompt_artifact: str | None
     metadata_artifact: str | None

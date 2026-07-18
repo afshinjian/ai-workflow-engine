@@ -16,7 +16,7 @@ governance:
   facts:
     - name: version
       paths: [docs/PROJECT_STATE.md, pyproject.toml]
-      pattern: '(?:Current Version[^\n]*?|^version\s*=\s*")[^0-9]*(0\.\d+\.\d+)'
+      pattern: '(?:Current Version[^\n]*?|^version\s*=\s*")[^0-9]*(\d+\.\d+\.\d+)'
       required: true
 
 handover:
@@ -33,3 +33,7 @@ workflow:
   require_designer_approval_for_promotion: true
   allow_automatic_commit: false
   allow_automatic_push: false
+
+# No non-interactive agents are configured for this repository yet; Milestone 3's runner
+# (T-304+) is not wired to a live agent binary. The empty list is explicit for clarity.
+agents: []

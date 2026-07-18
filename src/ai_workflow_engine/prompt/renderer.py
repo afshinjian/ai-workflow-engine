@@ -201,7 +201,7 @@ def render_prompt(context: PromptContext) -> RenderedPrompt:
     markdown_bytes = markdown.encode("utf-8", errors="strict")
     markdown_sha256 = hashlib.sha256(markdown_bytes).hexdigest()
     metadata = PromptMetadata(
-        schema_version="1.0",
+        schema_version="1.1",
         prompt_id=prompt_id,
         project_id=context.config.project.id,
         task_id=context.task_id,

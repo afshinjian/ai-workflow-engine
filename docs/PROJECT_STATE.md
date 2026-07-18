@@ -5,44 +5,59 @@ Overall condition of `ai-workflow-engine`. This document is a governance mirror
 `version` fact — it is cross-checked against `pyproject.toml` by `workflowctl check-governance`,
 so keep the version line's wording exact if you edit it.
 
-Current Version: 0.1.0
+Current Version: 1.0.0
 
 ## Summary
 
 `ai-workflow-engine` is a local orchestration foundation for governed AI-assisted software
-development: deterministic, read-only inspection first, then governed prompt generation, with
-agent execution and controlled commit/push explicitly deferred until each prior layer is proven.
-See `docs/milestones.md` for the full four-milestone roadmap and `docs/architecture.md` for the
-inspection pipeline shape.
+development: deterministic read-only inspection, governed prompt generation, non-interactive
+agent execution with independent claim verification and a persisted workflow state machine, and
+approval-gated controlled commit and push. All four milestones are implemented. See
+`docs/milestones.md` for the four-milestone roadmap, `docs/MASTER_ROADMAP.md` for the task-level
+plan to 1.0, and `docs/architecture.md` for the pipeline shapes.
 
 ## Completed
 
 - Milestone 1 (v0.1.0, released 2026-07-16): deterministic read-only Git inspection, governance
   and task-state mirror checks, source-aware handover checksum verification, protected paths,
   structured CLI/JSON results.
-- Milestone 2 (approved, not yet committed): governed prompt generation — deterministic,
+- Milestone 2 (approved; committed locally 2026-07-17): governed prompt generation — deterministic,
   canonically-hashed rendering/validation/atomic storage for all seven workflow stages, plus the
   `workflowctl prompt <stage>` CLI surface. Passed three independent fresh implementation
   reviews; two real defects found and fixed along the way (see `docs/DECISION_LOG.md`).
 - GOV-1 (closed 2026-07-17): the self-governance layer — this document and its siblings —
   validated end-to-end in `docs/VALIDATION_REPORT.md` and formally closed via task T-101.
+- Milestone 3 (v0.2.0, 2026-07-18): non-interactive agent execution — a persisted, hash-chained
+  workflow state machine (`workflowctl state`), the `agents` config section + strict report
+  contract, a snapshot-sandbox runner with hard timeouts and isolation, and independent claim
+  verification with tamper-evident run artifacts (`workflowctl agent run`). Each task (T-301..
+  T-306) passed independent review; the normative plan is `docs/milestone-3-plan.md` and the
+  demonstration is `docs/MILESTONE_3_VALIDATION.md`.
+- Milestone 4 (released in v1.0.0, 2026-07-18): controlled commit and push — a separate typed
+  writable-Git surface (`GitWriter`, read-only `GitClient` untouched), per-invocation human
+  approval artifacts, and the `workflowctl commit` / `push` / `apply-patch` gates. Each task
+  (T-401..T-404) passed independent review (the plan review took two rounds); normative plan
+  `docs/milestone-4-plan.md`, demonstration `docs/MILESTONE_4_VALIDATION.md`. This completes all
+  four milestones of `docs/milestones.md`.
+- Version 1.0.0 (T-501, 2026-07-18): the approved roadmap is 100% complete. The `version`-fact
+  regex was widened so `check-governance` extracts a `1.x` version; full summary in
+  `docs/FINAL_COMPLETION_REPORT.md`.
 
 ## In progress
 
-Stage 0 of the approved master roadmap (`docs/MASTER_ROADMAP.md`, human-approved 2026-07-17):
-documentation synchronization (T-102) and lightweight CI (T-103) are next; see
-`docs/current_task.md` for the exact Current set at any moment.
+Nothing is in progress: the entire approved roadmap (`docs/MASTER_ROADMAP.md`) is complete and the
+project is at version 1.0.0. There is no `Current` task.
 
 ## Planned
 
-- Non-interactive agent execution (Codex read-only review, scoped OpenCode writes) — M-3.
-- Controlled, approval-gated commit and push — M-4.
-- Version 1.0.0 release (T-501).
-
-Full detail: `docs/remaining_tasks.md`, `docs/MASTER_ROADMAP.md`, and `docs/milestones.md`.
+Nothing remains in the approved roadmap. Candidate future work (explicitly out of the delivered
+scope) is listed in `docs/FINAL_COMPLETION_REPORT.md` under "Future improvements".
 
 ## Blockers
 
-None currently. The human approved (2026-07-17) creating one local git commit to preserve the
-validated working tree before Milestone 3 begins — no push, no remote branch. Pushing still
-requires separate explicit approval per `docs/AGENT_PROTOCOL.md`.
+None currently. One human-approved local commit (preserving Milestone 2, GOV-1, and Stage 0)
+exists from 2026-07-17. Everything since — Stage 0's T-104 and all of Milestones 3 and 4, up to
+and including the 1.0.0 release — is uncommitted in the working tree, awaiting a fresh commit
+decision from the human; `main` is one commit ahead of `origin/main` and nothing has been pushed.
+Committing and pushing each require explicit human approval per `docs/AGENT_PROTOCOL.md` — the
+very gates Milestone 4 now provides.
