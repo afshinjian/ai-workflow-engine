@@ -1,0 +1,12 @@
+ docs/implementation/orchestration/decision-log.md  |  77 +++++++
+ ...20T181000Z-claude-code-remediator-e27efbe4.yaml | 248 ++++++++++++++++++++
+ ...ode-remediator-e27efbe4-workflowctl-verify.json | 256 +++++++++++++++++++++
+ .../ORCH-000/logs/environment-fingerprint.txt      |   5 +
+ .../evidence/ORCH-000/logs/git-rev-parse-head.txt  |   1 +
+ .../evidence/ORCH-000/logs/git-status.txt          |   7 +
+ .../evidence/ORCH-000/logs/pytest.txt              |  11 +
+ .../evidence/ORCH-000/logs/validate-orch-state.txt |   1 +
+ ...0720T181000Z-claude-code-remediator-e27efbe4.md | 223 ++++++++++++++++++
+ .../orchestration/implementation-state.yaml        |  75 ++++--
+ .../orchestration/stages/ORCH-000.md               |  61 ++++-
+ 11 files changed, 945 insertions(+), 20 deletions(-)

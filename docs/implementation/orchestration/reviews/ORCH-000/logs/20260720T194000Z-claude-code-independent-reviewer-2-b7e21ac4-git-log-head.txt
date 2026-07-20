@@ -1,0 +1,8 @@
+020d03643e5ad56ad142a3527831ff37e52f5dfd afshin_jian Mon Jul 20 21:46:47 2026 +0330 docs: remediate ORCH-000 stage contract
+17111c781072260a51d08ba077fed8fba8b8dcd6 afshin_jian Mon Jul 20 21:23:08 2026 +0330 docs: record ORCH-000 review rejection
+46898ec943e94d63f15a1ba33e2b0c05e82d6223 afshin_jian Mon Jul 20 20:39:57 2026 +0330 docs: bootstrap ORCH-000 verification state
+a676e0bc128494085f85f8f79f62aa8aac64bbd1 afshin_jian Mon Jul 20 18:54:33 2026 +0330 docs: add orchestration architecture v3 and staged implementation plan
+382dabde15dca40fcd8abe6f09c12b8dd3c12984 afshin_jian Sat Jul 18 22:08:25 2026 +0330 feat: complete Milestone 3 (agent execution), Milestone 4 (commit/push gates), and 1.0.0 roadmap closeout
+3087758e208a4620f5c8a1c26266ba497bb31506 afshin_jian Fri Jul 17 21:37:17 2026 +0330 feat: add governed prompt generation (M-2), self-governance layer, and 1.0 roadmap
+2757cdbf322f0c64fa586f770161f108ec4604e3 afshin_jian Thu Jul 16 12:07:21 2026 +0330 feat: add deterministic Milestone 1 inspection and validation
+3f52a473a2e82c29b3577024e1c0358828c59e67 afshin_jian Wed Jul 15 23:37:50 2026 +0330 chore: initialize AI workflow engine

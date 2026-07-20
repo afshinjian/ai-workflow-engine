@@ -1,0 +1,391 @@
+schema_name: orchestration-review-evidence
+schema_version: 1.0.0
+feature_id: ORCH
+stage_id: ORCH-000
+review_id: 20260720T194000Z-claude-code-independent-reviewer-2-b7e21ac4
+reviewer:
+  actor: claude-code-independent-reviewer-2
+  role: REVIEWER
+started_at: '2026-07-20T19:20:00Z'
+finished_at: '2026-07-20T19:40:00Z'
+independence_declaration: >
+  This review session has no memory of and did not participate in any prior
+  ORCH-000 session. Reviewer identity (claude-code-independent-reviewer-2)
+  differs from every implementer/remediator/reviewer actor recorded for this
+  candidate: claude-code-bootstrap (original implementer),
+  claude-code-independent-reviewer (prior rejecting reviewer), and
+  claude-code-remediator (remediation session). No self-review occurred. This
+  review relies only on committed repository state, not on chat history.
+reviewed:
+  implementation_ids:
+    - 20260720T164147Z-claude-code-bootstrap-d24e29f6
+    - 20260720T181000Z-claude-code-remediator-e27efbe4
+  design_package_commit: a676e0bc128494085f85f8f79f62aa8aac64bbd1
+  implementation_commit: 020d03643e5ad56ad142a3527831ff37e52f5dfd
+  note: >
+    This is the independent re-review of ORCH-000 after the remediation
+    commit 020d036 (which itself followed the prior rejection commit 17111c7).
+    Per session-protocol.md section 1.6, current clean HEAD (020d036) is the
+    implementation commit reviewed here. The design-package commit a676e0b is
+    unchanged from both prior sessions.
+preflight:
+  repository_root: /home/afshin-jian/ai-workflow-engine
+  branch: main
+  head: 020d03643e5ad56ad142a3527831ff37e52f5dfd
+  upstream: origin/main
+  ahead: 0
+  behind: 0
+  tree: CLEAN
+  index: CLEAN
+  merge_rebase_cherrypick_bisect: NONE_ACTIVE
+  orchestration_feature_lock: NOT_FOUND
+  prior_orch_000_reviews:
+    - reviews/ORCH-000/20260720T172520Z-claude-code-independent-reviewer-59f68d54.yaml
+  stage_status_at_start: VERIFIED
+  stage_review_status_at_start: PENDING
+  prerequisites: []
+  prerequisites_satisfied: true
+scope_diff:
+  compared: [17111c7, 020d036]
+  changed_paths_count: 11
+  stat_digest: sha256:ef5339f72455d0c5b5c48e29e5a278d07a0b4b4fedde6c4e7585a7e2521f5391
+  stage_declared_allowed_paths_at_head:
+    - docs/implementation/orchestration/evidence/ORCH-000/
+    - docs/implementation/orchestration/reviews/ORCH-000/
+    - docs/implementation/orchestration/handoffs/ORCH-000/
+    - implementation-state.yaml
+  changed_paths:
+    - docs/implementation/orchestration/decision-log.md
+    - docs/implementation/orchestration/evidence/ORCH-000/20260720T181000Z-claude-code-remediator-e27efbe4.yaml
+    - docs/implementation/orchestration/evidence/ORCH-000/logs/20260720T181000Z-claude-code-remediator-e27efbe4-workflowctl-verify.json
+    - docs/implementation/orchestration/evidence/ORCH-000/logs/environment-fingerprint.txt
+    - docs/implementation/orchestration/evidence/ORCH-000/logs/git-rev-parse-head.txt
+    - docs/implementation/orchestration/evidence/ORCH-000/logs/git-status.txt
+    - docs/implementation/orchestration/evidence/ORCH-000/logs/pytest.txt
+    - docs/implementation/orchestration/evidence/ORCH-000/logs/validate-orch-state.txt
+    - docs/implementation/orchestration/handoffs/ORCH-000/20260720T181000Z-claude-code-remediator-e27efbe4.md
+    - docs/implementation/orchestration/implementation-state.yaml
+    - docs/implementation/orchestration/stages/ORCH-000.md
+  out_of_scope_changed_paths:
+    - docs/implementation/orchestration/decision-log.md
+    - docs/implementation/orchestration/stages/ORCH-000.md
+  note: >
+    docs/implementation/orchestration/implementation-state.yaml is allowed
+    (stage spec names it without the docs/... prefix but it is the same file).
+    decision-log.md and stages/ORCH-000.md itself are not named anywhere in
+    ORCH-000's own "Exact allowed files or directories" list, even after this
+    commit amended that very list. See findings F-4/F-5/F-6.
+commands:
+  - argv: [git, rev-parse, HEAD]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:0d6e74724963b17537f54a1763b13f55e227cde4d55e5d4ca75080b3867055a5
+    exit_code: 0
+    stdout_artifact: reviews/ORCH-000/logs/20260720T194000Z-claude-code-independent-reviewer-2-b7e21ac4-git-rev-parse-head.txt
+    stdout_digest: sha256:980b465803b5aabcaa3926a301772c6309d0b3c170e9bbb6495a8254514d8bb7
+    result: '020d03643e5ad56ad142a3527831ff37e52f5dfd'
+    purpose: Confirm current HEAD equals the remediation commit under review.
+  - argv: [git, status, --porcelain, -b]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:0d6e74724963b17537f54a1763b13f55e227cde4d55e5d4ca75080b3867055a5
+    exit_code: 0
+    stdout_artifact: reviews/ORCH-000/logs/20260720T194000Z-claude-code-independent-reviewer-2-b7e21ac4-git-status.txt
+    stdout_digest: sha256:5fbcb2990ad25e368c12219bf3ddca36e464d044e7acac16696fa8cd54159185
+    purpose: >
+      Confirm working tree/index clean on branch main, in sync with
+      origin/main, before review. Digest is byte-identical to every prior
+      session's clean-tree digest for this same command (content-based, not
+      identity-based; expected for an unchanged porcelain message).
+  - argv: [git, show, --stat, '020d036']
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:0d6e74724963b17537f54a1763b13f55e227cde4d55e5d4ca75080b3867055a5
+    exit_code: 0
+    stdout_artifact: reviews/ORCH-000/logs/20260720T194000Z-claude-code-independent-reviewer-2-b7e21ac4-git-show-stat-020d036.txt
+    stdout_digest: sha256:ef5339f72455d0c5b5c48e29e5a278d07a0b4b4fedde6c4e7585a7e2521f5391
+    result: '11 files changed, 945 insertions(+), 20 deletions(-)'
+    purpose: Independently reproduce the remediation commit's exact changed-path set.
+  - argv: [git, diff, --stat, '17111c7', '020d036']
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:0d6e74724963b17537f54a1763b13f55e227cde4d55e5d4ca75080b3867055a5
+    exit_code: 0
+    stdout_artifact: reviews/ORCH-000/logs/20260720T194000Z-claude-code-independent-reviewer-2-b7e21ac4-git-diff-17111c7-020d036-stat.txt
+    stdout_digest: sha256:4a39e876fade146f795a060a65a02245044c99c8acc41393809fbd74663fef91
+    purpose: Cross-check remediation-session scope diff against ORCH-000.md allowed paths.
+  - argv: [workflowctl, verify, --config, self-governance.yaml, --output, json]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:0d6e74724963b17537f54a1763b13f55e227cde4d55e5d4ca75080b3867055a5
+    exit_code: 0
+    stdout_artifact: reviews/ORCH-000/logs/20260720T194000Z-claude-code-independent-reviewer-2-b7e21ac4-workflowctl-verify.json
+    stdout_digest: sha256:41c111fb4d98c25d6967c0a6513ea91af1e599c2ad6fe27e6cf0e7084cdfcfca
+    result_overall_status: PASS
+    purpose: Independent repository governance re-verification at current HEAD.
+  - argv: [pytest, -q]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:0d6e74724963b17537f54a1763b13f55e227cde4d55e5d4ca75080b3867055a5
+    exit_code: 0
+    stdout_artifact: reviews/ORCH-000/logs/20260720T194000Z-claude-code-independent-reviewer-2-b7e21ac4-pytest.txt
+    stdout_digest: sha256:55290733156850ca8aa6cd9971882c2652f8a9fa5ad63ab3afd42ecd28040ebe
+    result: '684 passed, 0 failed, 0 skipped'
+    purpose: Rerun full regression suite; matches every prior session's recorded 684 passed / 0 failed exactly.
+  - argv: [python3, /tmp/claude-1000/-home-afshin-jian-ai-workflow-engine/70e8c07a-5451-4984-917e-3b472bf8da5f/scratchpad/review-logs/validate_orch_state_review2.py]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:0d6e74724963b17537f54a1763b13f55e227cde4d55e5d4ca75080b3867055a5
+    exit_code: 0
+    stdout_artifact: reviews/ORCH-000/logs/20260720T194000Z-claude-code-independent-reviewer-2-b7e21ac4-validate-orch-state.txt
+    stdout_digest: sha256:2957547e974a05872115affa94f295ebcfd4d24e2254baef6ec63cacdbaabafc
+    result: >
+      STRUCTURAL PASS: 28 stages, delivery_order length 28, 28 plan rows, 28
+      stage files, acyclic, valid topology, 9 contiguous history entries,
+      next_eligible_stage recomputes to ORCH-000 (matches recorded). SCOPE
+      FINDING: commit 020d036 changes decision-log.md and stages/ORCH-000.md,
+      neither of which appears in stages/ORCH-000.md's own "Exact allowed
+      files or directories" list even after that list was amended by this
+      same commit.
+    purpose: >
+      Independent, freshly-written (not reused from any prior session's
+      scratch tooling) reproduction of implementation-state.yaml's
+      required/const/enum/pattern shape, stage-key cardinality, delivery_order
+      set-equality/uniqueness/acyclicity/topology, history contiguity,
+      next_eligible_stage recomputation, and an explicit cross-check of the
+      remediation commit's changed-path set against ORCH-000.md's own
+      declared allowed-paths list. Script not committed to the repository
+      (scratch tooling only, per the convention used by every prior session on
+      this candidate).
+checklist:
+  - item: Clean committed implementation HEAD
+    result: PASS
+    notes: HEAD 020d03643e5ad56ad142a3527831ff37e52f5dfd, tree/index clean, in sync with origin/main (0 ahead/0 behind).
+  - item: Stage status VERIFIED before review
+    result: PASS
+  - item: Evidence complete (ImplementationEvidence 1.0.0 required fields)
+    result: PASS
+    notes: Both retained evidence records (bootstrap and remediation) carry all required fields.
+  - item: Prerequisites REVIEW_APPROVED
+    result: PASS
+    notes: ORCH-000 has no prerequisites (vacuously satisfied).
+  - item: Reviewer identity independence
+    result: PASS
+    notes: claude-code-independent-reviewer-2 differs from claude-code-bootstrap, claude-code-independent-reviewer, and claude-code-remediator.
+  - item: Verification commands reproduce recorded results
+    result: PASS
+    notes: git status digest byte-identical across all sessions; pytest count (684/0/0) identical across all three sessions; workflowctl verify PASS.
+  - item: Remediation session honored its own operative scope instruction (remediate-rejected.md)
+    result: FAIL
+    notes: >
+      remediate-rejected.md's operative instruction is explicit: "Fix only the
+      cited findings within the original or narrower allowed path scope. If a
+      fix requires wider scope or a contract/plan change, stop and record
+      BLOCKED for reviewed replanning." F-2 (the prior rejection) is precisely
+      a contract/plan defect requiring a change to stages/ORCH-000.md. The
+      remediation session did not stop or record BLOCKED; it amended
+      stages/ORCH-000.md and decision-log.md directly in the same session.
+      See F-4.
+  - item: Remediation session scope matches session-protocol.md section 6 ("changes only the original or narrower allowed scope")
+    result: FAIL
+    notes: >
+      session-protocol.md section 6 permits a remediation session only
+      "the original or narrower allowed scope" -- never wider. This
+      remediation both widened ORCH-000's own allowed-paths list (adding
+      evidence/ORCH-000/) and wrote to two paths (decision-log.md,
+      stages/ORCH-000.md) that are outside any allowed-paths list that ever
+      existed for this stage, before or after the amendment. See F-4/F-6.
+  - item: decision-log.md's own append rule honored ("Changes require an architecture/plan version increment and review")
+    result: FAIL
+    notes: >
+      decision-log.md's unchanged header states new entries require an
+      architecture/plan version increment and review. D3-016 was appended
+      with architecture_version and plan_version both unchanged
+      (3.0.0/1.0.0), by the remediation session's own admission. See F-5.
+  - item: Plan-level amendment authorized by a distinct ARCHITECT-role action recorded in state history
+    result: FAIL
+    notes: >
+      implementation-state.schema.yaml defines a distinct ARCHITECT role
+      precisely for this kind of action. history sequences 7-9 (the only new
+      entries since the rejection) are all role REMEDIATOR, actor
+      claude-code-remediator. No ARCHITECT or HUMAN_OWNER history entry
+      authorizes the stages/ORCH-000.md / decision-log.md amendment,
+      unlike history sequence 2 (RESOLVED_DESIGN_PACKAGE_NOT_COMMITTED,
+      role HUMAN_OWNER) which is the repository's own precedent for how an
+      out-of-band authorization is supposed to be durably recorded. See F-4.
+  - item: Changed-path scope matches stage spec's exact allowed paths (post-amendment)
+    result: FAIL
+    notes: >
+      decision-log.md and stages/ORCH-000.md are changed by commit 020d036
+      but are absent from stages/ORCH-000.md's own "Exact allowed files or
+      directories" line even after that line was rewritten by the same
+      commit. See F-6.
+  - item: Architecture authority (component authority table, no runtime/task-queue authority conflict)
+    result: PASS
+    notes: Unchanged from the prior review; architecture-v3.md section 3 still scopes this package correctly against self-governance.yaml/TASK_QUEUE.md.
+  - item: Recovery design present and coherent
+    result: PASS
+    notes: Unchanged from the prior review; architecture-v3.md section 9 traced from D3-006.
+  - item: Signature/commit circularity
+    result: PASS
+    notes: >
+      Design-package commit (a676e0b) and every subsequent evidence/state
+      commit remain properly sequenced; no commit's content embeds its own
+      OID. The two-commit pattern (uncommitted diff -> human commit -> next
+      session reads committed HEAD) was followed across bootstrap -> review
+      -> remediation -> this review.
+  - item: Stage completeness (deliverable count matches package)
+    result: PASS
+    notes: F-3 corrected; stages/ORCH-000.md now reads "all 28 deliverables," matching the independently-confirmed 28 stages/plan rows/stage files.
+  - item: Command-log artifact durability (referenced logs are actually committed, not gitignored)
+    result: FAIL
+    notes: >
+      Non-blocking, pre-existing. The prior rejecting review's own evidence
+      YAML (20260720T172520Z-...) references 7 of 8 stdout_artifact paths
+      under reviews/ORCH-000/logs/ with a .log extension; the repository root
+      .gitignore excludes *.log and only
+      reviews/ORCH-000/logs/workflowctl-verify.json was ever actually
+      committed (commit 17111c7's own diffstat lists only that one log file).
+      The other 7 referenced artifacts exist only as untracked, gitignored
+      files in whatever working tree wrote them; a clean clone at 17111c7 or
+      020d036 does not contain them. Pre-dates and is unrelated to F-1..F-6;
+      recorded here as F-7 for completeness, not blocking this verdict.
+findings:
+  - id: F-4
+    severity: HIGH
+    blocking: true
+    path: docs/implementation/orchestration/stages/ORCH-000.md
+    location: "Exact allowed files or directories section; commit 020d036 as a whole"
+    summary: >
+      The REMEDIATOR session amended stages/ORCH-000.md and decision-log.md
+      directly, on its own authority, to resolve the prior REVIEW_REJECTED
+      findings F-1/F-2 -- but its own operative instructions
+      (prompts/remediate-rejected.md: "Fix only the cited findings within the
+      original or narrower allowed path scope. If a fix requires wider scope
+      or a contract/plan change, stop and record BLOCKED for reviewed
+      replanning.") and session-protocol.md section 6 ("changes only the
+      original or narrower allowed scope... It cannot erase prior evidence")
+      both required it to stop and record BLOCKED instead, since F-2 is
+      squarely a contract/plan defect. No ARCHITECT- or HUMAN_OWNER-role
+      history entry authorizes this amendment; implementation-state.yaml
+      history sequences 7-9 are all role REMEDIATOR / actor
+      claude-code-remediator, unlike the repository's own precedent for
+      out-of-band authorization (history sequence 2,
+      RESOLVED_DESIGN_PACKAGE_NOT_COMMITTED, role HUMAN_OWNER). Framing an
+      unauthorized plan/governance-document edit as "authorized... under
+      direct task instruction, not self-authorized rationale" (this
+      remediation's own DEC-R1) is not distinguishable, from the durable
+      repository record alone, from the exact self-authorization pattern
+      that F-1 already rejected once -- it has simply moved one level up, from
+      widening a stage's evidence path to rewriting the stage contract and
+      the decision log that are supposed to constrain that widening in the
+      first place.
+    failure_mode: >
+      If this pattern is accepted, any REMEDIATOR facing an inconvenient
+      contract defect can "fix" it by rewriting the contract itself and
+      documenting its own rationale for why that was allowed, permanently
+      defeating the BLOCKED/reviewed-plan-amendment gate that
+      implementation-plan.md section 1 and session-protocol.md section 8
+      exist to enforce. A fresh session reproducing this candidate from
+      repository state alone has no way to distinguish a legitimately
+      reviewed plan amendment from a REMEDIATOR's own unilateral one, since
+      both leave the same shape of evidence (a decision-log entry with
+      rationale, authored by the acting session).
+  - id: F-5
+    severity: HIGH
+    blocking: true
+    path: docs/implementation/orchestration/decision-log.md
+    location: "Header (lines 1-4); new entry D3-016"
+    summary: >
+      decision-log.md's own unchanged header states: "Entries are append-only.
+      Changes require an architecture/plan version increment and review;
+      implementation sessions cannot rewrite accepted decisions." Entry D3-016
+      was appended by the remediation session with architecture_version
+      (3.0.0) and plan_version (1.0.0) both left unchanged -- confirmed by
+      diffing implementation-state.yaml between 17111c7 and 020d036, and by
+      the remediation's own handoff, which states this as a deliberate choice
+      ("architecture_version (3.0.0) and plan_version (1.0.0) remain the
+      schema-pinned constants... unaffected"). The decision log's own stated
+      precondition for accepting new entries was not met.
+    failure_mode: >
+      The one document meant to be the durable, tamper-evident record of
+      accepted architecture/plan changes can now be appended to without the
+      version increment it itself requires, by the same class of session
+      (REMEDIATOR) that implementation-plan.md and session-protocol.md
+      restrict to narrower-than-original scope. This defeats decision-log.md's
+      purpose as a gate against exactly this kind of unreviewed change.
+  - id: F-6
+    severity: HIGH
+    blocking: true
+    path: docs/implementation/orchestration/stages/ORCH-000.md
+    location: "Exact allowed files or directories section (post-amendment)"
+    summary: >
+      Independently confirmed via `git diff --name-only 17111c7 020d036` and a
+      freshly-written cross-check script: commit 020d036 changes
+      docs/implementation/orchestration/decision-log.md and
+      docs/implementation/orchestration/stages/ORCH-000.md itself. Neither
+      path is named in stages/ORCH-000.md's "Exact allowed files or
+      directories" line, which -- even after this same commit rewrote that
+      line -- lists only evidence/ORCH-000/, reviews/ORCH-000/,
+      handoffs/ORCH-000/ and implementation-state.yaml. This is the exact
+      "changed paths exceed the stage scope" fail-closed condition
+      session-protocol.md section 8 names as requiring BLOCKED, applied to
+      the remediation commit itself rather than the original bootstrap
+      commit.
+    failure_mode: >
+      A stage specification that authorizes its own contents' evidence paths
+      but never authorizes anyone to edit the specification file itself (or
+      the decision log recording why it changed) has no internally-consistent
+      route by which any session could legitimately amend it -- the same
+      category of hidden lifecycle gap stages/ORCH-000.md's own Risks section
+      already once required rejecting, now reproduced in the amendment meant
+      to fix it.
+  - id: F-7
+    severity: LOW
+    blocking: false
+    path: docs/implementation/orchestration/reviews/ORCH-000/logs/
+    location: "20260720T172520Z-claude-code-independent-reviewer-59f68d54.yaml commands[*].stdout_artifact"
+    summary: >
+      Pre-existing, not introduced by the remediation under review. The prior
+      rejecting review's evidence YAML references 8 stdout_artifact paths
+      under reviews/ORCH-000/logs/, 7 of which use a .log extension excluded
+      by the repository root .gitignore. Commit 17111c7's own diffstat shows
+      only reviews/ORCH-000/logs/workflowctl-verify.json was actually
+      committed; the other 7 referenced logs are not part of any committed
+      tree. Should be corrected (re-captured under non-.log extensions and
+      committed) alongside any future remediation, but does not by itself
+      change this verdict.
+verdict: REJECTED
+resulting_state_transition:
+  stage_id: ORCH-000
+  from: VERIFIED
+  to: REVIEW_REJECTED
+review_time: '2026-07-20T19:40:00Z'
+remediation_scope: >
+  A REMEDIATOR session, distinct from claude-code-bootstrap,
+  claude-code-independent-reviewer, claude-code-remediator, and this reviewer
+  (claude-code-independent-reviewer-2), must not itself rewrite
+  stages/ORCH-000.md or decision-log.md again. It has two legal paths: (a)
+  stop and record BLOCKED, per remediate-rejected.md's own instruction, and
+  obtain a plan amendment carried out and recorded as a distinct ARCHITECT (or
+  HUMAN_OWNER) role action in implementation-state.yaml history -- durably
+  showing, the way history sequence 2 already does for the
+  DESIGN_PACKAGE_NOT_COMMITTED case, that the amendment did not originate from
+  the same actor/session doing the remediation -- and, if decision-log.md is
+  touched, increment architecture_version or plan_version as decision-log.md's
+  own header requires; or (b) avoid a stages/ORCH-000.md contract change
+  entirely by pursuing the alternative the original rejection's
+  remediation_scope already named: restate ORCH-000's lifecycle so it reaches
+  a review-eligible state using only reviews/ORCH-000/, handoffs/ORCH-000/ and
+  implementation-state.yaml, without ever needing evidence/ORCH-000/ or a
+  stage-file amendment. Either path must also correct F-7 (re-capture and
+  commit the prior review's command logs under non-.log extensions) before
+  the next independent review. The remediation may not re-litigate this
+  verdict or F-1/F-2/F-3's original substance, which the amendment content
+  itself still correctly resolves conceptually -- the defect found here is
+  entirely about who had authority to make that amendment and how, not about
+  whether "25 deliverables" should read "28" or whether evidence/ORCH-000/
+  should eventually be authorized.
+next_eligible_stage_computed: ORCH-000
+next_eligible_stage_note: >
+  ORCH-000 remains the sole eligible stage (empty prerequisite set, not yet
+  REVIEW_APPROVED). No ORCH-001+ stage is implementation-eligible. This review
+  does not implement the next stage.
+commit_push_authority: >
+  This review session did not commit or push. Per session-protocol.md section
+  3/5, a human must commit this review evidence, the rejection handoff and the
+  implementation-state.yaml update as one diff before any further session may
+  act on it.

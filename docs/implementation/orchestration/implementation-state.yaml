@@ -44,7 +44,7 @@ delivery_order:
   - ORCH-026
   - ORCH-027
 stages:
-  ORCH-000: {title: Independent v3 design review, status: VERIFIED, prerequisites: [], expected_base_head: 17111c781072260a51d08ba077fed8fba8b8dcd6, implementation_commit: null, implementer: claude-code-remediator, review_status: PENDING, reviewer: claude-code-independent-reviewer, verification_status: PASSED, evidence: [evidence/ORCH-000/20260720T164147Z-claude-code-bootstrap-d24e29f6.yaml, evidence/ORCH-000/20260720T181000Z-claude-code-remediator-e27efbe4.yaml], review_evidence: [reviews/ORCH-000/20260720T172520Z-claude-code-independent-reviewer-59f68d54.yaml], handoff: handoffs/ORCH-000/20260720T181000Z-claude-code-remediator-e27efbe4.md, blockers: []}
+  ORCH-000: {title: Independent v3 design review, status: REVIEW_REJECTED, prerequisites: [], expected_base_head: 17111c781072260a51d08ba077fed8fba8b8dcd6, implementation_commit: 020d03643e5ad56ad142a3527831ff37e52f5dfd, implementer: claude-code-remediator, review_status: REJECTED, reviewer: claude-code-independent-reviewer-2, verification_status: PASSED, evidence: [evidence/ORCH-000/20260720T164147Z-claude-code-bootstrap-d24e29f6.yaml, evidence/ORCH-000/20260720T181000Z-claude-code-remediator-e27efbe4.yaml], review_evidence: [reviews/ORCH-000/20260720T172520Z-claude-code-independent-reviewer-59f68d54.yaml, reviews/ORCH-000/20260720T194000Z-claude-code-independent-reviewer-2-b7e21ac4.yaml], handoff: handoffs/ORCH-000/20260720T194000Z-claude-code-independent-reviewer-2-b7e21ac4.md, blockers: []}
   ORCH-001: {title: Durable feature-state validator, status: NOT_STARTED, prerequisites: [ORCH-000], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
   ORCH-002: {title: Schema registry and CLI v2 envelope, status: NOT_STARTED, prerequisites: [ORCH-001], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
   ORCH-003: {title: Legacy readers and migration framework, status: NOT_STARTED, prerequisites: [ORCH-002], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
@@ -99,9 +99,25 @@ unresolved_risks:
     summary: One bootstrap session both resolved the top-level DESIGN_PACKAGE_NOT_COMMITTED blocker and acted as ORCH-000's implementer through VERIFIED; it recorded no review verdict.
     disposition: The independent ORCH-000 reviewer must be a distinct actor/session from claude-code-bootstrap, per session-protocol.md reviewer-independence rule.
   - id: R-REMEDIATION-AMENDMENT-UNREVIEWED
-    severity: MEDIUM
-    summary: The stages/ORCH-000.md evidence-path/lifecycle amendment (decision-log.md D3-016) that resolved review findings F-1/F-2 was authored by the REMEDIATOR session itself and has not yet been independently reviewed; the retained bootstrap evidence was ratified as admissible under the corrected contract by the same session.
-    disposition: The next independent ORCH-000 reviewer, who must differ from claude-code-bootstrap, claude-code-independent-reviewer and claude-code-remediator, must assess both the stage-contract amendment and the remediation evidence before recording REVIEW_APPROVED or REVIEW_REJECTED.
+    severity: HIGH
+    summary: >-
+      Realized, not merely anticipated: the stages/ORCH-000.md
+      evidence-path/lifecycle amendment (decision-log.md D3-016) that
+      resolved review findings F-1/F-2 was authored by the REMEDIATOR
+      session itself, with no ARCHITECT/HUMAN_OWNER-role history entry
+      authorizing it, and in direct contradiction of
+      prompts/remediate-rejected.md's own instruction to stop and record
+      BLOCKED for a contract/plan change. Independently reviewed at HEAD
+      020d036 and rejected (F-4/F-5/F-6 in
+      reviews/ORCH-000/20260720T194000Z-claude-code-independent-reviewer-2-b7e21ac4.yaml).
+    disposition: >-
+      The next REMEDIATOR must not repeat a self-authored stage-contract
+      amendment. It must either obtain a durably-recorded ARCHITECT- or
+      HUMAN_OWNER-role plan-amendment history entry (distinct from the
+      remediating session/actor) before touching stages/ORCH-000.md or
+      decision-log.md, incrementing architecture_version or plan_version if
+      decision-log.md is touched, or reach VERIFIED via the narrower
+      alternative that never amends the stage contract at all.
 history:
   - sequence: 1
     at: '2026-07-19T00:00:00+00:00'
@@ -178,34 +194,49 @@ history:
     to: VERIFIED
     evidence: [evidence/ORCH-000/20260720T181000Z-claude-code-remediator-e27efbe4.yaml,
       handoffs/ORCH-000/20260720T181000Z-claude-code-remediator-e27efbe4.md]
+  - sequence: 10
+    at: '2026-07-20T19:40:00Z'
+    actor: claude-code-independent-reviewer-2
+    role: REVIEWER
+    action: REVIEW_REJECTED_ORCH_000_REMEDIATION
+    from: VERIFIED
+    to: REVIEW_REJECTED
+    evidence: [reviews/ORCH-000/20260720T194000Z-claude-code-independent-reviewer-2-b7e21ac4.yaml,
+      handoffs/ORCH-000/20260720T194000Z-claude-code-independent-reviewer-2-b7e21ac4.md]
 last_updated:
-  at: '2026-07-20T18:20:00Z'
-  by: claude-code-remediator
-  role: REMEDIATOR
+  at: '2026-07-20T19:40:00Z'
+  by: claude-code-independent-reviewer-2
+  role: REVIEWER
   reason: >-
-    Remediated the REVIEW_REJECTED F-1/F-2 findings by amending
-    stages/ORCH-000.md (decision-log.md D3-016): its exact-allowed-paths list
-    now explicitly includes evidence/ORCH-000/, and a new Lifecycle section
-    names all four evidence categories (implementation, verification,
-    independent review, handoff) and the full NOT_STARTED..VERIFIED..
-    REVIEW_APPROVED/REVIEW_REJECTED transition path, closing the "hidden
-    lifecycle gap" its own Risks section named as grounds for rejection.
-    "25 deliverables" corrected to 28 (F-3). architecture-v3.md,
-    implementation-plan.md, architecture_version and plan_version are
-    unchanged; only the ORCH-000 stage contract was amended. The retained
-    bootstrap evidence (evidence/ORCH-000/20260720T164147Z-claude-code-bootstrap-d24e29f6.yaml)
-    is ratified as admissible, not superseded: it verifies the unchanged
-    design package commit a676e0b, and the rejecting reviewer already
-    independently reproduced its commands with matching/byte-identical
-    results (verification_status remained PASSED through the rejection).
-    This remediation session additionally reran the full required
-    verification at its own starting HEAD and recorded new implementation
-    evidence/handoff (20260720T181000Z-claude-code-remediator-e27efbe4).
-    ORCH-000 returns only to VERIFIED, never REVIEW_APPROVED; this
-    remediator did not render or alter any review verdict. next_eligible_stage
-    recomputes to ORCH-000 (unchanged); no ORCH-001+ stage is eligible. The
-    stage-contract amendment itself remains unreviewed
-    (R-REMEDIATION-AMENDMENT-UNREVIEWED); the next independent reviewer, who
-    must differ from claude-code-bootstrap, claude-code-independent-reviewer
-    and claude-code-remediator, must assess it alongside the new evidence
-    before any REVIEW_APPROVED/REVIEW_REJECTED verdict.
+    Independently re-reviewed ORCH-000 at HEAD 020d036 (the remediation commit
+    that resolved F-1/F-2/F-3 from the prior rejection). Rejected again: the
+    remediation session amended stages/ORCH-000.md and decision-log.md
+    directly, on its own authority, to fix a contract/plan defect (F-2) --
+    but prompts/remediate-rejected.md's own operative instruction required it
+    to "stop and record BLOCKED for reviewed replanning" instead, and
+    session-protocol.md section 6 limits a remediation session to "the
+    original or narrower allowed scope," never wider. No ARCHITECT- or
+    HUMAN_OWNER-role history entry authorizes this amendment (history
+    sequences 7-9 are all role REMEDIATOR). decision-log.md's own header
+    requires an architecture/plan version increment for new entries; D3-016
+    was appended with architecture_version/plan_version both left unchanged.
+    Independently confirmed via git diff --name-only 17111c7 020d036 that
+    decision-log.md and stages/ORCH-000.md are changed by the remediation
+    commit yet are absent from stages/ORCH-000.md's own allowed-paths list
+    even after that list was rewritten by the same commit -- the "changed
+    paths exceed the stage scope" fail-closed condition (session-protocol.md
+    section 8), reproduced by the remediation meant to resolve the analogous
+    original defect (F-1). All verification commands reproduced prior
+    sessions' recorded results (git status digest byte-identical, pytest
+    684/0/0, workflowctl verify PASS); this is a process/authority rejection,
+    not a verification failure. Findings F-4/F-5/F-6 (HIGH, blocking) and F-7
+    (LOW, non-blocking, pre-existing) recorded in
+    reviews/ORCH-000/20260720T194000Z-claude-code-independent-reviewer-2-b7e21ac4.yaml.
+    next_eligible_stage recomputes to ORCH-000 (unchanged); no ORCH-001+ stage
+    is eligible. A REMEDIATOR distinct from claude-code-bootstrap,
+    claude-code-independent-reviewer, claude-code-remediator and this reviewer
+    must next pursue the remediation_scope recorded in the review evidence:
+    either obtain a durably-recorded ARCHITECT/HUMAN_OWNER-role plan amendment
+    (incrementing architecture_version or plan_version if decision-log.md is
+    touched) or restate ORCH-000's lifecycle to avoid any stage-contract
+    amendment at all.
