@@ -1,0 +1,14 @@
+## main...origin/main
+ M docs/implementation/orchestration/implementation-state.yaml
+?? docs/implementation/orchestration/evidence/ORCH-000/20260720T223000Z-claude-code-remediator-3-6e1d7d18.yaml
+?? docs/implementation/orchestration/evidence/ORCH-000/logs/20260720T223000Z-claude-code-remediator-3-6e1d7d18-environment-fingerprint.txt
+?? docs/implementation/orchestration/evidence/ORCH-000/logs/20260720T223000Z-claude-code-remediator-3-6e1d7d18-git-rev-parse-head-before.txt
+?? docs/implementation/orchestration/evidence/ORCH-000/logs/20260720T223000Z-claude-code-remediator-3-6e1d7d18-git-status-after.txt
+?? docs/implementation/orchestration/evidence/ORCH-000/logs/20260720T223000Z-claude-code-remediator-3-6e1d7d18-git-status-before.txt
+?? docs/implementation/orchestration/evidence/ORCH-000/logs/20260720T223000Z-claude-code-remediator-3-6e1d7d18-pytest-after.txt
+?? docs/implementation/orchestration/evidence/ORCH-000/logs/20260720T223000Z-claude-code-remediator-3-6e1d7d18-pytest-before.txt
+?? docs/implementation/orchestration/evidence/ORCH-000/logs/20260720T223000Z-claude-code-remediator-3-6e1d7d18-validate-orch-state-after.txt
+?? docs/implementation/orchestration/evidence/ORCH-000/logs/20260720T223000Z-claude-code-remediator-3-6e1d7d18-validate-orch-state-before.txt
+?? docs/implementation/orchestration/evidence/ORCH-000/logs/20260720T223000Z-claude-code-remediator-3-6e1d7d18-workflowctl-verify-after.json
+?? docs/implementation/orchestration/evidence/ORCH-000/logs/20260720T223000Z-claude-code-remediator-3-6e1d7d18-workflowctl-verify-before.json
+?? docs/implementation/orchestration/handoffs/ORCH-000/20260720T223000Z-claude-code-remediator-3-6e1d7d18.md

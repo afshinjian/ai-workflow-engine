@@ -1,0 +1,339 @@
+schema_name: orchestration-implementation-evidence
+schema_version: 1.0.0
+feature_id: ORCH
+stage_id: ORCH-000
+implementation_id: 20260720T223000Z-claude-code-remediator-3-6e1d7d18
+session:
+  actor: claude-code-remediator-3
+  role: REMEDIATOR
+started_at: '2026-07-20T22:30:00Z'
+finished_at: '2026-07-20T22:45:00Z'
+head:
+  starting: fcabc0baee84f5b98a4d63b8de3696754966e826
+  ending: fcabc0baee84f5b98a4d63b8de3696754966e826
+  note: >
+    This session leaves one uncommitted scoped diff (per session-protocol.md
+    section 3's two-commit pattern) containing only this new implementation
+    evidence/handoff and the implementation-state.yaml update. No new commit
+    is created by this session; a human must commit this exact diff before
+    an independent reviewer acts on it.
+independence_declaration: >
+  This session has no memory of and did not participate in any prior
+  ORCH-000 session. Actor (claude-code-remediator-3) differs from every
+  implementer/remediator/reviewer/architect already recorded against
+  ORCH-000: claude-code-bootstrap, claude-code-independent-reviewer,
+  claude-code-remediator, claude-code-independent-reviewer-2,
+  claude-code-architect-1, claude-code-remediator-2, and
+  claude-code-independent-reviewer-3. This remediation relies only on
+  committed repository state read this session, not on chat history.
+preflight:
+  repository_root: /home/afshin-jian/ai-workflow-engine
+  branch: main
+  head: fcabc0baee84f5b98a4d63b8de3696754966e826
+  upstream: origin/main
+  ahead: 0
+  behind: 0
+  tree: CLEAN
+  index: CLEAN
+  merge_rebase_cherrypick_bisect: NONE_ACTIVE
+  orchestration_feature_lock: NOT_FOUND
+  prior_orch_000_evidence:
+    - evidence/ORCH-000/20260720T164147Z-claude-code-bootstrap-d24e29f6.yaml
+    - evidence/ORCH-000/20260720T181000Z-claude-code-remediator-e27efbe4.yaml
+    - evidence/ORCH-000/20260720T201500Z-claude-code-architect-1-f7bef021.yaml
+    - evidence/ORCH-000/20260720T210000Z-claude-code-remediator-2-8387417f.yaml
+  prior_orch_000_reviews:
+    - reviews/ORCH-000/20260720T172520Z-claude-code-independent-reviewer-59f68d54.yaml
+    - reviews/ORCH-000/20260720T194000Z-claude-code-independent-reviewer-2-b7e21ac4.yaml
+    - reviews/ORCH-000/20260720T220000Z-claude-code-independent-reviewer-3-c4a91d02.yaml
+  stage_status_at_start: REVIEW_REJECTED
+  stage_review_status_at_start: REJECTED
+  blockers_at_start: []
+  delegated_scope: >
+    reviews/ORCH-000/20260720T220000Z-claude-code-independent-reviewer-3-c4a91d02.yaml's
+    remediation_scope (finding F-8 only): within evidence/ORCH-000/,
+    reviews/ORCH-000/ and handoffs/ORCH-000/ only, write a new
+    implementation-evidence record (new implementation ID; never overwrite
+    an evidence record) that reproduces the required verification commands
+    and includes a valid environment_fingerprint_digest on every command
+    record, then write a new handoff and return ORCH-000 through
+    IN_PROGRESS/IMPLEMENTED to VERIFIED. Do not touch session-protocol.md,
+    decision-log.md, implementation-plan.md,
+    implementation-state.schema.yaml, or stages/ORCH-000.md. Do not
+    re-litigate F-1 through F-7, D3-016, D3-017, or this review's own PASS
+    findings. Do not alter the verdict, findings, checklist, or any other
+    field of this or any prior review record. Do not approve, commit, push,
+    or start ORCH-001.
+f8_identification:
+  target_record: evidence/ORCH-000/20260720T210000Z-claude-code-remediator-2-8387417f.yaml
+  defect: >
+    All 9 command records in the target evidence file's `commands` list omit
+    the `environment_fingerprint_digest` field required by
+    session-protocol.md section 7 for ImplementationEvidence 1.0.0 command
+    records. Confirmed this session by grep: zero occurrences of
+    `environment_fingerprint_digest` in that file, versus 7/7 and 5/5
+    occurrences (one per command) in the two earlier ImplementationEvidence
+    records for this same stage
+    (20260720T164147Z-claude-code-bootstrap-d24e29f6.yaml and
+    20260720T181000Z-claude-code-remediator-e27efbe4.yaml).
+  disposition: >
+    Per session-protocol.md section 7 ("Never overwrite an evidence record;
+    add a new one and append state history") and the review's own
+    remediation_scope, the deficient record
+    (20260720T210000Z-claude-code-remediator-2-8387417f.yaml) is left
+    unmodified and unremoved. This session's fix is a new implementation
+    evidence record with a complete, valid environment_fingerprint_digest on
+    every command record, superseding the deficient record as the evidence
+    supporting ORCH-000's VERIFIED status going forward. Both remain listed
+    in stages.ORCH-000.evidence (append-only; nothing erased).
+environment_fingerprint:
+  captured_artifact: evidence/ORCH-000/logs/20260720T223000Z-claude-code-remediator-3-6e1d7d18-environment-fingerprint.txt
+  digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+  note: >
+    Byte-identical to the environment_fingerprint_digest recorded on every
+    command in both prior, F-8-compliant ImplementationEvidence records for
+    this stage (bootstrap and first remediation) and to this session's own
+    independent review counterpart
+    (reviews/ORCH-000/20260720T220000Z-claude-code-independent-reviewer-3-c4a91d02.yaml),
+    confirming the field is mechanically reproducible on this machine/tool
+    identity, not merely asserted. Applied identically to every command
+    record below, per the field's use in every other ImplementationEvidence
+    record for this stage.
+changed_paths:
+  - docs/implementation/orchestration/implementation-state.yaml
+  - docs/implementation/orchestration/evidence/ORCH-000/20260720T223000Z-claude-code-remediator-3-6e1d7d18.yaml
+  - docs/implementation/orchestration/evidence/ORCH-000/logs/20260720T223000Z-claude-code-remediator-3-6e1d7d18-environment-fingerprint.txt
+  - docs/implementation/orchestration/evidence/ORCH-000/logs/20260720T223000Z-claude-code-remediator-3-6e1d7d18-git-rev-parse-head-before.txt
+  - docs/implementation/orchestration/evidence/ORCH-000/logs/20260720T223000Z-claude-code-remediator-3-6e1d7d18-git-status-before.txt
+  - docs/implementation/orchestration/evidence/ORCH-000/logs/20260720T223000Z-claude-code-remediator-3-6e1d7d18-workflowctl-verify-before.json
+  - docs/implementation/orchestration/evidence/ORCH-000/logs/20260720T223000Z-claude-code-remediator-3-6e1d7d18-pytest-before.txt
+  - docs/implementation/orchestration/evidence/ORCH-000/logs/20260720T223000Z-claude-code-remediator-3-6e1d7d18-validate-orch-state-before.txt
+  - docs/implementation/orchestration/evidence/ORCH-000/logs/20260720T223000Z-claude-code-remediator-3-6e1d7d18-git-status-after.txt
+  - docs/implementation/orchestration/evidence/ORCH-000/logs/20260720T223000Z-claude-code-remediator-3-6e1d7d18-workflowctl-verify-after.json
+  - docs/implementation/orchestration/evidence/ORCH-000/logs/20260720T223000Z-claude-code-remediator-3-6e1d7d18-pytest-after.txt
+  - docs/implementation/orchestration/evidence/ORCH-000/logs/20260720T223000Z-claude-code-remediator-3-6e1d7d18-validate-orch-state-after.txt
+  - docs/implementation/orchestration/handoffs/ORCH-000/20260720T223000Z-claude-code-remediator-3-6e1d7d18.md
+commands:
+  - argv: [git, rev-parse, HEAD]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-000/logs/20260720T223000Z-claude-code-remediator-3-6e1d7d18-git-rev-parse-head-before.txt
+    stdout_digest: sha256:28806f269c8db864719845001dcc14a594936ff55c40f905c652a8ef49f0aaa5
+    result: fcabc0baee84f5b98a4d63b8de3696754966e826
+    purpose: Confirm this session's starting HEAD equals the third rejection commit.
+    when: before
+  - argv: [git, status, --porcelain, -b]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-000/logs/20260720T223000Z-claude-code-remediator-3-6e1d7d18-git-status-before.txt
+    stdout_digest: sha256:5fbcb2990ad25e368c12219bf3ddca36e464d044e7acac16696fa8cd54159185
+    purpose: >
+      Confirm clean tree/index before this session's edits. Digest is
+      byte-identical to every prior session's clean-tree digest for this
+      same command (content-based, expected for an unchanged porcelain
+      message on an unchanged clean tree).
+    when: before
+  - argv: [workflowctl, verify, --config, self-governance.yaml, --output, json]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-000/logs/20260720T223000Z-claude-code-remediator-3-6e1d7d18-workflowctl-verify-before.json
+    stdout_digest: sha256:c0c175f4c844db3d75b7ad7142ee9d23c66191f8a5daadfca708c10cc3e2a726
+    result_overall_status: PASS
+    purpose: Independent repository governance verification before any edit.
+    when: before
+  - argv: [pytest, -q]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-000/logs/20260720T223000Z-claude-code-remediator-3-6e1d7d18-pytest-before.txt
+    stdout_digest: sha256:9ec2da35f50eb7e75ddd2ec15fa4e12b1e52a5141f8d45eb47fb2709beb52853
+    result: '684 passed, 0 failed, 0 skipped'
+    purpose: Full existing regression suite before any edit; matches every prior session's recorded count.
+    when: before
+  - argv: [python3, /tmp/claude-1000/-home-afshin-jian-ai-workflow-engine/46a863d3-ff1f-4f86-ba71-d2a91e9e9386/scratchpad/orch000-remediation-f8/validate_orch_state.py]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-000/logs/20260720T223000Z-claude-code-remediator-3-6e1d7d18-validate-orch-state-before.txt
+    stdout_digest: sha256:60c22968b04ded91fa841432d16559fe5e31ac21195ac269b9df6306d273d0f9
+    result: >
+      STRUCTURAL PASS: 28 stages, delivery_order length 28, 28 stage files,
+      acyclic, valid topology, 15 contiguous history entries,
+      next_eligible_stage=ORCH-000 (matches recomputation), plan_version
+      1.1.0 matches schema const, architecture_version 3.0.0 matches schema
+      const, ORCH-000 status=REVIEW_REJECTED review_status=REJECTED
+      reviewer=claude-code-independent-reviewer-3 blockers=0, all
+      evidence/review/handoff paths referenced from stages.ORCH-000 resolve
+      to files that exist on disk.
+    purpose: >
+      Independent, freshly-written (not reused from any prior session's
+      scratch tooling) reproduction of implementation-state.yaml's
+      required/const/enum/pattern shape, stage-key cardinality,
+      delivery_order set-equality/uniqueness/acyclicity/topology,
+      prerequisite referential integrity, history sequence contiguity,
+      next_eligible_stage semantic recomputation, and existence of every
+      evidence/review/handoff path stages.ORCH-000 references, before any
+      edit. Script not committed to the repository (scratch tooling only,
+      per the convention used by every prior session on this candidate).
+    when: before
+  - argv: [git, status, --porcelain, -b]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-000/logs/20260720T223000Z-claude-code-remediator-3-6e1d7d18-git-status-after.txt
+    stdout_digest: sha256:a0d47f84f446c01f769bfcce8023677e9f33734f6610844bed31e0e9131e3415
+    result: >-
+      ## main...origin/main; M implementation-state.yaml; ?? this evidence
+      YAML and all 10 of its logs; ?? this session's handoff -- exactly the
+      13 declared changed_paths, nothing else.
+    purpose: Confirm only the declared changed_paths are modified/untracked after this session's edits.
+    when: after
+  - argv: [workflowctl, verify, --config, self-governance.yaml, --output, json]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-000/logs/20260720T223000Z-claude-code-remediator-3-6e1d7d18-workflowctl-verify-after.json
+    stdout_digest: sha256:d8439bab6738d4825e6860fac2bd1fabe76c50de3ce04c38505a8e57dbcb7da3
+    result_overall_status: PASS
+    purpose: Independent repository governance re-verification after this session's edits.
+    when: after
+  - argv: [pytest, -q]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-000/logs/20260720T223000Z-claude-code-remediator-3-6e1d7d18-pytest-after.txt
+    stdout_digest: sha256:abcf5dcf459abded09462349bdff1f8d0e977946f48e03fb1e43783b269f8d74
+    result: '684 passed, 0 failed, 0 skipped'
+    purpose: Full regression suite after this session's edits; unchanged count confirms docs-only evidence remediation has no production-code effect.
+    when: after
+  - argv: [python3, /tmp/claude-1000/-home-afshin-jian-ai-workflow-engine/46a863d3-ff1f-4f86-ba71-d2a91e9e9386/scratchpad/orch000-remediation-f8/validate_orch_state.py]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-000/logs/20260720T223000Z-claude-code-remediator-3-6e1d7d18-validate-orch-state-after.txt
+    stdout_digest: sha256:e8a8969c591729b435477927ddb621fe3bbc73af73273eec7e32f382c4d79c8d
+    result: >
+      STRUCTURAL PASS: 28 stages, delivery_order length 28, 28 stage files,
+      acyclic, valid topology, 18 contiguous history entries,
+      next_eligible_stage=ORCH-000 (matches recomputation), plan_version
+      1.1.0 matches schema const, architecture_version 3.0.0 matches schema
+      const, ORCH-000 status=VERIFIED review_status=PENDING reviewer=None
+      blockers=0, all evidence/review/handoff paths referenced from
+      stages.ORCH-000 resolve to files that exist on disk.
+    purpose: >
+      Independent reproduction of the same validator after this session's
+      edits, confirming the F-8 fix and state transition landed
+      consistently (status VERIFIED, review_status PENDING, reviewer null).
+    when: after
+tests:
+  suite: full existing regression suite (pytest -q)
+  passed: 684
+  failed: 0
+  skipped: 0
+  exit_code: 0
+decisions:
+  - id: DEC-R3-1
+    summary: >
+      Fix F-8 by adding a new implementation evidence record with
+      environment_fingerprint_digest on every command record, rather than
+      editing the deficient record (...-8387417f.yaml) in place.
+    rationale: >
+      session-protocol.md section 7 states "Never overwrite an evidence
+      record; add a new one and append state history," and section 6
+      states a remediation session "produces a new implementation
+      ID/evidence ... It cannot erase prior evidence." Editing the existing
+      record's command entries in place, even only to add a missing field,
+      would be exactly the overwrite the protocol forbids. The deficient
+      record is retained unchanged in stages.ORCH-000.evidence alongside
+      this new one.
+  - id: DEC-R3-2
+    summary: >
+      Capture a fresh environment-fingerprint artifact this session and
+      confirm its digest is byte-identical to the value already used by
+      both F-8-compliant prior records and the rejecting review's own
+      capture, rather than copying the digest value from those records
+      without independent reproduction.
+    rationale: >
+      The rejecting review (F-8 failure_mode) specifically requires that a
+      fresh session reproducing this candidate from repository state alone
+      can verify what tool/runtime/OS environment identity produced the
+      command results; asserting the digest without recomputing it this
+      session would repeat the same category of unverifiable-claim defect,
+      just for a different field.
+  - id: DEC-R3-3
+    summary: >
+      Do not re-run `git rev-parse HEAD` as an "after" command; HEAD is
+      recorded identically in `head.starting` and `head.ending` (this
+      session leaves an uncommitted diff, so HEAD does not advance).
+    rationale: >
+      Mirrors the prior F-7 remediation's own command set
+      (evidence/ORCH-000/20260720T210000Z-claude-code-remediator-2-8387417f.yaml),
+      which likewise omitted a redundant post-edit `git rev-parse HEAD`
+      since no commit occurs in this session.
+  - id: DEC-R3-4
+    summary: >
+      review_status set to PENDING (not APPROVED); reviewer set to null
+      (not carried forward as claude-code-independent-reviewer-3, since that
+      actor's own verdict is the rejection being remediated here); no
+      REVIEW_APPROVED/REVIEW_REJECTED value written anywhere in this record.
+    rationale: >
+      session-protocol.md section 6: a remediation session "cannot alter
+      the rejection finding or approve its fix." Only an independent
+      REVIEWER may set APPROVED/REJECTED. This session is REMEDIATOR and
+      explicitly forbidden from rendering a verdict on either the original
+      candidate or its own fix.
+unresolved_risks:
+  - id: R-REMEDIATION-AMENDMENT-UNREVIEWED
+    severity: MEDIUM
+    summary: >
+      The D3-016/D3-017 authority chain, the F-7 recapture, and this
+      session's F-8 fix have not yet been assessed together by a ninth
+      distinct independent reviewer.
+    disposition: >
+      The next independent ORCH-000 reviewer, who must differ from
+      claude-code-bootstrap, claude-code-independent-reviewer,
+      claude-code-remediator, claude-code-independent-reviewer-2,
+      claude-code-architect-1, claude-code-remediator-2, and
+      claude-code-independent-reviewer-3, must assess this session's F-8
+      fix (and reconfirm the already-settled D3-016/D3-017/F-7 chain) before
+      recording REVIEW_APPROVED or REVIEW_REJECTED.
+  - id: R-BOOTSTRAP-ROLE-OVERLAP
+    severity: MEDIUM
+    summary: Carried forward unchanged from implementation-state.yaml unresolved_risks.
+    disposition: Unaffected by this remediation; still a flag for the next reviewer.
+  - id: R-APPROVAL-ISOLATION
+    severity: CRITICAL
+    summary: Carried forward unchanged from implementation-state.yaml unresolved_risks.
+    disposition: Unaffected by this remediation; still must be proven in ORCH-016/ORCH-017/ORCH-027.
+  - id: R-GOVERNANCE-TRANSACTION
+    severity: CRITICAL
+    summary: Carried forward unchanged from implementation-state.yaml unresolved_risks.
+    disposition: Unaffected by this remediation; still must be proven in ORCH-020/ORCH-027.
+blockers: []
+schema_changes: []
+migration_changes: []
+worktree_digest:
+  algorithm: sha256
+  method: >-
+    SHA-256 of the newline-joined "sha256hex  relative/path" manifest lines
+    (sorted by path) for every changed_paths entry except this evidence YAML
+    itself (excluded to avoid a self-referential digest); each line's digest
+    is the SHA-256 of that file's raw bytes.
+  value: sha256:ccc2659cd07c5ceb2bcba80523d57ce6719248f08317283a6e1abd1345863869
+handoff: docs/implementation/orchestration/handoffs/ORCH-000/20260720T223000Z-claude-code-remediator-3-6e1d7d18.md
+production_source_modified: false
+stage_status_changed: true
+stage_status_transition: {from: REVIEW_REJECTED, to: VERIFIED, via: [IN_PROGRESS, IMPLEMENTED]}
+review_verdict_recorded: false
+next_required_role: REVIEWER
+next_required_action: >
+  Independent ORCH-000 review using
+  docs/implementation/orchestration/prompts/review-current.md, run by a
+  session/actor distinct from claude-code-bootstrap,
+  claude-code-independent-reviewer, claude-code-remediator,
+  claude-code-independent-reviewer-2, claude-code-architect-1,
+  claude-code-remediator-2, claude-code-independent-reviewer-3, and this
+  session (claude-code-remediator-3).
