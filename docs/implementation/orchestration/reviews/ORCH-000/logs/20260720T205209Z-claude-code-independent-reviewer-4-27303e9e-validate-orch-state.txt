@@ -1,0 +1,13 @@
+ORCH-000 status=VERIFIED review_status=PENDING reviewer=None implementer=claude-code-remediator-3 verification_status=PASSED blockers=[]
+  evidence 20260720T164147Z-claude-code-bootstrap-d24e29f6.yaml: 7 commands, env_fingerprint OK
+  evidence 20260720T181000Z-claude-code-remediator-e27efbe4.yaml: 5 commands, env_fingerprint OK
+  evidence 20260720T210000Z-claude-code-remediator-2-8387417f.yaml: 9 commands, env_fingerprint MISSING on commands [0, 1, 2, 3, 4, 5, 6, 7, 8]
+  evidence 20260720T223000Z-claude-code-remediator-3-6e1d7d18.yaml: 9 commands, env_fingerprint OK
+  latest evidence unique environment_fingerprint_digest values: {'sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc'}
+  recomputed digest of 20260720T223000Z-claude-code-remediator-3-6e1d7d18-environment-fingerprint.txt: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+  matches recorded digest: True
+  review 20260720T172520Z-claude-code-independent-reviewer-59f68d54.yaml: verdict=REJECTED reviewer=claude-code-independent-reviewer
+  review 20260720T194000Z-claude-code-independent-reviewer-2-b7e21ac4.yaml: verdict=REJECTED reviewer=claude-code-independent-reviewer-2
+  review 20260720T220000Z-claude-code-independent-reviewer-3-c4a91d02.yaml: verdict=REJECTED reviewer=claude-code-independent-reviewer-3
+
+STRUCTURAL PASS: 28 stages, delivery_order length 28, 28 stage files, acyclic, valid topology, 18 contiguous history entries, next_eligible_stage=ORCH-000 (matches recomputation), plan_version 1.1.0 matches schema const, architecture_version 3.0.0 matches schema const, all evidence/review/handoff paths referenced from stages.ORCH-000 resolve to files on disk.

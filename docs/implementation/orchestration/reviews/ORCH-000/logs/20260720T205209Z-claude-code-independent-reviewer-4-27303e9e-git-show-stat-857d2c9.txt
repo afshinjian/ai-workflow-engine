@@ -1,0 +1,20 @@
+commit 857d2c9b69cd85e40bdd2b9f8d252f2d3df5790e
+Author: afshin_jian <afshinjian@gmail.com>
+Date:   Tue Jul 21 00:16:58 2026 +0330
+
+    docs: remediate ORCH-000 F-8
+
+ ...T223000Z-claude-code-remediator-3-6e1d7d18.yaml | 339 +++++++++++++++++++++
+ ...mediator-3-6e1d7d18-environment-fingerprint.txt |   5 +
+ ...diator-3-6e1d7d18-git-rev-parse-head-before.txt |   1 +
+ ...code-remediator-3-6e1d7d18-git-status-after.txt |  14 +
+ ...ode-remediator-3-6e1d7d18-git-status-before.txt |   1 +
+ ...ude-code-remediator-3-6e1d7d18-pytest-after.txt |  11 +
+ ...de-code-remediator-3-6e1d7d18-pytest-before.txt |  11 +
+ ...diator-3-6e1d7d18-validate-orch-state-after.txt |   1 +
+ ...iator-3-6e1d7d18-validate-orch-state-before.txt |   1 +
+ ...diator-3-6e1d7d18-workflowctl-verify-after.json | 235 ++++++++++++++
+ ...iator-3-6e1d7d18-workflowctl-verify-before.json | 231 ++++++++++++++
+ ...20T223000Z-claude-code-remediator-3-6e1d7d18.md | 184 +++++++++++
+ .../orchestration/implementation-state.yaml        | 136 ++++++---
+ 13 files changed, 1120 insertions(+), 50 deletions(-)

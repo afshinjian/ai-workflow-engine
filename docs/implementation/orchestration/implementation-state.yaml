@@ -11,9 +11,9 @@ repository:
   package_commit: a676e0bc128494085f85f8f79f62aa8aac64bbd1
   working_tree_policy: CLEAN_REQUIRED
 package_status: PUBLISHED
-current_stage: ORCH-000
-next_eligible_stage: ORCH-000
-candidate_next_stage: ORCH-000
+current_stage: ORCH-001
+next_eligible_stage: ORCH-001
+candidate_next_stage: ORCH-001
 delivery_order:
   - ORCH-000
   - ORCH-001
@@ -44,7 +44,7 @@ delivery_order:
   - ORCH-026
   - ORCH-027
 stages:
-  ORCH-000: {title: Independent v3 design review, status: VERIFIED, prerequisites: [], expected_base_head: fcabc0baee84f5b98a4d63b8de3696754966e826, implementation_commit: null, implementer: claude-code-remediator-3, review_status: PENDING, reviewer: null, verification_status: PASSED, evidence: [evidence/ORCH-000/20260720T164147Z-claude-code-bootstrap-d24e29f6.yaml, evidence/ORCH-000/20260720T181000Z-claude-code-remediator-e27efbe4.yaml, evidence/ORCH-000/20260720T201500Z-claude-code-architect-1-f7bef021.yaml, evidence/ORCH-000/20260720T210000Z-claude-code-remediator-2-8387417f.yaml, evidence/ORCH-000/20260720T223000Z-claude-code-remediator-3-6e1d7d18.yaml], review_evidence: [reviews/ORCH-000/20260720T172520Z-claude-code-independent-reviewer-59f68d54.yaml, reviews/ORCH-000/20260720T194000Z-claude-code-independent-reviewer-2-b7e21ac4.yaml, reviews/ORCH-000/20260720T220000Z-claude-code-independent-reviewer-3-c4a91d02.yaml], handoff: handoffs/ORCH-000/20260720T223000Z-claude-code-remediator-3-6e1d7d18.md, blockers: []}
+  ORCH-000: {title: Independent v3 design review, status: REVIEW_APPROVED, prerequisites: [], expected_base_head: fcabc0baee84f5b98a4d63b8de3696754966e826, implementation_commit: 857d2c9b69cd85e40bdd2b9f8d252f2d3df5790e, implementer: claude-code-remediator-3, review_status: APPROVED, reviewer: claude-code-independent-reviewer-4, verification_status: PASSED, evidence: [evidence/ORCH-000/20260720T164147Z-claude-code-bootstrap-d24e29f6.yaml, evidence/ORCH-000/20260720T181000Z-claude-code-remediator-e27efbe4.yaml, evidence/ORCH-000/20260720T201500Z-claude-code-architect-1-f7bef021.yaml, evidence/ORCH-000/20260720T210000Z-claude-code-remediator-2-8387417f.yaml, evidence/ORCH-000/20260720T223000Z-claude-code-remediator-3-6e1d7d18.yaml], review_evidence: [reviews/ORCH-000/20260720T172520Z-claude-code-independent-reviewer-59f68d54.yaml, reviews/ORCH-000/20260720T194000Z-claude-code-independent-reviewer-2-b7e21ac4.yaml, reviews/ORCH-000/20260720T220000Z-claude-code-independent-reviewer-3-c4a91d02.yaml, reviews/ORCH-000/20260720T205209Z-claude-code-independent-reviewer-4-27303e9e.yaml], handoff: handoffs/ORCH-000/20260720T205209Z-claude-code-independent-reviewer-4-27303e9e.md, blockers: []}
   ORCH-001: {title: Durable feature-state validator, status: NOT_STARTED, prerequisites: [ORCH-000], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
   ORCH-002: {title: Schema registry and CLI v2 envelope, status: NOT_STARTED, prerequisites: [ORCH-001], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
   ORCH-003: {title: Legacy readers and migration framework, status: NOT_STARTED, prerequisites: [ORCH-002], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
@@ -140,10 +140,20 @@ unresolved_risks:
       evidence record (...-8387417f.yaml) unmodified and unremoved (never
       overwrite an evidence record, per session-protocol.md section 7) and
       added a new implementation-evidence record with a valid
-      environment_fingerprint_digest on every command record. ORCH-000
-      returns to VERIFIED (review_status PENDING, reviewer null) and awaits
-      a ninth distinct actor's independent review before REVIEW_APPROVED or
-      REVIEW_REJECTED.
+      environment_fingerprint_digest on every command record. Independently
+      reviewed 2026-07-20 by a ninth distinct actor (history sequence 19;
+      reviewer claude-code-independent-reviewer-4,
+      reviews/ORCH-000/20260720T205209Z-claude-code-independent-reviewer-4-27303e9e.yaml):
+      the F-8 fix was confirmed sound (environment_fingerprint_digest present
+      and byte-for-byte reproducible on every command record of the evidence
+      backing VERIFIED, including an independent re-derivation on the
+      reviewer's own machine, not merely trusting the remediator's claim),
+      and the D3-016/D3-017 chain and F-7 recapture were reconfirmed
+      unchanged since the third review. No new finding was identified.
+      ORCH-000 is now REVIEW_APPROVED (review_status APPROVED, reviewer
+      claude-code-independent-reviewer-4, implementation_commit
+      857d2c9b69cd85e40bdd2b9f8d252f2d3df5790e). This risk is fully resolved
+      and closed; it does not apply to any later stage.
 history:
   - sequence: 1
     at: '2026-07-19T00:00:00+00:00'
@@ -297,50 +307,55 @@ history:
     to: VERIFIED
     evidence: [evidence/ORCH-000/20260720T223000Z-claude-code-remediator-3-6e1d7d18.yaml,
       handoffs/ORCH-000/20260720T223000Z-claude-code-remediator-3-6e1d7d18.md]
+  - sequence: 19
+    at: '2026-07-20T20:55:00Z'
+    actor: claude-code-independent-reviewer-4
+    role: REVIEWER
+    action: REVIEW_APPROVED_ORCH_000
+    from: VERIFIED
+    to: REVIEW_APPROVED
+    evidence: [reviews/ORCH-000/20260720T205209Z-claude-code-independent-reviewer-4-27303e9e.yaml,
+      handoffs/ORCH-000/20260720T205209Z-claude-code-independent-reviewer-4-27303e9e.md]
 last_updated:
-  at: '2026-07-20T22:45:00Z'
-  by: claude-code-remediator-3
-  role: REMEDIATOR
+  at: '2026-07-20T20:55:00Z'
+  by: claude-code-independent-reviewer-4
+  role: REVIEWER
   reason: >-
-    REMEDIATOR session, distinct from claude-code-bootstrap,
+    REVIEWER session, distinct from claude-code-bootstrap,
     claude-code-independent-reviewer, claude-code-remediator,
     claude-code-independent-reviewer-2, claude-code-architect-1,
-    claude-code-remediator-2 and claude-code-independent-reviewer-3 (all
-    eight actors now recorded against ORCH-000), started from clean
-    committed HEAD fcabc0b (the third rejection commit) and resolved F-8
-    only, exactly as scoped by
-    reviews/ORCH-000/20260720T220000Z-claude-code-independent-reviewer-3-c4a91d02.yaml's
-    remediation_scope: within evidence/ORCH-000/, reviews/ORCH-000/ and
-    handoffs/ORCH-000/ only, wrote a new implementation-evidence record
-    (evidence/ORCH-000/20260720T223000Z-claude-code-remediator-3-6e1d7d18.yaml,
-    a new implementation ID; the prior F-8-deficient record,
-    ...-8387417f.yaml, is left unmodified and unremoved, per
-    session-protocol.md section 7's "never overwrite an evidence record")
-    reproducing the required verification commands with a valid
-    environment_fingerprint_digest (sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc,
-    byte-identical to every prior session's) on every one of its 9 command
-    records. Independently verified before and after this session's own
-    edits: git status --porcelain -b (clean before; only this session's
-    declared paths modified/untracked after), workflowctl verify --config
-    self-governance.yaml --output json (PASS before and after), pytest -q
-    (684 passed, 0 failed, 0 skipped before and after, matching every prior
-    session exactly), and a freshly written state/schema/DAG validator
-    (STRUCTURAL PASS before and after). This session did not touch
+    claude-code-remediator-2, claude-code-independent-reviewer-3, and
+    claude-code-remediator-3 (all eight actors previously recorded against
+    ORCH-000), reviewed the committed F-8 remediation diff at HEAD
+    857d2c9b69cd85e40bdd2b9f8d252f2d3df5790e ("docs: remediate ORCH-000
+    F-8"). Independently confirmed: git status clean, git diff --stat
+    246c168 857d2c9 touches only implementation-state.yaml,
+    evidence/ORCH-000/, reviews/ORCH-000/ and handoffs/ORCH-000/ (no
     session-protocol.md, decision-log.md, implementation-plan.md,
-    implementation-state.schema.yaml or stages/ORCH-000.md, and did not
-    re-litigate F-1 through F-7, D3-016, D3-017, or any prior review's
-    verdict/findings/checklist. Per session-protocol.md section 6, a
-    remediation session "cannot alter the rejection finding or approve its
-    fix": this entry sets review_status back to PENDING and reviewer to
-    null, but does not record REVIEW_APPROVED or REVIEW_REJECTED, and does
-    not approve, commit, push, or start ORCH-001. ORCH-000 returns to
-    VERIFIED (status VERIFIED, review_status PENDING, reviewer null,
-    implementation_commit left null until a human commits this diff, per
-    the two-commit pattern). next_eligible_stage recomputes to ORCH-000
-    (unchanged); ORCH-001 remains ineligible (NOT_STARTED, prerequisite
-    ORCH-000 not REVIEW_APPROVED). Next legal actor: an independent
-    REVIEWER, distinct from all eight actors now recorded against ORCH-000
-    (claude-code-bootstrap, claude-code-independent-reviewer,
-    claude-code-remediator, claude-code-independent-reviewer-2,
-    claude-code-architect-1, claude-code-remediator-2,
-    claude-code-independent-reviewer-3, and claude-code-remediator-3).
+    implementation-state.schema.yaml or stages/ORCH-000.md change; no
+    production source or migration-registry.yaml change since a676e0b),
+    workflowctl verify PASS, pytest -q 684 passed/0 failed/0 skipped
+    (matching every prior session), and a freshly written state/schema/DAG
+    validator STRUCTURAL PASS. F-8 itself independently confirmed resolved:
+    evidence/ORCH-000/20260720T223000Z-claude-code-remediator-3-6e1d7d18.yaml
+    carries environment_fingerprint_digest on all 9 command records; every
+    stdout_digest, the record's worktree_digest, and its
+    environment_fingerprint.digest were independently recomputed
+    byte-for-byte from the committed files and matched exactly, and that
+    same digest was independently reproduced a second way on this
+    reviewer's own machine via a separate ad hoc sha256sum. The prior,
+    F-8-deficient record (...-8387417f.yaml) remains present, unmodified,
+    and no longer the record VERIFIED depends on. Did not re-litigate F-1
+    through F-7, D3-016, D3-017, or the third review's own PASS findings
+    (confirmed zero diff to the five governance files those findings
+    concerned since that review's commit). No new finding was identified.
+    Verdict: APPROVED. ORCH-000 transitions VERIFIED -> REVIEW_APPROVED
+    (review_status APPROVED, reviewer claude-code-independent-reviewer-4,
+    implementation_commit 857d2c9b69cd85e40bdd2b9f8d252f2d3df5790e, the
+    clean HEAD actually reviewed). next_eligible_stage and
+    candidate_next_stage recompute to ORCH-001 (its sole prerequisite,
+    ORCH-000, is now REVIEW_APPROVED); current_stage updated to ORCH-001 to
+    match. This session did not implement ORCH-001, commit, or push. Next
+    legal actor: an ORCH-001 IMPLEMENTER, in a fresh session, per
+    stages/ORCH-001.md and session-protocol.md section 4, after a human
+    commits this diff.

@@ -1,0 +1,20 @@
+commit fcabc0baee84f5b98a4d63b8de3696754966e826
+Author: afshin_jian <afshinjian@gmail.com>
+Date:   Mon Jul 20 23:57:24 2026 +0330
+
+    docs: reject ORCH-000 for incomplete evidence metadata
+
+ ...-claude-code-independent-reviewer-3-c4a91d02.md | 175 ++++++++++
+ .../orchestration/implementation-state.yaml        | 109 +++---
+ ...laude-code-independent-reviewer-3-c4a91d02.yaml | 366 +++++++++++++++++++++
+ ...reviewer-3-c4a91d02-environment-fingerprint.txt |   5 +
+ ...er-3-c4a91d02-git-diff-020d036-246c168-stat.txt |  46 +++
+ ...er-3-c4a91d02-git-diff-19d47dc-246c168-stat.txt |  19 ++
+ ...dent-reviewer-3-c4a91d02-git-rev-parse-head.txt |   1 +
+ ...t-reviewer-3-c4a91d02-git-show-stat-19d47dc.txt |  24 ++
+ ...t-reviewer-3-c4a91d02-git-show-stat-246c168.txt |  25 ++
+ ...-independent-reviewer-3-c4a91d02-git-status.txt |   9 +
+ ...code-independent-reviewer-3-c4a91d02-pytest.txt |  11 +
+ ...ent-reviewer-3-c4a91d02-validate-orch-state.txt |   2 +
+ ...ent-reviewer-3-c4a91d02-workflowctl-verify.json | 245 ++++++++++++++
+ 13 files changed, 993 insertions(+), 44 deletions(-)

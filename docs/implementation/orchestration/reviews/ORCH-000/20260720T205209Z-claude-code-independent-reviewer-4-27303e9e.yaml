@@ -1,0 +1,293 @@
+schema_name: orchestration-review-evidence
+schema_version: 1.0.0
+feature_id: ORCH
+stage_id: ORCH-000
+review_id: 20260720T205209Z-claude-code-independent-reviewer-4-27303e9e
+reviewer:
+  actor: claude-code-independent-reviewer-4
+  role: REVIEWER
+started_at: '2026-07-20T20:40:00Z'
+finished_at: '2026-07-20T20:55:00Z'
+independence_declaration: >
+  This review session has no memory of and did not participate in any prior
+  ORCH-000 session. Reviewer identity (claude-code-independent-reviewer-4)
+  differs from every implementer/remediator/reviewer/architect actor already
+  recorded for this candidate: claude-code-bootstrap,
+  claude-code-independent-reviewer, claude-code-remediator,
+  claude-code-independent-reviewer-2, claude-code-architect-1,
+  claude-code-remediator-2, claude-code-independent-reviewer-3, and
+  claude-code-remediator-3. No self-review occurred. This review relies only
+  on committed repository state read this session, not on chat history.
+reviewed:
+  implementation_ids:
+    - 20260720T164147Z-claude-code-bootstrap-d24e29f6
+    - 20260720T181000Z-claude-code-remediator-e27efbe4
+    - 20260720T210000Z-claude-code-remediator-2-8387417f
+    - 20260720T223000Z-claude-code-remediator-3-6e1d7d18
+  architecture_amendment_ids:
+    - 20260720T201500Z-claude-code-architect-1-f7bef021
+  prior_review_ids:
+    - 20260720T172520Z-claude-code-independent-reviewer-59f68d54
+    - 20260720T194000Z-claude-code-independent-reviewer-2-b7e21ac4
+    - 20260720T220000Z-claude-code-independent-reviewer-3-c4a91d02
+  design_package_commit: a676e0bc128494085f85f8f79f62aa8aac64bbd1
+  implementation_commit: 857d2c9b69cd85e40bdd2b9f8d252f2d3df5790e
+  note: >
+    Current clean HEAD (857d2c9, "docs: remediate ORCH-000 F-8") is the
+    implementation/remediation commit reviewed here, per session-protocol.md
+    section 1.6. It is the human-committed diff of the REMEDIATOR session
+    (claude-code-remediator-3, evidence
+    20260720T223000Z-claude-code-remediator-3-6e1d7d18.yaml) that resolved
+    F-8 (missing environment_fingerprint_digest in
+    20260720T210000Z-claude-code-remediator-2-8387417f.yaml's command
+    records) and returned ORCH-000 to VERIFIED. This review assesses the
+    full chain since the last independent review (commit 246c168, reviewed
+    and REJECTED on F-8 grounds by claude-code-independent-reviewer-3 at
+    fcabc0b): the rejection commit itself (fcabc0b) and the F-8 remediation
+    (857d2c9). The design-package commit (a676e0b) is unchanged throughout,
+    and the D3-016/D3-017 authority chain and F-7 recapture (already
+    independently re-verified by claude-code-independent-reviewer-3 and
+    unmodified since) are not re-litigated.
+preflight:
+  repository_root: /home/afshin-jian/ai-workflow-engine
+  branch: main
+  head: 857d2c9b69cd85e40bdd2b9f8d252f2d3df5790e
+  upstream: origin/main
+  ahead: 0
+  behind: 0
+  tree: CLEAN
+  index: CLEAN
+  merge_rebase_cherrypick_bisect: NONE_ACTIVE
+  orchestration_feature_lock: NOT_FOUND
+  prior_orch_000_reviews:
+    - reviews/ORCH-000/20260720T172520Z-claude-code-independent-reviewer-59f68d54.yaml
+    - reviews/ORCH-000/20260720T194000Z-claude-code-independent-reviewer-2-b7e21ac4.yaml
+    - reviews/ORCH-000/20260720T220000Z-claude-code-independent-reviewer-3-c4a91d02.yaml
+  stage_status_at_start: VERIFIED
+  stage_review_status_at_start: PENDING
+  prerequisites: []
+  prerequisites_satisfied: true
+scope_diff:
+  compared: [246c168, 857d2c9]
+  changed_paths_count: 25
+  full_stat_digest: sha256:76da37ca9313d420ad6127540a5743d922decd9af4f38937c982fa67066df840
+  note: >
+    Full diff since the last-reviewed implementation commit (246c168),
+    spanning the third review's own recorded rejection (fcabc0b) and the F-8
+    remediation (857d2c9). Every changed path belongs to:
+    implementation-state.yaml, evidence/ORCH-000/, reviews/ORCH-000/, or
+    handoffs/ORCH-000/. No production source, no other stage file, no
+    session-protocol.md/decision-log.md/implementation-plan.md/
+    implementation-state.schema.yaml/stages/ORCH-000.md change anywhere in
+    this range (independently confirmed: git diff --stat 246c168 HEAD --
+    <those five paths> is empty), and no migration-registry.yaml change
+    (independently confirmed: git diff --stat a676e0b HEAD -- .
+    ':!docs/implementation/orchestration' is empty, i.e. nothing outside
+    this package changed since the design package commit).
+  out_of_scope_changed_paths: []
+commands:
+  - argv: [git, rev-parse, HEAD]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: reviews/ORCH-000/logs/20260720T205209Z-claude-code-independent-reviewer-4-27303e9e-git-rev-parse-head.txt
+    stdout_digest: sha256:6d3789f27e84f32369516e221182e12b49fa68f1c0af80a9b6a693b951f542ef
+    result: '857d2c9b69cd85e40bdd2b9f8d252f2d3df5790e'
+    purpose: Confirm current HEAD equals the F-8 remediation commit under review.
+  - argv: [git, status, --porcelain, -b]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: reviews/ORCH-000/logs/20260720T205209Z-claude-code-independent-reviewer-4-27303e9e-git-status.txt
+    stdout_digest: sha256:45e39eb485dfffe901ff28eaf821f6b5a4d93fb3221bcbf946a1d94e41655404
+    purpose: >
+      Confirm working tree/index clean and in sync with origin/main before
+      this review's own artifacts were added. Captured before creating any
+      of this session's own files; only this session's declared additions
+      appear untracked afterward (verified by inspection when writing the
+      changed_paths list below).
+  - argv: [git, show, --stat, fcabc0b]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: reviews/ORCH-000/logs/20260720T205209Z-claude-code-independent-reviewer-4-27303e9e-git-show-stat-fcabc0b.txt
+    stdout_digest: sha256:06e398ce19f443e4db2a6decbf1f49deb723a7a922531c47cc763048ff17bc95
+    purpose: >
+      Independently reproduce the third review-rejection commit's exact
+      changed-path set (reviews/ORCH-000/ and handoffs/ORCH-000/ additions
+      plus implementation-state.yaml only).
+  - argv: [git, show, --stat, 857d2c9]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: reviews/ORCH-000/logs/20260720T205209Z-claude-code-independent-reviewer-4-27303e9e-git-show-stat-857d2c9.txt
+    stdout_digest: sha256:c39091b6fdc9db55ae5a95249d42899d667cc46b1e43f24c8aadc764abb7ceaf
+    purpose: >
+      Independently reproduce the F-8 remediation commit's exact changed-path
+      set (evidence/ORCH-000/, its logs, handoffs/ORCH-000/ and
+      implementation-state.yaml only).
+  - argv: [git, diff, --stat, 246c168, 857d2c9]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: reviews/ORCH-000/logs/20260720T205209Z-claude-code-independent-reviewer-4-27303e9e-git-diff-246c168-HEAD-stat.txt
+    stdout_digest: sha256:76da37ca9313d420ad6127540a5743d922decd9af4f38937c982fa67066df840
+    result: '25 files changed, 2063 insertions(+), 44 deletions(-)'
+    purpose: Full scope diff since the last independent review's reviewed commit.
+  - argv: [workflowctl, verify, --config, self-governance.yaml, --output, json]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: reviews/ORCH-000/logs/20260720T205209Z-claude-code-independent-reviewer-4-27303e9e-workflowctl-verify.json
+    stdout_digest: sha256:bca6df5e523dffb44a986a90bcb4f5306cc9846e9fbd778268a02b6bb6a2890b
+    result_overall_status: PASS
+    purpose: Independent repository governance re-verification at current HEAD.
+  - argv: [pytest, -q]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: reviews/ORCH-000/logs/20260720T205209Z-claude-code-independent-reviewer-4-27303e9e-pytest.txt
+    stdout_digest: sha256:fc1cee02054e401bd35f656af453775881983fc7176582985ebcee57646fc160
+    result: '684 passed, 0 failed, 0 skipped'
+    purpose: Rerun full regression suite; matches every prior session's recorded 684 passed / 0 failed exactly.
+  - argv: [python3, /tmp/claude-1000/-home-afshin-jian-ai-workflow-engine/9ff35015-2199-4331-858a-391ba1dc1223/scratchpad/validate_orch_state.py]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: reviews/ORCH-000/logs/20260720T205209Z-claude-code-independent-reviewer-4-27303e9e-validate-orch-state.txt
+    stdout_digest: sha256:68eb1f73bd407447c95e053435a216d9ee6d120d3d6a05cdc34bd0e2a1754386
+    result: >
+      STRUCTURAL PASS: 28 stages, delivery_order length 28, 28 stage files,
+      acyclic, valid topology, 18 contiguous history entries,
+      next_eligible_stage=ORCH-000 (matches recomputation), plan_version
+      1.1.0 matches schema const, architecture_version 3.0.0 matches schema
+      const, ORCH-000 status=VERIFIED review_status=PENDING reviewer=None
+      blockers=0, all evidence/review/handoff paths referenced from
+      stages.ORCH-000 resolve to files that exist on disk. Additionally
+      confirmed: every command record in the new F-8 remediation evidence
+      (20260720T223000Z-claude-code-remediator-3-6e1d7d18.yaml) carries
+      environment_fingerprint_digest, and its declared value is byte-for-byte
+      identical to a freshly recomputed SHA-256 of its own captured
+      environment-fingerprint artifact, and to a freshly captured
+      environment-fingerprint on this reviewer's own machine/session
+      (independently confirmed via a separate ad hoc sha256sum, not merely
+      via this script).
+    purpose: >
+      Independent, freshly-written (not reused from any prior session's
+      scratch tooling) reproduction of implementation-state.yaml's
+      required/const/enum/pattern shape, stage-key cardinality,
+      delivery_order set-equality/uniqueness/acyclicity/topology,
+      prerequisite referential integrity, history sequence contiguity,
+      next_eligible_stage semantic recomputation, existence of every
+      evidence/review/handoff path stages.ORCH-000 references, and (new in
+      this review) per-command environment_fingerprint_digest presence and
+      byte-for-byte reproducibility across every ImplementationEvidence
+      record for this stage. Script not committed to the repository (scratch
+      tooling only, per the convention used by every prior session on this
+      candidate).
+checklist:
+  - item: Clean committed implementation HEAD
+    result: PASS
+    notes: HEAD 857d2c9b69cd85e40bdd2b9f8d252f2d3df5790e, tree/index clean, in sync with origin/main (0 ahead/0 behind).
+  - item: Stage status VERIFIED before review
+    result: PASS
+  - item: Prerequisites REVIEW_APPROVED
+    result: PASS
+    notes: ORCH-000 has no prerequisites (vacuously satisfied).
+  - item: Reviewer identity independence
+    result: PASS
+    notes: >
+      claude-code-independent-reviewer-4 differs from claude-code-bootstrap,
+      claude-code-independent-reviewer, claude-code-remediator,
+      claude-code-independent-reviewer-2, claude-code-architect-1,
+      claude-code-remediator-2, claude-code-independent-reviewer-3, and
+      claude-code-remediator-3 -- all eight prior actors recorded against
+      ORCH-000.
+  - item: Verification commands reproduce recorded results
+    result: PASS
+    notes: >
+      environment fingerprint digest byte-identical to every prior session's
+      (independently recomputed both via the validator script and via a
+      separate manual sha256sum of a freshly captured fingerprint on this
+      reviewer's own machine); git status digest reflects a clean tree
+      before this session's own additions; pytest count (684/0/0) identical
+      across every session; workflowctl verify PASS.
+  - item: F-8 resolved -- environment_fingerprint_digest present on every command record of the evidence supporting VERIFIED
+    result: PASS
+    notes: >
+      evidence/ORCH-000/20260720T223000Z-claude-code-remediator-3-6e1d7d18.yaml
+      (the new implementation-evidence record whose IMPLEMENTED/VERIFIED
+      history entries, sequences 17-18, now carry ORCH-000's VERIFIED
+      status) carries environment_fingerprint_digest on all 9 of its command
+      records, independently confirmed by parsing the committed YAML (zero
+      missing), and every stdout_artifact/stdout_digest pair and the
+      record's own worktree_digest were independently recomputed
+      byte-for-byte from the committed files and matched exactly. The prior
+      F-8-deficient record
+      (20260720T210000Z-claude-code-remediator-2-8387417f.yaml) is confirmed
+      still present, still missing the field on all 9 commands, and
+      unmodified -- correctly retained per session-protocol.md section 7's
+      "never overwrite an evidence record," and no longer the record
+      ORCH-000's VERIFIED status depends on.
+  - item: Remediation scope matches F-8's remediation_scope exactly
+    result: PASS
+    notes: >
+      git diff --stat 246c168 857d2c9 touches only
+      implementation-state.yaml, a new implementation-evidence record and
+      its 10 new log artifacts under evidence/ORCH-000/, and a new handoff
+      under handoffs/ORCH-000/ -- exactly the delegated scope. No
+      session-protocol.md, decision-log.md, implementation-plan.md,
+      implementation-state.schema.yaml or stages/ORCH-000.md change; no
+      re-litigation of F-1 through F-7, D3-016, D3-017, or the third
+      review's own PASS findings (all byte-identical/untouched, confirmed by
+      diff); no verdict/finding/checklist field of any prior review record
+      altered; no commit/push/ORCH-001 start by the remediation session.
+  - item: D3-016/D3-017 authority chain and F-7 recapture (carried forward)
+    result: PASS
+    notes: >
+      Unaffected by this round's changes; independently reconfirmed
+      unchanged since the third review's own independent verification
+      (git diff --stat 246c168 857d2c9 touches none of session-protocol.md,
+      decision-log.md, implementation-plan.md,
+      implementation-state.schema.yaml, or stages/ORCH-000.md). Not
+      re-verified byte-for-byte a second time in this review, per the
+      remediation's own explicit non-relitigation scope and this review's
+      own independence from re-deriving settled, unchanged prior findings.
+  - item: Architecture authority, recovery design, signature/commit circularity (carried forward)
+    result: PASS
+    notes: >
+      Unaffected by this round's changes; architecture-v3.md and
+      migration-registry.yaml have zero diff since a676e0b, independently
+      confirmed this session (git diff --stat a676e0b HEAD --
+      ':!docs/implementation/orchestration' is empty).
+  - item: Stage completeness (deliverable count matches package)
+    result: PASS
+    notes: Unaffected; stages/ORCH-000.md still reads "all 28 deliverables," matching the independently-confirmed 28 stages/plan rows/stage files.
+  - item: Evidence and handoff complete for the current VERIFIED transition
+    result: PASS
+    notes: >
+      The evidence record backing ORCH-000's current VERIFIED status
+      (20260720T223000Z-claude-code-remediator-3-6e1d7d18.yaml) satisfies
+      ImplementationEvidence 1.0.0's required fields, including
+      environment_fingerprint_digest on every command record. Its handoff
+      (handoffs/ORCH-000/20260720T223000Z-claude-code-remediator-3-6e1d7d18.md)
+      satisfies HandoffRecord 1.0.0's required headings.
+verdict: APPROVED
+findings: []
+resulting_state_transition:
+  stage_id: ORCH-000
+  from: VERIFIED
+  to: REVIEW_APPROVED
+review_time: '2026-07-20T20:55:00Z'
+next_eligible_stage_computed: ORCH-001
+next_eligible_stage_note: >
+  Once ORCH-000 is REVIEW_APPROVED, ORCH-001 ("Durable feature-state
+  validator") becomes the sole eligible stage: its only prerequisite
+  (ORCH-000) is satisfied, and no other NOT_STARTED stage has all
+  prerequisites satisfied. This review computes but does not implement
+  ORCH-001; no ORCH-001 work is started in this session.
+commit_push_authority: >
+  This review session did not commit or push. Per session-protocol.md
+  section 3/5, a human must commit this review evidence and the
+  implementation-state.yaml update as one diff before any further session
+  (an ORCH-001 IMPLEMENTER) may act on it.
