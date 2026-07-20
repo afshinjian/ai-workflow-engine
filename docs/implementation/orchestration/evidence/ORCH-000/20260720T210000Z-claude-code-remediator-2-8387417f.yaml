@@ -1,0 +1,301 @@
+schema_name: orchestration-implementation-evidence
+schema_version: 1.0.0
+feature_id: ORCH
+stage_id: ORCH-000
+implementation_id: 20260720T210000Z-claude-code-remediator-2-8387417f
+session:
+  actor: claude-code-remediator-2
+  role: REMEDIATOR
+started_at: '2026-07-20T21:00:00Z'
+finished_at: '2026-07-20T21:15:00Z'
+head:
+  starting: 19d47dca22433720c8ddef90423e8a5ef57e9d9e
+  ending: 19d47dca22433720c8ddef90423e8a5ef57e9d9e
+  note: >
+    This session leaves one uncommitted scoped diff (per session-protocol.md
+    section 3's two-commit pattern) containing the F-7 evidence-log recapture,
+    the state update, and this new implementation evidence/handoff. No new
+    commit is created by this session; a human must commit this exact diff
+    before an independent reviewer acts on it.
+independence_declaration: >
+  This session has no memory of and did not participate in any prior
+  ORCH-000 session. Actor (claude-code-remediator-2) differs from every
+  implementer/remediator/reviewer/architect already recorded against
+  ORCH-000: claude-code-bootstrap, claude-code-independent-reviewer,
+  claude-code-remediator, claude-code-independent-reviewer-2, and
+  claude-code-architect-1. This remediation relies only on committed
+  repository state read this session, not on chat history.
+preflight:
+  repository_root: /home/afshin-jian/ai-workflow-engine
+  branch: main
+  head: 19d47dca22433720c8ddef90423e8a5ef57e9d9e
+  upstream: origin/main
+  ahead: 0
+  behind: 0
+  tree: CLEAN
+  index: CLEAN
+  merge_rebase_cherrypick_bisect: NONE_ACTIVE
+  orchestration_feature_lock: NOT_FOUND
+  prior_orch_000_evidence:
+    - evidence/ORCH-000/20260720T164147Z-claude-code-bootstrap-d24e29f6.yaml
+    - evidence/ORCH-000/20260720T181000Z-claude-code-remediator-e27efbe4.yaml
+    - evidence/ORCH-000/20260720T201500Z-claude-code-architect-1-f7bef021.yaml
+  prior_orch_000_reviews:
+    - reviews/ORCH-000/20260720T172520Z-claude-code-independent-reviewer-59f68d54.yaml
+    - reviews/ORCH-000/20260720T194000Z-claude-code-independent-reviewer-2-b7e21ac4.yaml
+  stage_status_at_start: REVIEW_REJECTED
+  stage_review_status_at_start: REJECTED
+  blockers_at_start: [GOVERNANCE_AMENDMENT_PENDING_REMEDIATION]
+  delegated_scope: >
+    decision-log.md D3-017 "Delegated remediation scope (F-7 and resumption)"
+    and handoffs/ORCH-000/20260720T201500Z-claude-code-architect-1-f7bef021.md
+    "Next legal action": resolve F-7 only, within evidence/ORCH-000/ and
+    reviews/ORCH-000/ only; do not touch session-protocol.md,
+    decision-log.md, implementation-plan.md, implementation-state.schema.yaml
+    or stages/ORCH-000.md; do not re-litigate F-1..F-6 or either review's
+    verdict; do not approve, commit, push, or start ORCH-001.
+f7_identification:
+  target_record: reviews/ORCH-000/20260720T172520Z-claude-code-independent-reviewer-59f68d54.yaml
+  affected_commands:
+    - {command: [git, rev-parse, HEAD], old_stdout_artifact: reviews/ORCH-000/logs/git-rev-parse-head.log}
+    - {command: [git, status, --porcelain, -b], old_stdout_artifact: reviews/ORCH-000/logs/git-status.log}
+    - {command: [git, show, --stat, a676e0b], old_stdout_artifact: reviews/ORCH-000/logs/git-show-stat-a676e0b.log}
+    - {command: [pytest, -q], old_stdout_artifact: reviews/ORCH-000/logs/pytest.log}
+    - {command: [python3, "<validate-orch-state script>"], old_stdout_artifact: reviews/ORCH-000/logs/validate-orch-state.log}
+  excluded_not_affected:
+    - {stdout_artifact: reviews/ORCH-000/logs/workflowctl-verify.json, reason: 'already committed at 17111c7; .json extension is not excluded by .gitignore'}
+  confirmed_via: >-
+    git ls-files docs/implementation/orchestration/reviews/ORCH-000/logs/
+    (before this session's edits) listed only the second review's own
+    prefixed artifacts and workflowctl-verify.json; the five .log paths
+    above were absent from every commit since 17111c7 and existed only as
+    untracked, gitignore-excluded working-tree files.
+recapture:
+  method: >
+    For each of the five affected commands, computed SHA-256 of the
+    pre-existing untracked working-tree file and confirmed it is byte-identical
+    to the stdout_digest already recorded in the target review's evidence YAML
+    (proving the content is the review's own genuine, unaltered output, not a
+    fresh rerun against a since-advanced HEAD). Copied that verified content
+    into a new file under reviews/ORCH-000/logs/, named with the owning
+    review's own ID prefix, and updated only the corresponding
+    stdout_artifact field in the review evidence to the new path.
+    stdout_digest, result, verdict, findings, checklist and
+    remediation_scope in the review evidence are byte-for-byte unchanged.
+  verified_digests:
+    - {name: git-rev-parse-head, digest: 'sha256:9bd6fe7c75cff70afd8ec2d67d716200722a1a74fb67ca0d2d3e4e14655e73d6', match: true}
+    - {name: git-status, digest: 'sha256:5fbcb2990ad25e368c12219bf3ddca36e464d044e7acac16696fa8cd54159185', match: true}
+    - {name: git-show-stat-a676e0b, digest: 'sha256:a3b04eeae907f010a0b56e26cfb1d1d652b597ca59116519146647697792dfcf', match: true}
+    - {name: pytest, digest: 'sha256:93bda7627b9b2479a1680430ba03981a4cf0014e7f881dcc6ef2afba10e87005', match: true}
+    - {name: validate-orch-state, digest: 'sha256:b61075d8aeff5ef2f93e9bf22286188f5e028b05ddbeabe36561cfcefb03e963', match: true}
+  new_committed_paths:
+    - reviews/ORCH-000/logs/20260720T172520Z-claude-code-independent-reviewer-59f68d54-git-rev-parse-head.txt
+    - reviews/ORCH-000/logs/20260720T172520Z-claude-code-independent-reviewer-59f68d54-git-status.txt
+    - reviews/ORCH-000/logs/20260720T172520Z-claude-code-independent-reviewer-59f68d54-git-show-stat-a676e0b.txt
+    - reviews/ORCH-000/logs/20260720T172520Z-claude-code-independent-reviewer-59f68d54-pytest.txt
+    - reviews/ORCH-000/logs/20260720T172520Z-claude-code-independent-reviewer-59f68d54-validate-orch-state.txt
+changed_paths:
+  - docs/implementation/orchestration/implementation-state.yaml
+  - docs/implementation/orchestration/reviews/ORCH-000/20260720T172520Z-claude-code-independent-reviewer-59f68d54.yaml
+  - docs/implementation/orchestration/reviews/ORCH-000/logs/20260720T172520Z-claude-code-independent-reviewer-59f68d54-git-rev-parse-head.txt
+  - docs/implementation/orchestration/reviews/ORCH-000/logs/20260720T172520Z-claude-code-independent-reviewer-59f68d54-git-status.txt
+  - docs/implementation/orchestration/reviews/ORCH-000/logs/20260720T172520Z-claude-code-independent-reviewer-59f68d54-git-show-stat-a676e0b.txt
+  - docs/implementation/orchestration/reviews/ORCH-000/logs/20260720T172520Z-claude-code-independent-reviewer-59f68d54-pytest.txt
+  - docs/implementation/orchestration/reviews/ORCH-000/logs/20260720T172520Z-claude-code-independent-reviewer-59f68d54-validate-orch-state.txt
+  - docs/implementation/orchestration/evidence/ORCH-000/20260720T210000Z-claude-code-remediator-2-8387417f.yaml
+  - docs/implementation/orchestration/evidence/ORCH-000/logs/20260720T210000Z-claude-code-remediator-2-8387417f-git-rev-parse-head-before.txt
+  - docs/implementation/orchestration/evidence/ORCH-000/logs/20260720T210000Z-claude-code-remediator-2-8387417f-git-status-before.txt
+  - docs/implementation/orchestration/evidence/ORCH-000/logs/20260720T210000Z-claude-code-remediator-2-8387417f-git-status-after.txt
+  - docs/implementation/orchestration/evidence/ORCH-000/logs/20260720T210000Z-claude-code-remediator-2-8387417f-workflowctl-verify-before.json
+  - docs/implementation/orchestration/evidence/ORCH-000/logs/20260720T210000Z-claude-code-remediator-2-8387417f-workflowctl-verify-after.json
+  - docs/implementation/orchestration/evidence/ORCH-000/logs/20260720T210000Z-claude-code-remediator-2-8387417f-pytest-before.txt
+  - docs/implementation/orchestration/evidence/ORCH-000/logs/20260720T210000Z-claude-code-remediator-2-8387417f-pytest-after.txt
+  - docs/implementation/orchestration/evidence/ORCH-000/logs/20260720T210000Z-claude-code-remediator-2-8387417f-validate-orch-state-before.txt
+  - docs/implementation/orchestration/evidence/ORCH-000/logs/20260720T210000Z-claude-code-remediator-2-8387417f-validate-orch-state-after.txt
+  - docs/implementation/orchestration/handoffs/ORCH-000/20260720T210000Z-claude-code-remediator-2-8387417f.md
+commands:
+  - argv: [git, rev-parse, HEAD]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-000/logs/20260720T210000Z-claude-code-remediator-2-8387417f-git-rev-parse-head-before.txt
+    stdout_digest: sha256:a8658e76a806d8990dee1e9db2bd439bb013f145d7fcbb919d6940cfb9ddff8c
+    result: '19d47dca22433720c8ddef90423e8a5ef57e9d9e'
+    purpose: Confirm this session's starting HEAD equals the committed governance-amendment commit.
+    when: before
+  - argv: [git, status, --porcelain, -b]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-000/logs/20260720T210000Z-claude-code-remediator-2-8387417f-git-status-before.txt
+    stdout_digest: sha256:5fbcb2990ad25e368c12219bf3ddca36e464d044e7acac16696fa8cd54159185
+    purpose: >
+      Confirm clean tree/index before this session's edits. Digest is
+      byte-identical to every prior session's clean-tree digest for this
+      same command (content-based, expected for an unchanged porcelain
+      message on an unchanged clean tree).
+    when: before
+  - argv: [workflowctl, verify, --config, self-governance.yaml, --output, json]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-000/logs/20260720T210000Z-claude-code-remediator-2-8387417f-workflowctl-verify-before.json
+    stdout_digest: sha256:df7d6c73ea88ce26069fb078863f2686d5059de28720eeef02328b76acb55687
+    result_overall_status: PASS
+    purpose: Independent repository governance verification before any edit.
+    when: before
+  - argv: [pytest, -q]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-000/logs/20260720T210000Z-claude-code-remediator-2-8387417f-pytest-before.txt
+    stdout_digest: sha256:dc57a97946bec22b2c86829b22c0b31b3fe58649756299698040016a8352a81b
+    result: '684 passed, 0 failed, 0 skipped'
+    purpose: Full existing regression suite before any edit; matches every prior session's recorded count.
+    when: before
+  - argv: [python3, /tmp/claude-1000/-home-afshin-jian-ai-workflow-engine/544715a9-b7db-4370-8468-94ba0237b6e8/scratchpad/orch000-remediation/validate_orch_state.py]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-000/logs/20260720T210000Z-claude-code-remediator-2-8387417f-validate-orch-state-before.txt
+    stdout_digest: sha256:fd17efb371472a3850e0c0a23918e505f626d03413a593f9906bc59d0f8c3200
+    result: 'STRUCTURAL PASS: 28 stages, delivery_order length 28, 28 plan rows, 28 stage files, 11 contiguous history entries, next_eligible_stage=ORCH-000, stage status=REVIEW_REJECTED, blockers=1'
+    purpose: >
+      Independent, freshly-written (not reused from any prior session's
+      scratch tooling) reproduction of implementation-state.yaml's
+      required/const/enum/pattern shape against
+      implementation-state.schema.yaml; stage-key cardinality; delivery_order
+      set-equality/uniqueness/acyclicity/topology; prerequisite referential
+      integrity; history sequence contiguity; next_eligible_stage semantic
+      recomputation; and ORCH-000-specific invariants. Script content is
+      reproducible from this evidence record; not committed to the
+      repository (scratch tooling only, per prior sessions' convention).
+    when: before
+  - argv: [git, status, --porcelain, -b]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-000/logs/20260720T210000Z-claude-code-remediator-2-8387417f-git-status-after.txt
+    stdout_digest: sha256:396d119fb5fa26968e105014c937c95fe0ee4ba09fdaa0644822961e50475bff
+    purpose: Confirm only the declared changed_paths are modified/untracked after this session's edits.
+    when: after
+  - argv: [workflowctl, verify, --config, self-governance.yaml, --output, json]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-000/logs/20260720T210000Z-claude-code-remediator-2-8387417f-workflowctl-verify-after.json
+    stdout_digest: sha256:dc6ba301049b81dade324629e5f3aa706b46f5e1505e4ce23c864dbff0a16298
+    result_overall_status: PASS
+    purpose: Independent repository governance re-verification after this session's edits.
+    when: after
+  - argv: [pytest, -q]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-000/logs/20260720T210000Z-claude-code-remediator-2-8387417f-pytest-after.txt
+    stdout_digest: sha256:f39c2ca1c240f4c88b0e0e4ef5554fa6a49b47845dcefed5c9e3f9cb4a520e6f
+    result: '684 passed, 0 failed, 0 skipped'
+    purpose: Full regression suite after this session's edits; unchanged count confirms docs-only evidence recapture has no production-code effect.
+    when: after
+  - argv: [python3, /tmp/claude-1000/-home-afshin-jian-ai-workflow-engine/544715a9-b7db-4370-8468-94ba0237b6e8/scratchpad/orch000-remediation/validate_orch_state.py]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-000/logs/20260720T210000Z-claude-code-remediator-2-8387417f-validate-orch-state-after.txt
+    stdout_digest: sha256:6d4796562fd21429575892768af2068de7240c75bfe894d801eef7bf1eba8e5c
+    result: 'STRUCTURAL PASS: 28 stages, delivery_order length 28, 28 plan rows, 28 stage files, 14 contiguous history entries, next_eligible_stage=ORCH-000, stage status=VERIFIED, review_status=PENDING, blockers=0'
+    purpose: Independent reproduction of the same validator after this session's edits, confirming the F-7 fix and state transition landed consistently.
+    when: after
+tests:
+  suite: full existing regression suite (pytest -q)
+  passed: 684
+  failed: 0
+  skipped: 0
+  exit_code: 0
+decisions:
+  - id: DEC-R2-1
+    summary: >
+      Recover the five F-7 artifacts by verifying and recommitting their
+      already-produced, digest-matching content, rather than by literally
+      re-invoking git rev-parse HEAD / git status against today's HEAD.
+    rationale: >
+      HEAD has legitimately advanced since the first review (46898ec ->
+      19d47dc across the amendment/remediation chain). A fresh
+      `git rev-parse HEAD` today would return a different value than the
+      review's own already-committed `result` field (46898ec...), which this
+      session must not alter (task scope: fix only the missing artifacts,
+      never the review's recorded verdict/findings/results). The five
+      untracked working-tree files were verified byte-for-byte identical to
+      the digests the review evidence already recorded, proving they are
+      that review's genuine, unaltered original output; recommitting that
+      content is the faithful fix. git show --stat a676e0b, pytest -q, and
+      the validate-orch-state script are independently rerun as part of this
+      session's own required verification (see commands, when: before/after)
+      and reconfirm PASS/684-passed against current repository state, which
+      is the standard remediation practice this task's Validation section
+      also requires -- but that is a distinct check from recapturing the
+      first review's own historical artifact, which is what F-7 required.
+  - id: DEC-R2-2
+    summary: >
+      Name the five recaptured artifacts with the owning review's own ID
+      prefix (20260720T172520Z-claude-code-independent-reviewer-59f68d54-*),
+      not this session's own ID.
+    rationale: >
+      These files are the first review's own evidence, being recovered into
+      committed form, not new evidence produced by this session. Prefixing
+      with the reviewing session's own ID keeps attribution correct and
+      avoids colliding with the second review's already-committed
+      20260720T194000Z-claude-code-independent-reviewer-2-b7e21ac4-* files in
+      the same directory, mirroring the disambiguation convention the prior
+      remediator (e27efbe4, DEC-R5) already established for this stage.
+  - id: DEC-R2-3
+    summary: >
+      Change only the five stdout_artifact path fields in
+      reviews/ORCH-000/20260720T172520Z-claude-code-independent-reviewer-59f68d54.yaml;
+      leave stdout_digest, result, verdict, findings, checklist and
+      remediation_scope untouched; do not add new top-level fields to that
+      file.
+    rationale: >
+      Task scope forbids altering the review's recorded verdict or findings
+      text. session-protocol.md section 7 states ReviewEvidence 1.0.0
+      "unknown fields fail" validation, so no new top-level field was added;
+      the fix is confined to the exact field (stdout_artifact) whose value
+      was the actual defect (a path that was never committed).
+unresolved_risks:
+  - id: R-REMEDIATION-AMENDMENT-UNREVIEWED
+    severity: MEDIUM
+    summary: >
+      Carried forward; the D3-016/D3-017 authority chain and this session's
+      F-7 fix have not yet been assessed by an independent reviewer.
+    disposition: >
+      The next independent reviewer, distinct from all six actors recorded
+      against ORCH-000, must assess the ratified D3-016 text, the D3-017
+      authorization, and this session's F-7 recapture together before
+      recording REVIEW_APPROVED or REVIEW_REJECTED.
+  - id: R-BOOTSTRAP-ROLE-OVERLAP
+    severity: MEDIUM
+    summary: Carried forward unchanged from implementation-state.yaml unresolved_risks.
+    disposition: Unaffected by this remediation; still a flag for the next reviewer.
+  - id: R-APPROVAL-ISOLATION
+    severity: CRITICAL
+    summary: Carried forward unchanged from implementation-state.yaml unresolved_risks.
+    disposition: Unaffected by this remediation; still must be proven in ORCH-016/ORCH-017/ORCH-027.
+  - id: R-GOVERNANCE-TRANSACTION
+    severity: CRITICAL
+    summary: Carried forward unchanged from implementation-state.yaml unresolved_risks.
+    disposition: Unaffected by this remediation; still must be proven in ORCH-020/ORCH-027.
+blockers: []
+schema_changes: []
+migration_changes: []
+worktree_digest:
+  algorithm: sha256
+  method: >-
+    SHA-256 of the newline-joined "sha256hex  relative/path" manifest lines
+    (sorted by path) for every changed_paths entry except this evidence YAML
+    itself (excluded to avoid a self-referential digest); each line's digest
+    is the SHA-256 of that file's raw bytes.
+  value: sha256:d5d6c6472879cad179c08409c6d547e4aad85590143305837b32ef45609e5c3c
+handoff: docs/implementation/orchestration/handoffs/ORCH-000/20260720T210000Z-claude-code-remediator-2-8387417f.md
+production_source_modified: false
+stage_status_changed: true
+stage_status_transition: {from: REVIEW_REJECTED, to: VERIFIED, via: [IN_PROGRESS, IMPLEMENTED]}
+review_verdict_recorded: false
+next_required_role: REVIEWER
+next_required_action: >
+  Independent ORCH-000 review using
+  docs/implementation/orchestration/prompts/review-current.md, run by a
+  session/actor distinct from claude-code-bootstrap,
+  claude-code-independent-reviewer, claude-code-remediator,
+  claude-code-independent-reviewer-2, claude-code-architect-1, and this
+  session (claude-code-remediator-2).

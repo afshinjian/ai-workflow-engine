@@ -1,0 +1,51 @@
+commit a676e0bc128494085f85f8f79f62aa8aac64bbd1
+Author: afshin_jian <afshinjian@gmail.com>
+Date:   Mon Jul 20 18:54:33 2026 +0330
+
+    docs: add orchestration architecture v3 and staged implementation plan
+
+ docs/implementation/orchestration/README.md        |  23 +
+ .../orchestration/architecture-v3.md               | 602 +++++++++++++++++++++
+ docs/implementation/orchestration/decision-log.md  |  23 +
+ .../orchestration/evidence/README.md               |   5 +
+ .../orchestration/handoffs/README.md               |   6 +
+ .../orchestration/implementation-plan.md           | 175 ++++++
+ .../orchestration/implementation-state.schema.yaml | 158 ++++++
+ .../orchestration/implementation-state.yaml        | 115 ++++
+ .../orchestration/migration-registry.yaml          |  32 ++
+ .../orchestration/prompts/implement-next.md        |  29 +
+ .../orchestration/prompts/inspect-status.md        |  17 +
+ .../orchestration/prompts/remediate-rejected.md    |  19 +
+ .../prompts/resume-after-head-change.md            |  24 +
+ .../orchestration/prompts/review-current.md        |  20 +
+ .../implementation/orchestration/reviews/README.md |   6 +
+ .../orchestration/session-protocol.md              | 178 ++++++
+ .../orchestration/stages/ORCH-000.md               |  74 +++
+ .../orchestration/stages/ORCH-001.md               |  74 +++
+ .../orchestration/stages/ORCH-002.md               |  74 +++
+ .../orchestration/stages/ORCH-003.md               |  74 +++
+ .../orchestration/stages/ORCH-004.md               |  74 +++
+ .../orchestration/stages/ORCH-005.md               |  74 +++
+ .../orchestration/stages/ORCH-006.md               |  74 +++
+ .../orchestration/stages/ORCH-007.md               |  74 +++
+ .../orchestration/stages/ORCH-008.md               |  74 +++
+ .../orchestration/stages/ORCH-009.md               |  74 +++
+ .../orchestration/stages/ORCH-010.md               |  74 +++
+ .../orchestration/stages/ORCH-011.md               |  74 +++
+ .../orchestration/stages/ORCH-012.md               |  74 +++
+ .../orchestration/stages/ORCH-013.md               |  74 +++
+ .../orchestration/stages/ORCH-014.md               |  74 +++
+ .../orchestration/stages/ORCH-015.md               |  73 +++
+ .../orchestration/stages/ORCH-016.md               |  74 +++
+ .../orchestration/stages/ORCH-017.md               |  74 +++
+ .../orchestration/stages/ORCH-018.md               |  74 +++
+ .../orchestration/stages/ORCH-019.md               |  74 +++
+ .../orchestration/stages/ORCH-020.md               |  74 +++
+ .../orchestration/stages/ORCH-021.md               |  74 +++
+ .../orchestration/stages/ORCH-022.md               |  74 +++
+ .../orchestration/stages/ORCH-023.md               |  74 +++
+ .../orchestration/stages/ORCH-024.md               |  74 +++
+ .../orchestration/stages/ORCH-025.md               |  74 +++
+ .../orchestration/stages/ORCH-026.md               |  74 +++
+ .../orchestration/stages/ORCH-027.md               |  73 +++
+ 44 files changed, 3502 insertions(+)

@@ -1,0 +1,10 @@
+RESULT: PASS
+stage_count=28 delivery_order_length=28 plan_rows=28 stage_files=28
+history_entries=11 contiguous=True
+computed_next_eligible_stage=ORCH-000
+ORCH-000.status=REVIEW_REJECTED
+ORCH-000.review_status=REJECTED
+ORCH-000.verification_status=PASSED
+ORCH-000.evidence_count=3
+ORCH-000.review_evidence_count=2
+ORCH-000.blockers_count=1

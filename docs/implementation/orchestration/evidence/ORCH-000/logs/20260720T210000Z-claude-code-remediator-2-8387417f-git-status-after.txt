@@ -1,0 +1,13 @@
+## main...origin/main
+ M docs/implementation/orchestration/implementation-state.yaml
+ M docs/implementation/orchestration/reviews/ORCH-000/20260720T172520Z-claude-code-independent-reviewer-59f68d54.yaml
+?? docs/implementation/orchestration/evidence/ORCH-000/logs/20260720T210000Z-claude-code-remediator-2-8387417f-git-rev-parse-head-before.txt
+?? docs/implementation/orchestration/evidence/ORCH-000/logs/20260720T210000Z-claude-code-remediator-2-8387417f-git-status-before.txt
+?? docs/implementation/orchestration/evidence/ORCH-000/logs/20260720T210000Z-claude-code-remediator-2-8387417f-pytest-before.txt
+?? docs/implementation/orchestration/evidence/ORCH-000/logs/20260720T210000Z-claude-code-remediator-2-8387417f-validate-orch-state-before.txt
+?? docs/implementation/orchestration/evidence/ORCH-000/logs/20260720T210000Z-claude-code-remediator-2-8387417f-workflowctl-verify-before.json
+?? docs/implementation/orchestration/reviews/ORCH-000/logs/20260720T172520Z-claude-code-independent-reviewer-59f68d54-git-rev-parse-head.txt
+?? docs/implementation/orchestration/reviews/ORCH-000/logs/20260720T172520Z-claude-code-independent-reviewer-59f68d54-git-show-stat-a676e0b.txt
+?? docs/implementation/orchestration/reviews/ORCH-000/logs/20260720T172520Z-claude-code-independent-reviewer-59f68d54-git-status.txt
+?? docs/implementation/orchestration/reviews/ORCH-000/logs/20260720T172520Z-claude-code-independent-reviewer-59f68d54-pytest.txt
+?? docs/implementation/orchestration/reviews/ORCH-000/logs/20260720T172520Z-claude-code-independent-reviewer-59f68d54-validate-orch-state.txt

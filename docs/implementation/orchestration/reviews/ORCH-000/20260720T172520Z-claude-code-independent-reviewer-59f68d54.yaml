@@ -73,7 +73,7 @@ commands:
     cwd: /home/afshin-jian/ai-workflow-engine
     environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
     exit_code: 0
-    stdout_artifact: reviews/ORCH-000/logs/git-rev-parse-head.log
+    stdout_artifact: reviews/ORCH-000/logs/20260720T172520Z-claude-code-independent-reviewer-59f68d54-git-rev-parse-head.txt
     stdout_digest: sha256:9bd6fe7c75cff70afd8ec2d67d716200722a1a74fb67ca0d2d3e4e14655e73d6
     result: '46898ec943e94d63f15a1ba33e2b0c05e82d6223'
     purpose: Confirm current HEAD; disagrees with stages.ORCH-000.implementation_commit (a676e0b), see reviewed.note.
@@ -81,14 +81,14 @@ commands:
     cwd: /home/afshin-jian/ai-workflow-engine
     environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
     exit_code: 0
-    stdout_artifact: reviews/ORCH-000/logs/git-status.log
+    stdout_artifact: reviews/ORCH-000/logs/20260720T172520Z-claude-code-independent-reviewer-59f68d54-git-status.txt
     stdout_digest: sha256:5fbcb2990ad25e368c12219bf3ddca36e464d044e7acac16696fa8cd54159185
     purpose: Confirm working tree clean on branch main before review.
   - argv: [git, show, --stat, a676e0b]
     cwd: /home/afshin-jian/ai-workflow-engine
     environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
     exit_code: 0
-    stdout_artifact: reviews/ORCH-000/logs/git-show-stat-a676e0b.log
+    stdout_artifact: reviews/ORCH-000/logs/20260720T172520Z-claude-code-independent-reviewer-59f68d54-git-show-stat-a676e0b.txt
     stdout_digest: sha256:a3b04eeae907f010a0b56e26cfb1d1d652b597ca59116519146647697792dfcf
     purpose: >
       Independently reproduce the design-package-commit content check.
@@ -106,7 +106,7 @@ commands:
     cwd: /home/afshin-jian/ai-workflow-engine
     environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
     exit_code: 0
-    stdout_artifact: reviews/ORCH-000/logs/pytest.log
+    stdout_artifact: reviews/ORCH-000/logs/20260720T172520Z-claude-code-independent-reviewer-59f68d54-pytest.txt
     stdout_digest: sha256:93bda7627b9b2479a1680430ba03981a4cf0014e7f881dcc6ef2afba10e87005
     result: '684 passed, 0 failed, 0 skipped'
     purpose: Rerun full regression suite; matches implementer's recorded 684 passed / 0 failed.
@@ -114,7 +114,7 @@ commands:
     cwd: /home/afshin-jian/ai-workflow-engine
     environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
     exit_code: 0
-    stdout_artifact: reviews/ORCH-000/logs/validate-orch-state.log
+    stdout_artifact: reviews/ORCH-000/logs/20260720T172520Z-claude-code-independent-reviewer-59f68d54-validate-orch-state.txt
     stdout_digest: sha256:b61075d8aeff5ef2f93e9bf22286188f5e028b05ddbeabe36561cfcefb03e963
     result: 'PASS: 28 stages, delivery_order length 28, plan rows 28, stage files 28, next_eligible_stage computed=ORCH-000 (matches recorded)'
     purpose: >
