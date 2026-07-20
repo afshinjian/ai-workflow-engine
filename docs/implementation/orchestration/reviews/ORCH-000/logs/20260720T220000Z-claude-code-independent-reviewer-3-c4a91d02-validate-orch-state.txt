@@ -1,0 +1,2 @@
+Actors recorded against ORCH-000 so far: ['claude-code-architect-1', 'claude-code-bootstrap', 'claude-code-independent-reviewer', 'claude-code-independent-reviewer-2', 'claude-code-remediator', 'claude-code-remediator-2', 'codex-architecture-v3']
+STRUCTURAL PASS: 28 stages, delivery_order length 28, 28 stage files, acyclic, valid topology, 14 contiguous history entries, next_eligible_stage=ORCH-000 (matches recomputation), plan_version=1.1.0 matches schema const, architecture_version=3.0.0 matches schema const, HEAD=246c168eda264a5aa2320f378727a59006395bd0

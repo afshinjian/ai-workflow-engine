@@ -1,0 +1,25 @@
+commit 246c168eda264a5aa2320f378727a59006395bd0
+Author: afshin_jian <afshinjian@gmail.com>
+Date:   Mon Jul 20 23:38:44 2026 +0330
+
+    docs: remediate ORCH-000 evidence tracking
+
+ ...T210000Z-claude-code-remediator-2-8387417f.yaml | 301 +++++++++++++++++++++
+ ...diator-2-8387417f-git-rev-parse-head-before.txt |   1 +
+ ...code-remediator-2-8387417f-git-status-after.txt |  13 +
+ ...ode-remediator-2-8387417f-git-status-before.txt |   1 +
+ ...ude-code-remediator-2-8387417f-pytest-after.txt |  11 +
+ ...de-code-remediator-2-8387417f-pytest-before.txt |  11 +
+ ...diator-2-8387417f-validate-orch-state-after.txt |  10 +
+ ...iator-2-8387417f-validate-orch-state-before.txt |  10 +
+ ...diator-2-8387417f-workflowctl-verify-after.json | 258 ++++++++++++++++++
+ ...iator-2-8387417f-workflowctl-verify-before.json | 231 ++++++++++++++++
+ ...20T210000Z-claude-code-remediator-2-8387417f.md | 169 ++++++++++++
+ .../orchestration/implementation-state.yaml        | 117 +++++---
+ ...-claude-code-independent-reviewer-59f68d54.yaml |  10 +-
+ ...endent-reviewer-59f68d54-git-rev-parse-head.txt |   1 +
+ ...ent-reviewer-59f68d54-git-show-stat-a676e0b.txt |  51 ++++
+ ...de-independent-reviewer-59f68d54-git-status.txt |   1 +
+ ...e-code-independent-reviewer-59f68d54-pytest.txt |  11 +
+ ...ndent-reviewer-59f68d54-validate-orch-state.txt |   3 +
+ 18 files changed, 1164 insertions(+), 46 deletions(-)

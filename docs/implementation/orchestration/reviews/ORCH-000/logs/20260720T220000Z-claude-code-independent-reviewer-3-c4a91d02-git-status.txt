@@ -1,0 +1,9 @@
+## main...origin/main
+?? docs/implementation/orchestration/reviews/ORCH-000/logs/20260720T220000Z-claude-code-independent-reviewer-3-c4a91d02-git-diff-19d47dc-246c168-stat.txt
+?? docs/implementation/orchestration/reviews/ORCH-000/logs/20260720T220000Z-claude-code-independent-reviewer-3-c4a91d02-git-rev-parse-head.txt
+?? docs/implementation/orchestration/reviews/ORCH-000/logs/20260720T220000Z-claude-code-independent-reviewer-3-c4a91d02-git-show-stat-19d47dc.txt
+?? docs/implementation/orchestration/reviews/ORCH-000/logs/20260720T220000Z-claude-code-independent-reviewer-3-c4a91d02-git-show-stat-246c168.txt
+?? docs/implementation/orchestration/reviews/ORCH-000/logs/20260720T220000Z-claude-code-independent-reviewer-3-c4a91d02-git-status.txt
+?? docs/implementation/orchestration/reviews/ORCH-000/logs/20260720T220000Z-claude-code-independent-reviewer-3-c4a91d02-pytest.txt
+?? docs/implementation/orchestration/reviews/ORCH-000/logs/20260720T220000Z-claude-code-independent-reviewer-3-c4a91d02-validate-orch-state.txt
+?? docs/implementation/orchestration/reviews/ORCH-000/logs/20260720T220000Z-claude-code-independent-reviewer-3-c4a91d02-workflowctl-verify.json

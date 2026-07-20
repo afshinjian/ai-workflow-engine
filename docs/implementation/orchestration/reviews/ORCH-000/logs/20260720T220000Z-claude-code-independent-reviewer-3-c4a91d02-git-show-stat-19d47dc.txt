@@ -1,0 +1,24 @@
+commit 19d47dca22433720c8ddef90423e8a5ef57e9d9e
+Author: afshin_jian <afshinjian@gmail.com>
+Date:   Mon Jul 20 23:18:09 2026 +0330
+
+    docs: authorize ORCH-000 governance amendment
+
+ docs/implementation/orchestration/decision-log.md  |  84 ++++++
+ ...0T201500Z-claude-code-architect-1-f7bef021.yaml | 310 +++++++++++++++++++++
+ ...hitect-1-f7bef021-git-rev-parse-head-before.txt |   1 +
+ ...-code-architect-1-f7bef021-git-status-after.txt |  12 +
+ ...code-architect-1-f7bef021-git-status-before.txt |   1 +
+ ...aude-code-architect-1-f7bef021-pytest-after.txt |  11 +
+ ...ude-code-architect-1-f7bef021-pytest-before.txt |  11 +
+ ...hitect-1-f7bef021-validate-orch-state-after.txt |  10 +
+ ...itect-1-f7bef021-validate-orch-state-before.txt |  10 +
+ ...hitect-1-f7bef021-workflowctl-verify-after.json | 245 ++++++++++++++++
+ ...itect-1-f7bef021-workflowctl-verify-before.json | 231 +++++++++++++++
+ ...720T201500Z-claude-code-architect-1-f7bef021.md | 151 ++++++++++
+ .../orchestration/implementation-plan.md           |   2 +-
+ .../orchestration/implementation-state.schema.yaml |   2 +-
+ .../orchestration/implementation-state.yaml        | 102 ++++---
+ .../orchestration/session-protocol.md              |  54 ++++
+ .../orchestration/stages/ORCH-000.md               |  22 +-
+ 17 files changed, 1211 insertions(+), 48 deletions(-)
