@@ -1,0 +1,115 @@
+schema_name: orchestration-implementation-state
+schema_version: 1.0.0
+feature_id: ORCH
+architecture_version: 3.0.0
+plan_version: 1.0.0
+repository:
+  project_id: ai-workflow-engine
+  canonical_root: /home/afshin-jian/ai-workflow-engine
+  branch: main
+  expected_base_head: 382dabde15dca40fcd8abe6f09c12b8dd3c12984
+  package_commit: null
+  working_tree_policy: DESIGN_PACKAGE_PENDING_HUMAN_COMMIT
+package_status: PENDING_HUMAN_COMMIT
+current_stage: null
+next_eligible_stage: null
+candidate_next_stage: ORCH-000
+delivery_order:
+  - ORCH-000
+  - ORCH-001
+  - ORCH-002
+  - ORCH-003
+  - ORCH-004
+  - ORCH-005
+  - ORCH-006
+  - ORCH-007
+  - ORCH-008
+  - ORCH-009
+  - ORCH-010
+  - ORCH-011
+  - ORCH-012
+  - ORCH-013
+  - ORCH-014
+  - ORCH-016
+  - ORCH-017
+  - ORCH-015
+  - ORCH-018
+  - ORCH-019
+  - ORCH-020
+  - ORCH-021
+  - ORCH-022
+  - ORCH-023
+  - ORCH-024
+  - ORCH-025
+  - ORCH-026
+  - ORCH-027
+stages:
+  ORCH-000: {title: Independent v3 design review, status: NOT_STARTED, prerequisites: [], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
+  ORCH-001: {title: Durable feature-state validator, status: NOT_STARTED, prerequisites: [ORCH-000], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
+  ORCH-002: {title: Schema registry and CLI v2 envelope, status: NOT_STARTED, prerequisites: [ORCH-001], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
+  ORCH-003: {title: Legacy readers and migration framework, status: NOT_STARTED, prerequisites: [ORCH-002], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
+  ORCH-004: {title: Execution specification, status: NOT_STARTED, prerequisites: [ORCH-003], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
+  ORCH-005: {title: Attempt records and store, status: NOT_STARTED, prerequisites: [ORCH-004], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
+  ORCH-006: {title: Workflow event and state v2, status: NOT_STARTED, prerequisites: [ORCH-005], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
+  ORCH-007: {title: Integrity outcome and agent-run show, status: NOT_STARTED, prerequisites: [ORCH-006], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
+  ORCH-008: {title: Verification profiles and finding delta, status: NOT_STARTED, prerequisites: [ORCH-007], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
+  ORCH-009: {title: Safe baseline cache, status: NOT_STARTED, prerequisites: [ORCH-008], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
+  ORCH-010: {title: Candidate record and chain derivation, status: NOT_STARTED, prerequisites: [ORCH-006, ORCH-007], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
+  ORCH-011: {title: Synthetic chain sandbox, status: NOT_STARTED, prerequisites: [ORCH-010], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
+  ORCH-012: {title: Contribution capture and verification, status: NOT_STARTED, prerequisites: [ORCH-011, ORCH-008], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
+  ORCH-013: {title: Prompt and run identity v2 integration, status: NOT_STARTED, prerequisites: [ORCH-004, ORCH-005, ORCH-012], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
+  ORCH-014: {title: Aggregate candidate reconstruction, status: NOT_STARTED, prerequisites: [ORCH-012], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
+  ORCH-015: {title: Idempotent candidate application, status: NOT_STARTED, prerequisites: [ORCH-014, ORCH-017], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
+  ORCH-016: {title: Approval v2 and Ed25519 verification, status: NOT_STARTED, prerequisites: [ORCH-002], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
+  ORCH-017: {title: Isolated approval service, status: NOT_STARTED, prerequisites: [ORCH-016], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
+  ORCH-018: {title: Task v2 and dependency validation, status: NOT_STARTED, prerequisites: [ORCH-003, ORCH-004, ORCH-005], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
+  ORCH-019: {title: Governance mutation construction, status: NOT_STARTED, prerequisites: [ORCH-018, ORCH-016], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
+  ORCH-020: {title: Governance transaction and recovery, status: NOT_STARTED, prerequisites: [ORCH-019, ORCH-017], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
+  ORCH-021: {title: Candidate commit push and receipts, status: NOT_STARTED, prerequisites: [ORCH-015, ORCH-017, ORCH-020], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
+  ORCH-022: {title: Decision policy engine, status: NOT_STARTED, prerequisites: [ORCH-008, ORCH-013, ORCH-018, ORCH-021], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
+  ORCH-023: {title: Orchestrator dry-run process, status: NOT_STARTED, prerequisites: [ORCH-022], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
+  ORCH-024: {title: Prerequisite and attempt supersession, status: NOT_STARTED, prerequisites: [ORCH-020, ORCH-022, ORCH-023], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
+  ORCH-025: {title: Write-capable orchestration and rollout, status: NOT_STARTED, prerequisites: [ORCH-017, ORCH-021, ORCH-024], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
+  ORCH-026: {title: Migration and backward compatibility integration, status: NOT_STARTED, prerequisites: [ORCH-003, ORCH-020, ORCH-025], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
+  ORCH-027: {title: End-to-end safety and release closeout, status: NOT_STARTED, prerequisites: [ORCH-000, ORCH-001, ORCH-002, ORCH-003, ORCH-004, ORCH-005, ORCH-006, ORCH-007, ORCH-008, ORCH-009, ORCH-010, ORCH-011, ORCH-012, ORCH-013, ORCH-014, ORCH-015, ORCH-016, ORCH-017, ORCH-018, ORCH-019, ORCH-020, ORCH-021, ORCH-022, ORCH-023, ORCH-024, ORCH-025, ORCH-026], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
+blockers:
+  - code: DESIGN_PACKAGE_NOT_COMMITTED
+    summary: The v3 documentation package is intentionally uncommitted; a human must review and commit it before ORCH-000 starts.
+    owner: HUMAN_OWNER
+    introduced_at: '2026-07-19T00:00:00+00:00'
+    resolution: Commit the exact reviewed documentation package, then set package_commit and expected_base_head to that commit in the ORCH-000 review change.
+schema_versions:
+  implementation-state: 1.0.0
+  implementation-evidence: 1.0.0
+  review-evidence: 1.0.0
+  handoff-record: 1.0.0
+  migration-registry: 1.0.0
+  architecture: 3.0.0
+  plan: 1.0.0
+migrations:
+  required: []
+  completed: []
+  blocked: []
+unresolved_risks:
+  - id: R-APPROVAL-ISOLATION
+    severity: CRITICAL
+    summary: Autonomous writes are unsafe without approvald under a distinct OS authority.
+    disposition: Must be proven in ORCH-017 and ORCH-027 before write mode.
+  - id: R-GOVERNANCE-TRANSACTION
+    severity: CRITICAL
+    summary: Multi-document publication and Git commit span a crash boundary.
+    disposition: Fault-injection acceptance in ORCH-020 and ORCH-027.
+history:
+  - sequence: 1
+    at: '2026-07-19T00:00:00+00:00'
+    actor: codex-architecture-v3
+    role: ARCHITECT
+    action: CREATED_DESIGN_PACKAGE
+    from: null
+    to: PENDING_HUMAN_COMMIT
+    evidence: [architecture-v3.md, implementation-plan.md]
+last_updated:
+  at: '2026-07-19T00:00:00+00:00'
+  by: codex-architecture-v3
+  role: ARCHITECT
+  reason: Created proposed v3 package; did not self-approve or authorize implementation.

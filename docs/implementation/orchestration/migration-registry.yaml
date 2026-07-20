@@ -1,0 +1,32 @@
+schema_name: orchestration-migration-registry
+schema_version: 1.0.0
+feature_id: ORCH
+entries:
+  - id: ORCH-MIG-001
+    title: Add v2 task fields and committed execution-spec references
+    owner_stage: ORCH-026
+    from: task-record-legacy
+    to: task-record-2.0.0
+    status: PLANNED
+    reversible_until: first-v2-task-write
+    dry_run_required: true
+    backup_required: true
+  - id: ORCH-MIG-002
+    title: Link active legacy workflows to new v2 attempts
+    owner_stage: ORCH-026
+    from: workflow-event-1.x
+    to: workflow-event-2.0.0
+    status: PLANNED
+    reversible_until: first-v2-workflow-write
+    dry_run_required: true
+    backup_required: true
+  - id: ORCH-MIG-003
+    title: Preserve legacy approvals as unauthenticated audit artifacts
+    owner_stage: ORCH-026
+    from: approval-1.x
+    to: approval-envelope-2.0.0-audit-link
+    status: PLANNED
+    reversible_until: first-v2-approval-consumption
+    dry_run_required: true
+    backup_required: true
+

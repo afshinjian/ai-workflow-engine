@@ -1,0 +1,158 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://ai-workflow-engine.invalid/schemas/orchestration-implementation-state-1.0.0
+title: Orchestration feature implementation state
+type: object
+additionalProperties: false
+required:
+  - schema_name
+  - schema_version
+  - feature_id
+  - architecture_version
+  - plan_version
+  - repository
+  - package_status
+  - current_stage
+  - next_eligible_stage
+  - candidate_next_stage
+  - delivery_order
+  - stages
+  - blockers
+  - schema_versions
+  - migrations
+  - history
+  - last_updated
+properties:
+  schema_name: {const: orchestration-implementation-state}
+  schema_version: {const: 1.0.0}
+  feature_id: {const: ORCH}
+  architecture_version: {type: string, const: 3.0.0}
+  plan_version: {type: string, const: 1.0.0}
+  repository:
+    type: object
+    additionalProperties: false
+    required: [project_id, canonical_root, branch, expected_base_head,
+      package_commit, working_tree_policy]
+    properties:
+      project_id: {type: string, minLength: 1}
+      canonical_root: {type: string, pattern: ^/}
+      branch: {type: string, minLength: 1}
+      expected_base_head: {type: [string, 'null'], pattern: '^[0-9a-f]{40,64}$'}
+      package_commit: {type: [string, 'null'], pattern: '^[0-9a-f]{40,64}$'}
+      working_tree_policy:
+        enum: [CLEAN_REQUIRED, DESIGN_PACKAGE_PENDING_HUMAN_COMMIT]
+  package_status:
+    enum: [DRAFT, PENDING_HUMAN_COMMIT, PUBLISHED, SUPERSEDED]
+  current_stage: {type: [string, 'null'], pattern: '^ORCH-[0-9]{3}$'}
+  next_eligible_stage: {type: [string, 'null'], pattern: '^ORCH-[0-9]{3}$'}
+  candidate_next_stage: {type: [string, 'null'], pattern: '^ORCH-[0-9]{3}$'}
+  delivery_order:
+    type: array
+    minItems: 1
+    items: {type: string, pattern: '^ORCH-[0-9]{3}$'}
+    uniqueItems: true
+  stages:
+    type: object
+    minProperties: 1
+    additionalProperties:
+      $ref: '#/$defs/stage'
+  blockers:
+    type: array
+    items: {$ref: '#/$defs/blocker'}
+  schema_versions:
+    type: object
+    additionalProperties: {type: string}
+  migrations:
+    type: object
+    additionalProperties: false
+    required: [required, completed, blocked]
+    properties:
+      required: {type: array, items: {type: string}, uniqueItems: true}
+      completed: {type: array, items: {type: string}, uniqueItems: true}
+      blocked: {type: array, items: {type: string}, uniqueItems: true}
+  unresolved_risks:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required: [id, severity, summary, disposition]
+      properties:
+        id: {type: string}
+        severity: {enum: [LOW, MEDIUM, HIGH, CRITICAL]}
+        summary: {type: string}
+        disposition: {type: string}
+  history:
+    type: array
+    items: {$ref: '#/$defs/history'}
+  last_updated:
+    type: object
+    additionalProperties: false
+    required: [at, by, role, reason]
+    properties:
+      at: {type: string, format: date-time}
+      by: {type: string, minLength: 1}
+      role: {enum: [ARCHITECT, IMPLEMENTER, REVIEWER, REMEDIATOR, MIGRATOR, RELEASE_MANAGER, HUMAN_OWNER]}
+      reason: {type: string, minLength: 1}
+$defs:
+  stage:
+    type: object
+    additionalProperties: false
+    required: [title, status, prerequisites, expected_base_head,
+      implementation_commit, implementer, review_status, reviewer,
+      verification_status, evidence, review_evidence, handoff, blockers]
+    properties:
+      title: {type: string, minLength: 1}
+      status:
+        enum: [NOT_STARTED, IN_PROGRESS, IMPLEMENTED, VERIFIED,
+          REVIEW_REJECTED, REVIEW_APPROVED, BLOCKED, SUPERSEDED]
+      prerequisites:
+        type: array
+        items: {type: string, pattern: '^ORCH-[0-9]{3}$'}
+        uniqueItems: true
+      expected_base_head: {type: [string, 'null'], pattern: '^[0-9a-f]{40,64}$'}
+      implementation_commit: {type: [string, 'null'], pattern: '^[0-9a-f]{40,64}$'}
+      implementer: {type: [string, 'null']}
+      review_status: {enum: [NOT_REQUESTED, PENDING, REJECTED, APPROVED]}
+      reviewer: {type: [string, 'null']}
+      verification_status: {enum: [NOT_RUN, FAILED, PASSED]}
+      evidence: {type: array, items: {type: string}, uniqueItems: true}
+      review_evidence: {type: array, items: {type: string}, uniqueItems: true}
+      handoff: {type: [string, 'null']}
+      blockers: {type: array, items: {$ref: '#/$defs/blocker'}}
+  blocker:
+    type: object
+    additionalProperties: false
+    required: [code, summary, owner, introduced_at, resolution]
+    properties:
+      code: {type: string, pattern: '^[A-Z][A-Z0-9_]+$'}
+      summary: {type: string, minLength: 1}
+      owner: {type: string, minLength: 1}
+      introduced_at: {type: string, format: date-time}
+      resolution: {type: [string, 'null']}
+  history:
+    type: object
+    additionalProperties: false
+    required: [sequence, at, actor, role, action, from, to, evidence]
+    properties:
+      sequence: {type: integer, minimum: 1}
+      at: {type: string, format: date-time}
+      actor: {type: string}
+      role: {enum: [ARCHITECT, IMPLEMENTER, REVIEWER, REMEDIATOR, MIGRATOR, RELEASE_MANAGER, HUMAN_OWNER]}
+      action: {type: string}
+      from: {type: [string, 'null']}
+      to: {type: [string, 'null']}
+      evidence: {type: array, items: {type: string}}
+
+# Semantic rules enforced in addition to JSON Schema:
+# - keys in stages exactly match all stage IDs in implementation-plan.md;
+# - prerequisites exist and form an acyclic graph;
+# - delivery_order contains every stage key exactly once;
+# - next_eligible_stage is the first non-approved delivery-order entry whose
+#   prerequisites are REVIEW_APPROVED; it is null whenever a global blocker exists;
+# - only REVIEWER may make VERIFIED -> REVIEW_APPROVED/REVIEW_REJECTED;
+# - reviewer must differ from implementer for approval;
+# - passed implementation evidence is required at VERIFIED; implementation_commit
+#   may be null until the implementation diff is human-committed;
+# - REVIEW_APPROVED requires implementation_commit and approved review evidence;
+# - history sequence is contiguous and append-only;
+# - expected HEAD must advance explicitly after a human commit/review;
+# - state changes and their evidence must be committed together.
