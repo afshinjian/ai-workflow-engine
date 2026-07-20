@@ -1,0 +1,246 @@
+schema_name: orchestration-implementation-evidence
+schema_version: 1.0.0
+feature_id: ORCH
+stage_id: ORCH-000
+implementation_id: 20260720T164147Z-claude-code-bootstrap-d24e29f6
+session:
+  actor: claude-code-bootstrap
+  role: IMPLEMENTER
+started_at: '2026-07-20T16:39:00Z'
+finished_at: '2026-07-20T16:45:00Z'
+head:
+  starting: a676e0bc128494085f85f8f79f62aa8aac64bbd1
+  ending: a676e0bc128494085f85f8f79f62aa8aac64bbd1
+  note: >
+    No new commit is created by this session. The design package commit
+    a676e0bc128494085f85f8f79f62aa8aac64bbd1 (already on HEAD before this
+    session started) is the implementation subject for ORCH-000, per the
+    bootstrap mandate: the already-committed Architecture v3 package is the
+    subject being implemented/verified, not a new diff.
+preflight:
+  repository_root: /home/afshin-jian/ai-workflow-engine
+  branch: main
+  head: a676e0bc128494085f85f8f79f62aa8aac64bbd1
+  upstream: origin/main
+  ahead: 1
+  behind: 0
+  tree: CLEAN
+  index: CLEAN
+  merge_rebase_cherrypick_bisect: NONE_ACTIVE
+  orchestration_feature_lock: NOT_FOUND
+  prior_orch_000_evidence: NOT_FOUND
+  prior_orch_000_review: NOT_FOUND
+  package_commit_matches_head: true
+  package_diff_since_a676e0b: EMPTY
+changed_paths:
+  - docs/implementation/orchestration/implementation-state.yaml
+  - docs/implementation/orchestration/evidence/ORCH-000/20260720T164147Z-claude-code-bootstrap-d24e29f6.yaml
+  - docs/implementation/orchestration/evidence/ORCH-000/logs/git-show-stat-a676e0b.log
+  - docs/implementation/orchestration/evidence/ORCH-000/logs/git-rev-parse-head.log
+  - docs/implementation/orchestration/evidence/ORCH-000/logs/git-status.log
+  - docs/implementation/orchestration/evidence/ORCH-000/logs/git-diff-a676e0b-head-stat.log
+  - docs/implementation/orchestration/evidence/ORCH-000/logs/workflowctl-verify.json
+  - docs/implementation/orchestration/evidence/ORCH-000/logs/pytest.log
+  - docs/implementation/orchestration/evidence/ORCH-000/logs/validate-orch-state.log
+  - docs/implementation/orchestration/evidence/ORCH-000/logs/environment-fingerprint.log
+  - docs/implementation/orchestration/handoffs/ORCH-000/20260720T164147Z-claude-code-bootstrap-d24e29f6.md
+commands:
+  - argv: [git, rev-parse, HEAD]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-000/logs/git-rev-parse-head.log
+    stdout_digest: sha256:f834565af5c860ca441f278f85ca73735f58fefd9737aacf935e61fc92145ccc
+    purpose: Confirm HEAD equals the committed design package commit a676e0b.
+  - argv: [git, status, --porcelain, -b]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-000/logs/git-status.log
+    stdout_digest: sha256:5244caf09f942af2d0479eb9e6b2ac61aaf454f7ce9ec4fd40bf3a4a06869baa
+    purpose: Confirm working tree clean, branch main, no untracked/staged/modified files.
+  - argv: [git, show, --stat, a676e0b]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-000/logs/git-show-stat-a676e0b.log
+    stdout_digest: sha256:a3b04eeae907f010a0b56e26cfb1d1d652b597ca59116519146647697792dfcf
+    purpose: >
+      Independently confirm the design package commit contents: README.md,
+      architecture-v3.md, implementation-plan.md, implementation-state.yaml,
+      implementation-state.schema.yaml, session-protocol.md, decision-log.md,
+      migration-registry.yaml, prompts/*, evidence/README.md, reviews/README.md,
+      handoffs/README.md, and stages/ORCH-000.md through stages/ORCH-027.md
+      (28 stage files).
+  - argv: [git, diff, a676e0b, HEAD, --stat]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-000/logs/git-diff-a676e0b-head-stat.log
+    stdout_digest: sha256:7235d614c3d6b7140191b46c13acbc7e8820f2c51dc794afae41b2117ed2ae8b
+    purpose: >
+      Prove the package files have not changed unexpectedly since a676e0b:
+      empty diff because HEAD is exactly a676e0b.
+  - argv: [workflowctl, verify, --config, self-governance.yaml, --output, json]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-000/logs/workflowctl-verify.json
+    stdout_digest: sha256:5d4f21b68aaebc8ddf4643b22c7e80263719b6561995f3dc6cb6ced0c2f0b8d1
+    purpose: Independent repository governance verification (git/task-state/governance/handover), overall status PASS.
+  - argv: [pytest, -q]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-000/logs/pytest.log
+    stdout_digest: sha256:fd3e03069a9ed4b8caa5be70c11c0dca7d60fd0ac586fd56a9879b273e6186f7
+    purpose: Full existing regression suite, per ORCH-000's Tier S verification requirement.
+  - argv: [python, /tmp/claude-1000/-home-afshin-jian-ai-workflow-engine/a692cae0-7c2b-4d88-b076-1f31dc49fc29/scratchpad/validate_orch_state.py]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-000/logs/validate-orch-state.log
+    stdout_digest: sha256:cf6c106868601fc72b0ffc4456278dc4c72e4d319475f1703c2ed9f3e4a51caa
+    purpose: >
+      Independent, hand-rolled reproduction (no jsonschema dependency added)
+      of: implementation-state.yaml required/const/enum/pattern shape against
+      implementation-state.schema.yaml; stage-key cardinality (28) against
+      implementation-plan.md's stage table and stages/ORCH-*.md file set;
+      delivery_order set-equality and uniqueness; prerequisite referential
+      integrity; prerequisite-graph acyclicity (DFS coloring); delivery_order
+      topological validity (every prerequisite precedes its dependent stage);
+      blocker/migrations/history/last_updated shape and history sequence
+      contiguity. Script content is reproducible from this evidence record;
+      it is not committed to the repository (scratch tooling only).
+tests:
+  suite: full existing regression suite (pytest -q)
+  passed: 684
+  failed: 0
+  skipped: 0
+  exit_code: 0
+decisions:
+  - id: DEC-1
+    summary: >
+      Treat evidence/ORCH-000/ as an allowed implementation-evidence
+      location for this stage, even though ORCH-000.md's "Exact allowed
+      files or directories" line lists only reviews/ORCH-000/,
+      handoffs/ORCH-000/ and implementation-state.yaml (omitting
+      evidence/ORCH-000/ explicitly, unlike ORCH-001.md which spells out
+      "ORCH state/evidence/handoff").
+    rationale: >
+      ORCH-000.md's own "Handoff state written for the next session"
+      section requires "Add immutable evidence/<stage>/<implementation-id>.yaml"
+      (identical boilerplate to every other stage file). implementation-plan.md's
+      "Common stage contract" (section 2, item 6) requires every implementation
+      session to write evidence/<stage-id>/<implementation-id>.yaml.
+      implementation-state.schema.yaml's semantic-rule comment requires
+      "passed implementation evidence... at VERIFIED". Treating the narrower
+      allowed-files line as exhaustive would make VERIFIED unreachable for
+      ORCH-000 by any legal path, contradicting the task mandate to resolve
+      the bootstrap gap. This is read as an editorial omission in the
+      per-stage section, not a deliberate architectural exclusion, since nothing
+      else in the package or Architecture v3 states ORCH-000 must skip
+      implementation evidence. No source or governance file outside
+      docs/implementation/orchestration/ was touched.
+  - id: DEC-2
+    summary: >
+      Set repository.package_commit and stages.ORCH-000.expected_base_head/
+      implementation_commit to a676e0bc128494085f85f8f79f62aa8aac64bbd1
+      (the full 40-hex commit OID for short ref a676e0b) rather than creating
+      a new implementation commit.
+    rationale: >
+      The bootstrap mandate is explicit that the already-committed design
+      package is the implementation subject; the schema/semantic rules allow
+      implementation_commit to be set by the implementer for this exact
+      bootstrap circumstance and require it for REVIEW_APPROVED later.
+  - id: DEC-3
+    summary: >
+      Set package_status to PUBLISHED, not the literal string "COMMITTED"
+      requested in the task prompt, because implementation-state.schema.yaml's
+      package_status enum is exactly [DRAFT, PENDING_HUMAN_COMMIT, PUBLISHED,
+      SUPERSEDED] and does not contain a COMMITTED value.
+    rationale: >
+      The task's own instructions require using only exact schema-permitted
+      enum values and forbid inventing new ones. PUBLISHED is the only
+      enum value consistent with "the human owner has committed the exact
+      reviewed documentation package to version control"; DRAFT and
+      PENDING_HUMAN_COMMIT no longer apply post-commit, and SUPERSEDED would
+      wrongly imply the package was replaced by a later revision.
+  - id: DEC-4
+    summary: >
+      Set repository.working_tree_policy to CLEAN_REQUIRED (from
+      DESIGN_PACKAGE_PENDING_HUMAN_COMMIT).
+    rationale: >
+      session-protocol.md section 1.5 states the DESIGN_PACKAGE_PENDING_HUMAN_COMMIT
+      exception applies only while the design package itself is uncommitted;
+      normal CLEAN_REQUIRED governs all sessions once the package is committed.
+  - id: DEC-5
+    summary: >
+      Set current_stage and next_eligible_stage to ORCH-000 (not null),
+      reflecting that ORCH-000 (having no prerequisites) is the single stage
+      exposed by the state file, now with VERIFIED status awaiting only the
+      independent ORCH-000 review action. candidate_next_stage remains
+      ORCH-000, unchanged.
+    rationale: >
+      implementation-state.schema.yaml's semantic-rule comment defines
+      next_eligible_stage as "the first non-approved delivery-order entry
+      whose prerequisites are REVIEW_APPROVED... null whenever a global
+      blocker exists". ORCH-000's prerequisites are vacuously satisfied
+      (empty list) and, with DESIGN_PACKAGE_NOT_COMMITTED resolved, no
+      global blocker remains, so next_eligible_stage must be non-null and
+      equal to ORCH-000. This does not make any production stage (ORCH-001+)
+      eligible, since ORCH-000 is not REVIEW_APPROVED.
+  - id: DEC-6
+    summary: >
+      review_status set to PENDING and reviewer left null; verification_status
+      set to PASSED; review_evidence left empty; no REVIEW_APPROVED/REJECTED
+      value written anywhere.
+    rationale: >
+      session-protocol.md section 4 ("Implementation session") states "On
+      success advance through IMPLEMENTED to VERIFIED; set review pending."
+      Only an independent REVIEWER may set APPROVED/REJECTED
+      (section 1.2 legal-transition table); this session is IMPLEMENTER/
+      HUMAN_OWNER and explicitly forbidden from rendering a verdict.
+unresolved_risks:
+  - id: R-BOOTSTRAP-ROLE-OVERLAP
+    severity: MEDIUM
+    summary: >
+      This bootstrap session acted as both the party resolving the top-level
+      DESIGN_PACKAGE_NOT_COMMITTED blocker (HUMAN_OWNER-equivalent action)
+      and the IMPLEMENTER advancing ORCH-000 through IN_PROGRESS/IMPLEMENTED/
+      VERIFIED. No REVIEW_APPROVED/REVIEW_REJECTED verdict was recorded by
+      this session, and the independent reviewer for ORCH-000 must still be a
+      different actor/session than this one, per session-protocol.md's
+      reviewer-independence rule.
+    disposition: >
+      Carried forward as an explicit flag for the next reviewer; does not
+      block VERIFIED because no self-review occurred and the schema requires
+      reviewer != implementer only at the VERIFIED -> REVIEW_APPROVED step,
+      which this session does not take.
+  - id: R-APPROVAL-ISOLATION
+    severity: CRITICAL
+    summary: Carried forward unchanged from implementation-state.yaml unresolved_risks (R-APPROVAL-ISOLATION).
+    disposition: Unaffected by this bootstrap change; still must be proven in ORCH-016/ORCH-017/ORCH-027.
+  - id: R-GOVERNANCE-TRANSACTION
+    severity: CRITICAL
+    summary: Carried forward unchanged from implementation-state.yaml unresolved_risks (R-GOVERNANCE-TRANSACTION).
+    disposition: Unaffected by this bootstrap change; still must be proven in ORCH-020/ORCH-027.
+blockers: []
+schema_changes: []
+migration_changes: []
+worktree_digest:
+  algorithm: sha256
+  method: >-
+    SHA-256 of the newline-joined "sha256hex  relative/path" manifest lines
+    (sorted by path) for every changed_paths entry except this evidence YAML
+    itself (excluded to avoid a self-referential digest); each line's digest
+    is the SHA-256 of that file's raw bytes.
+  value: sha256:3fca43b76e31cf5a4b9c54f7e9215b203246f39ea435e7500eda7487b31f66f2
+handoff: docs/implementation/orchestration/handoffs/ORCH-000/20260720T164147Z-claude-code-bootstrap-d24e29f6.md
+production_source_modified: false
+review_verdict_recorded: false
+next_required_role: REVIEWER
+next_required_action: >
+  Independent ORCH-000 review using
+  docs/implementation/orchestration/prompts/review-current.md, run by a
+  session/actor distinct from this implementation session.

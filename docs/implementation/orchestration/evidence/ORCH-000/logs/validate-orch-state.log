@@ -1,0 +1,2 @@
+PASS: schema/DAG/cross-link checks OK (28 stages, delivery_order len=28, stage files=28, plan table rows=28)
+exit:0
