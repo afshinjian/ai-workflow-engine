@@ -1,0 +1,248 @@
+schema_name: orchestration-implementation-evidence
+schema_version: 1.0.0
+feature_id: ORCH
+stage_id: ORCH-000
+implementation_id: 20260720T181000Z-claude-code-remediator-e27efbe4
+session:
+  actor: claude-code-remediator
+  role: REMEDIATOR
+started_at: '2026-07-20T18:10:00Z'
+finished_at: '2026-07-20T18:20:00Z'
+head:
+  starting: 17111c781072260a51d08ba077fed8fba8b8dcd6
+  ending: 17111c781072260a51d08ba077fed8fba8b8dcd6
+  note: >
+    This session leaves one uncommitted scoped diff (per session-protocol.md
+    section 3's two-commit pattern) containing the stage-contract amendment,
+    decision-log entry, state update, and new implementation
+    evidence/handoff. No new commit is created by this session; a human must
+    commit this exact diff before an independent reviewer acts on it.
+preflight:
+  repository_root: /home/afshin-jian/ai-workflow-engine
+  branch: main
+  head: 17111c781072260a51d08ba077fed8fba8b8dcd6
+  upstream: origin/main
+  ahead: 0
+  behind: 0
+  tree: CLEAN
+  index: CLEAN
+  merge_rebase_cherrypick_bisect: NONE_ACTIVE
+  orchestration_feature_lock: NOT_FOUND
+  prior_orch_000_evidence:
+    - evidence/ORCH-000/20260720T164147Z-claude-code-bootstrap-d24e29f6.yaml
+  prior_orch_000_review:
+    - reviews/ORCH-000/20260720T172520Z-claude-code-independent-reviewer-59f68d54.yaml
+  orch_001_work_found: false
+  stage_status_at_start: REVIEW_REJECTED
+  stage_review_status_at_start: REJECTED
+  blocking_findings_at_start: [F-1, F-2]
+  non_blocking_findings_at_start: [F-3]
+changed_paths:
+  - docs/implementation/orchestration/stages/ORCH-000.md
+  - docs/implementation/orchestration/decision-log.md
+  - docs/implementation/orchestration/implementation-state.yaml
+  - docs/implementation/orchestration/evidence/ORCH-000/20260720T181000Z-claude-code-remediator-e27efbe4.yaml
+  - docs/implementation/orchestration/evidence/ORCH-000/logs/environment-fingerprint.txt
+  - docs/implementation/orchestration/evidence/ORCH-000/logs/git-rev-parse-head.txt
+  - docs/implementation/orchestration/evidence/ORCH-000/logs/git-status.txt
+  - docs/implementation/orchestration/evidence/ORCH-000/logs/20260720T181000Z-claude-code-remediator-e27efbe4-workflowctl-verify.json
+  - docs/implementation/orchestration/evidence/ORCH-000/logs/pytest.txt
+  - docs/implementation/orchestration/evidence/ORCH-000/logs/validate-orch-state.txt
+  - docs/implementation/orchestration/handoffs/ORCH-000/20260720T181000Z-claude-code-remediator-e27efbe4.md
+commands:
+  - argv: [git, rev-parse, HEAD]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-000/logs/git-rev-parse-head.txt
+    stdout_digest: sha256:d5508625464d4eaf693874ede201ea448ce98e219652160fbcc7b7986a6d8957
+    purpose: Confirm this session's starting HEAD equals the review-rejection commit 17111c7.
+  - argv: [git, status, --porcelain, -b]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-000/logs/git-status.txt
+    stdout_digest: sha256:8d00913fcc64a02d715aac125cae29e1e240050209417956caf4a175a92854cf
+    purpose: >
+      Confirm dirty-state preflight before writing evidence: only this
+      session's own governance-file edits (stages/ORCH-000.md,
+      decision-log.md, implementation-state.yaml) modified, no unexpected
+      untracked/staged files.
+  - argv: [workflowctl, verify, --config, self-governance.yaml, --output, json]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-000/logs/20260720T181000Z-claude-code-remediator-e27efbe4-workflowctl-verify.json
+    stdout_digest: sha256:f8f13789d232a08bb6e082b0bb78675b5f56dd249e3091b22af18e491123a289
+    result_overall_status: PASS
+    purpose: >
+      Independent repository governance verification (git/task-state/
+      governance/handover), overall status PASS. Filename is prefixed with
+      this implementation ID (unlike this session's other log artifacts)
+      because evidence/ORCH-000/logs/workflowctl-verify.json is already used
+      by the retained bootstrap evidence
+      (20260720T164147Z-claude-code-bootstrap-d24e29f6.yaml); a plain
+      workflowctl-verify.json rerun would have overwritten that retained
+      artifact, which session-protocol.md section 7 forbids ("Never
+      overwrite an evidence record").
+  - argv: [pytest, -q]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-000/logs/pytest.txt
+    stdout_digest: sha256:7a812827af7aa11bbff4d95783a9cbb94092529258eaaee6a7868c88c58ff621
+    result: '684 passed, 0 failed, 0 skipped'
+    purpose: >
+      Full existing regression suite, per ORCH-000's Tier S verification
+      requirement. Count matches both the bootstrap implementer's and the
+      rejecting reviewer's recorded 684 passed / 0 failed exactly.
+  - argv: [python3, /tmp/claude-1000/-home-afshin-jian-ai-workflow-engine/20e9faba-d546-4c5c-8d78-84cc4ff8ae89/scratchpad/validate_orch_state_remediation.py]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-000/logs/validate-orch-state.txt
+    stdout_digest: sha256:7e0248b2062837cfd1efc2ac7105c8fc4eb0593720c4f6307d5bd65c7b273a5f
+    purpose: >
+      Independent, freshly-written (not reused from either prior session's
+      scratch tooling) reproduction of implementation-state.yaml's
+      required/const/enum/pattern shape against
+      implementation-state.schema.yaml; stage-key cardinality (28) against
+      implementation-plan.md's stage table and stages/ORCH-*.md file set;
+      delivery_order set-equality/uniqueness/topological validity;
+      prerequisite referential integrity and acyclicity; history sequence
+      contiguity (9 entries); next_eligible_stage semantic-rule
+      recomputation (= ORCH-000, ORCH-001 not eligible); and
+      ORCH-000-specific remediation invariants (status=VERIFIED,
+      review_status=PENDING, both evidence entries retained, rejection
+      review_evidence retained unchanged). Script content is reproducible
+      from this evidence record; it is not committed to the repository
+      (scratch tooling only, per prior-session convention).
+tests:
+  suite: full existing regression suite (pytest -q)
+  passed: 684
+  failed: 0
+  skipped: 0
+  exit_code: 0
+decisions:
+  - id: DEC-R1
+    summary: >
+      Amend stages/ORCH-000.md and decision-log.md directly, even though
+      neither path is listed in stages/ORCH-000.md's own (pre-amendment)
+      "Exact allowed files or directories" section.
+    rationale: >
+      Both are governance/package-level documents outside any single stage's
+      own allowed-path sandbox. implementation-plan.md section 1 gates
+      exactly this kind of out-of-scope change behind "a reviewed plan
+      amendment," not a normal implementer's unilateral in-scope write. This
+      is precisely what the review's remediation_scope required ("obtain an
+      architect-reviewed plan amendment to stages/ORCH-000.md"). Unlike the
+      rejected DEC-1 (an implementer inventing its own authorization
+      mid-session with no external direction), this amendment is made under
+      explicit, separate task instruction to remediate exactly this
+      governance gap, is fully documented with rationale in decision-log.md
+      D3-016 before any new evidence was written under the newly-authorized
+      evidence/ORCH-000/ path, and does not confer approval on itself: see
+      DEC-R4.
+  - id: DEC-R2
+    summary: >
+      Retain (not delete or supersede) evidence/ORCH-000/20260720T164147Z-claude-code-bootstrap-d24e29f6.yaml
+      and its logs; list it first in stages.ORCH-000.evidence alongside this
+      session's new entry.
+    rationale: >
+      F-1/F-2 are scope/specification defects in where that evidence was
+      permitted to live and in the stage contract that should have permitted
+      it -- not defects in the evidence's substance. The design package it
+      verifies (a676e0b) is unchanged; the rejecting reviewer independently
+      reran the same commands from a separate session and got matching or
+      byte-identical results, recording verification_status: PASSED even
+      while rejecting on scope grounds. Full admissibility ruling (Outcome A)
+      in decision-log.md D3-016.
+  - id: DEC-R3
+    summary: >
+      Set stages.ORCH-000.implementation_commit to null (not carried forward
+      from a676e0b) and expected_base_head to this session's starting HEAD
+      17111c781072260a51d08ba077fed8fba8b8dcd6.
+    rationale: >
+      This session's diff is a new, currently uncommitted implementation,
+      unlike the bootstrap session's already-committed, no-new-diff special
+      case (its own DEC-2). The general rule applies instead
+      (session-protocol.md section 2): implementation_commit stays null until
+      a human commits this diff; the next reviewer sets it to the clean HEAD
+      it actually reviews. expected_base_head follows section 1.6 ("For an
+      implementation start, record current HEAD as the selected stage's
+      expected_base_head").
+  - id: DEC-R4
+    summary: >
+      review_status set to PENDING (not APPROVED); reviewer left at its
+      prior value (claude-code-independent-reviewer, a historical record,
+      not an assignment); no REVIEW_APPROVED/REVIEW_REJECTED value written
+      anywhere; a new R-REMEDIATION-AMENDMENT-UNREVIEWED risk was added.
+    rationale: >
+      session-protocol.md section 6: a remediation session "produces a new
+      implementation ID/evidence and returns to VERIFIED. It cannot erase
+      prior evidence" and "cannot alter the rejection finding or approve its
+      fix." Only an independent REVIEWER may set APPROVED/REJECTED. This
+      session is REMEDIATOR and explicitly forbidden from rendering a
+      verdict on either the original candidate or its own amendment.
+  - id: DEC-R5
+    summary: >
+      Command-log artifacts for this session use .txt/.json extensions, not
+      .log; the root .gitignore is not modified.
+    rationale: >
+      The repository's root .gitignore excludes *.log; the 8 pre-existing
+      logs under evidence/ORCH-000/logs/ from the prior two sessions are
+      already tracked (force-added previously) and were left untouched by
+      this session. Rather than depend on the same undocumented git add -f
+      pattern for new artifacts, or widen the root .gitignore (which would
+      touch a file outside docs/implementation/orchestration/, expanding
+      this remediation's change scope beyond what F-1/F-2/F-3 require), this
+      session's own new logs use non-ignored extensions and the amended
+      stages/ORCH-000.md documents this as the standing convention for this
+      stage's evidence going forward.
+unresolved_risks:
+  - id: R-REMEDIATION-AMENDMENT-UNREVIEWED
+    severity: MEDIUM
+    summary: >
+      The stages/ORCH-000.md amendment that resolves F-1/F-2/F-3 was
+      authored by this REMEDIATOR session and has not yet been independently
+      reviewed; the retained bootstrap evidence was ratified as admissible
+      under the corrected contract by the same session.
+    disposition: >
+      The next independent ORCH-000 reviewer, who must differ from
+      claude-code-bootstrap, claude-code-independent-reviewer and
+      claude-code-remediator, must assess both the amendment and this
+      session's evidence before recording REVIEW_APPROVED or
+      REVIEW_REJECTED.
+  - id: R-BOOTSTRAP-ROLE-OVERLAP
+    severity: MEDIUM
+    summary: Carried forward unchanged from implementation-state.yaml unresolved_risks (R-BOOTSTRAP-ROLE-OVERLAP).
+    disposition: Unaffected by this remediation; still a flag for the next reviewer.
+  - id: R-APPROVAL-ISOLATION
+    severity: CRITICAL
+    summary: Carried forward unchanged from implementation-state.yaml unresolved_risks (R-APPROVAL-ISOLATION).
+    disposition: Unaffected by this remediation; still must be proven in ORCH-016/ORCH-017/ORCH-027.
+  - id: R-GOVERNANCE-TRANSACTION
+    severity: CRITICAL
+    summary: Carried forward unchanged from implementation-state.yaml unresolved_risks (R-GOVERNANCE-TRANSACTION).
+    disposition: Unaffected by this remediation; still must be proven in ORCH-020/ORCH-027.
+blockers: []
+schema_changes: []
+migration_changes: []
+worktree_digest:
+  algorithm: sha256
+  method: >-
+    SHA-256 of the newline-joined "sha256hex  relative/path" manifest lines
+    (sorted by path) for every changed_paths entry except this evidence YAML
+    itself (excluded to avoid a self-referential digest); each line's digest
+    is the SHA-256 of that file's raw bytes.
+  value: sha256:75b760fa42a569503354a3f67b86350e0f00dd8581d0f6a03aebec7569b296b4
+handoff: docs/implementation/orchestration/handoffs/ORCH-000/20260720T181000Z-claude-code-remediator-e27efbe4.md
+production_source_modified: false
+review_verdict_recorded: false
+next_required_role: REVIEWER
+next_required_action: >
+  Independent ORCH-000 review using
+  docs/implementation/orchestration/prompts/review-current.md, run by a
+  session/actor distinct from claude-code-bootstrap,
+  claude-code-independent-reviewer, and this remediation session
+  (claude-code-remediator).

@@ -1,0 +1,7 @@
+## main...origin/main
+ M docs/implementation/orchestration/decision-log.md
+ M docs/implementation/orchestration/implementation-state.yaml
+ M docs/implementation/orchestration/stages/ORCH-000.md
+?? docs/implementation/orchestration/evidence/ORCH-000/logs/environment-fingerprint.txt
+?? docs/implementation/orchestration/evidence/ORCH-000/logs/git-rev-parse-head.txt
+?? docs/implementation/orchestration/evidence/ORCH-000/logs/git-status.txt

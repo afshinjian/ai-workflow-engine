@@ -1,0 +1,1 @@
+PASS: 28 stages, delivery_order length 28, plan rows 28, stage files 28, acyclic, valid topology, history entries 9 contiguous, next_eligible_stage computed=ORCH-000 (matches recorded), ORCH-000 status=VERIFIED review_status=PENDING evidence_count=2 review_evidence_count=1
