@@ -44,7 +44,7 @@ delivery_order:
   - ORCH-026
   - ORCH-027
 stages:
-  ORCH-000: {title: Independent v3 design review, status: VERIFIED, prerequisites: [], expected_base_head: a676e0bc128494085f85f8f79f62aa8aac64bbd1, implementation_commit: a676e0bc128494085f85f8f79f62aa8aac64bbd1, implementer: claude-code-bootstrap, review_status: PENDING, reviewer: null, verification_status: PASSED, evidence: [evidence/ORCH-000/20260720T164147Z-claude-code-bootstrap-d24e29f6.yaml], review_evidence: [], handoff: handoffs/ORCH-000/20260720T164147Z-claude-code-bootstrap-d24e29f6.md, blockers: []}
+  ORCH-000: {title: Independent v3 design review, status: REVIEW_REJECTED, prerequisites: [], expected_base_head: a676e0bc128494085f85f8f79f62aa8aac64bbd1, implementation_commit: a676e0bc128494085f85f8f79f62aa8aac64bbd1, implementer: claude-code-bootstrap, review_status: REJECTED, reviewer: claude-code-independent-reviewer, verification_status: PASSED, evidence: [evidence/ORCH-000/20260720T164147Z-claude-code-bootstrap-d24e29f6.yaml], review_evidence: [reviews/ORCH-000/20260720T172520Z-claude-code-independent-reviewer-59f68d54.yaml], handoff: handoffs/ORCH-000/20260720T164147Z-claude-code-bootstrap-d24e29f6.md, blockers: []}
   ORCH-001: {title: Durable feature-state validator, status: NOT_STARTED, prerequisites: [ORCH-000], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
   ORCH-002: {title: Schema registry and CLI v2 envelope, status: NOT_STARTED, prerequisites: [ORCH-001], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
   ORCH-003: {title: Legacy readers and migration framework, status: NOT_STARTED, prerequisites: [ORCH-002], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
@@ -140,12 +140,29 @@ history:
     to: VERIFIED
     evidence: [evidence/ORCH-000/20260720T164147Z-claude-code-bootstrap-d24e29f6.yaml,
       handoffs/ORCH-000/20260720T164147Z-claude-code-bootstrap-d24e29f6.md]
+  - sequence: 6
+    at: '2026-07-20T17:32:00Z'
+    actor: claude-code-independent-reviewer
+    role: REVIEWER
+    action: REVIEW_REJECTED_ORCH_000
+    from: VERIFIED
+    to: REVIEW_REJECTED
+    evidence: [reviews/ORCH-000/20260720T172520Z-claude-code-independent-reviewer-59f68d54.yaml,
+      handoffs/ORCH-000/20260720T172520Z-claude-code-independent-reviewer-59f68d54.md]
 last_updated:
-  at: '2026-07-20T16:45:00Z'
-  by: claude-code-bootstrap
-  role: IMPLEMENTER
+  at: '2026-07-20T17:32:00Z'
+  by: claude-code-independent-reviewer
+  role: REVIEWER
   reason: >-
-    Bootstrapped ORCH-000 through NOT_STARTED -> IN_PROGRESS -> IMPLEMENTED ->
-    VERIFIED treating already-committed a676e0b as the implementation subject;
-    resolved DESIGN_PACKAGE_NOT_COMMITTED; did not self-approve or render any
-    review verdict.
+    Independent ORCH-000 review rejected the VERIFIED candidate: 9 of 11
+    changed paths in the reviewed implementation commit (46898ec) fall under
+    evidence/ORCH-000/, outside stages/ORCH-000.md's exact allowed-paths list
+    (F-1), and stages/ORCH-000.md's own specification is internally ambiguous
+    about whether/where ORCH-000 has an implementation-evidence phase at all
+    (F-2), which is exactly the "hidden lifecycle gap" its own Risks section
+    names as grounds for rejection. All rerun verification commands otherwise
+    reproduced the implementer's recorded results (several byte-identically);
+    verification_status remains PASSED. next_eligible_stage recomputes to
+    ORCH-000 (unchanged); no ORCH-001+ stage is eligible. See
+    reviews/ORCH-000/20260720T172520Z-claude-code-independent-reviewer-59f68d54.yaml
+    for full findings and required remediation scope.
