@@ -1,6 +1,6 @@
 # Autonomous Orchestration v3 — Staged Implementation Plan
 
-Plan version: `1.0.0`  
+Plan version: `1.1.0` (see decision-log.md D3-017)  
 Architecture: `architecture-v3.md`  
 Authoritative progress: `implementation-state.yaml`
 

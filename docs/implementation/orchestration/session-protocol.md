@@ -113,6 +113,60 @@ A release/closeout session is review-only until ORCH-027 explicitly authorizes a
 canary. It checks every stage, migration, risk, threat-model and recovery drill;
 it cannot waive a failed acceptance criterion.
 
+### Governance-amendment authorization (ARCHITECT/HUMAN_OWNER)
+
+A REMEDIATOR (or any IMPLEMENTER/REVIEWER) may never widen a stage's own
+allowed paths, rewrite a stage specification, or edit `decision-log.md` under
+its own authority, even when a rejection finding requires exactly that.
+Encountering such a finding is a fail-closed stop (section 8): record
+`BLOCKED` and hand off; do not amend the contract in the same session.
+
+Only a session acting in role `ARCHITECT` or `HUMAN_OWNER` may author a
+governance amendment that corrects a stage specification, the staged
+implementation plan, `session-protocol.md` itself, or `architecture-v3.md`.
+That session must:
+
+1. Be an actor distinct from every IMPLEMENTER/REMEDIATOR/REVIEWER already
+   recorded against the stage/finding being corrected — the same
+   independence rule section 5 applies to review applies here to authorship.
+2. Record one `implementation-state.yaml` `history` entry with
+   `role: ARCHITECT` or `role: HUMAN_OWNER`, an action naming the amendment,
+   and evidence pointing at a new architecture-amendment evidence record
+   (below), in the same diff as the document edits it authorizes — never
+   asserted after the fact without a durable record.
+3. State, in that evidence record and in the `decision-log.md` entry, the
+   exact closed list of paths the amendment may touch. No other path may
+   change in the same diff.
+4. Add exactly one new `decision-log.md` entry describing the amendment and,
+   per that document's own header, increment `architecture_version` (a
+   change to `architecture-v3.md`'s normative content) or `plan_version` (a
+   change to `implementation-plan.md`, `session-protocol.md`, a
+   `stages/*.md` file, or `decision-log.md` itself) — whichever document the
+   amendment actually edits. `implementation-state.yaml` and
+   `implementation-state.schema.yaml` must carry the same incremented value
+   in the same diff; a version bump that leaves the schema's `const` stale
+   is invalid.
+5. State explicitly which prior remediation/implementation content the
+   amendment ratifies unchanged, which it supersedes, and which must still
+   be reapplied by a subsequent session. Ratified content is not restated;
+   the amendment says so by reference and leaves it untouched.
+6. Write architecture-amendment evidence
+   (`evidence/<stage-id>/<amendment-id>.yaml`, a category distinct from
+   implementation evidence, described in the stage's own lifecycle section)
+   and a handoff (`handoffs/<stage-id>/<amendment-id>.md`) naming the exact
+   next legal action and the exact actor-independence constraint for the
+   next session.
+7. Never itself advance a stage's `status` or `review_status` toward
+   `VERIFIED` or any review disposition, and never approve, commit or push.
+   An ARCHITECT/HUMAN_OWNER amendment re-opens or clarifies the contract;
+   only a REMEDIATOR (section 6) and an independent REVIEWER (section 5) may
+   move the stage itself.
+
+This authorization is itself subject to the same fail-closed discipline as
+any other write: missing independence, an undeclared path, a missing version
+increment, or a missing history entry makes the amendment invalid and blocks
+the next session from relying on it.
+
 ## 7. Evidence and handoff
 
 Implementation evidence path:

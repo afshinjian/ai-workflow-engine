@@ -1,0 +1,12 @@
+## main...origin/main
+ M docs/implementation/orchestration/decision-log.md
+ M docs/implementation/orchestration/implementation-plan.md
+ M docs/implementation/orchestration/implementation-state.schema.yaml
+ M docs/implementation/orchestration/implementation-state.yaml
+ M docs/implementation/orchestration/session-protocol.md
+ M docs/implementation/orchestration/stages/ORCH-000.md
+?? docs/implementation/orchestration/evidence/ORCH-000/logs/20260720T201500Z-claude-code-architect-1-f7bef021-git-rev-parse-head-before.txt
+?? docs/implementation/orchestration/evidence/ORCH-000/logs/20260720T201500Z-claude-code-architect-1-f7bef021-git-status-before.txt
+?? docs/implementation/orchestration/evidence/ORCH-000/logs/20260720T201500Z-claude-code-architect-1-f7bef021-pytest-before.txt
+?? docs/implementation/orchestration/evidence/ORCH-000/logs/20260720T201500Z-claude-code-architect-1-f7bef021-validate-orch-state-before.txt
+?? docs/implementation/orchestration/evidence/ORCH-000/logs/20260720T201500Z-claude-code-architect-1-f7bef021-workflowctl-verify-before.json

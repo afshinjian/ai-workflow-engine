@@ -1,0 +1,231 @@
+{
+  "schema_version": "1.0",
+  "project_id": "ai-workflow-engine",
+  "status": "PASS",
+  "checks": [
+    {
+      "check_name": "git",
+      "status": "PASS",
+      "summary": "Git state satisfies configured invariants",
+      "findings": [],
+      "evidence": {
+        "branch": "main",
+        "head": "7443ce060faa30e5baaa4e2f4bc2673198366927",
+        "upstream": "origin/main",
+        "ahead": 0,
+        "behind": 0,
+        "modified_files": [],
+        "staged_files": [],
+        "untracked_files": []
+      },
+      "affected_paths": [],
+      "remediation_hint": null,
+      "timestamp": "2026-07-20T19:33:04.881667Z"
+    },
+    {
+      "check_name": "task-state",
+      "status": "PASS",
+      "summary": "Detected 0 Current, 20 Done, and 0 Planned tasks",
+      "findings": [],
+      "evidence": {
+        "by_source": {
+          "docs/PROJECT_STATE.md": [],
+          "docs/TASK_QUEUE.md": [
+            {
+              "task_id": "M-1",
+              "status": "Done",
+              "source": "docs/TASK_QUEUE.md",
+              "line": 8
+            },
+            {
+              "task_id": "M-2",
+              "status": "Done",
+              "source": "docs/TASK_QUEUE.md",
+              "line": 16
+            },
+            {
+              "task_id": "GOV-1",
+              "status": "Done",
+              "source": "docs/TASK_QUEUE.md",
+              "line": 25
+            },
+            {
+              "task_id": "T-101",
+              "status": "Done",
+              "source": "docs/TASK_QUEUE.md",
+              "line": 35
+            },
+            {
+              "task_id": "T-102",
+              "status": "Done",
+              "source": "docs/TASK_QUEUE.md",
+              "line": 42
+            },
+            {
+              "task_id": "T-103",
+              "status": "Done",
+              "source": "docs/TASK_QUEUE.md",
+              "line": 52
+            },
+            {
+              "task_id": "T-301",
+              "status": "Done",
+              "source": "docs/TASK_QUEUE.md",
+              "line": 62
+            },
+            {
+              "task_id": "T-104",
+              "status": "Done",
+              "source": "docs/TASK_QUEUE.md",
+              "line": 71
+            },
+            {
+              "task_id": "T-302",
+              "status": "Done",
+              "source": "docs/TASK_QUEUE.md",
+              "line": 82
+            },
+            {
+              "task_id": "T-303",
+              "status": "Done",
+              "source": "docs/TASK_QUEUE.md",
+              "line": 93
+            },
+            {
+              "task_id": "T-304",
+              "status": "Done",
+              "source": "docs/TASK_QUEUE.md",
+              "line": 105
+            },
+            {
+              "task_id": "T-305",
+              "status": "Done",
+              "source": "docs/TASK_QUEUE.md",
+              "line": 117
+            },
+            {
+              "task_id": "T-306",
+              "status": "Done",
+              "source": "docs/TASK_QUEUE.md",
+              "line": 130
+            },
+            {
+              "task_id": "M-3",
+              "status": "Done",
+              "source": "docs/TASK_QUEUE.md",
+              "line": 139
+            },
+            {
+              "task_id": "T-401",
+              "status": "Done",
+              "source": "docs/TASK_QUEUE.md",
+              "line": 149
+            },
+            {
+              "task_id": "T-402",
+              "status": "Done",
+              "source": "docs/TASK_QUEUE.md",
+              "line": 159
+            },
+            {
+              "task_id": "T-403",
+              "status": "Done",
+              "source": "docs/TASK_QUEUE.md",
+              "line": 171
+            },
+            {
+              "task_id": "T-404",
+              "status": "Done",
+              "source": "docs/TASK_QUEUE.md",
+              "line": 183
+            },
+            {
+              "task_id": "M-4",
+              "status": "Done",
+              "source": "docs/TASK_QUEUE.md",
+              "line": 191
+            },
+            {
+              "task_id": "T-501",
+              "status": "Done",
+              "source": "docs/TASK_QUEUE.md",
+              "line": 202
+            }
+          ],
+          "docs/current_task.md": [],
+          "docs/remaining_tasks.md": [],
+          "docs/CONTEXT.md": []
+        },
+        "current": [],
+        "done": [
+          "GOV-1",
+          "M-1",
+          "M-2",
+          "M-3",
+          "M-4",
+          "T-101",
+          "T-102",
+          "T-103",
+          "T-104",
+          "T-301",
+          "T-302",
+          "T-303",
+          "T-304",
+          "T-305",
+          "T-306",
+          "T-401",
+          "T-402",
+          "T-403",
+          "T-404",
+          "T-501"
+        ],
+        "planned": [],
+        "current_count": 0,
+        "maximum_current_tasks": 1
+      },
+      "affected_paths": [],
+      "remediation_hint": null,
+      "timestamp": "2026-07-20T19:33:04.882787Z"
+    },
+    {
+      "check_name": "governance",
+      "status": "PASS",
+      "summary": "Governance mirrors are consistent",
+      "findings": [],
+      "evidence": {
+        "facts": {
+          "version": {
+            "docs/PROJECT_STATE.md": "1.0.0",
+            "pyproject.toml": "1.0.0"
+          }
+        }
+      },
+      "affected_paths": [],
+      "remediation_hint": null,
+      "timestamp": "2026-07-20T19:33:04.884152Z"
+    },
+    {
+      "check_name": "handover",
+      "status": "PASS",
+      "summary": "Verified 1 manifest record(s) from working-tree",
+      "findings": [],
+      "evidence": {
+        "source": "working-tree",
+        "commit": "HEAD",
+        "records": [
+          {
+            "path": "handover/PROJECT_HANDOVER.md",
+            "expected_size": 4538,
+            "actual_size": 4538,
+            "expected_digest": "b0d64a6e20aa4c582c63634d464d03adc66496eb1632101cca7106a315f6f9bf",
+            "actual_digest": "b0d64a6e20aa4c582c63634d464d03adc66496eb1632101cca7106a315f6f9bf"
+          }
+        ]
+      },
+      "affected_paths": [],
+      "remediation_hint": null,
+      "timestamp": "2026-07-20T19:33:04.884414Z"
+    }
+  ],
+  "timestamp": "2026-07-20T19:33:04.884428Z"
+}

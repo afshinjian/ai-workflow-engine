@@ -57,7 +57,15 @@ Command-log artifacts under `evidence/ORCH-000/logs/` and `reviews/ORCH-000/logs
 must not use a `.log` extension, since the repository's root `.gitignore`
 excludes `*.log` and this stage's evidence must be versioned, not force-added.
 Use `.txt` (plain stdout capture) or a structured extension such as `.json`
-instead.
+instead. An evidence or review record that references an artifact path is not
+complete until that exact path is actually committed; a recorded
+`stdout_digest` for an uncommitted, gitignored artifact does not satisfy this
+stage's evidence requirement.
+
+This list is this stage's own implementer/remediator-scope sandbox only. It
+never authorizes editing this file or `decision-log.md`; that requires the
+ARCHITECT/HUMAN_OWNER governance-amendment-authorization procedure in
+`session-protocol.md` (see decision-log.md D3-017).
 
 ## Files expected to be created
 
@@ -120,6 +128,18 @@ implementation-plan.md's common stage contract; see decision-log.md and
 `reviews/ORCH-000/` for the rejection that identified the gap and the
 remediation that closed it. This amendment itself remains subject to
 independent re-review before ORCH-000 may reach REVIEW_APPROVED.)
+
+A second independent review on 2026-07-20 rejected that remediation on
+authority grounds (F-4/F-5/F-6: the remediation session amended this file and
+`decision-log.md` under its own authority, with no ARCHITECT/HUMAN_OWNER
+history entry and no version increment) and flagged a pre-existing,
+non-blocking evidence-log tracking inconsistency (F-7). A distinct
+ARCHITECT/HUMAN_OWNER session resolved this the same day: it ratified the
+above remediation's stage-contract text unchanged, supplied the missing
+authorization and `plan_version` increment (decision-log.md D3-017), and
+delegated F-7's mechanical fix to the next REMEDIATOR. This stage's
+substantive content is not being re-litigated by any of this; only the
+authority chain for amending it was ever in question.
 
 ## Handoff state written for the next session
 

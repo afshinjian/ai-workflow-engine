@@ -1,0 +1,10 @@
+stages checked: 28
+delivery_order length: 28
+plan table rows: 28
+stage files: 28
+history entries: 10 (contiguous=True)
+next_eligible_stage computed: ORCH-000 (recorded: ORCH-000)
+plan_version: state=1.0.0 schema_const=1.0.0
+architecture_version: state=3.0.0 schema_const=3.0.0
+
+STRUCTURAL PASS
