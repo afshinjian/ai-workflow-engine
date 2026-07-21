@@ -45,7 +45,7 @@ delivery_order:
   - ORCH-027
 stages:
   ORCH-000: {title: Independent v3 design review, status: REVIEW_APPROVED, prerequisites: [], expected_base_head: fcabc0baee84f5b98a4d63b8de3696754966e826, implementation_commit: 857d2c9b69cd85e40bdd2b9f8d252f2d3df5790e, implementer: claude-code-remediator-3, review_status: APPROVED, reviewer: claude-code-independent-reviewer-4, verification_status: PASSED, evidence: [evidence/ORCH-000/20260720T164147Z-claude-code-bootstrap-d24e29f6.yaml, evidence/ORCH-000/20260720T181000Z-claude-code-remediator-e27efbe4.yaml, evidence/ORCH-000/20260720T201500Z-claude-code-architect-1-f7bef021.yaml, evidence/ORCH-000/20260720T210000Z-claude-code-remediator-2-8387417f.yaml, evidence/ORCH-000/20260720T223000Z-claude-code-remediator-3-6e1d7d18.yaml], review_evidence: [reviews/ORCH-000/20260720T172520Z-claude-code-independent-reviewer-59f68d54.yaml, reviews/ORCH-000/20260720T194000Z-claude-code-independent-reviewer-2-b7e21ac4.yaml, reviews/ORCH-000/20260720T220000Z-claude-code-independent-reviewer-3-c4a91d02.yaml, reviews/ORCH-000/20260720T205209Z-claude-code-independent-reviewer-4-27303e9e.yaml], handoff: handoffs/ORCH-000/20260720T205209Z-claude-code-independent-reviewer-4-27303e9e.md, blockers: []}
-  ORCH-001: {title: Durable feature-state validator, status: NOT_STARTED, prerequisites: [ORCH-000], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
+  ORCH-001: {title: Durable feature-state validator, status: VERIFIED, prerequisites: [ORCH-000], expected_base_head: 46ded3e51e8a90a8292d1c2721b565d62838caca, implementation_commit: null, implementer: claude-code-implementer-1, review_status: PENDING, reviewer: null, verification_status: PASSED, evidence: [evidence/ORCH-001/20260721T115508Z-claude-code-implementer-1-02891aae.yaml], review_evidence: [], handoff: handoffs/ORCH-001/20260721T115508Z-claude-code-implementer-1-02891aae.md, blockers: []}
   ORCH-002: {title: Schema registry and CLI v2 envelope, status: NOT_STARTED, prerequisites: [ORCH-001], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
   ORCH-003: {title: Legacy readers and migration framework, status: NOT_STARTED, prerequisites: [ORCH-002], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
   ORCH-004: {title: Execution specification, status: NOT_STARTED, prerequisites: [ORCH-003], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
@@ -154,6 +154,29 @@ unresolved_risks:
       claude-code-independent-reviewer-4, implementation_commit
       857d2c9b69cd85e40bdd2b9f8d252f2d3df5790e). This risk is fully resolved
       and closed; it does not apply to any later stage.
+  - id: R-ORCH-001-VALIDATOR-CORRECTNESS
+    severity: MEDIUM
+    summary: >-
+      scripts/orchestration_feature_state.py hand-encodes the legal
+      stage-transition table (session-protocol.md section 2) and the
+      semantic-rule comment block in implementation-state.schema.yaml in
+      pure Python (no jsonschema dependency, per pyproject.toml's fixed
+      dependency set); a defect could incorrectly authorize an illegal
+      state transition or falsely reject a legal one, matching this
+      stage's own documented risk ("Validator defects could authorize
+      later work").
+    disposition: >-
+      Covered this session by 70 focused unit/negative/fault/concurrency
+      tests (tests/test_orchestration_feature_state.py), including
+      parametrized coverage of every legal and illegal edge in the
+      transition table, CAS-mismatch and crash-during-atomic-write fault
+      injection, and a regression check that the actual committed
+      implementation-state.yaml validates cleanly. Not yet independently
+      audited: the next independent ORCH-001 reviewer must compare
+      LEGAL_TRANSITIONS and validate_semantics() line-by-line against
+      session-protocol.md section 2 and implementation-state.schema.yaml's
+      trailing comment block before this tool is relied on to gate a real
+      future stage transition.
 history:
   - sequence: 1
     at: '2026-07-19T00:00:00+00:00'
@@ -316,46 +339,81 @@ history:
     to: REVIEW_APPROVED
     evidence: [reviews/ORCH-000/20260720T205209Z-claude-code-independent-reviewer-4-27303e9e.yaml,
       handoffs/ORCH-000/20260720T205209Z-claude-code-independent-reviewer-4-27303e9e.md]
+  - sequence: 20
+    at: '2026-07-21T11:50:00Z'
+    actor: claude-code-implementer-1
+    role: IMPLEMENTER
+    action: STARTED_ORCH_001
+    from: NOT_STARTED
+    to: IN_PROGRESS
+    evidence: [evidence/ORCH-001/20260721T115508Z-claude-code-implementer-1-02891aae.yaml]
+  - sequence: 21
+    at: '2026-07-21T12:05:00Z'
+    actor: claude-code-implementer-1
+    role: IMPLEMENTER
+    action: IMPLEMENTED_ORCH_001
+    from: IN_PROGRESS
+    to: IMPLEMENTED
+    evidence: [evidence/ORCH-001/20260721T115508Z-claude-code-implementer-1-02891aae.yaml]
+  - sequence: 22
+    at: '2026-07-21T12:10:00Z'
+    actor: claude-code-implementer-1
+    role: IMPLEMENTER
+    action: VERIFIED_ORCH_001
+    from: IMPLEMENTED
+    to: VERIFIED
+    evidence: [evidence/ORCH-001/20260721T115508Z-claude-code-implementer-1-02891aae.yaml,
+      handoffs/ORCH-001/20260721T115508Z-claude-code-implementer-1-02891aae.md]
 last_updated:
-  at: '2026-07-20T20:55:00Z'
-  by: claude-code-independent-reviewer-4
-  role: REVIEWER
+  at: '2026-07-21T12:10:00Z'
+  by: claude-code-implementer-1
+  role: IMPLEMENTER
   reason: >-
-    REVIEWER session, distinct from claude-code-bootstrap,
-    claude-code-independent-reviewer, claude-code-remediator,
-    claude-code-independent-reviewer-2, claude-code-architect-1,
-    claude-code-remediator-2, claude-code-independent-reviewer-3, and
-    claude-code-remediator-3 (all eight actors previously recorded against
-    ORCH-000), reviewed the committed F-8 remediation diff at HEAD
-    857d2c9b69cd85e40bdd2b9f8d252f2d3df5790e ("docs: remediate ORCH-000
-    F-8"). Independently confirmed: git status clean, git diff --stat
-    246c168 857d2c9 touches only implementation-state.yaml,
-    evidence/ORCH-000/, reviews/ORCH-000/ and handoffs/ORCH-000/ (no
-    session-protocol.md, decision-log.md, implementation-plan.md,
-    implementation-state.schema.yaml or stages/ORCH-000.md change; no
-    production source or migration-registry.yaml change since a676e0b),
-    workflowctl verify PASS, pytest -q 684 passed/0 failed/0 skipped
-    (matching every prior session), and a freshly written state/schema/DAG
-    validator STRUCTURAL PASS. F-8 itself independently confirmed resolved:
-    evidence/ORCH-000/20260720T223000Z-claude-code-remediator-3-6e1d7d18.yaml
-    carries environment_fingerprint_digest on all 9 command records; every
-    stdout_digest, the record's worktree_digest, and its
-    environment_fingerprint.digest were independently recomputed
-    byte-for-byte from the committed files and matched exactly, and that
-    same digest was independently reproduced a second way on this
-    reviewer's own machine via a separate ad hoc sha256sum. The prior,
-    F-8-deficient record (...-8387417f.yaml) remains present, unmodified,
-    and no longer the record VERIFIED depends on. Did not re-litigate F-1
-    through F-7, D3-016, D3-017, or the third review's own PASS findings
-    (confirmed zero diff to the five governance files those findings
-    concerned since that review's commit). No new finding was identified.
-    Verdict: APPROVED. ORCH-000 transitions VERIFIED -> REVIEW_APPROVED
-    (review_status APPROVED, reviewer claude-code-independent-reviewer-4,
-    implementation_commit 857d2c9b69cd85e40bdd2b9f8d252f2d3df5790e, the
-    clean HEAD actually reviewed). next_eligible_stage and
-    candidate_next_stage recompute to ORCH-001 (its sole prerequisite,
-    ORCH-000, is now REVIEW_APPROVED); current_stage updated to ORCH-001 to
-    match. This session did not implement ORCH-001, commit, or push. Next
-    legal actor: an ORCH-001 IMPLEMENTER, in a fresh session, per
-    stages/ORCH-001.md and session-protocol.md section 4, after a human
-    commits this diff.
+    IMPLEMENTER session, starting HEAD 46ded3e51e8a90a8292d1c2721b565d62838caca
+    (the committed ORCH-000 approval), the sole ORCH-001 IMPLEMENTER recorded
+    against this stage. Implemented ORCH-001 ("Durable feature-state
+    validator") entirely within its allowed paths:
+    scripts/orchestration_feature_state.py (new),
+    tests/test_orchestration_feature_state.py (new, 70 tests), and this
+    ORCH state/evidence/handoff. The validator is a standalone,
+    dependency-free (stdlib + PyYAML only; no new pyproject.toml
+    dependency) tool exposing validate/status/transition/digest
+    subcommands plus a pure, unit-testable function surface
+    (validate_state, compute_status, check_transition_legal,
+    apply_transition). It structurally validates implementation-state.yaml
+    against implementation-state.schema.yaml, enforces every semantic rule
+    in that schema's trailing comment block (stage-key/plan cross-check,
+    acyclic prerequisites, delivery_order completeness, next_eligible_stage
+    recomputation, reviewer-differs-from-implementer, VERIFIED/
+    REVIEW_APPROVED evidence requirements, contiguous append-only history),
+    and mechanically enforces the legal stage-transition table in
+    session-protocol.md section 2 (illegal edges and wrong-role attempts
+    are rejected with a structured error) with a CAS-guarded
+    (--expected-digest) atomic (temp file + os.replace) transition write
+    path. Before any edit this session independently confirmed, at
+    starting HEAD 46ded3e (obtained via git stash -u to get a true
+    pre-change snapshot): git status clean, workflowctl verify PASS,
+    pytest -q 684 passed/0 failed/0 skipped (matching every prior
+    session). After implementing: pytest -q
+    tests/test_orchestration_feature_state.py 70 passed; `python
+    scripts/orchestration_feature_state.py validate --state
+    implementation-state.yaml --plan implementation-plan.md` PASS against
+    the real, then-uncommitted-edit-free committed state file (a
+    regression test also pins this: the real committed file must validate
+    cleanly, and independently confirms recompute_next_eligible resolves
+    to ORCH-001); full pytest -q 754 passed/0 failed/0 skipped (684 + 70,
+    no regression); ruff check and black --check clean on both new files;
+    mypy src unaffected (44 files, unchanged). ORCH-001 transitions
+    NOT_STARTED -> IN_PROGRESS -> IMPLEMENTED -> VERIFIED (history
+    sequences 20-22), verification_status PASSED, review_status PENDING,
+    reviewer null (awaiting the first independent ORCH-001 reviewer, who
+    must differ from claude-code-implementer-1), implementation_commit
+    left null per session-protocol.md section 3 until a human commits this
+    diff. next_eligible_stage/candidate_next_stage/current_stage remain
+    ORCH-001 (VERIFIED is not REVIEW_APPROVED, so ORCH-001 is still the
+    recomputed frontier; unaffected by this session, confirmed by the
+    validator's own recompute_next_eligible against this file). This
+    session did not commit, push, or start ORCH-002. Next legal actor: an
+    independent ORCH-001 REVIEWER, in a fresh session, per
+    stages/ORCH-001.md's "Independent review checklist" and
+    session-protocol.md section 5, after a human commits this diff.
