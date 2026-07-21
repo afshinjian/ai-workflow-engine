@@ -1,5 +1,6 @@
 """workflowctl command-line interface."""
 
+import json
 import sys
 import traceback
 from collections.abc import Callable, Mapping
@@ -26,6 +27,10 @@ from ai_workflow_engine.git.client import GitClient
 from ai_workflow_engine.git.validators import check_git, matching_paths
 from ai_workflow_engine.governance.validators import check_governance, check_task_state
 from ai_workflow_engine.handover.validators import HandoverSource, check_handover
+from ai_workflow_engine.migration.apply import apply_migration
+from ai_workflow_engine.migration.errors import ApplyNotAuthorizedError
+from ai_workflow_engine.migration.inspect import default_migration_source, inspect_source
+from ai_workflow_engine.migration.plan import build_backup_plan, build_recovery_plan
 from ai_workflow_engine.models import EngineConfig
 from ai_workflow_engine.prompt.context import build_prompt_context
 from ai_workflow_engine.prompt.models import (
@@ -1013,6 +1018,121 @@ def apply_patch(
         ),
     )
     _emit(result, output)
+
+
+migrate_app = typer.Typer(
+    help="Read-only legacy-artifact inspection and dry-run migration planning "
+    "(architecture-v3.md section 14/18). Real (non-dry-run) apply is not authorized."
+)
+app.add_typer(migrate_app, name="migrate")
+
+SourceOption = Annotated[
+    Path | None,
+    typer.Option(
+        "--source",
+        help="Legacy-artifact source root (default: ~/.ai-workflow-engine/workflow-runs).",
+        # Click's Path type checks `readable` (and would check `exists`) at argument-
+        # parsing time by default, before any command body runs -- bypassing the JSON
+        # contract entirely for a missing/permission-denied path (the same class of gap
+        # ORCH-002's Finding B fixed for _protected-caught exceptions). All existence,
+        # type, and readability handling for --source is deferred to
+        # `migration.legacy_readers.discover_legacy_artifacts`/`apply_migration`, which
+        # always emit through the stable v1/v2 contract.
+        exists=False,
+        readable=False,
+    ),
+]
+ToVersionOption = Annotated[
+    str, typer.Option("--to", help="Target migration version, e.g. '2.0.0'.")
+]
+
+
+def _resolve_migration_source(source: Path | None) -> Path:
+    return source if source is not None else default_migration_source()
+
+
+def _emit_migration_payload(command: str, payload: dict[str, object], output: OutputFormat) -> None:
+    if output == OutputFormat.JSON:
+        if _contract_version == "2.0.0":
+            _write_stdout(_contract_v2_success(command, payload))
+        else:
+            sys.stdout.buffer.write(canonical_json(payload) + b"\n")
+            sys.stdout.buffer.flush()
+        return
+    _write_stdout(json.dumps(payload, sort_keys=True, indent=2, default=str))
+
+
+@migrate_app.command("inspect")
+def migrate_inspect(
+    to: ToVersionOption,
+    source: SourceOption = None,
+    output: OutputOption = OutputFormat.HUMAN,
+) -> None:
+    """Classify every legacy artifact under --source. Read-only; writes nothing."""
+    resolved_source = _resolve_migration_source(source)
+    manifest = _protected(
+        lambda: inspect_source(resolved_source, to_version=to),
+        output=output,
+        command="migrate-inspect",
+    )
+    _emit_migration_payload("migrate-inspect", manifest.model_dump(mode="json"), output)
+
+
+@migrate_app.command("plan")
+def migrate_plan(
+    to: ToVersionOption,
+    source: SourceOption = None,
+    output: OutputOption = OutputFormat.HUMAN,
+) -> None:
+    """Build a deterministic backup/recovery plan from a fresh inspection. Writes nothing."""
+    resolved_source = _resolve_migration_source(source)
+
+    def build() -> dict[str, object]:
+        manifest = inspect_source(resolved_source, to_version=to)
+        backup_plan = build_backup_plan(manifest)
+        recovery_plan = build_recovery_plan(manifest, backup_plan)
+        return {
+            "manifest_digest": manifest.manifest_digest,
+            "source_root": manifest.source_root,
+            "to_version": manifest.to_version,
+            "known_count": manifest.known_count,
+            "quarantined_count": manifest.quarantined_count,
+            "backup_plan": backup_plan.model_dump(mode="json"),
+            "recovery_plan": recovery_plan.model_dump(mode="json"),
+        }
+
+    payload = _protected(build, output=output, command="migrate-plan")
+    _emit_migration_payload("migrate-plan", payload, output)
+
+
+@migrate_app.command("apply")
+def migrate_apply_command(
+    to: ToVersionOption,
+    source: SourceOption = None,
+    dry_run: Annotated[bool, typer.Option("--dry-run/--no-dry-run")] = False,
+    output: OutputOption = OutputFormat.HUMAN,
+) -> None:
+    """Dry-run only: refuses before any write unless --dry-run is passed."""
+    resolved_source = _resolve_migration_source(source)
+
+    def build() -> dict[str, object]:
+        # F-7: without --dry-run, refuse before inspecting or reading the source tree at
+        # all. `apply_migration` itself also refuses first, but only after `inspect_source`
+        # has already been called below it in the old ordering -- checking `dry_run` here,
+        # before any inspection, means a real-apply refusal never accesses the source root.
+        if not dry_run:
+            raise ApplyNotAuthorizedError(
+                "Real (non-dry-run) migration apply is not authorized in ORCH-003; pass "
+                "--dry-run. Refused before reading the source tree."
+            )
+        manifest = inspect_source(resolved_source, to_version=to)
+        backup_plan = build_backup_plan(manifest)
+        recovery_plan = build_recovery_plan(manifest, backup_plan)
+        result = apply_migration(manifest, backup_plan, recovery_plan, dry_run=dry_run)
+        return result.model_dump(mode="json")
+
+    payload = _protected(build, output=output, command="migrate-apply")
+    _emit_migration_payload("migrate-apply", payload, output)
 
 
 def main() -> None:

@@ -1,0 +1,514 @@
+schema_name: orchestration-implementation-evidence
+schema_version: 1.0.0
+feature_id: ORCH
+stage_id: ORCH-003
+implementation_id: 20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4
+session:
+  actor: claude-code-implementer-orch-003-1
+  role: IMPLEMENTER
+started_at: '2026-07-21T17:15:00Z'
+finished_at: '2026-07-21T18:10:00Z'
+head:
+  starting: e9f63a81041ba528055948890d5623087b62dae8
+  ending: e9f63a81041ba528055948890d5623087b62dae8
+  note: >
+    No commit occurred during this session; HEAD is unchanged throughout. A human
+    must commit the full diff (implementation + tests + this evidence/handoff +
+    implementation-state.yaml) before an independent reviewer acts on it.
+independence_declaration: >
+  This session's actor, claude-code-implementer-orch-003-1, is distinct from every
+  actor recorded against ORCH-000, ORCH-001, and ORCH-002 (claude-code-bootstrap,
+  claude-code-remediator[-2/-3], claude-code-architect-1, claude-code-independent-
+  reviewer[-2/-3/-4], claude-code-implementer-1, claude-code-remediator-orch-001-[1/2],
+  claude-code-independent-reviewer-orch-001-[1/2/3], claude-code-implementer-orch-002-1,
+  claude-code-independent-reviewer-orch-002-1). This is an implementation session, not
+  a review; it relies on a fresh read of README.md, self-governance.yaml,
+  docs/AGENT_PROTOCOL.md, this package's README.md, architecture-v3.md,
+  implementation-plan.md, implementation-state.schema.yaml, implementation-state.yaml,
+  session-protocol.md, migration-registry.yaml, stages/ORCH-003.md,
+  prompts/implement-next.md, the committed ORCH-002 approval evidence/handoff, and the
+  existing source (schema/, cli.py, and the existing artifact/prompt/workflow/agent-run/
+  approval models and readers) -- not on chat history.
+preflight:
+  repository_root: /home/afshin-jian/ai-workflow-engine
+  branch: main
+  head: e9f63a81041ba528055948890d5623087b62dae8
+  origin_main: e9f63a81041ba528055948890d5623087b62dae8
+  head_equals_origin_main: true
+  upstream: origin/main
+  ahead: 0
+  behind: 0
+  tree_and_index: CLEAN (no modified/staged/untracked files before this session's edits)
+  merge_rebase_cherrypick_bisect: NONE_ACTIVE
+  orchestration_feature_lock: NOT_FOUND
+  package_status: PUBLISHED
+  orch_002_check: >
+    REVIEW_APPROVED with committed evidence (implementation_commit
+    809c09b0c299dd9a6029a2c5ffa3f5d35ae3330b; review commit e9f63a81041ba528055948890d5
+    623087b62dae8 "docs: approve ORCH-002", which is current HEAD). Confirmed via
+    git log --oneline and by reading implementation-state.yaml directly.
+  stage_status_at_start: NOT_STARTED
+  stage_review_status_at_start: NOT_REQUESTED
+  stage_verification_status_at_start: NOT_RUN
+  stage_blockers_at_start: []
+  frontier_check: >
+    python scripts/orchestration_feature_state.py status recomputed
+    next_eligible_stage == ORCH-003, matching the declared value; ORCH-003 is the
+    unique NOT_STARTED stage with all prerequisites REVIEW_APPROVED (ORCH-016 also
+    independently satisfies its own prerequisite but is later in delivery_order, so
+    it is not the frontier). ORCH-004 confirmed NOT_STARTED.
+  migration_registry_check: >
+    All three entries (ORCH-MIG-001/002/003) are owner_stage ORCH-026, status
+    PLANNED. None is owned by ORCH-003; the registry was treated as read-only and no
+    entry's status/fields were changed by this session.
+  state_digest_before: sha256:b536d3b9c3c5b0201be8df3669538339965b6329ffe54ee9b0833faefd0c7891
+changed_paths:
+  - src/ai_workflow_engine/cli.py
+  - src/ai_workflow_engine/migration/__init__.py
+  - src/ai_workflow_engine/migration/errors.py
+  - src/ai_workflow_engine/migration/models.py
+  - src/ai_workflow_engine/migration/legacy_readers.py
+  - src/ai_workflow_engine/migration/inspect.py
+  - src/ai_workflow_engine/migration/plan.py
+  - src/ai_workflow_engine/migration/apply.py
+  - src/ai_workflow_engine/schema/migration.py
+  - tests/test_migration_models.py
+  - tests/test_migration_readers.py
+  - tests/test_migration_plan_apply.py
+  - tests/test_migration_cli.py
+  - docs/implementation/orchestration/implementation-state.yaml
+  - docs/implementation/orchestration/handoffs/ORCH-003/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4.md
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4-environment-fingerprint.txt
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4-git-rev-parse-head-before.txt
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4-git-rev-parse-origin-main.txt
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4-git-status-before.txt
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4-pytest-focused.txt
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4-pytest-full.txt
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4-ruff-check.txt
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4-black-check.txt
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4-mypy-src.txt
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4-workflowctl-verify.txt
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4-git-diff-check.txt
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4-git-diff-name-only.txt
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4-status-before-edit.txt
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4-validate-state-before.txt
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4-validate-state-after.txt
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4-status-after.txt
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4-git-status-after.txt
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4-git-diff-check-after.txt
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4-git-diff-name-only-after.txt
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4-disposable-fixture-demo.py
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4-disposable-fixture-demo-output.txt
+environment_fingerprint:
+  captured_artifact: evidence/ORCH-003/logs/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4-environment-fingerprint.txt
+  digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+  note: Byte-identical to the digest recorded on every ORCH-002 command (same machine/session).
+  applied_to: all commands below
+commands:
+  - argv: [git, rev-parse, HEAD]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-003/logs/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4-git-rev-parse-head-before.txt
+    stdout_digest: sha256:40c34199d471ad37c69275b1a696c1b081434768b4ce0d455a7d7a086e1db118
+    result: e9f63a81041ba528055948890d5623087b62dae8
+    purpose: Record current HEAD as ORCH-003's expected_base_head.
+    when: before
+  - argv: [git, rev-parse, origin/main]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-003/logs/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4-git-rev-parse-origin-main.txt
+    stdout_digest: sha256:40c34199d471ad37c69275b1a696c1b081434768b4ce0d455a7d7a086e1db118
+    result: e9f63a81041ba528055948890d5623087b62dae8
+    purpose: Confirm main and origin/main are identical.
+    when: before
+  - argv: [git, status, --porcelain, -b]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-003/logs/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4-git-status-before.txt
+    stdout_digest: sha256:6ad4cbf3458e6e95d27a1e35a64af3f0c87e3d688f93fff97af3203aa5e894ba
+    result: '## main...origin/main (clean, no other lines)'
+    purpose: Confirm clean tree/index before any edit.
+    when: before
+  - argv: [python, scripts/orchestration_feature_state.py, status, --state,
+      docs/implementation/orchestration/implementation-state.yaml, --output, json]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-003/logs/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4-status-before-edit.txt
+    stdout_digest: sha256:84c8b8ddb061359c61d4d616d3861911009b7da0f92c4fbc18f3a969cc36ba1c
+    result: >-
+      current_stage/declared_next_eligible_stage ORCH-003; ORCH-003.status
+      NOT_STARTED; ORCH-004.status NOT_STARTED.
+    purpose: Confirm ORCH-003 is the unique eligible NOT_STARTED stage before implementing.
+    when: before
+  - argv: [pytest, -q, tests/test_migration_models.py, tests/test_migration_readers.py,
+      tests/test_migration_plan_apply.py, tests/test_migration_cli.py]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-003/logs/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4-pytest-focused.txt
+    stdout_digest: sha256:d2d5ab366492e3ee4c7f7b29ce4876ca4c1c05c673724d58d920a395b9527548
+    result: '79 passed'
+    purpose: Stage-required focused command (pytest -q tests/test_migration*.py).
+    when: after
+  - argv: [pytest, -q, -rs]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-003/logs/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4-pytest-full.txt
+    stdout_digest: sha256:db8242a254da9c235af8567c289d6be192c0bbb50994c2adb1f0bf5031b2d789
+    result: '903 passed, 0 skipped'
+    purpose: >
+      Full regression suite, rerun after the implementation-state.yaml edit
+      (824 prior + 79 new = 903). An intermediate run captured mid-session, before
+      the state edit, showed 902 passed / 1 skipped: the pre-existing ORCH-001
+      O-1 skip is dynamic and self-arms only while the frontier stage lacks a
+      VERIFIED-grade implementation (documented at that test's own definition);
+      it was still armed while ORCH-003 was NOT_STARTED and disarmed the moment
+      ORCH-003 reached VERIFIED. This final rerun, after the state edit, is the
+      accurate result left behind by this session.
+    when: after
+  - argv: [ruff, check, src/ai_workflow_engine/migration/__init__.py,
+      src/ai_workflow_engine/migration/errors.py, src/ai_workflow_engine/migration/models.py,
+      src/ai_workflow_engine/migration/legacy_readers.py, src/ai_workflow_engine/migration/inspect.py,
+      src/ai_workflow_engine/migration/plan.py, src/ai_workflow_engine/migration/apply.py,
+      src/ai_workflow_engine/schema/migration.py, src/ai_workflow_engine/cli.py,
+      tests/test_migration_models.py, tests/test_migration_readers.py,
+      tests/test_migration_plan_apply.py, tests/test_migration_cli.py]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-003/logs/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4-ruff-check.txt
+    stdout_digest: sha256:82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18
+    result: All checks passed!
+    purpose: Lint every changed/added Python file.
+    when: after
+  - argv: [black, --check, src/ai_workflow_engine/migration/__init__.py,
+      src/ai_workflow_engine/migration/errors.py, src/ai_workflow_engine/migration/models.py,
+      src/ai_workflow_engine/migration/legacy_readers.py, src/ai_workflow_engine/migration/inspect.py,
+      src/ai_workflow_engine/migration/plan.py, src/ai_workflow_engine/migration/apply.py,
+      src/ai_workflow_engine/schema/migration.py, src/ai_workflow_engine/cli.py,
+      tests/test_migration_models.py, tests/test_migration_readers.py,
+      tests/test_migration_plan_apply.py, tests/test_migration_cli.py]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-003/logs/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4-black-check.txt
+    stdout_digest: sha256:2905ef48f08749efc5fa3e516a8355f26b1bded06e5c2654b0b8aa5375b78d3d
+    result: '13 files would be left unchanged'
+    purpose: >
+      Format-check every changed/added Python file. `black` (not --check) was run
+      once during authoring to auto-format 7 files (including two pre-existing-
+      line-length fixes in cli.py/legacy_readers.py), then reverified clean by
+      this exact command.
+    when: after
+  - argv: [mypy, src]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-003/logs/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4-mypy-src.txt
+    stdout_digest: sha256:8e71d79dbad0b69ea084d2b82ffa1e884da682da321d892911c2549f0a4a4d72
+    result: 'Success: no issues found in 55 source files'
+    purpose: >
+      Strict type check. One union-typed-variable assignment error was found and
+      fixed in _classify_approval_entry (an explicit
+      `model_cls: type[CommitApproval] | type[PushApproval]` annotation) before
+      this clean result.
+    when: after
+  - argv: [python, scripts/orchestration_feature_state.py, validate, --state,
+      docs/implementation/orchestration/implementation-state.yaml, --plan,
+      docs/implementation/orchestration/implementation-plan.md, --output, json]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-003/logs/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4-validate-state-after.txt
+    stdout_digest: sha256:56a3f3d129545f91dff1665f75315b2c5a52f28bc26ac3a8041a889b66598474
+    result: 'PASS, 0 errors; state_digest sha256:32d2568f93896a9576812292d2ce47a5eeb09fb4c161eb4e152bd628c5a0cd25'
+    purpose: >
+      Stage-required validate rerun against the real committed
+      implementation-state.yaml after this session's edit (ORCH-003's NOT_STARTED
+      -> IN_PROGRESS -> IMPLEMENTED -> VERIFIED transitions, history sequences
+      40-42, and last_updated), proving the file this session leaves behind is
+      structurally and semantically valid.
+    when: after
+  - argv: [python, scripts/orchestration_feature_state.py, status, --state,
+      docs/implementation/orchestration/implementation-state.yaml, --output, json]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-003/logs/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4-status-after.txt
+    stdout_digest: sha256:45ae3203137271c42e613836f6139e017a2aad7f773a3820d0a7a7910e8752cd
+    result: >-
+      current_stage/next_eligible_stage/candidate_next_stage all ORCH-003;
+      ORCH-003.status VERIFIED, review_status PENDING, eligible_now true;
+      ORCH-004.status NOT_STARTED, prerequisites_closed false.
+    purpose: Confirm the frontier is unchanged (VERIFIED is not REVIEW_APPROVED) and ORCH-004 is unaffected.
+    when: after
+  - argv: [workflowctl, verify, --config, self-governance.yaml, --output, json]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-003/logs/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4-workflowctl-verify.txt
+    stdout_digest: sha256:0b7ed7aec9684241bc77f5670b020380037bac0354caa0ad6903ed60b6474908
+    result_overall_status: PASS
+    purpose: Repository self-governance re-verification after this session's changes.
+    when: after
+  - argv: [git, diff, --check]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-003/logs/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4-git-diff-check-after.txt
+    stdout_digest: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    result: no whitespace or conflict-marker errors (empty output)
+    purpose: Stage-required whitespace/conflict-marker check, after the state edit.
+    when: after
+  - argv: [git, diff, --name-only]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-003/logs/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4-git-diff-name-only-after.txt
+    stdout_digest: sha256:386efcc2c4b1d15048cfc6dc1c6b867b2871dc157bc4c194beb530c5bdca710c
+    result: >-
+      docs/implementation/orchestration/implementation-state.yaml,
+      src/ai_workflow_engine/cli.py -- exactly the two tracked files this session
+      modified; every other change (migration/, schema/migration.py, the four
+      test files, and all evidence/handoff files) is a new untracked file, all
+      inside stages/ORCH-003.md's allowed paths.
+    purpose: Confirm exactly the authorized tracked files changed, nothing else.
+    when: after
+  - argv: [git, status, --porcelain]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-003/logs/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4-git-status-after.txt
+    stdout_digest: sha256:61ea8ce6fc48958742503f29a4aff176c79531320c40f92ce01c69c6612b069c
+    result: >-
+      2 modified (implementation-state.yaml, cli.py), 6 untracked top-level
+      entries (evidence/ORCH-003/, migration/, schema/migration.py, and the four
+      test_migration*.py files) -- handoffs/ORCH-003/ is nested under the
+      already-untracked docs/implementation/orchestration/ tree reporting.
+      HEAD unchanged; no commit created.
+    purpose: Final confirmation of changed-path scope.
+    when: after
+  - argv: [python, /tmp/.../disposable-fixture-demo.py (copied into evidence as
+      -disposable-fixture-demo.py), /home/afshin-jian/ai-workflow-engine]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-003/logs/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4-disposable-fixture-demo-output.txt
+    stdout_digest: sha256:b3297ee61df100f424c94ba89c4493933cb054fc76052fe930d7d88510310782
+    result: 'ORCH003_DEMO: ALL_CHECKS_PASS (6/6 checks)'
+    purpose: >
+      Independent, disposable-fixture demonstration (not part of the pytest
+      suite) of: byte/digest-preserving inspect; write-nothing plan; write-
+      nothing apply --dry-run (including the containing temp directory); apply
+      without dry_run=True refusing before any mutation; quarantine of a corrupt
+      sibling artifact; and a read-only reconfirmation that ORCH-004 is
+      NOT_STARTED with the real state file's bytes unchanged by that read.
+    when: after
+tests:
+  suite: focused (tests/test_migration*.py, 79 tests) plus full existing regression suite (pytest -q -rs)
+  passed: 903
+  failed: 0
+  skipped: 0
+  skip_reason: >-
+    None in this final rerun. tests/test_orchestration_feature_state.py's
+    dynamic O-1 skip (documented at ORCH-001's own approval) self-arms only
+    while the frontier stage lacks a VERIFIED-grade implementation; it was
+    observed armed (902 passed / 1 skipped) in an intermediate mid-session run
+    taken before the implementation-state.yaml edit, and disarmed itself
+    (903 passed / 0 skipped) the moment this session advanced ORCH-003 to
+    VERIFIED. Both counts are legitimate for their respective moments; this is
+    the accurate final result.
+  exit_code: 0
+decisions:
+  - id: DEC-1
+    summary: >
+      A legacy-artifact source root mirrors the union of this engine's existing
+      on-disk stores: state/, agent-runs/, prompts/ (exactly
+      prompt/store.py, agents/artifacts.py, and workflow/event_store.py's own
+      `_artifact_root()` layout under ~/.ai-workflow-engine/workflow-runs), plus
+      a new approvals/ convention for archived git/approval.py YAML files.
+      `--source` defaults to that real root (overridable).
+    rationale: >
+      This grounds the framework in artifacts this codebase actually produces
+      today, needs no new configuration surface for production use, and lets
+      every "known legacy artifact" test reuse the real, already-reviewed
+      writer functions rather than hand-crafting byte-identical fixtures.
+  - id: DEC-2
+    summary: >
+      Classification never guesses: family is determined solely by fixed
+      directory position, then strict validation against the exact existing v1
+      model for that family -- never content sniffing or trying multiple
+      families until one parses.
+    rationale: >
+      Matches architecture-v3.md's explicit "never guess missing or ambiguous
+      legacy semantics" requirement and this stage's "no guessed legacy
+      semantics" independent-review checklist item. An unlabelled/foreign
+      approval `kind` is quarantined UNKNOWN_APPROVAL_KIND rather than inferred
+      from shape.
+  - id: DEC-3
+    summary: >
+      14 stable, specific QuarantineReason values instead of one generic
+      "invalid" bucket; a .patch/.md companion mismatch/absence downgrades the
+      primary .json record to QUARANTINED rather than being listed separately.
+    rationale: >
+      A caller (or a later stage's decision policy) needs to distinguish a
+      symlink-safety refusal from a corrupt artifact from a schema-version
+      mismatch (the mixed-version case). Companion-folding mirrors exactly what
+      the real agents/artifacts.py/prompt/store.py loaders already verify at
+      load time -- an incomplete pair is one defective artifact, not two.
+  - id: DEC-4
+    summary: >
+      manifest_digest/plan_digest are self-referential SHA-256 content hashes
+      (the record's own canonical JSON with the digest field excluded), the
+      same technique as agents/artifacts.py's run_id. No model in this package
+      carries a timestamp field.
+    rationale: >
+      Guarantees byte-for-byte determinism across repeated inspection/planning
+      of unchanged input and independent recomputability by a reviewer, per
+      architecture-v3.md's "Audit timestamps are excluded from identity" rule
+      and this stage's "deterministic migration inspection and planning
+      results" requirement.
+  - id: DEC-5
+    summary: >
+      ApplyResult.dry_run is typed Literal[True]; apply_migration raises
+      ApplyNotAuthorizedError as the first thing it does whenever dry_run is not
+      True, before touching its other arguments.
+    rationale: >
+      Makes "real apply is disabled" a structural, type-level guarantee rather
+      than merely a tested runtime behavior -- there is no code path that can
+      construct an ApplyResult representing a real apply.
+  - id: DEC-6
+    summary: >
+      CLI `migrate inspect|plan|apply` reuse the exact ORCH-002 contract
+      machinery unchanged (_protected, _contract_v2_success/_contract_v2_error,
+      canonical_json for v1) rather than any new error-handling path.
+    rationale: >
+      v1/v2 behavior, single-JSON-document stdout purity under FORCE_COLOR, and
+      "apply without --dry-run refuses via a stable error before any command
+      body other than the refusal check runs" all fall out of already-reviewed
+      infrastructure, minimizing new surface area in a CLI-contract-critical file.
+  - id: DEC-7
+    summary: >
+      A nonexistent (never-created) default `--source` root is treated as an
+      empty manifest, not an error; a path that exists but is not a directory
+      still fails closed with MigrationSourceError.
+    rationale: >
+      A fresh machine that has never produced a legacy artifact is a legitimate
+      empty state (this stage's own "empty input" test requirement), not a
+      corruption signal -- unlike a source path that exists but is the wrong
+      type, which remains a hard, fail-closed error.
+  - id: DEC-8
+    summary: >
+      Hand-edit implementation-state.yaml's ORCH-003 entry, history (sequences
+      40-42), and last_updated, rather than invoking a transition subcommand
+      four times against the real governance file, re-parsing with
+      `yaml.safe_load` after every edit to independently confirm validity
+      before running the official validator.
+    rationale: >
+      Same rationale as every prior ORCH-000/ORCH-001/ORCH-002 session:
+      write_state_atomic's yaml.safe_dump would reformat the entire flow-style
+      document into block style, an out-of-scope stylistic change.
+    self_correction_note: >-
+      A first attempt at this edit accidentally left an orphaned second key
+      (_superseded_reason_from_review_orch_002) inside the last_updated mapping
+      while replacing its `reason` value, which would have violated the
+      schema's `additionalProperties: false` on that object. This was caught by
+      this session's own re-parse-and-inspect-keys discipline
+      (`yaml.safe_load(...); sorted(d['last_updated'].keys())`) before running
+      the official validator, and the orphaned block was deleted in the same
+      pass. Recorded here rather than silently corrected and omitted, per
+      session-protocol.md's fail-closed spirit: evidence states what actually
+      happened, not an idealized version of it.
+  - id: DEC-9
+    summary: >
+      An early test-authoring mistake used the real, $HOME-coupled
+      `workflow.event_store.append` against an explicit non-$HOME
+      `--source`/`tmp_path` fixture directory, which actually wrote one
+      artifact under this machine's real ~/.ai-workflow-engine/workflow-runs
+      during the first full test run.
+    rationale: >
+      Caught immediately via `find ~/.ai-workflow-engine/workflow-runs -newer
+      pyproject.toml`, confirmed by file birth-time (2026-07-21 20:33, during
+      this session) and by project/task IDs `p`/`t` (which appear only in these
+      fixtures) to be exactly this session's own write, distinct from an older,
+      pre-existing `test-project` directory (birth-time 19:21, before this
+      session, left untouched). The exact polluted subtree
+      (~/.ai-workflow-engine/workflow-runs/state/p/, and only that subtree) was
+      removed with `rm -rf`, and both affected fixtures
+      (tests/test_migration_plan_apply.py, tests/test_migration_cli.py) were
+      rewritten to write canonical JSON bytes directly into the explicit
+      disposable root via `prompt.renderer.canonical_json`, never through a
+      real $HOME-coupled writer. tests/test_migration_readers.py intentionally
+      still exercises the real writers for its "known legacy artifact"
+      coverage, but only under a `legacy_home` fixture that monkeypatches $HOME
+      first. No real governance file (this repository's tracked Git content)
+      was ever at risk; the affected path is a legacy-artifact-store
+      convenience directory outside Git, not tracked by any commit.
+unresolved_risks:
+  - id: R-APPROVAL-ISOLATION
+    severity: CRITICAL
+    summary: Autonomous writes are unsafe without approvald under a distinct OS authority.
+    disposition: Unchanged by this stage; carried forward.
+  - id: R-GOVERNANCE-TRANSACTION
+    severity: CRITICAL
+    summary: Multi-document publication and Git commit span a crash boundary.
+    disposition: Unchanged by this stage; carried forward.
+  - id: R-BOOTSTRAP-ROLE-OVERLAP
+    severity: MEDIUM
+    summary: Historical ORCH-000 bootstrap role-overlap; already resolved.
+    disposition: Unchanged by this stage; carried forward unchanged.
+  - id: R-REMEDIATION-AMENDMENT-UNREVIEWED
+    severity: HIGH
+    summary: Historical ORCH-000 remediation-amendment authorization gap; already resolved.
+    disposition: Unchanged by this stage; carried forward unchanged.
+  - id: R-ORCH-001-VALIDATOR-CORRECTNESS
+    severity: HIGH
+    summary: Historical ORCH-001 validator-correctness defects (F-1/F-2/F-3); already resolved and independently re-reviewed.
+    disposition: Unchanged by this stage; carried forward unchanged.
+blockers: []
+schema_changes:
+  - name: migration-manifest
+    versions_changed: ['1.0.0']
+    note: New schema, registered in a new MIGRATION_SCHEMA_REGISTRY (src/ai_workflow_engine/schema/migration.py).
+  - name: migration-backup-plan
+    versions_changed: ['1.0.0']
+    note: New schema, same registry.
+  - name: migration-recovery-plan
+    versions_changed: ['1.0.0']
+    note: New schema, same registry.
+migration_changes: []
+worktree_digest:
+  algorithm: sha256
+  method: >-
+    SHA-256 of the newline-joined "sha256hex  relative/path" manifest lines
+    (sorted by path) for every changed_paths entry except this evidence YAML
+    itself (excluded to avoid a self-referential digest); the handoff and all
+    of this session's log/script artifacts are included. Each line's leading
+    digest is the SHA-256 of that file's raw bytes. 36 files counted.
+  value: sha256:168b098a6117d33883a87a46119a7f5dd662a255d292da7c7b45fe45a21d7dc3
+handoff: docs/implementation/orchestration/handoffs/ORCH-003/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4.md
+production_source_modified: true
+stage_status_changed: true
+stage_status_transition: {from: NOT_STARTED, to: VERIFIED, via: [IN_PROGRESS, IMPLEMENTED]}
+review_verdict_recorded: false
+migration_registry_touched: false
+next_required_role: REVIEWER
+next_required_action: >
+  Independent ORCH-003 review, run by a session/actor distinct from
+  claude-code-implementer-orch-003-1 and every actor recorded against ORCH-000,
+  ORCH-001, and ORCH-002, per stages/ORCH-003.md's "Independent review
+  checklist" and session-protocol.md section 5: confirm this diff is committed
+  and current HEAD matches it, set implementation_commit to that HEAD,
+  independently reproduce the byte-preservation, quarantine-classification,
+  determinism, and write-safety claims in this evidence (not merely trust
+  them), re-run pytest -q tests/test_migration*.py, the full pytest -q suite,
+  ruff check, black --check, mypy src, the orchestration state validator, and
+  workflowctl verify, confirm only stages/ORCH-003.md's allowed paths changed,
+  confirm migration-registry.yaml is unchanged, then record REVIEW_APPROVED or
+  REVIEW_REJECTED in a new reviews/ORCH-003/<review-id>.yaml. Do not implement
+  ORCH-004 in the same session.

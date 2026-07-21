@@ -1,0 +1,477 @@
+schema_name: orchestration-implementation-evidence
+schema_version: 1.0.0
+feature_id: ORCH
+stage_id: ORCH-003
+implementation_id: 20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f
+session:
+  actor: claude-code-implementer-orch-003-1
+  role: IMPLEMENTER
+started_at: '2026-07-21T21:00:00Z'
+finished_at: '2026-07-21T22:00:00Z'
+head:
+  starting: e9f63a81041ba528055948890d5623087b62dae8
+  ending: e9f63a81041ba528055948890d5623087b62dae8
+  note: >
+    Continuation of the same uncommitted scoped diff this actor left at the end of
+    implementation_id 20260721T190000Z-claude-code-implementer-orch-003-1-b5f2e91a (no
+    commit occurred between any of the three rounds). HEAD
+    e9f63a81041ba528055948890d5623087b62dae8 ("docs: approve ORCH-002") is unchanged; a
+    human must commit the full accumulated diff (all three rounds) before an independent
+    reviewer acts on it.
+independence_declaration: >
+  This session is the same actor (claude-code-implementer-orch-003-1) continuing its own
+  prior, still-uncommitted work after a further human implementation review identified
+  two more concrete integrity/completeness gaps -- not an independent review or
+  approval. Actor remains distinct from every actor recorded against ORCH-000, ORCH-001,
+  and ORCH-002. This session relies on the human review's findings (F-8, F-9, reproduced
+  below) and a fresh read of session-protocol.md, implementation-state.yaml,
+  stages/ORCH-003.md, architecture-v3.md, both prior evidence records/handoffs, and the
+  current source (src/ai_workflow_engine/migration/, schema/migration.py,
+  tests/test_migration_*.py), not on chat history alone. Preserves F-1 through F-7
+  unweakened: all 126 tests from the prior round still pass verbatim.
+human_review_findings:
+  - id: F-8
+    title: Unsupported filesystem entries are silently omitted
+    summary: >-
+      _iter_entries_safe() ignored filesystem entries that are not regular files,
+      directories, or symlinks (FIFOs, sockets, device nodes); inspect_source returned no
+      manifest artifact for a FIFO placed at state/p/t/00000001.json, and
+      build_backup_plan incorrectly returned complete=True with no incomplete_paths.
+  - id: F-9
+    title: Same-name content mutation remains undetected
+    summary: >-
+      Workflow-history mutation detection only compared the directory filename set after
+      reading (F-7); a file's contents changing during inspection while its filename
+      remained unchanged could still be classified KNOWN with a digest that no longer
+      matched the file on disk, and no equivalent protection existed at all for
+      agent-run/prompt/approval single- or paired-file reads.
+preflight:
+  repository_root: /home/afshin-jian/ai-workflow-engine
+  branch: main
+  head: e9f63a81041ba528055948890d5623087b62dae8
+  origin_main: e9f63a81041ba528055948890d5623087b62dae8
+  head_equals_origin_main: true
+  upstream: origin/main
+  ahead: 0
+  behind: 0
+  tree_before_this_rounds_edits: >-
+    Matches the exact uncommitted diff left by implementation_id
+    20260721T190000Z-claude-code-implementer-orch-003-1-b5f2e91a (see
+    git-status-before.txt): 2 modified (cli.py, implementation-state.yaml), 6 untracked
+    top-level entries (migration/, schema/migration.py, evidence/ORCH-003/,
+    handoffs/ORCH-003/, and the four test_migration*.py files).
+  merge_rebase_cherrypick_bisect: NONE_ACTIVE
+  orchestration_feature_lock: NOT_FOUND
+  stage_status_at_start: VERIFIED
+  stage_review_status_at_start: PENDING
+  stage_verification_status_at_start: PASSED
+  stage_blockers_at_start: [IMPLEMENTATION_REVIEW_INTEGRITY_PATH_SAFETY_GAP (resolved)]
+  state_digest_at_start: sha256:b7299d9ec3cdc9212be4a443ebf96ab185e8536c9f23c526b7a97f241801f563
+  state_digest_at_start_note: >-
+    This is the state_digest recorded by implementation_id
+    20260721T190000Z-...-b5f2e91a's own "validate" command (the state this round begins
+    from).
+changed_paths:
+  - src/ai_workflow_engine/migration/models.py
+  - src/ai_workflow_engine/migration/legacy_readers.py
+  - src/ai_workflow_engine/migration/plan.py
+  - tests/test_migration_readers.py
+  - tests/test_migration_plan_apply.py
+  - docs/implementation/orchestration/implementation-state.yaml
+  - docs/implementation/orchestration/handoffs/ORCH-003/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f.md
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f-environment-fingerprint.txt
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f-git-rev-parse-head-before.txt
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f-git-rev-parse-origin-main.txt
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f-git-status-before.txt
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f-pytest-focused.txt
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f-pytest-full.txt
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f-pytest-full-after-state-edit.txt
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f-ruff-check.txt
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f-black-check.txt
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f-mypy-src.txt
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f-validate-state-before.txt
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f-workflowctl-verify.txt
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f-git-diff-check.txt
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f-git-diff-name-only.txt
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f-validate-state-after.txt
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f-status-after.txt
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f-git-status-after.txt
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f-git-diff-check-after.txt
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f-git-diff-name-only-after.txt
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f-adversarial-f8-f9-demo.py
+  - docs/implementation/orchestration/evidence/ORCH-003/logs/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f-adversarial-f8-f9-demo-output.txt
+not_touched_again_this_round:
+  - src/ai_workflow_engine/migration/__init__.py
+  - src/ai_workflow_engine/migration/errors.py
+  - src/ai_workflow_engine/migration/apply.py
+  - src/ai_workflow_engine/migration/inspect.py
+  - src/ai_workflow_engine/schema/migration.py
+  - src/ai_workflow_engine/cli.py
+  - tests/test_migration_models.py
+  - tests/test_migration_cli.py
+environment_fingerprint:
+  captured_artifact: evidence/ORCH-003/logs/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f-environment-fingerprint.txt
+  digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+  note: Byte-identical to the digest recorded on every prior ORCH-003/ORCH-002 command (same machine/session).
+  applied_to: all commands below
+commands:
+  - argv: [git, rev-parse, HEAD]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-003/logs/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f-git-rev-parse-head-before.txt
+    stdout_digest: sha256:40c34199d471ad37c69275b1a696c1b081434768b4ce0d455a7d7a086e1db118
+    result: e9f63a81041ba528055948890d5623087b62dae8
+    purpose: Confirm HEAD is unchanged since the prior round.
+    when: before
+  - argv: [git, rev-parse, origin/main]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-003/logs/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f-git-rev-parse-origin-main.txt
+    stdout_digest: sha256:40c34199d471ad37c69275b1a696c1b081434768b4ce0d455a7d7a086e1db118
+    result: e9f63a81041ba528055948890d5623087b62dae8
+    purpose: Confirm main and origin/main remain identical.
+    when: before
+  - argv: [git, status, --porcelain, -b]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-003/logs/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f-git-status-before.txt
+    stdout_digest: sha256:be37559ab5a0afe40afb55480c74f228cd348f89bb840ae267aed9806aa10d92
+    result: >-
+      Matches exactly the uncommitted diff left by the prior round: 2 modified, 6
+      untracked top-level entries.
+    purpose: Confirm this round starts from exactly the prior round's uncommitted state.
+    when: before
+  - argv: [pytest, -q, tests/test_migration_models.py, tests/test_migration_readers.py,
+      tests/test_migration_plan_apply.py, tests/test_migration_cli.py]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-003/logs/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f-pytest-focused.txt
+    stdout_digest: sha256:7231c106a22ec12223baef31824076c40cfc880638d9327afdb26bcfcca5aa21
+    result: '139 passed'
+    purpose: >
+      Stage-required focused command after the F-8/F-9 remediation: 40 model + 63 reader
+      + 15 plan/apply + 21 CLI tests, all passing (up from 126 before this round).
+    when: after
+  - argv: [pytest, -q, -rs]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-003/logs/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f-pytest-full.txt
+    stdout_digest: sha256:cf066b0364e2dea97fd7c322c932c37587bac7a07d5db29f4428efebe553bb4c
+    result: '963 passed, 0 skipped'
+    purpose: Full regression suite after the remediation (950 prior + 13 new = 963), before the final state edit.
+    when: after
+  - argv: [ruff, check, src/ai_workflow_engine/migration/, src/ai_workflow_engine/schema/migration.py,
+      src/ai_workflow_engine/cli.py, tests/test_migration_models.py, tests/test_migration_readers.py,
+      tests/test_migration_plan_apply.py, tests/test_migration_cli.py]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-003/logs/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f-ruff-check.txt
+    stdout_digest: sha256:82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18
+    result: All checks passed!
+    purpose: Lint the exact required file set (byte-identical digest to the prior round -- confirms no new lint issue).
+    when: after
+  - argv: [black, --check, src/ai_workflow_engine/migration/, src/ai_workflow_engine/schema/migration.py,
+      src/ai_workflow_engine/cli.py, tests/test_migration_models.py, tests/test_migration_readers.py,
+      tests/test_migration_plan_apply.py, tests/test_migration_cli.py]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-003/logs/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f-black-check.txt
+    stdout_digest: sha256:2905ef48f08749efc5fa3e516a8355f26b1bded06e5c2654b0b8aa5375b78d3d
+    result: '13 files would be left unchanged'
+    purpose: Format-check the exact required file set.
+    when: after
+  - argv: [mypy, src]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-003/logs/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f-mypy-src.txt
+    stdout_digest: sha256:8e71d79dbad0b69ea084d2b82ffa1e884da682da321d892911c2549f0a4a4d72
+    result: 'Success: no issues found in 55 source files'
+    purpose: Strict type check.
+    when: after
+  - argv: [workflowctl, verify, --config, self-governance.yaml, --output, json]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-003/logs/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f-workflowctl-verify.txt
+    stdout_digest: sha256:d48959c5474dc2fd7d999d696809790e15f54556926589237a7fd4aa3982da99
+    result_overall_status: PASS
+    purpose: Repository governance re-verification after this round's source changes, before the state edit.
+    when: after
+  - argv: [git, diff, --check]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-003/logs/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f-git-diff-check.txt
+    stdout_digest: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    result: no whitespace or conflict-marker errors (empty output)
+    purpose: Stage-required whitespace/conflict-marker check, before the state edit.
+    when: after
+  - argv: [git, diff, --name-only]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-003/logs/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f-git-diff-name-only.txt
+    stdout_digest: sha256:386efcc2c4b1d15048cfc6dc1c6b867b2871dc157bc4c194beb530c5bdca710c
+    result: 'implementation-state.yaml, src/ai_workflow_engine/cli.py'
+    purpose: Confirm exactly the authorized tracked files changed, before the state edit.
+    when: after
+  - argv: [python, /tmp/.../adversarial-f8-f9-demo.py (copied into evidence as
+      -adversarial-f8-f9-demo.py), /home/afshin-jian/ai-workflow-engine]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-003/logs/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f-adversarial-f8-f9-demo-output.txt
+    stdout_digest: sha256:f82673b08cd4a681cb9bf1b84c606104714da5a76da9a4a82012c6199ed64e8f
+    result: 'ORCH003_F8_F9_DEMO: ALL_CHECKS_PASS (4/4 checks)'
+    purpose: >
+      Independent, disposable-fixture demonstration (not part of the pytest suite) of
+      F-8 (a real FIFO quarantined UNSUPPORTED_ENTRY_TYPE without being opened, run on a
+      daemon thread with a timeout so a regression would fail the assertion instead of
+      hanging; backup/recovery completeness reporting with no restore_file step) and F-9
+      (a same-filename content mutation, injected by monkeypatching the shared
+      _read_or_none primitive to mutate the file immediately after its first successful
+      read, correctly quarantined SOURCE_MUTATED_DURING_SCAN; a stable, unmutated input
+      still classifies KNOWN deterministically with an exact digest match).
+    when: after
+  - argv: [python, scripts/orchestration_feature_state.py, validate, --state,
+      docs/implementation/orchestration/implementation-state.yaml, --plan,
+      docs/implementation/orchestration/implementation-plan.md, --output, json]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-003/logs/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f-validate-state-after.txt
+    stdout_digest: sha256:3e81e06ca36c6a1b8786092213515de24709a40f8128fabf52f54bf1168a74e4
+    result: 'PASS, 0 errors; state_digest sha256:ecf82903b95884e46d16f3ae866d40537bdb8fb17f4215c9e60e845c4ce4ea21'
+    purpose: >
+      Stage-required validate rerun against the real committed implementation-state.yaml
+      after this round's edit (ORCH-003's VERIFIED -> BLOCKED -> IN_PROGRESS ->
+      IMPLEMENTED -> VERIFIED transitions, history sequences 47-50, the new blocker
+      record, and last_updated), proving the file this session leaves behind is
+      structurally and semantically valid.
+    when: after
+  - argv: [python, scripts/orchestration_feature_state.py, status, --state,
+      docs/implementation/orchestration/implementation-state.yaml, --output, json]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-003/logs/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f-status-after.txt
+    stdout_digest: sha256:292b5218e967fc16bfb081c2783742e899bd5dd4842e9332e84fdf81ec43a8a9
+    result: >-
+      current_stage/next_eligible_stage/candidate_next_stage all ORCH-003; ORCH-003.status
+      VERIFIED, review_status PENDING, blockers_open []; ORCH-004.status NOT_STARTED,
+      prerequisites_closed false.
+    purpose: Confirm the frontier is unchanged and ORCH-004 is unaffected.
+    when: after
+  - argv: [git, status, --porcelain]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-003/logs/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f-git-status-after.txt
+    stdout_digest: sha256:8f9b67c260db53d8ec4bf8b9e94a1c932c8f6197891dc89528a02b4af564948c
+    result: >-
+      2 modified (implementation-state.yaml, cli.py), 6 untracked top-level entries --
+      identical top-level path set to the prior round (only file contents grew). HEAD
+      unchanged; no commit created.
+    purpose: Final confirmation of changed-path scope after this round.
+    when: after
+  - argv: [git, diff, --check]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-003/logs/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f-git-diff-check-after.txt
+    stdout_digest: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    result: no whitespace or conflict-marker errors (empty output)
+    purpose: Final whitespace/conflict-marker check, after the state edit.
+    when: after
+  - argv: [git, diff, --name-only]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-003/logs/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f-git-diff-name-only-after.txt
+    stdout_digest: sha256:386efcc2c4b1d15048cfc6dc1c6b867b2871dc157bc4c194beb530c5bdca710c
+    result: 'implementation-state.yaml, src/ai_workflow_engine/cli.py -- unchanged from the pre-state-edit check.'
+    purpose: Final confirmation of exactly the authorized tracked files, after the state edit.
+    when: after
+  - argv: [pytest, -q, -rs]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-003/logs/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f-pytest-full-after-state-edit.txt
+    stdout_digest: sha256:bf89094dd86c31ce40427c87b7f95560ed6b42c5e25a10fed5bd00a15cb3a795
+    result: '963 passed, 0 skipped'
+    purpose: >
+      Final full-suite rerun after the implementation-state.yaml edit, confirming the
+      committed-state-dependent tests still pass against the exact final state file this
+      session leaves behind. Byte-identical pass count to the pre-state-edit run.
+    when: after
+tests:
+  suite: >-
+    focused (tests/test_migration_models.py, tests/test_migration_readers.py,
+    tests/test_migration_plan_apply.py, tests/test_migration_cli.py, 139 tests) plus full
+    existing regression suite (pytest -q -rs), rerun once more after the state edit
+  passed: 963
+  failed: 0
+  skipped: 0
+  exit_code: 0
+decisions:
+  - id: DEC-1
+    summary: >
+      Fix F-8 by determining an entry's type solely from a no-follow lstat
+      (os.DirEntry.stat(follow_symlinks=False) / os.lstat), never an open(), and by
+      changing _iter_entries_safe's yield contract from a symlink-only boolean to a
+      three-way kind string ("file"/"symlink"/"unsupported").
+    rationale: >
+      A FIFO opened with plain os.open(O_RDONLY) blocks until a writer connects; a
+      socket requires a connect(), not an open(); both would hang or misbehave this
+      read-only scanner. lstat never touches the entry's "content" at all, so it is the
+      only operation that can safely classify an arbitrary node type. The three-way kind
+      string (rather than adding a second boolean) keeps the call site a single
+      exhaustive if/elif/else instead of two independent flags that could combine into an
+      invalid state.
+  - id: DEC-2
+    summary: >
+      Treat entry_type "unsupported" identically to "unreadable" everywhere backup/
+      recovery completeness is computed (excluded from BackupPlan.entries, added to
+      incomplete_paths, complete=False), rather than inventing a separate completeness
+      dimension.
+    rationale: >
+      Both states mean exactly the same thing from the backup plan's perspective: "no
+      genuine bytes were ever obtained for this entry." Reusing the existing
+      completeness machinery (already reviewed and tested in the F-4 remediation) is
+      simpler and lower-risk than a parallel mechanism.
+  - id: DEC-3
+    summary: >
+      Fix F-9 with a single shared _verify_unchanged(path, expected) helper, called once
+      per member at the very end of each family's happy path (immediately before
+      returning KNOWN records), rather than wrapping every individual _read_or_none call
+      site in a read-verify-read pattern.
+    rationale: >
+      Placing the check at the end covers the *entire* validation window for that
+      member -- parsing, schema validation, cross-checks, and (for prompts) the
+      expensive deterministic re-render -- with one final comparison, rather than only
+      the narrower window between two back-to-back reads at the start. It also keeps the
+      digest/model used for a KNOWN record anchored to the very first read's bytes,
+      which is what makes the fix provably non-disruptive to the stable case.
+  - id: DEC-4
+    summary: >
+      Add F-9's workflow-history content-verification as a second, separate phase after
+      the pre-existing F-7 directory-listing-based phase, rather than merging the two
+      checks into one loop.
+    rationale: >
+      They detect genuinely different things (a changed *name set* vs. changed *bytes at
+      an unchanged name*); keeping them as two distinct, sequential checks, each
+      independently testable and each with its own clear failure message, is clearer
+      than one combined check that would need to explain which kind of inconsistency it
+      found.
+  - id: DEC-5
+    summary: >
+      Test F-9 with a deterministic, non-threaded fault-injection helper
+      (_inject_mutation_after_first_read) that monkeypatches the shared _read_or_none
+      module attribute to mutate the real file on disk immediately after its first
+      successful read for a specific target path, rather than using real concurrent
+      threads/processes to race a writer against the scanner.
+    rationale: >
+      A monkeypatched call-counted primitive is exactly deterministic (no timing
+      dependence, no flakiness) while still exercising the *actual* code path every
+      family uses for both its initial and its verification reads -- it proves the real
+      invariant (a second read genuinely returns different bytes and the classifier
+      genuinely reacts to that), not merely that some helper function was invoked.
+  - id: DEC-6
+    summary: >
+      Test F-8's FIFO/socket cases on a daemon thread with an explicit timeout, rather
+      than trusting that "we don't call open()" is sufficient without an executable
+      proof.
+    rationale: >
+      A daemon thread guarantees the test process can still exit even if a future
+      regression reintroduces a blocking open(); the timeout converts what would
+      otherwise be an indefinite hang into a clear, immediate assertion failure --
+      matching the finding's own requirement that this be proven, not merely asserted.
+unresolved_risks:
+  - id: R-APPROVAL-ISOLATION
+    severity: CRITICAL
+    summary: Autonomous writes are unsafe without approvald under a distinct OS authority.
+    disposition: Unchanged by this stage; carried forward.
+  - id: R-GOVERNANCE-TRANSACTION
+    severity: CRITICAL
+    summary: Multi-document publication and Git commit span a crash boundary.
+    disposition: Unchanged by this stage; carried forward.
+  - id: R-BOOTSTRAP-ROLE-OVERLAP
+    severity: MEDIUM
+    summary: Historical ORCH-000 bootstrap role-overlap; already resolved.
+    disposition: Unchanged by this stage; carried forward unchanged.
+  - id: R-REMEDIATION-AMENDMENT-UNREVIEWED
+    severity: HIGH
+    summary: Historical ORCH-000 remediation-amendment authorization gap; already resolved.
+    disposition: Unchanged by this stage; carried forward unchanged.
+  - id: R-ORCH-001-VALIDATOR-CORRECTNESS
+    severity: HIGH
+    summary: Historical ORCH-001 validator-correctness defects (F-1/F-2/F-3); already resolved and independently re-reviewed.
+    disposition: Unchanged by this stage; carried forward unchanged.
+blockers:
+  - code: IMPLEMENTATION_REVIEW_UNSUPPORTED_ENTRY_AND_TOCTOU_GAP
+    summary: >-
+      See implementation-state.yaml's stages.ORCH-003.blockers entry for full text
+      (Findings F-8 and F-9).
+    owner: claude-code-implementer-orch-003-1
+    introduced_at: '2026-07-21T21:00:00Z'
+    resolution: >-
+      Resolved within this same session; see implementation-state.yaml's blocker
+      resolution text and this evidence's decisions/commands above.
+schema_changes:
+  - name: migration-manifest
+    versions_changed: ['1.0.0']
+    note: >
+      EntryType gained "unsupported"; QuarantineReason gained "UNSUPPORTED_ENTRY_TYPE"
+      (F-8). Both are Literal-value additions to already-open-ended-by-design fields, not
+      new required fields; no prior valid payload is invalidated. No schema_version bump.
+  - name: migration-backup-plan
+    versions_changed: ['1.0.0']
+    note: No field shape change -- the existing incomplete_paths/complete fields from the prior round already accommodate the new entry type.
+  - name: migration-recovery-plan
+    versions_changed: ['1.0.0']
+    note: No field shape change, same reasoning as migration-backup-plan.
+migration_changes: []
+worktree_digest:
+  algorithm: sha256
+  method: >-
+    SHA-256 of the newline-joined "sha256hex  relative/path" manifest lines (sorted by
+    path) for every changed_paths entry except this evidence YAML itself (excluded to
+    avoid a self-referential digest); the handoff and all of this round's log/script
+    artifacts are included. Files not touched again this round (migration/apply.py,
+    migration/errors.py, migration/inspect.py, migration/__init__.py,
+    schema/migration.py, cli.py, tests/test_migration_models.py,
+    tests/test_migration_cli.py, and both prior rounds' own log artifacts/evidence/
+    handoffs) are intentionally excluded -- already covered by their own evidence
+    records' worktree_digests. Each line's leading digest is the SHA-256 of that file's
+    raw bytes. 28 files counted.
+  value: sha256:adcf5ca505e282cd4660f0549f112108bf4a5b3763242ee28b052d53af05df8a
+handoff: docs/implementation/orchestration/handoffs/ORCH-003/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f.md
+production_source_modified: true
+stage_status_changed: true
+stage_status_transition: {from: VERIFIED, to: VERIFIED, via: [BLOCKED, IN_PROGRESS, IMPLEMENTED]}
+review_verdict_recorded: false
+findings_remediated: [F-8, F-9]
+findings_preserved_unweakened: [F-1, F-2, F-3, F-4, F-5, F-6, F-7]
+migration_registry_touched: false
+next_required_role: REVIEWER
+next_required_action: >
+  Independent ORCH-003 review, run by a session/actor distinct from
+  claude-code-implementer-orch-003-1 and every actor recorded against ORCH-000, ORCH-001,
+  and ORCH-002, per stages/ORCH-003.md's "Independent review checklist" and
+  session-protocol.md section 5: confirm this diff (all three rounds) is committed and
+  current HEAD matches it, set implementation_commit to that HEAD, independently
+  reproduce the F-1 through F-9 fixes (not merely trust this evidence), re-run pytest -q
+  tests/test_migration*.py, the full pytest -q suite, ruff check, black --check,
+  mypy src, the orchestration state validator, and workflowctl verify, confirm only
+  stages/ORCH-003.md's allowed paths changed across all three rounds and
+  migration-registry.yaml is untouched, then record REVIEW_APPROVED or REVIEW_REJECTED
+  in a new reviews/ORCH-003/<review-id>.yaml. Do not implement ORCH-004 in the same
+  session.

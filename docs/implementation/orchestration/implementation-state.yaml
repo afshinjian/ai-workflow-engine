@@ -47,7 +47,7 @@ stages:
   ORCH-000: {title: Independent v3 design review, status: REVIEW_APPROVED, prerequisites: [], expected_base_head: fcabc0baee84f5b98a4d63b8de3696754966e826, implementation_commit: 857d2c9b69cd85e40bdd2b9f8d252f2d3df5790e, implementer: claude-code-remediator-3, review_status: APPROVED, reviewer: claude-code-independent-reviewer-4, verification_status: PASSED, evidence: [evidence/ORCH-000/20260720T164147Z-claude-code-bootstrap-d24e29f6.yaml, evidence/ORCH-000/20260720T181000Z-claude-code-remediator-e27efbe4.yaml, evidence/ORCH-000/20260720T201500Z-claude-code-architect-1-f7bef021.yaml, evidence/ORCH-000/20260720T210000Z-claude-code-remediator-2-8387417f.yaml, evidence/ORCH-000/20260720T223000Z-claude-code-remediator-3-6e1d7d18.yaml], review_evidence: [reviews/ORCH-000/20260720T172520Z-claude-code-independent-reviewer-59f68d54.yaml, reviews/ORCH-000/20260720T194000Z-claude-code-independent-reviewer-2-b7e21ac4.yaml, reviews/ORCH-000/20260720T220000Z-claude-code-independent-reviewer-3-c4a91d02.yaml, reviews/ORCH-000/20260720T205209Z-claude-code-independent-reviewer-4-27303e9e.yaml], handoff: handoffs/ORCH-000/20260720T205209Z-claude-code-independent-reviewer-4-27303e9e.md, blockers: []}
   ORCH-001: {title: Durable feature-state validator, status: REVIEW_APPROVED, prerequisites: [ORCH-000], expected_base_head: 46ded3e51e8a90a8292d1c2721b565d62838caca, implementation_commit: cfcdac346cd8ba03a17068f95d2253195798f621, implementer: claude-code-remediator-orch-001-2, review_status: APPROVED, reviewer: claude-code-independent-reviewer-orch-001-3, verification_status: PASSED, evidence: [evidence/ORCH-001/20260721T115508Z-claude-code-implementer-1-02891aae.yaml, evidence/ORCH-001/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9.yaml, evidence/ORCH-001/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c.yaml], review_evidence: [reviews/ORCH-001/20260721T122035Z-claude-code-independent-reviewer-orch-001-1-0a0c5a0c.yaml, reviews/ORCH-001/20260721T131500Z-claude-code-independent-reviewer-orch-001-2-0637a178.yaml, reviews/ORCH-001/20260721T151500Z-claude-code-independent-reviewer-orch-001-3-fc81244b.yaml], handoff: handoffs/ORCH-001/20260721T151500Z-claude-code-independent-reviewer-orch-001-3-fc81244b.md, blockers: []}
   ORCH-002: {title: Schema registry and CLI v2 envelope, status: REVIEW_APPROVED, prerequisites: [ORCH-001], expected_base_head: 0aa7d939b79ebf83146473a369e120f01d4b73e4, implementation_commit: 809c09b0c299dd9a6029a2c5ffa3f5d35ae3330b, implementer: claude-code-implementer-orch-002-1, review_status: APPROVED, reviewer: claude-code-independent-reviewer-orch-002-1, verification_status: PASSED, evidence: [evidence/ORCH-002/20260721T152237Z-claude-code-implementer-orch-002-1-e916ac25.yaml, evidence/ORCH-002/20260721T160220Z-claude-code-implementer-orch-002-1-c6b9d62e.yaml], review_evidence: [reviews/ORCH-002/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693.yaml], handoff: handoffs/ORCH-002/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693.md, blockers: [{code: IMPLEMENTATION_REVIEW_V2_COVERAGE_GAP, summary: 'Human implementation review found the first ORCH-002 diff incomplete on three grounds: (A) --contract-version 2 enveloped only check-*/verify, leaving inspect, every prompt command, state show/next/record and agent run emitting legacy payloads even under contract v2; (B) _protected-caught operational/configuration/approval/gate exceptions bypassed JSON entirely (stderr + exit 2) regardless of --contract-version/--output, so a v2 JSON consumer received zero stdout on a config/approval failure; (C) ContractEnvelopeV2 accepted contradictory ok/data/error combinations (e.g. ok=true with data=null, or ok=false with data present) with no validation rejecting them.', owner: claude-code-implementer-orch-002-1, introduced_at: '2026-07-21T16:02:20Z', resolution: 'Resolved in the same session (history sequences 36-38, evidence/ORCH-002/20260721T160220Z-claude-code-implementer-orch-002-1-c6b9d62e.yaml): (A) every existing --output json command (inspect, all seven prompt subcommands, state show/next/record, agent run) now honors --contract-version, wrapping its legacy payload in the v2 envelope via new _contract_v2_success/_contract_v2_for_status_payload/_contract_v2_for_agent_run_payload helpers in cli.py, while the exact pre-existing v1 code path is untouched and byte-identical (proved by a dedicated v1-byte-compatibility test per command family); (B) _protected and _config now accept output/command and, under contract v2 + --output json, emit exactly one stable error envelope (ok=false, data=null, error.code=type(exc).__name__, error.message=str(exc), error.retryable=false, error.details={}) on stdout instead of stderr-only, with v1 behavior (stderr, exit 2, zero stdout) byte-for-byte unchanged; the one deliberate exception (an unresolvable --contract-version itself) still always uses the v1/stderr shape because no contract has been selected yet to envelope the error in, which is now explicitly commented and tested (test_nonsense_contract_version_still_uses_stderr_not_v2_envelope); (C) ContractEnvelopeV2 gained a model_validator(mode="after") enforcing ok=true requires data is not None and error is None, and ok=false requires data is None and error is not None, verified both via direct construction and via CLI_CONTRACT_REGISTRY.dispatch (schema/contract.py). 28 new tests were added (inspect/prompt/state/agent-run v2 success and v1-byte-compatibility, protected/configuration/prompt/agent-run v2 error envelopes, a commit writable-gate refusal in v2 that performs no write, single-JSON-document/FORCE_COLOR purity across five command families, and Finding C''s envelope consistency positive/negative cases). Focused suite 102 -> 130 passed; full pytest -q 796 -> 824 passed, 0 skipped; ruff/black/mypy clean; state validator and workflowctl verify PASS; git diff --check clean. Only stages/ORCH-002.md''s allowed paths changed (src/ai_workflow_engine/schema/, reporting/, cli.py, exceptions.py, tests/test_schema_registry.py, tests/test_cli_contract_v2.py, and this ORCH-002 state/evidence/handoff); the original evidence/ORCH-002/20260721T152237Z-...-e916ac25.yaml and its handoff are untouched.'}]}
-  ORCH-003: {title: Legacy readers and migration framework, status: NOT_STARTED, prerequisites: [ORCH-002], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
+  ORCH-003: {title: Legacy readers and migration framework, status: VERIFIED, prerequisites: [ORCH-002], expected_base_head: e9f63a81041ba528055948890d5623087b62dae8, implementation_commit: null, implementer: claude-code-implementer-orch-003-1, review_status: PENDING, reviewer: null, verification_status: PASSED, evidence: [evidence/ORCH-003/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4.yaml, evidence/ORCH-003/20260721T190000Z-claude-code-implementer-orch-003-1-b5f2e91a.yaml, evidence/ORCH-003/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f.yaml], review_evidence: [], handoff: handoffs/ORCH-003/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f.md, blockers: [{code: IMPLEMENTATION_REVIEW_INTEGRITY_PATH_SAFETY_GAP, summary: 'Human implementation review found blocking integrity and path-safety defects in the first uncommitted ORCH-003 diff, F-1 through F-7: (F-1) a symlinked source root was resolved and scanned rather than rejected; (F-2) a symlinked .patch/.md companion could be read via plain Path.read_bytes, following the symlink; (F-3) approval YAML was parsed with PyYAML SafeLoader, which applies silent last-key-wins on a duplicate mapping key rather than rejecting it; (F-4) a validly-paired agent-run .patch/prompt .md companion was folded into its primary''s classification and never given its own manifest/backup-plan entry, so backup coverage was incomplete and a symlink''s target-string digest could be mistaken for restorable file bytes; (F-5) MigrationManifest/BackupPlan/RecoveryPlan format-checked their digest fields as hex64 but never recomputed and verified them, and apply_migration only compared caller-supplied digest strings rather than independently reverifying the sealed records; (F-6) workflow-event/agent-run/prompt-metadata artifacts were classified KNOWN on schema validity alone, without the canonical-byte, content-hash, path-identity, parent-digest-chain, and stage-transition-order checks their real verified stores (load_history/load_run/load) apply, and a corrupt history member did not quarantine its otherwise-valid siblings; (F-7) migrate apply read and inspected the entire source tree via inspect_source before checking --dry-run, so a real-apply refusal was not proven to occur without source access.', owner: claude-code-implementer-orch-003-1, introduced_at: '2026-07-21T19:00:00Z', resolution: 'Resolved in the same session (history sequences 44-46, evidence/ORCH-003/20260721T190000Z-claude-code-implementer-orch-003-1-b5f2e91a.yaml): (F-1) discover_legacy_artifacts now calls a new _reject_symlink_root helper (Path.is_symlink(), an lstat of the exact given path) before any resolve/exists/scan, raising MigrationSourceError; proven with os.scandir monkeypatched to raise if ever invoked. (F-2) every companion read now goes through a new safe no-follow reader (_read_regular_nofollow: os.open with O_NOFOLLOW where supported, then os.fstat of the opened descriptor to reconfirm S_ISREG), closing the discovery-to-open TOCTOU window; a symlinked companion now quarantines the complete pair (COMPANION_SYMLINK_NOT_ALLOWED on the primary, SYMLINK_NOT_ALLOWED on the companion) and the target is never read, proven by asserting the secret target content never appears in any quarantine_detail. (F-3) approval YAML now parses via a custom _NoDuplicateKeySafeLoader (a PyYAML SafeLoader subclass overriding the mapping constructor to reject a repeated key at every nesting level), with a new DUPLICATE_YAML_KEY quarantine reason; proven with a top-level and a nested duplicate key, and a kind:-commit-then-kind:-push file that is quarantined with kind=null rather than resolved to either family. (F-4) LegacyArtifactRecord gained an entry_type field (file/symlink/unreadable); every physical file, including a validly-paired companion, now gets its own manifest entry (new agent-run-patch/prompt-markdown kinds); BackupPlan/RecoveryPlan gained complete/incomplete_paths fields, backup entries are content-addressed per entry_type, and RecoveryStep is type-aware (restore_file only for entry_type=file; refuse_unsupported_entry_type otherwise), so a symlink''s target-string digest can never be restored as a regular file; proven by comparing backup-plan coverage against an independently-enumerated physical file listing for exact equality. (F-5) MigrationManifest/BackupPlan/RecoveryPlan each gained a model_validator(mode=after) that recomputes its own digest from its current field values and rejects construction on mismatch, running on every construction path including model_validate/schema-registry dispatch; every builder now computes the real digest from a plain dict before constructing the model exactly once (no placeholder-digest intermediate); apply_migration now forces a full MigrationManifest/BackupPlan/RecoveryPlan.model_validate round trip on its three arguments before trusting them, so a model_construct-bypassed object is still caught; proven with a hand-tampered nested field, a hand-tampered top-level digest, and a model_construct-built manifest with an internally inconsistent known_count. (F-6) new integrity chains exactly mirror the real stores: agent-run records now check canonical bytes+terminal newline, no duplicate JSON keys, run_id-equals-content-hash (compute_run_id), run_id/project_id/stage/task_id-matches-path, patch_sha256, and stdout_sha256/stderr_sha256 against decoded base64 (mirroring agents/artifacts.py load_run); prompt metadata now recomputes the full deterministic rendering via render_prompt and checks recomputed metadata/prompt_id/markdown bytes match (mirroring prompt/store.py load); workflow-event directories are now validated as one history group (contiguous 00000001.json.. filenames, per-member canonical bytes, parent-digest chain via workflow.transitions.expected_stage, project_id/task_dir_name(task_id) path-identity), and any single corrupt member now quarantines every member of that history (WORKFLOW_HISTORY_INTEGRITY_FAILED/ADDRESS_MISMATCH/CANONICAL_FORM_MISMATCH as applicable), proven with a corrupted second event whose independently-valid-looking first sibling is still quarantined, citing the second event in its own quarantine_detail. (F-7) migrate apply in cli.py now checks --dry-run as the first statement in its command body, before calling inspect_source at all; apply_migration itself was already dry_run-first but now additionally forces the F-5 reverification before any cross-digest comparison; proven via CLI tests with a nonexistent --source, a chmod-000 --source (which also required disabling Click''s implicit Path readable=True check via SourceOption(..., exists=False, readable=False), since Click was performing its own readability probe at argument-parsing time before the command body ran -- the same class of gap ORCH-002 Finding B fixed), an unsupported --to value, and a library-level test that monkeypatches os.scandir to raise if invoked during the refusal path. Full pytest -q tests/test_migration*.py 79 -> 126 passed; full pytest -q 902 -> 950 passed (0 skipped, since the frontier is VERIFIED); ruff/black/mypy clean; state validator and workflowctl verify PASS; git diff --check clean. An independent, disposable-fixture adversarial demonstration script (evidence/ORCH-003/logs/20260721T190000Z-...-b5f2e91a-adversarial-remediation-demo.py) reproduced all seven findings'' fixes outside the pytest suite (ORCH003_REMEDIATION_DEMO: ALL_CHECKS_PASS). Only stages/ORCH-003.md''s allowed paths changed (src/ai_workflow_engine/migration/, src/ai_workflow_engine/schema/migration.py, src/ai_workflow_engine/cli.py, tests/test_migration*.py, and this ORCH-003 state/evidence/handoff); migration-registry.yaml remains untouched, all three entries still owned by ORCH-026; the original evidence/ORCH-003/20260721T171500Z-...-a1b2c3d4.yaml and its handoff are byte-for-byte unmodified.'}, {code: IMPLEMENTATION_REVIEW_UNSUPPORTED_ENTRY_AND_TOCTOU_GAP, summary: 'Human implementation review of the F-1..F-7 remediation found two further blocking findings, F-8 and F-9. (F-8, HIGH) _iter_entries_safe silently omitted any filesystem entry that was not a regular file, directory, or symlink -- a FIFO, Unix socket, or device node placed at e.g. state/p/t/00000001.json produced no manifest artifact at all, and build_backup_plan incorrectly reported complete=True with no incomplete_paths, even though a real physical entry was never captured. (F-9, HIGH) mutation detection only compared the directory''s filename set after reading (F-7); a same-path, same-filename content change occurring during inspection -- the file replaced or modified in place while its name stayed the same -- was not detected: a record could still be classified KNOWN carrying a digest that no longer matched the file''s actual on-disk bytes, for workflow histories, agent-run JSON/patch pairs, prompt JSON/Markdown pairs, and approvals alike.', owner: claude-code-implementer-orch-003-1, introduced_at: '2026-07-21T21:00:00Z', resolution: 'Resolved in the same session (history sequences 48-50, evidence/ORCH-003/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f.yaml): (F-8) LegacyArtifactRecord/BackupPlanEntry/RecoveryStep gained a new EntryType value ''unsupported'' and QuarantineReason ''UNSUPPORTED_ENTRY_TYPE''; _iter_entries_safe now yields a (path, abs_path, kind) triple with kind one of file/symlink/unsupported instead of a symlink-only boolean, and any entry that is none of file/dir/symlink is classified via a new _classify_unsupported helper that determines its type solely from a no-follow lstat (os.DirEntry.stat(follow_symlinks=False)) and never opens it -- a FIFO can therefore never block the scan waiting for a writer, and a socket/device node is never connected to or read. build_backup_plan/build_recovery_plan now exclude entry_type ''unsupported'' from entries (alongside the pre-existing ''unreadable'' exclusion), list its path in incomplete_paths, and report complete=False; BackupPlanEntry''s own validator rejects ''unsupported'' the same way it already rejected ''unreadable'', so an unsupported entry can structurally never receive a restore_file recovery step. Proven with a real FIFO (os.mkfifo) and, where the platform supports it, a real AF_UNIX socket, both run on a daemon thread with a timeout so a regression that opens either would fail the test instead of hanging the suite; both are shown to appear in the manifest, in BackupPlan.incomplete_paths, and to make BackupPlan.complete/RecoveryPlan.complete False, with existing regular-file and symlink classification demonstrated unchanged alongside them. (F-9) a new _verify_unchanged(path, expected_bytes) helper re-reads a path one final time via the same safe no-follow reader used for every other read in this module, and every family that can return KNOWN now calls it on each of its members immediately before returning: approvals (single file), agent-run and prompt pairs (both members), and workflow-event history groups (every member, added alongside the pre-existing F-7 directory-listing re-check, not in place of it). A mismatch -- including the path having raced into becoming a symlink, which _read_or_none never follows -- quarantines the affected member(s) as SOURCE_MUTATED_DURING_SCAN instead of returning a KNOWN record. The digest/model used for a successful KNOWN classification is still always the first read''s bytes (the verification read is comparison-only), so stable inputs are provably unaffected: byte/digest accuracy and determinism for every one of this stage''s existing 126 tests were reconfirmed unchanged (all still pass verbatim). Proven with a deterministic, non-threaded fault-injection helper that monkeypatches the shared _read_or_none primitive to mutate the real file on disk immediately after its first successful read for a specific path returns, covering: a workflow-event primary changed without its filename changing (its otherwise-untouched sibling in the same history is also quarantined, since the whole history shares one fate); an agent-run primary changed; an agent-run companion (.patch) changed; a prompt primary changed; a prompt companion (.md) changed; an approval file changed; and a regular file replaced by a symlink mid-inspection, with the replacement target''s content asserted absent from the resulting quarantine_detail (never read). Full pytest -q tests/test_migration*.py 126 -> 139 passed; full pytest -q 950 -> 963 passed (0 skipped); ruff/black/mypy clean over the exact required file set; state validator and workflowctl verify PASS; git diff --check clean. An independent, disposable-fixture adversarial demonstration script (evidence/ORCH-003/logs/20260721T210000Z-...-c7d3a08f-adversarial-f8-f9-demo.py) reproduced both findings'' fixes outside the pytest suite (ORCH003_F8_F9_DEMO: ALL_CHECKS_PASS). The F-1..F-7 fixes were not weakened or re-litigated: all 126 pre-existing tests for this stage still pass unmodified, and none of their production code was reverted -- only models.py (EntryType/QuarantineReason additions and their consistency validators), legacy_readers.py (_iter_entries_safe''s yield shape, _classify_unsupported, _verify_unchanged, and its four call sites), and plan.py (the ''unsupported'' exclusion in build_backup_plan) changed this round; apply.py, errors.py, inspect.py, schema/migration.py, and cli.py are byte-identical to the prior round. migration-registry.yaml remains untouched, all three entries still owned by ORCH-026; the original two evidence/handoff pairs are byte-for-byte unmodified.'}]}
   ORCH-004: {title: Execution specification, status: NOT_STARTED, prerequisites: [ORCH-003], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
   ORCH-005: {title: Attempt records and store, status: NOT_STARTED, prerequisites: [ORCH-004], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
   ORCH-006: {title: Workflow event and state v2, status: NOT_STARTED, prerequisites: [ORCH-005], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
@@ -664,75 +664,179 @@ history:
     to: REVIEW_APPROVED
     evidence: [reviews/ORCH-002/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693.yaml,
       handoffs/ORCH-002/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693.md]
+  - sequence: 40
+    at: '2026-07-21T17:15:00Z'
+    actor: claude-code-implementer-orch-003-1
+    role: IMPLEMENTER
+    action: STARTED_ORCH_003
+    from: NOT_STARTED
+    to: IN_PROGRESS
+    evidence: [evidence/ORCH-003/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4.yaml]
+  - sequence: 41
+    at: '2026-07-21T18:05:00Z'
+    actor: claude-code-implementer-orch-003-1
+    role: IMPLEMENTER
+    action: IMPLEMENTED_ORCH_003
+    from: IN_PROGRESS
+    to: IMPLEMENTED
+    evidence: [evidence/ORCH-003/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4.yaml]
+  - sequence: 42
+    at: '2026-07-21T18:10:00Z'
+    actor: claude-code-implementer-orch-003-1
+    role: IMPLEMENTER
+    action: VERIFIED_ORCH_003
+    from: IMPLEMENTED
+    to: VERIFIED
+    evidence: [evidence/ORCH-003/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4.yaml,
+      handoffs/ORCH-003/20260721T171500Z-claude-code-implementer-orch-003-1-a1b2c3d4.md]
+  - sequence: 43
+    at: '2026-07-21T19:00:00Z'
+    actor: claude-code-implementer-orch-003-1
+    role: IMPLEMENTER
+    action: BLOCKED_ORCH_003_INTEGRITY_PATH_SAFETY_GAP
+    from: VERIFIED
+    to: BLOCKED
+    evidence: [evidence/ORCH-003/20260721T190000Z-claude-code-implementer-orch-003-1-b5f2e91a.yaml]
+  - sequence: 44
+    at: '2026-07-21T19:05:00Z'
+    actor: claude-code-implementer-orch-003-1
+    role: IMPLEMENTER
+    action: RESUMED_ORCH_003_REMEDIATION
+    from: BLOCKED
+    to: IN_PROGRESS
+    evidence: [evidence/ORCH-003/20260721T190000Z-claude-code-implementer-orch-003-1-b5f2e91a.yaml]
+  - sequence: 45
+    at: '2026-07-21T20:20:00Z'
+    actor: claude-code-implementer-orch-003-1
+    role: IMPLEMENTER
+    action: IMPLEMENTED_ORCH_003_REMEDIATION
+    from: IN_PROGRESS
+    to: IMPLEMENTED
+    evidence: [evidence/ORCH-003/20260721T190000Z-claude-code-implementer-orch-003-1-b5f2e91a.yaml]
+  - sequence: 46
+    at: '2026-07-21T20:25:00Z'
+    actor: claude-code-implementer-orch-003-1
+    role: IMPLEMENTER
+    action: VERIFIED_ORCH_003_REMEDIATION
+    from: IMPLEMENTED
+    to: VERIFIED
+    evidence: [evidence/ORCH-003/20260721T190000Z-claude-code-implementer-orch-003-1-b5f2e91a.yaml,
+      handoffs/ORCH-003/20260721T190000Z-claude-code-implementer-orch-003-1-b5f2e91a.md]
+  - sequence: 47
+    at: '2026-07-21T21:00:00Z'
+    actor: claude-code-implementer-orch-003-1
+    role: IMPLEMENTER
+    action: BLOCKED_ORCH_003_UNSUPPORTED_ENTRY_TOCTOU_GAP
+    from: VERIFIED
+    to: BLOCKED
+    evidence: [evidence/ORCH-003/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f.yaml]
+  - sequence: 48
+    at: '2026-07-21T21:05:00Z'
+    actor: claude-code-implementer-orch-003-1
+    role: IMPLEMENTER
+    action: RESUMED_ORCH_003_REMEDIATION_F8_F9
+    from: BLOCKED
+    to: IN_PROGRESS
+    evidence: [evidence/ORCH-003/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f.yaml]
+  - sequence: 49
+    at: '2026-07-21T21:55:00Z'
+    actor: claude-code-implementer-orch-003-1
+    role: IMPLEMENTER
+    action: IMPLEMENTED_ORCH_003_REMEDIATION_F8_F9
+    from: IN_PROGRESS
+    to: IMPLEMENTED
+    evidence: [evidence/ORCH-003/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f.yaml]
+  - sequence: 50
+    at: '2026-07-21T22:00:00Z'
+    actor: claude-code-implementer-orch-003-1
+    role: IMPLEMENTER
+    action: VERIFIED_ORCH_003_REMEDIATION_F8_F9
+    from: IMPLEMENTED
+    to: VERIFIED
+    evidence: [evidence/ORCH-003/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f.yaml,
+      handoffs/ORCH-003/20260721T210000Z-claude-code-implementer-orch-003-1-c7d3a08f.md]
 last_updated:
-  at: '2026-07-21T17:30:00Z'
-  by: claude-code-independent-reviewer-orch-002-1
-  role: REVIEWER
+  at: '2026-07-21T22:00:00Z'
+  by: claude-code-implementer-orch-003-1
+  role: IMPLEMENTER
   reason: >-
-    Independent REVIEWER session (claude-code-independent-reviewer-orch-002-1),
-    distinct from claude-code-implementer-orch-002-1 (the sole ORCH-002
-    implementer/remediator across both rounds) and from every actor recorded
-    against ORCH-000 and ORCH-001. Reviewed the committed implementation at
-    HEAD 809c09b0c299dd9a6029a2c5ffa3f5d35ae3330b ("feat: implement ORCH-002
-    schema registry and CLI v2 contract"), a single commit built directly on
-    0aa7d939b79ebf83146473a369e120f01d4b73e4 containing both implementer
-    rounds' accumulated diff. Confirmed main == origin/main == HEAD, clean
-    tree/index, ORCH-001 REVIEW_APPROVED, ORCH-002 VERIFIED/PENDING, ORCH-003
-    NOT_STARTED, and that all 47 changed paths (0aa7d93..809c09b) are inside
-    stages/ORCH-002.md's allowed set (src/ai_workflow_engine/schema/,
-    reporting/json_report.py, cli.py, exceptions.py, the two new test files)
-    or ORCH-002 evidence/handoff/state records; independently confirmed zero
-    changes to every governance/plan/schema/stages/script/other-test path.
-    Independently reran every stage-required command from the committed HEAD
-    and reproduced the implementer's exact recorded results byte-for-byte on
-    every digest that should be identical (ruff, black, mypy, the pre-edit
-    validate/status stdout digests): pytest -q tests/test_schema_registry.py
-    tests/test_cli_contract_v2.py tests/test_cli.py -- 130 passed; full
-    pytest -q -rs -- 824 passed, 0 skipped; ruff check -- clean; black --check
-    -- clean; mypy src -- "Success: no issues found in 47 source files";
-    orchestration state validator -- PASS, state_digest
-    sha256:54d27543a0eee5c75346b35b1ce2d1fc3beade948d8fb5a395f2e6f09cc42f33
-    (byte-identical to the implementer's own final recorded digest); workflowctl
-    verify --config self-governance.yaml -- PASS; git diff --check -- clean.
-    Beyond rerunning the implementer's own tests, wrote and ran 24 fresh,
-    independently authored CLI/library probes against an isolated throwaway
-    repository/config and a real disposable git repository (never the real
-    project's governance files, never a real $HOME), all 24 passing
-    (ALL_PROBES_PASS): inspect v1 (no envelope key)/v2 (exact 6 envelope
-    keys); prompt --no-store v2 (ok=true, stored=false, nothing written under
-    an isolated $HOME); state next v2 in isolated storage; a v2 configuration
-    failure (missing config -> stable error envelope, exit 1,
-    error.code=InvalidConfigurationError); ContractEnvelopeV2 rejecting all
-    three contradictory ok/data/error combinations both via direct
-    construction and via CLI_CONTRACT_REGISTRY.dispatch (the external-input
-    path); FORCE_COLOR=3 stdout purity (no ESC byte, exactly one JSON
-    document via json.JSONDecoder.raw_decode); an invalid --contract-version
-    failing closed before any command body runs (exit 2, zero stdout bytes,
-    stderr names supported versions); a safe commit writable-gate refusal
-    against a real disposable git repository (wrong-HEAD approval refused,
-    `git rev-parse HEAD` byte-identical before/after); and SchemaRegistry
-    duplicate-registration/unknown-name/unknown-version rejection. Also
-    independently re-read cli.py's Finding A/B adapters
-    (_contract_v2_success/_contract_v2_for_status_payload/_contract_v2_for_ag
-    ent_run_payload, lines 152-172, 635-663, 831-869) and confirmed every v2
-    branch is inserted strictly before the untouched pre-existing v1 write
-    statement in each command, so v1 byte-compatibility is a structural
-    guarantee, not merely a tested property. Confirmed both implementation
-    evidence rounds (e916ac25.yaml, c6b9d62e.yaml) and both handoffs are
-    present, distinct, uncorrelated in content, and internally consistent
-    with state history sequences 32-38 and with each other (the second
-    round's stated starting HEAD/preflight matches the first round's ending
-    state exactly, no commit occurred between them); neither the first
-    evidence record nor its handoff was overwritten. No blocking finding.
-    Verdict: REVIEW_APPROVED (reviews/ORCH-002/20260721T173000Z-claude-code-
-    independent-reviewer-orch-002-1-3d253693.yaml). stages.ORCH-002.status:
-    VERIFIED -> REVIEW_APPROVED (history sequence 39); review_status APPROVED;
-    reviewer claude-code-independent-reviewer-orch-002-1; implementation_commit
-    set to the exact reviewed HEAD 809c09b0c299dd9a6029a2c5ffa3f5d35ae3330b.
-    Recomputed the frontier: with ORCH-002 REVIEW_APPROVED, ORCH-003's sole
-    prerequisite is satisfied, so current_stage/candidate_next_stage/next_elig
-    ible_stage all advance to ORCH-003. ORCH-003's own status stays
-    NOT_STARTED: eligibility is not implementation. This session did not
-    commit, did not push, and did not implement or otherwise begin ORCH-003.
-    Next legal actor: an ORCH-003 IMPLEMENTER, in a fresh session, after a
-    human commits this review evidence/handoff/state diff.
+    IMPLEMENTER remediation session (claude-code-implementer-orch-003-1), the
+    same actor that produced the first two uncommitted ORCH-003 rounds, still
+    distinct from every actor recorded against ORCH-000, ORCH-001 and
+    ORCH-002. A further human implementation review of the F-1..F-7
+    remediation found two more blocking findings, F-8 and F-9 (full text and
+    full resolution recorded in stages.ORCH-003.blockers[1]). Nothing had
+    been committed between any of the three rounds; main and origin/main
+    remain e9f63a81041ba528055948890d5623087b62dae8 throughout, matching
+    stages.ORCH-003.expected_base_head.
+
+    Summary of fixes: (F-8) unsupported filesystem entries (FIFO, Unix
+    socket, device node) were silently omitted by _iter_entries_safe; fixed
+    by yielding a three-way kind ("file"/"symlink"/"unsupported") instead of
+    a symlink-only boolean, classifying anything else via a new
+    _classify_unsupported helper that determines the entry's type solely
+    from a no-follow lstat and never opens it (so a FIFO can never block the
+    scan). A new EntryType value "unsupported" and QuarantineReason
+    "UNSUPPORTED_ENTRY_TYPE" were added; build_backup_plan/build_recovery_plan
+    now exclude "unsupported" entries the same way they already excluded
+    "unreadable" ones (incomplete_paths, complete=False), and
+    BackupPlanEntry's validator structurally forbids ever representing one.
+    (F-9) mutation detection previously only compared the directory's
+    filename set after reading (F-7), missing a same-path, same-filename
+    content change during inspection; fixed with a new _verify_unchanged
+    helper that re-reads a path one final time via the same safe no-follow
+    reader and is now called on every member of every family --
+    approvals, agent-run pairs, prompt pairs, and workflow-event history
+    groups (added alongside, not instead of, the existing F-7 directory
+    re-listing check) -- immediately before returning a KNOWN classification;
+    any mismatch, including a race into becoming a symlink, quarantines the
+    affected member(s) SOURCE_MUTATED_DURING_SCAN. The digest used for a
+    successful KNOWN record is always the first read's bytes, so stable
+    inputs are provably unaffected.
+
+    F-1 through F-7 were preserved unweakened: all 126 tests from the prior
+    round still pass verbatim, and only models.py, legacy_readers.py, and
+    plan.py changed this round (apply.py, errors.py, inspect.py,
+    schema/migration.py, and cli.py are byte-identical to the prior round).
+
+    State lifecycle used, per session-protocol.md section 2: VERIFIED ->
+    BLOCKED (history sequence 47, blocker
+    IMPLEMENTATION_REVIEW_UNSUPPORTED_ENTRY_AND_TOCTOU_GAP recorded) ->
+    IN_PROGRESS (sequence 48, resolution recorded in the same edit) ->
+    IMPLEMENTED (sequence 49) -> VERIFIED (sequence 50).
+
+    Verification: pytest -q tests/test_migration*.py 126 -> 139 passed; full
+    pytest -q -rs 950 -> 963 passed, 0 skipped; ruff check (exact required
+    file set) -- clean; black --check (same set) -- clean; mypy src --
+    "Success: no issues found in 55 source files"; orchestration state
+    validator -- PASS, state_digest recorded in
+    evidence/ORCH-003/20260721T210000Z-...-c7d3a08f.yaml; workflowctl verify
+    --config self-governance.yaml -- PASS; git diff --check -- clean (only
+    src/ai_workflow_engine/cli.py and this state file appear in git diff
+    --name-only, both carried over unchanged from the prior round -- cli.py
+    was not touched again this round). An independent, disposable-fixture
+    adversarial demonstration script (not part of the pytest suite;
+    evidence/ORCH-003/logs/20260721T210000Z-...-c7d3a08f-adversarial-f8-f9-
+    demo.py) reproduced both findings' fixes outside the test suite
+    (ORCH003_F8_F9_DEMO: ALL_CHECKS_PASS), including a FIFO/AF_UNIX-socket
+    test run on a daemon thread with a timeout so a regression that opens
+    either fails the assertion instead of hanging. No real governance file,
+    no real $HOME, and no production/repository data was touched by this
+    session.
+
+    migration-registry.yaml was read but not modified: all three existing
+    entries remain owner_stage ORCH-026, status PLANNED, byte-for-byte
+    unchanged. Both prior evidence records and both prior handoffs
+    (...-a1b2c3d4, ...-b5f2e91a) are byte-for-byte unmodified -- this session
+    adds a third evidence record and handoff rather than overwriting them,
+    per session-protocol.md section 7.
+
+    Recomputed the frontier: stages.ORCH-003.status is VERIFIED, not
+    REVIEW_APPROVED, so current_stage/candidate_next_stage/next_eligible_stage
+    all remain ORCH-003. stages.ORCH-004 remains untouched (NOT_STARTED,
+    implementer null). This session did not commit, did not push, did not
+    mark REVIEW_APPROVED, and did not start or otherwise touch ORCH-004.
+    Next legal actor: an independent ORCH-003 REVIEWER, in a fresh session
+    distinct from claude-code-implementer-orch-003-1 and every actor recorded
+    against ORCH-000/ORCH-001/ORCH-002, after a human commits this
+    remediation diff.
