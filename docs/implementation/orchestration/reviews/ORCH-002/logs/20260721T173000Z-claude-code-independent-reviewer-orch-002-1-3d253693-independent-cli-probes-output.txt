@@ -1,0 +1,27 @@
+[PASS] inspect v1: no contract_version envelope key
+[PASS] inspect v1: exit 0
+[PASS] inspect v2: exactly the 6 envelope keys
+[PASS] inspect v2: ok=true, error=None, data present
+[PASS] prompt --no-store v2: ok=true
+[PASS] prompt --no-store v2: data.stored == false
+[PASS] prompt --no-store: nothing written under isolated $HOME
+[PASS] state next v2: ok=true, next_stage=plan-review
+[PASS] v2 config failure: exit 1
+[PASS] v2 config failure: ok=false, data=None
+[PASS] v2 config failure: error.code == InvalidConfigurationError
+[PASS] ContractEnvelopeV2 rejects ok=true/data=None
+[PASS] ContractEnvelopeV2 rejects ok=false/data-present
+[PASS] ContractEnvelopeV2 rejects ok=true-with-error
+[PASS] registry dispatch rejects ok=false/error=None (external-input path)
+[PASS] FORCE_COLOR: no ESC byte in stdout
+[PASS] FORCE_COLOR: exactly one JSON document
+[PASS] invalid contract-version: exit 2
+[PASS] invalid contract-version: zero stdout bytes
+[PASS] invalid contract-version: stderr mentions supported versions
+[PASS] writable-gate refusal: exit 1, ok=false
+[PASS] writable-gate refusal: HEAD unchanged (no write performed)
+[PASS] duplicate registration rejected
+[PASS] unknown schema name rejected
+[PASS] unknown schema version rejected
+
+ALL_PROBES_PASS

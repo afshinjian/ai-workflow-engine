@@ -1,0 +1,15 @@
+docs/implementation/orchestration/stages: 0 changed
+docs/implementation/orchestration/session-protocol.md: 0 changed
+docs/implementation/orchestration/decision-log.md: 0 changed
+docs/implementation/orchestration/architecture-v3.md: 0 changed
+docs/implementation/orchestration/implementation-plan.md: 0 changed
+docs/implementation/orchestration/implementation-state.schema.yaml: 0 changed
+migration-registry.yaml: 0 changed
+docs/implementation/orchestration/migration-registry.yaml: 0 changed
+scripts/: 0 changed
+tests/test_orchestration_feature_state.py: 0 changed
+tests/test_cli.py: 0 changed
+pyproject.toml: 0 changed
+self-governance.yaml: 0 changed
+docs/AGENT_PROTOCOL.md: 0 changed
+README.md: 0 changed

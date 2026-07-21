@@ -1,0 +1,512 @@
+schema_name: orchestration-review-evidence
+schema_version: 1.0.0
+feature_id: ORCH
+stage_id: ORCH-002
+review_id: 20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693
+reviewer:
+  actor: claude-code-independent-reviewer-orch-002-1
+  role: REVIEWER
+started_at: '2026-07-21T17:00:00Z'
+finished_at: '2026-07-21T17:30:00Z'
+independence_declaration: >
+  This review session has no memory of and did not participate in any prior ORCH
+  session; it relies only on committed repository state read this session
+  (README.md, self-governance.yaml, docs/AGENT_PROTOCOL.md,
+  session-protocol.md, architecture-v3.md, implementation-plan.md,
+  implementation-state.schema.yaml, implementation-state.yaml,
+  stages/ORCH-002.md, both ORCH-002 implementation evidence records, both
+  ORCH-002 handoffs, src/ai_workflow_engine/schema/, cli.py, exceptions.py,
+  reporting/json_report.py, tests/test_schema_registry.py,
+  tests/test_cli_contract_v2.py, tests/test_cli.py), not on chat history.
+  Reviewer identity (claude-code-independent-reviewer-orch-002-1) differs from
+  claude-code-implementer-orch-002-1 (the sole ORCH-002 implementer/remediator,
+  both rounds) and from every actor recorded against ORCH-000 and ORCH-001
+  (claude-code-bootstrap, claude-code-independent-reviewer,
+  claude-code-remediator, claude-code-independent-reviewer-2,
+  claude-code-architect-1, claude-code-remediator-2,
+  claude-code-independent-reviewer-3, claude-code-remediator-3,
+  claude-code-independent-reviewer-4, claude-code-implementer-1,
+  claude-code-independent-reviewer-orch-001-1,
+  claude-code-remediator-orch-001-1, claude-code-independent-reviewer-orch-001-2,
+  claude-code-remediator-orch-001-2, claude-code-independent-reviewer-orch-001-3).
+  No self-review occurred.
+reviewed:
+  implementation_ids:
+    - 20260721T152237Z-claude-code-implementer-orch-002-1-e916ac25
+    - 20260721T160220Z-claude-code-implementer-orch-002-1-c6b9d62e
+  implementation_commit: 809c09b0c299dd9a6029a2c5ffa3f5d35ae3330b
+  note: >
+    HEAD 809c09b0c299dd9a6029a2c5ffa3f5d35ae3330b ("feat: implement ORCH-002
+    schema registry and CLI v2 contract") is a human commit built directly on
+    0aa7d939b79ebf83146473a369e120f01d4b73e4 ("docs: approve ORCH-001",
+    stages.ORCH-002.expected_base_head), containing both implementer rounds'
+    accumulated diff (production/tests/schema + both evidence records + both
+    handoffs + the implementer's own implementation-state.yaml edit). Full SHA
+    independently obtained via `git rev-parse HEAD`; `git rev-parse origin/main`
+    resolves to the same commit, so main and origin/main agree and the reviewed
+    commit is published, not local-only. This review records
+    implementation_commit on the stage, as required for approval.
+preflight:
+  repository_root: /home/afshin-jian/ai-workflow-engine
+  branch: main
+  head: 809c09b0c299dd9a6029a2c5ffa3f5d35ae3330b
+  origin_main: 809c09b0c299dd9a6029a2c5ffa3f5d35ae3330b
+  head_equals_origin_main: true
+  upstream: origin/main
+  ahead: 0
+  behind: 0
+  tree: CLEAN
+  index: CLEAN
+  merge_rebase_cherrypick_bisect: NONE_ACTIVE
+  orchestration_feature_lock: NOT_FOUND
+  stage_status_at_start: VERIFIED
+  stage_review_status_at_start: PENDING
+  stage_verification_status_at_start: PASSED
+  prerequisites: [ORCH-001]
+  prerequisites_satisfied: true
+  prerequisite_note: >
+    ORCH-001 is REVIEW_APPROVED (review_status APPROVED, reviewer
+    claude-code-independent-reviewer-orch-001-3, implementation_commit
+    cfcdac346cd8ba03a17068f95d2253195798f621), a committed ancestor of HEAD.
+  orch_003_status_at_start: NOT_STARTED
+  frontier_at_start: ORCH-002
+  validate_before_review_edit: >
+    python scripts/orchestration_feature_state.py validate ... PASS, 0 errors;
+    state_digest sha256:54d27543a0eee5c75346b35b1ce2d1fc3beade948d8fb5a395f2e6f09cc42f33 --
+    byte-identical to the implementer's own recorded final validate-state-after
+    digest, confirming zero drift since the implementer's last edit.
+scope_diff:
+  compared: [0aa7d93, 809c09b]
+  parent_confirmed: >
+    0aa7d939b79ebf83146473a369e120f01d4b73e4 is the sole parent of
+    809c09b0c299dd9a6029a2c5ffa3f5d35ae3330b per `git log --oneline` (one
+    commit, not a merge), and is the HEAD both implementer evidence records
+    name as their starting/ending HEAD (both rounds were left uncommitted
+    until a single human commit).
+  diff_digest: sha256:de2e52f37dae285812342f0003fa47c12581e2d1980e45b419248604b8029066
+  diff_digest_method: >
+    sha256 of the raw bytes of `git diff 0aa7d93 809c09b` (full patch, default
+    options) as produced by this repository's git 2.43.0.
+  changed_paths_count: 47
+  changed_paths_summary: 47 files changed, 5153 insertions(+), 108 deletions(-)
+  allowed_paths_per_stage_spec:
+    - src/ai_workflow_engine/schema/ (new: __init__.py, registry.py, contract.py)
+    - src/ai_workflow_engine/reporting/json_report.py (render_contract_json added)
+    - src/ai_workflow_engine/cli.py (--contract-version option, v2 dispatch throughout)
+    - src/ai_workflow_engine/exceptions.py (SchemaDispatchError family added)
+    - tests/test_schema_registry.py (new)
+    - tests/test_cli_contract_v2.py (new)
+    - docs/implementation/orchestration/implementation-state.yaml (ORCH state)
+    - docs/implementation/orchestration/evidence/ORCH-002/ (both implementation evidence records + logs)
+    - docs/implementation/orchestration/handoffs/ORCH-002/ (both handoffs)
+  out_of_scope_changed_paths: []
+  out_of_scope_note: >
+    Independently enumerated every changed path (`git diff 0aa7d93 809c09b
+    --name-only`, 47 paths; see
+    reviews/ORCH-002/logs/20260721T173000Z-...-3d253693-git-diff-0aa7d93-809c09b-name-only.txt):
+    every path is either inside stages/ORCH-002.md's allowed set (schema/,
+    reporting/json_report.py, cli.py, exceptions.py, the two new test files) or
+    an ORCH-002 evidence/handoff/state record. Separately re-verified zero
+    changed paths under docs/implementation/orchestration/stages/,
+    session-protocol.md, decision-log.md, architecture-v3.md,
+    implementation-plan.md, implementation-state.schema.yaml,
+    migration-registry.yaml, scripts/, tests/test_orchestration_feature_state.py,
+    tests/test_cli.py, pyproject.toml, self-governance.yaml,
+    docs/AGENT_PROTOCOL.md and README.md (all 0 in
+    reviews/ORCH-002/logs/20260721T173000Z-...-3d253693-out-of-scope-check.txt).
+    tests/test_cli.py is unmodified (0 changed) but was independently re-run as
+    part of the required focused command, confirming the pre-existing v1
+    surface is unaffected by construction, not merely by omission.
+  production_source_changed: true
+  production_files_changed:
+    - src/ai_workflow_engine/cli.py
+    - src/ai_workflow_engine/exceptions.py
+    - src/ai_workflow_engine/reporting/json_report.py
+    - src/ai_workflow_engine/schema/__init__.py
+    - src/ai_workflow_engine/schema/contract.py
+    - src/ai_workflow_engine/schema/registry.py
+  migration_registry_changed: false
+  prior_evidence_overwritten: false
+  prior_evidence_note: >
+    Both implementation evidence records
+    (20260721T152237Z-...-e916ac25.yaml and 20260721T160220Z-...-c6b9d62e.yaml)
+    and both handoffs are present, distinct files, and internally consistent:
+    the second round's preflight explicitly states it continues the first
+    round's uncommitted diff (same starting/ending HEAD
+    0aa7d939b79ebf83146473a369e120f01d4b73e4 throughout both rounds, no commit
+    between them), the first evidence record's own worktree_digest and content
+    are unchanged in the committed diff, and the state history (sequences
+    32-38) matches the two evidence records' own stage_status_transition
+    fields (NOT_STARTED -> ... -> VERIFIED, then VERIFIED -> BLOCKED ->
+    ... -> VERIFIED again after the human review found Findings A/B/C).
+  orch_003_status_unaffected: true
+  orch_003_status_note: >
+    stages.ORCH-003.status is NOT_STARTED at HEAD 809c09b and is left
+    NOT_STARTED by this review; the ORCH-003 line of implementation-state.yaml
+    is unchanged in the implementation diff and by this review's own edit.
+environment_fingerprint:
+  captured_artifact: reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-environment-fingerprint.txt
+  digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+  note: >
+    Independently regenerated on this machine this session (python 3.11.15,
+    git 2.43.0, Linux 6.17.0-35-generic x86_64, conda env ai-workflow-engine,
+    pytest 8.4.2) and hashed: byte-identical to the digest recorded on every
+    command of both ORCH-002 implementation evidence records. Not copied from
+    those records.
+  applied_to: all commands below
+commands:
+  - argv: [git, rev-parse, HEAD]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-git-rev-parse-head.txt
+    stdout_digest: sha256:809d5417915f74ee17f9e1411b54caf8fd103681049e8eea597449a66d4060f0
+    result: 809c09b0c299dd9a6029a2c5ffa3f5d35ae3330b
+    purpose: Obtain the exact full SHA of the committed implementation HEAD under review.
+    when: before
+  - argv: [git, rev-parse, origin/main]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-git-rev-parse-origin-main.txt
+    stdout_digest: sha256:809d5417915f74ee17f9e1411b54caf8fd103681049e8eea597449a66d4060f0
+    result: 809c09b0c299dd9a6029a2c5ffa3f5d35ae3330b
+    purpose: Confirm main and origin/main point to the same reviewed commit.
+    when: before
+  - argv: [git, status, --porcelain, -b]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-git-status.txt
+    stdout_digest: sha256:7f013d6ea7ade335a1f11b90245f0743808bd854ed015ef87f6e5b43121419f5
+    result: clean tree and index, branch main, upstream origin/main, ahead 0 behind 0
+    purpose: Preflight -- confirm tree and index are clean before review.
+    when: before
+  - argv: [git, diff, 0aa7d93, 809c09b, --stat]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-git-diff-0aa7d93-809c09b-stat.txt
+    stdout_digest: sha256:1e0d3eddba8fbc53011b55ee9b41e68ec33d6f2c6ed1d474ca17beb49cec06e1
+    result: '47 files changed, 5153 insertions(+), 108 deletions(-)'
+    purpose: Compare the reviewed commit against its parent 0aa7d93.
+    when: before
+  - argv: [git, diff, 0aa7d93, 809c09b, --name-only]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-git-diff-0aa7d93-809c09b-name-only.txt
+    stdout_digest: sha256:6b571d540ff2e73515c0ab39ece211dccde4859b4717141bb3645dc37c4bdfde
+    result: 47 paths, all within ORCH-002's allowed set (production/tests) or ORCH records.
+    purpose: Confirm only authorized ORCH-002 paths changed.
+    when: before
+  - argv: [sh, -c, 'per-path change counts for every governance/plan/schema/stages/script/test-guard path']
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-out-of-scope-check.txt
+    stdout_digest: sha256:c89110cdac0fbe8d5591d71010649dd0998b454421e7f714b0533c9f114d423c
+    result: 0 changed files for every out-of-scope path checked.
+    purpose: >
+      Independently confirm no governance/plan/schema/stages/script/other-test
+      file was touched by the ORCH-002 diff.
+    when: before
+  - argv: [pytest, -q, tests/test_schema_registry.py, tests/test_cli_contract_v2.py, tests/test_cli.py]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-pytest-focused.txt
+    stdout_digest: sha256:2be84a6d6229bd7f39f86f7333414d278a7e0274e18888c1c62db4fcbdee64b3
+    result: '130 passed, 0 failed, 0 skipped'
+    purpose: >
+      Stage-required focused rerun against the unmodified committed HEAD;
+      reproduces the remediation round's recorded 130-passed count exactly.
+    when: before
+  - argv: [pytest, -q, -rs]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-pytest-full.txt
+    stdout_digest: sha256:4f8202ba8b0902cf592dd1fc8c0973dff86be195394744703fd7255fcb1eb50e
+    result: '824 passed, 0 skipped, 0 failed'
+    purpose: >
+      Stage-required full regression rerun against committed HEAD; matches the
+      remediation round's recorded 824-passed count exactly.
+    when: before
+  - argv: [ruff, check, src/ai_workflow_engine/schema/, src/ai_workflow_engine/cli.py,
+      src/ai_workflow_engine/exceptions.py, src/ai_workflow_engine/reporting/json_report.py,
+      tests/test_schema_registry.py, tests/test_cli_contract_v2.py]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-ruff-check.txt
+    stdout_digest: sha256:82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18
+    result: All checks passed! -- byte-identical stdout digest to both implementer evidence records.
+    purpose: Independently re-lint every changed/added Python file.
+    when: before
+  - argv: [black, --check, src/ai_workflow_engine/schema/, src/ai_workflow_engine/cli.py,
+      src/ai_workflow_engine/exceptions.py, src/ai_workflow_engine/reporting/json_report.py,
+      tests/test_schema_registry.py, tests/test_cli_contract_v2.py]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-black-check.txt
+    stdout_digest: sha256:6a479b5c82191f225899d5e11b6acd828479dbe0a41fbaea811c4de9326eb022
+    result: 8 files would be left unchanged -- byte-identical stdout digest to both implementer evidence records.
+    purpose: Independently re-format-check every changed/added Python file.
+    when: before
+  - argv: [mypy, src]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-mypy-src.txt
+    stdout_digest: sha256:d65cae0083d77ec23a4483dfe03fa5cbfde2ebbad3bc4205bfa20ae5ff3edceb
+    result: 'Success: no issues found in 47 source files -- byte-identical stdout digest to both implementer evidence records.'
+    purpose: Independent strict type check of the whole src/ package.
+    when: before
+  - argv: [python, scripts/orchestration_feature_state.py, validate, --state,
+      docs/implementation/orchestration/implementation-state.yaml, --plan,
+      docs/implementation/orchestration/implementation-plan.md, --output, json]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-validate-state-before.json
+    stdout_digest: sha256:b69a32d9109e598f79677ce803dc16e1706c5e698906b5001f75062bb41ed6f4
+    result: 'PASS, 0 errors; state_digest sha256:54d27543a0eee5c75346b35b1ce2d1fc3beade948d8fb5a395f2e6f09cc42f33'
+    purpose: >
+      Stage-required validate rerun against the real committed state file
+      before this review's own edit; both the stdout digest and state_digest
+      are byte-identical to the implementer's own recorded final
+      validate-state-after values, confirming zero drift since commit.
+    when: before
+  - argv: [python, scripts/orchestration_feature_state.py, status, --state,
+      docs/implementation/orchestration/implementation-state.yaml, --output, json]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-status-before.json
+    stdout_digest: sha256:431bacd2bc9669919a7c98eb9d650001b1aef6b0ddb4787d9597b221eb449225
+    result: >-
+      current_stage/next_eligible_stage/candidate_next_stage all ORCH-002;
+      ORCH-002 status VERIFIED, review_status PENDING, eligible_now true;
+      ORCH-003 NOT_STARTED, prerequisites_closed false -- byte-identical stdout
+      digest to the implementer's own recorded final status-after.
+    purpose: Confirm frontier/ORCH-003 state before this review's own edit.
+    when: before
+  - argv: [workflowctl, verify, --config, self-governance.yaml, --output, json]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-workflowctl-verify.json
+    stdout_digest: sha256:d2132a360d12420c158b79e72d55b2965210230f53d98c0893832b2cf85670da
+    result_overall_status: PASS
+    purpose: Independent repository governance re-verification at reviewed HEAD.
+    when: before
+  - argv: [git, diff, --check]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    stdout_artifact: reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-git-diff-check.txt
+    stdout_digest: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    result: no whitespace or conflict-marker errors (empty output)
+    purpose: Stage-required whitespace/conflict-marker check.
+    when: before
+  - argv: [python, reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-independent-cli-probes.py]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:ed98562c97d085531d34ca9a748eb32acf92230a7dc4649eca0909b5f0903516
+    exit_code: 0
+    script_artifact: reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-independent-cli-probes.py
+    script_digest: sha256:b18be6b86c67f46fa920b9dfb9bd09074984a24395c299320e2be0ab4bcb16fa
+    stdout_artifact: reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-independent-cli-probes-output.txt
+    stdout_digest: sha256:f4f1cdae0ef92d120b4418c5dd52d30e42cf5dfcb9ee1d820dc009d3f9672808
+    result: 'ALL_PROBES_PASS (24 checks, 0 failures)'
+    purpose: >
+      Fresh, independently authored CLI/library probes (not copied from or
+      derived from the implementation's own tests), against an isolated
+      throwaway repository/config built by this session
+      (never the real project's governance files, never a real $HOME), plus a
+      direct commit-CLI invocation against a real disposable git repository
+      for the writable-gate probe. Covers: inspect v1 (no envelope key) and v2
+      (exact 6 keys); prompt --no-store v2 (ok=true, stored=false, nothing
+      written under an isolated $HOME); state next v2 in isolated storage;
+      a v2 configuration failure (missing config -> stable error envelope,
+      exit 1); ContractEnvelopeV2 rejecting all three contradictory
+      combinations both via direct construction and via
+      CLI_CONTRACT_REGISTRY.dispatch (the external/schema-registry input
+      path); FORCE_COLOR=3 stdout purity (no ESC byte, exactly one JSON
+      document); an invalid --contract-version failing closed (exit 2, zero
+      stdout bytes, before any command body runs); a safe commit
+      writable-gate refusal against a real disposable git repository
+      (wrong-HEAD approval, asserts `git rev-parse HEAD` unchanged
+      before/after); and SchemaRegistry duplicate-registration /
+      unknown-name / unknown-version rejection.
+    when: before
+tests:
+  suite: >-
+    focused (tests/test_schema_registry.py, tests/test_cli_contract_v2.py,
+    tests/test_cli.py) plus full existing regression suite (pytest -q) plus
+    24 fresh independent CLI/library probes
+  passed: 824
+  failed: 0
+  skipped: 0
+  exit_code: 0
+checklist:
+  - item: main and origin/main point to the same reviewed commit
+    result: PASS
+    notes: Both 809c09b0c299dd9a6029a2c5ffa3f5d35ae3330b.
+  - item: Tree and index clean
+    result: PASS
+  - item: ORCH-002 is VERIFIED with review_status PENDING before review
+    result: PASS
+    notes: verification_status PASSED, blockers [] (the coverage-gap blocker was resolved within the implementer's second round), implementation_commit null (set by this review).
+  - item: ORCH-003 is NOT_STARTED before review
+    result: PASS
+  - item: Prerequisites REVIEW_APPROVED
+    result: PASS
+    notes: ORCH-001 REVIEW_APPROVED, committed ancestor of HEAD.
+  - item: Reviewer identity independence
+    result: PASS
+    notes: >-
+      claude-code-independent-reviewer-orch-002-1 differs from
+      claude-code-implementer-orch-002-1 and every ORCH-000/ORCH-001 actor.
+  - item: Only authorized ORCH-002 paths changed (0aa7d93..809c09b)
+    result: PASS
+    notes: 47 paths, all inside stages/ORCH-002.md's allowed set (schema/, reporting/, cli.py, exceptions.py, the two new test files) or ORCH-002 evidence/handoff/state records.
+  - item: Both implementation evidence rounds committed and internally consistent
+    result: PASS
+    notes: >-
+      Both e916ac25.yaml and c6b9d62e.yaml present, distinct, uncorrupted;
+      the second round's stated starting HEAD/preflight matches the first
+      round's ending state exactly; state history sequences 32-38 agree with
+      both records' stage_status_transition fields; neither evidence record
+      nor its handoff was overwritten (byte sizes/digests distinct, both
+      referenced from stages.ORCH-002.evidence in order).
+  - item: SchemaRegistry name/version dispatch and fail-closed behavior
+    result: PASS
+    notes: >-
+      registry.py's get()/dispatch() raise UnknownSchemaNameError for an
+      unregistered name and UnsupportedSchemaVersionError for an unregistered
+      version of a known name, never a silent default; independently
+      reproduced live (probes 22-24) beyond rerunning the implementer's own
+      17 registry unit tests.
+  - item: Duplicate registration and unknown names/versions are rejected
+    result: PASS
+    notes: register() raises ValueError on a duplicate (name, version); independently reproduced live (probe 22), matching test_duplicate_registration_is_rejected.
+  - item: CLI contract v1 remains the default and byte-compatible
+    result: PASS
+    notes: >-
+      --contract-version defaults to "1"; v1's code path is untouched by
+      construction (every v2 branch is inserted strictly before the
+      pre-existing v1 write statement, never replacing it); independently
+      reproduced (probe 1, and rerun of test_v1_is_the_default_and_matches_the_pre_contract_shape / test_explicit_v1_alias_matches_the_default / all four *_v1_is_byte_compatible tests).
+  - item: Contract v2 has exactly contract_version, command, ok, data, error, warnings
+    result: PASS
+    notes: ContractEnvelopeV2 is extra="forbid" with exactly these 6 fields; independently confirmed via a live inspect v2 call (probe 1b) and test_cli_contract_v2_rejects_unknown_fields.
+  - item: Success envelopes require data and prohibit error; failure envelopes prohibit data and require error
+    result: PASS
+    notes: >-
+      ContractEnvelopeV2's model_validator(mode="after") enforces both
+      directions; independently reproduced against all four contradictory
+      combinations, both via direct construction and via
+      CLI_CONTRACT_REGISTRY.dispatch (the external-input path a
+      builder-only check could not reach) (probes 12-15).
+  - item: Every existing JSON-producing command family honors v2 (Finding A)
+    result: PASS
+    notes: >-
+      inspect, all seven prompt subcommands, state show/next/record and
+      agent run each route through a dedicated v2 adapter
+      (_contract_v2_success / _contract_v2_for_status_payload /
+      _contract_v2_for_agent_run_payload) inserted before the untouched v1
+      write; check-*/verify/commit/push/apply-patch route through the
+      pre-existing _emit/render_contract_json path. Independently exercised
+      inspect and prompt --no-store live (probes 2-6, 8); the remaining
+      families (state show/next/record's finding branch, agent run's success
+      and finding/verification branches, commit/push/apply-patch) were
+      independently rerun via the focused/full suite reproducing the
+      remediator's exact recorded counts, and read directly in cli.py
+      (lines 635-663, 831-869) to confirm no code path bypasses the adapter.
+  - item: Operational failures produce one stable v2 error envelope (Finding B)
+    result: PASS
+    notes: >-
+      _protected/_config now accept output/command and, under contract v2 +
+      --output json, emit exactly one v2 error envelope (code=type(exc).__name__,
+      retryable=False, details={}) instead of stderr-only; independently
+      reproduced live against a missing-config failure (probe 9-11) and via
+      test_v2_configuration_failure_error_envelope /
+      test_v2_prompt_operational_failure_error_envelope /
+      test_v2_agent_run_bad_agent_name_error_envelope. v1/human behavior is
+      unchanged (test_v1_configuration_failure_is_byte_compatible_stderr_only).
+  - item: Invalid --contract-version fails closed before contract selection
+    result: PASS
+    notes: >-
+      The app callback resolves --contract-version before any command body
+      runs; an unsupported value uses the v1/stderr shape unconditionally
+      (exit 2, zero stdout bytes), explicitly commented in cli.py and covered
+      by test_nonsense_contract_version_still_uses_stderr_not_v2_envelope.
+      Independently reproduced live (probe 17-19: exit 2, empty stdout,
+      stderr names supported versions).
+  - item: Stdout contains exactly one JSON document, no ANSI pollution
+    result: PASS
+    notes: >-
+      _write_stdout bypasses Rich for all machine output. Independently
+      reproduced live under FORCE_COLOR=3 against a real subprocess
+      entrypoint (probe 16), no ESC byte, json.JSONDecoder.raw_decode
+      consumes the entire trimmed stdout.
+  - item: Writable-gate refusal tests cannot perform a write
+    result: PASS
+    notes: >-
+      Independently reproduced live against a real disposable git
+      repository, not just the implementer's own
+      test_commit_v2_refusal_performs_no_write: a wrong-HEAD commit approval
+      under contract v2 is refused (ok=false, exit 1) and `git rev-parse
+      HEAD` is byte-identical before and after (probe 20-21).
+  - item: ORCH-003 was not started
+    result: PASS
+    notes: Confirmed NOT_STARTED before this review (status-before.json) and unaffected by this review's own edit (post_state_edit_verification below).
+  - item: Recorded results reproduce (focused, full, ruff, black, mypy, validate, verify)
+    result: PASS
+    notes: >-
+      130 / 824 passed, and the ruff/black/mypy/validate-before/status-before
+      stdout digests are byte-identical to the implementer's own recorded
+      digests, reproducing the second round's exact recorded results, not
+      merely similar ones.
+findings: []
+observations: []
+post_state_edit_verification:
+  note: >
+    Run after this review's own edits to implementation-state.yaml (the
+    approval transition, history sequence 39, and last_updated), to prove the
+    document this session leaves behind is valid and that the frontier
+    actually advanced to ORCH-003 while ORCH-003's own status stays
+    NOT_STARTED.
+  state_digest_before_edit: sha256:54d27543a0eee5c75346b35b1ce2d1fc3beade948d8fb5a395f2e6f09cc42f33
+  hand_edit_note: >
+    The state was hand-edited, consistent with the precedent of every prior
+    ORCH-000/ORCH-001/ORCH-002 session: write_state_atomic's yaml.safe_dump
+    would reformat the entire flow-style document into block style, an
+    out-of-scope stylistic change. The edit was re-validated with the tool's
+    own validate/status subcommands immediately afterward (see this review's
+    handoff for the resulting digests and recomputed frontier).
+verdict: APPROVED
+resulting_state_transition:
+  stage_id: ORCH-002
+  from: VERIFIED
+  to: REVIEW_APPROVED
+  review_status: APPROVED
+  reviewer: claude-code-independent-reviewer-orch-002-1
+  implementation_commit: 809c09b0c299dd9a6029a2c5ffa3f5d35ae3330b
+  history_sequence: 39
+review_time: '2026-07-21T17:30:00Z'
+next_eligible_stage_computed: ORCH-003
+next_eligible_stage_note: >
+  With ORCH-002 REVIEW_APPROVED, the frontier recomputes to ORCH-003 -- the
+  first non-approved delivery_order entry whose sole prerequisite (ORCH-002)
+  is now REVIEW_APPROVED. current_stage, candidate_next_stage and
+  next_eligible_stage are all set to ORCH-003 in the same edit. ORCH-003's own
+  status stays NOT_STARTED: eligibility is not implementation. This review
+  does not implement ORCH-003.
+commit_push_authority: >
+  This review session did not commit and did not push. Per session-protocol.md
+  sections 3 and 5, a human must commit this review evidence, the reviewer
+  handoff and the implementation-state.yaml update as one diff before any
+  ORCH-003 implementation session may begin from the resulting clean HEAD.

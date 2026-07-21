@@ -1,0 +1,282 @@
+{
+  "schema_version": "1.0",
+  "project_id": "ai-workflow-engine",
+  "status": "PASS",
+  "checks": [
+    {
+      "check_name": "git",
+      "status": "PASS",
+      "summary": "Git state satisfies configured invariants",
+      "findings": [],
+      "evidence": {
+        "branch": "main",
+        "head": "809c09b0c299dd9a6029a2c5ffa3f5d35ae3330b",
+        "upstream": "origin/main",
+        "ahead": 0,
+        "behind": 0,
+        "modified_files": [
+          "docs/implementation/orchestration/implementation-state.yaml"
+        ],
+        "staged_files": [],
+        "untracked_files": [
+          "docs/implementation/orchestration/reviews/ORCH-002/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693.yaml",
+          "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-black-check.txt",
+          "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-environment-fingerprint.txt",
+          "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-git-diff-0aa7d93-809c09b-name-only.txt",
+          "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-git-diff-0aa7d93-809c09b-stat.txt",
+          "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-git-diff-check.txt",
+          "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-git-rev-parse-head.txt",
+          "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-git-rev-parse-origin-main.txt",
+          "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-git-status.txt",
+          "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-independent-cli-probes-output.txt",
+          "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-independent-cli-probes.py",
+          "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-mypy-src.txt",
+          "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-out-of-scope-check.txt",
+          "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-pytest-focused.txt",
+          "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-pytest-full-after.txt",
+          "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-pytest-full.txt",
+          "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-ruff-check.txt",
+          "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-status-after.json",
+          "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-status-before.json",
+          "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-validate-state-after.json",
+          "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-validate-state-before.json",
+          "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-workflowctl-verify-after.json",
+          "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-workflowctl-verify.json"
+        ]
+      },
+      "affected_paths": [
+        "docs/implementation/orchestration/implementation-state.yaml",
+        "docs/implementation/orchestration/reviews/ORCH-002/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693.yaml",
+        "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-black-check.txt",
+        "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-environment-fingerprint.txt",
+        "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-git-diff-0aa7d93-809c09b-name-only.txt",
+        "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-git-diff-0aa7d93-809c09b-stat.txt",
+        "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-git-diff-check.txt",
+        "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-git-rev-parse-head.txt",
+        "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-git-rev-parse-origin-main.txt",
+        "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-git-status.txt",
+        "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-independent-cli-probes-output.txt",
+        "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-independent-cli-probes.py",
+        "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-mypy-src.txt",
+        "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-out-of-scope-check.txt",
+        "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-pytest-focused.txt",
+        "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-pytest-full-after.txt",
+        "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-pytest-full.txt",
+        "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-ruff-check.txt",
+        "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-status-after.json",
+        "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-status-before.json",
+        "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-validate-state-after.json",
+        "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-validate-state-before.json",
+        "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-workflowctl-verify-after.json",
+        "docs/implementation/orchestration/reviews/ORCH-002/logs/20260721T173000Z-claude-code-independent-reviewer-orch-002-1-3d253693-workflowctl-verify.json"
+      ],
+      "remediation_hint": null,
+      "timestamp": "2026-07-21T16:35:45.227764Z"
+    },
+    {
+      "check_name": "task-state",
+      "status": "PASS",
+      "summary": "Detected 0 Current, 20 Done, and 0 Planned tasks",
+      "findings": [],
+      "evidence": {
+        "by_source": {
+          "docs/PROJECT_STATE.md": [],
+          "docs/TASK_QUEUE.md": [
+            {
+              "task_id": "M-1",
+              "status": "Done",
+              "source": "docs/TASK_QUEUE.md",
+              "line": 8
+            },
+            {
+              "task_id": "M-2",
+              "status": "Done",
+              "source": "docs/TASK_QUEUE.md",
+              "line": 16
+            },
+            {
+              "task_id": "GOV-1",
+              "status": "Done",
+              "source": "docs/TASK_QUEUE.md",
+              "line": 25
+            },
+            {
+              "task_id": "T-101",
+              "status": "Done",
+              "source": "docs/TASK_QUEUE.md",
+              "line": 35
+            },
+            {
+              "task_id": "T-102",
+              "status": "Done",
+              "source": "docs/TASK_QUEUE.md",
+              "line": 42
+            },
+            {
+              "task_id": "T-103",
+              "status": "Done",
+              "source": "docs/TASK_QUEUE.md",
+              "line": 52
+            },
+            {
+              "task_id": "T-301",
+              "status": "Done",
+              "source": "docs/TASK_QUEUE.md",
+              "line": 62
+            },
+            {
+              "task_id": "T-104",
+              "status": "Done",
+              "source": "docs/TASK_QUEUE.md",
+              "line": 71
+            },
+            {
+              "task_id": "T-302",
+              "status": "Done",
+              "source": "docs/TASK_QUEUE.md",
+              "line": 82
+            },
+            {
+              "task_id": "T-303",
+              "status": "Done",
+              "source": "docs/TASK_QUEUE.md",
+              "line": 93
+            },
+            {
+              "task_id": "T-304",
+              "status": "Done",
+              "source": "docs/TASK_QUEUE.md",
+              "line": 105
+            },
+            {
+              "task_id": "T-305",
+              "status": "Done",
+              "source": "docs/TASK_QUEUE.md",
+              "line": 117
+            },
+            {
+              "task_id": "T-306",
+              "status": "Done",
+              "source": "docs/TASK_QUEUE.md",
+              "line": 130
+            },
+            {
+              "task_id": "M-3",
+              "status": "Done",
+              "source": "docs/TASK_QUEUE.md",
+              "line": 139
+            },
+            {
+              "task_id": "T-401",
+              "status": "Done",
+              "source": "docs/TASK_QUEUE.md",
+              "line": 149
+            },
+            {
+              "task_id": "T-402",
+              "status": "Done",
+              "source": "docs/TASK_QUEUE.md",
+              "line": 159
+            },
+            {
+              "task_id": "T-403",
+              "status": "Done",
+              "source": "docs/TASK_QUEUE.md",
+              "line": 171
+            },
+            {
+              "task_id": "T-404",
+              "status": "Done",
+              "source": "docs/TASK_QUEUE.md",
+              "line": 183
+            },
+            {
+              "task_id": "M-4",
+              "status": "Done",
+              "source": "docs/TASK_QUEUE.md",
+              "line": 191
+            },
+            {
+              "task_id": "T-501",
+              "status": "Done",
+              "source": "docs/TASK_QUEUE.md",
+              "line": 202
+            }
+          ],
+          "docs/current_task.md": [],
+          "docs/remaining_tasks.md": [],
+          "docs/CONTEXT.md": []
+        },
+        "current": [],
+        "done": [
+          "GOV-1",
+          "M-1",
+          "M-2",
+          "M-3",
+          "M-4",
+          "T-101",
+          "T-102",
+          "T-103",
+          "T-104",
+          "T-301",
+          "T-302",
+          "T-303",
+          "T-304",
+          "T-305",
+          "T-306",
+          "T-401",
+          "T-402",
+          "T-403",
+          "T-404",
+          "T-501"
+        ],
+        "planned": [],
+        "current_count": 0,
+        "maximum_current_tasks": 1
+      },
+      "affected_paths": [],
+      "remediation_hint": null,
+      "timestamp": "2026-07-21T16:35:45.229258Z"
+    },
+    {
+      "check_name": "governance",
+      "status": "PASS",
+      "summary": "Governance mirrors are consistent",
+      "findings": [],
+      "evidence": {
+        "facts": {
+          "version": {
+            "docs/PROJECT_STATE.md": "1.0.0",
+            "pyproject.toml": "1.0.0"
+          }
+        }
+      },
+      "affected_paths": [],
+      "remediation_hint": null,
+      "timestamp": "2026-07-21T16:35:45.231171Z"
+    },
+    {
+      "check_name": "handover",
+      "status": "PASS",
+      "summary": "Verified 1 manifest record(s) from working-tree",
+      "findings": [],
+      "evidence": {
+        "source": "working-tree",
+        "commit": "HEAD",
+        "records": [
+          {
+            "path": "handover/PROJECT_HANDOVER.md",
+            "expected_size": 4538,
+            "actual_size": 4538,
+            "expected_digest": "b0d64a6e20aa4c582c63634d464d03adc66496eb1632101cca7106a315f6f9bf",
+            "actual_digest": "b0d64a6e20aa4c582c63634d464d03adc66496eb1632101cca7106a315f6f9bf"
+          }
+        ]
+      },
+      "affected_paths": [],
+      "remediation_hint": null,
+      "timestamp": "2026-07-21T16:35:45.231530Z"
+    }
+  ],
+  "timestamp": "2026-07-21T16:35:45.231548Z"
+}
