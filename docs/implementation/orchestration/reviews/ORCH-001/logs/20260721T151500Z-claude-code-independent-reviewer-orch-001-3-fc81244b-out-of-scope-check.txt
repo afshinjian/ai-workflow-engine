@@ -1,0 +1,14 @@
+== scripts/orchestration_feature_state.py (changed files between b9813b6 and cfcdac3): 0
+== docs/implementation/orchestration/session-protocol.md (changed files between b9813b6 and cfcdac3): 0
+== docs/implementation/orchestration/decision-log.md (changed files between b9813b6 and cfcdac3): 0
+== docs/implementation/orchestration/implementation-plan.md (changed files between b9813b6 and cfcdac3): 0
+== docs/implementation/orchestration/implementation-state.schema.yaml (changed files between b9813b6 and cfcdac3): 0
+== docs/implementation/orchestration/migration-registry.yaml (changed files between b9813b6 and cfcdac3): 0
+== docs/implementation/orchestration/architecture-v3.md (changed files between b9813b6 and cfcdac3): 0
+== pyproject.toml (changed files between b9813b6 and cfcdac3): 0
+== docs/implementation/orchestration/stages (changed files between b9813b6 and cfcdac3): 0
+== src (changed files between b9813b6 and cfcdac3): 0
+== docs/implementation/orchestration/reviews (changed files between b9813b6 and cfcdac3): 0
+== docs/implementation/orchestration/evidence/ORCH-000 (changed files between b9813b6 and cfcdac3): 0
+== docs/implementation/orchestration/handoffs/ORCH-000 (changed files between b9813b6 and cfcdac3): 0
+== scripts/ src/ pyproject.toml unchanged since f89be9b (F-1/F-2 reviewed commit): 0 files

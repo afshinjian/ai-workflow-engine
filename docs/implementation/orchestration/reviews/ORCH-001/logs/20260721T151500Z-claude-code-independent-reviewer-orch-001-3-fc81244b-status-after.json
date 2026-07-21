@@ -1,0 +1,421 @@
+{
+  "package_status": "PUBLISHED",
+  "current_stage": "ORCH-002",
+  "declared_next_eligible_stage": "ORCH-002",
+  "recomputed_next_eligible_stage": "ORCH-002",
+  "next_eligible_matches_declared": true,
+  "candidate_next_stage": "ORCH-002",
+  "global_blockers_open": [],
+  "history_length": 31,
+  "stages": {
+    "ORCH-000": {
+      "status": "REVIEW_APPROVED",
+      "review_status": "APPROVED",
+      "verification_status": "PASSED",
+      "prerequisites": [],
+      "prerequisites_closed": true,
+      "eligible_now": false,
+      "evidence_count": 5,
+      "review_evidence_count": 4,
+      "blockers_open": []
+    },
+    "ORCH-001": {
+      "status": "REVIEW_APPROVED",
+      "review_status": "APPROVED",
+      "verification_status": "PASSED",
+      "prerequisites": [
+        "ORCH-000"
+      ],
+      "prerequisites_closed": true,
+      "eligible_now": false,
+      "evidence_count": 3,
+      "review_evidence_count": 3,
+      "blockers_open": []
+    },
+    "ORCH-002": {
+      "status": "NOT_STARTED",
+      "review_status": "NOT_REQUESTED",
+      "verification_status": "NOT_RUN",
+      "prerequisites": [
+        "ORCH-001"
+      ],
+      "prerequisites_closed": true,
+      "eligible_now": true,
+      "evidence_count": 0,
+      "review_evidence_count": 0,
+      "blockers_open": []
+    },
+    "ORCH-003": {
+      "status": "NOT_STARTED",
+      "review_status": "NOT_REQUESTED",
+      "verification_status": "NOT_RUN",
+      "prerequisites": [
+        "ORCH-002"
+      ],
+      "prerequisites_closed": false,
+      "eligible_now": false,
+      "evidence_count": 0,
+      "review_evidence_count": 0,
+      "blockers_open": []
+    },
+    "ORCH-004": {
+      "status": "NOT_STARTED",
+      "review_status": "NOT_REQUESTED",
+      "verification_status": "NOT_RUN",
+      "prerequisites": [
+        "ORCH-003"
+      ],
+      "prerequisites_closed": false,
+      "eligible_now": false,
+      "evidence_count": 0,
+      "review_evidence_count": 0,
+      "blockers_open": []
+    },
+    "ORCH-005": {
+      "status": "NOT_STARTED",
+      "review_status": "NOT_REQUESTED",
+      "verification_status": "NOT_RUN",
+      "prerequisites": [
+        "ORCH-004"
+      ],
+      "prerequisites_closed": false,
+      "eligible_now": false,
+      "evidence_count": 0,
+      "review_evidence_count": 0,
+      "blockers_open": []
+    },
+    "ORCH-006": {
+      "status": "NOT_STARTED",
+      "review_status": "NOT_REQUESTED",
+      "verification_status": "NOT_RUN",
+      "prerequisites": [
+        "ORCH-005"
+      ],
+      "prerequisites_closed": false,
+      "eligible_now": false,
+      "evidence_count": 0,
+      "review_evidence_count": 0,
+      "blockers_open": []
+    },
+    "ORCH-007": {
+      "status": "NOT_STARTED",
+      "review_status": "NOT_REQUESTED",
+      "verification_status": "NOT_RUN",
+      "prerequisites": [
+        "ORCH-006"
+      ],
+      "prerequisites_closed": false,
+      "eligible_now": false,
+      "evidence_count": 0,
+      "review_evidence_count": 0,
+      "blockers_open": []
+    },
+    "ORCH-008": {
+      "status": "NOT_STARTED",
+      "review_status": "NOT_REQUESTED",
+      "verification_status": "NOT_RUN",
+      "prerequisites": [
+        "ORCH-007"
+      ],
+      "prerequisites_closed": false,
+      "eligible_now": false,
+      "evidence_count": 0,
+      "review_evidence_count": 0,
+      "blockers_open": []
+    },
+    "ORCH-009": {
+      "status": "NOT_STARTED",
+      "review_status": "NOT_REQUESTED",
+      "verification_status": "NOT_RUN",
+      "prerequisites": [
+        "ORCH-008"
+      ],
+      "prerequisites_closed": false,
+      "eligible_now": false,
+      "evidence_count": 0,
+      "review_evidence_count": 0,
+      "blockers_open": []
+    },
+    "ORCH-010": {
+      "status": "NOT_STARTED",
+      "review_status": "NOT_REQUESTED",
+      "verification_status": "NOT_RUN",
+      "prerequisites": [
+        "ORCH-006",
+        "ORCH-007"
+      ],
+      "prerequisites_closed": false,
+      "eligible_now": false,
+      "evidence_count": 0,
+      "review_evidence_count": 0,
+      "blockers_open": []
+    },
+    "ORCH-011": {
+      "status": "NOT_STARTED",
+      "review_status": "NOT_REQUESTED",
+      "verification_status": "NOT_RUN",
+      "prerequisites": [
+        "ORCH-010"
+      ],
+      "prerequisites_closed": false,
+      "eligible_now": false,
+      "evidence_count": 0,
+      "review_evidence_count": 0,
+      "blockers_open": []
+    },
+    "ORCH-012": {
+      "status": "NOT_STARTED",
+      "review_status": "NOT_REQUESTED",
+      "verification_status": "NOT_RUN",
+      "prerequisites": [
+        "ORCH-011",
+        "ORCH-008"
+      ],
+      "prerequisites_closed": false,
+      "eligible_now": false,
+      "evidence_count": 0,
+      "review_evidence_count": 0,
+      "blockers_open": []
+    },
+    "ORCH-013": {
+      "status": "NOT_STARTED",
+      "review_status": "NOT_REQUESTED",
+      "verification_status": "NOT_RUN",
+      "prerequisites": [
+        "ORCH-004",
+        "ORCH-005",
+        "ORCH-012"
+      ],
+      "prerequisites_closed": false,
+      "eligible_now": false,
+      "evidence_count": 0,
+      "review_evidence_count": 0,
+      "blockers_open": []
+    },
+    "ORCH-014": {
+      "status": "NOT_STARTED",
+      "review_status": "NOT_REQUESTED",
+      "verification_status": "NOT_RUN",
+      "prerequisites": [
+        "ORCH-012"
+      ],
+      "prerequisites_closed": false,
+      "eligible_now": false,
+      "evidence_count": 0,
+      "review_evidence_count": 0,
+      "blockers_open": []
+    },
+    "ORCH-015": {
+      "status": "NOT_STARTED",
+      "review_status": "NOT_REQUESTED",
+      "verification_status": "NOT_RUN",
+      "prerequisites": [
+        "ORCH-014",
+        "ORCH-017"
+      ],
+      "prerequisites_closed": false,
+      "eligible_now": false,
+      "evidence_count": 0,
+      "review_evidence_count": 0,
+      "blockers_open": []
+    },
+    "ORCH-016": {
+      "status": "NOT_STARTED",
+      "review_status": "NOT_REQUESTED",
+      "verification_status": "NOT_RUN",
+      "prerequisites": [
+        "ORCH-002"
+      ],
+      "prerequisites_closed": false,
+      "eligible_now": false,
+      "evidence_count": 0,
+      "review_evidence_count": 0,
+      "blockers_open": []
+    },
+    "ORCH-017": {
+      "status": "NOT_STARTED",
+      "review_status": "NOT_REQUESTED",
+      "verification_status": "NOT_RUN",
+      "prerequisites": [
+        "ORCH-016"
+      ],
+      "prerequisites_closed": false,
+      "eligible_now": false,
+      "evidence_count": 0,
+      "review_evidence_count": 0,
+      "blockers_open": []
+    },
+    "ORCH-018": {
+      "status": "NOT_STARTED",
+      "review_status": "NOT_REQUESTED",
+      "verification_status": "NOT_RUN",
+      "prerequisites": [
+        "ORCH-003",
+        "ORCH-004",
+        "ORCH-005"
+      ],
+      "prerequisites_closed": false,
+      "eligible_now": false,
+      "evidence_count": 0,
+      "review_evidence_count": 0,
+      "blockers_open": []
+    },
+    "ORCH-019": {
+      "status": "NOT_STARTED",
+      "review_status": "NOT_REQUESTED",
+      "verification_status": "NOT_RUN",
+      "prerequisites": [
+        "ORCH-018",
+        "ORCH-016"
+      ],
+      "prerequisites_closed": false,
+      "eligible_now": false,
+      "evidence_count": 0,
+      "review_evidence_count": 0,
+      "blockers_open": []
+    },
+    "ORCH-020": {
+      "status": "NOT_STARTED",
+      "review_status": "NOT_REQUESTED",
+      "verification_status": "NOT_RUN",
+      "prerequisites": [
+        "ORCH-019",
+        "ORCH-017"
+      ],
+      "prerequisites_closed": false,
+      "eligible_now": false,
+      "evidence_count": 0,
+      "review_evidence_count": 0,
+      "blockers_open": []
+    },
+    "ORCH-021": {
+      "status": "NOT_STARTED",
+      "review_status": "NOT_REQUESTED",
+      "verification_status": "NOT_RUN",
+      "prerequisites": [
+        "ORCH-015",
+        "ORCH-017",
+        "ORCH-020"
+      ],
+      "prerequisites_closed": false,
+      "eligible_now": false,
+      "evidence_count": 0,
+      "review_evidence_count": 0,
+      "blockers_open": []
+    },
+    "ORCH-022": {
+      "status": "NOT_STARTED",
+      "review_status": "NOT_REQUESTED",
+      "verification_status": "NOT_RUN",
+      "prerequisites": [
+        "ORCH-008",
+        "ORCH-013",
+        "ORCH-018",
+        "ORCH-021"
+      ],
+      "prerequisites_closed": false,
+      "eligible_now": false,
+      "evidence_count": 0,
+      "review_evidence_count": 0,
+      "blockers_open": []
+    },
+    "ORCH-023": {
+      "status": "NOT_STARTED",
+      "review_status": "NOT_REQUESTED",
+      "verification_status": "NOT_RUN",
+      "prerequisites": [
+        "ORCH-022"
+      ],
+      "prerequisites_closed": false,
+      "eligible_now": false,
+      "evidence_count": 0,
+      "review_evidence_count": 0,
+      "blockers_open": []
+    },
+    "ORCH-024": {
+      "status": "NOT_STARTED",
+      "review_status": "NOT_REQUESTED",
+      "verification_status": "NOT_RUN",
+      "prerequisites": [
+        "ORCH-020",
+        "ORCH-022",
+        "ORCH-023"
+      ],
+      "prerequisites_closed": false,
+      "eligible_now": false,
+      "evidence_count": 0,
+      "review_evidence_count": 0,
+      "blockers_open": []
+    },
+    "ORCH-025": {
+      "status": "NOT_STARTED",
+      "review_status": "NOT_REQUESTED",
+      "verification_status": "NOT_RUN",
+      "prerequisites": [
+        "ORCH-017",
+        "ORCH-021",
+        "ORCH-024"
+      ],
+      "prerequisites_closed": false,
+      "eligible_now": false,
+      "evidence_count": 0,
+      "review_evidence_count": 0,
+      "blockers_open": []
+    },
+    "ORCH-026": {
+      "status": "NOT_STARTED",
+      "review_status": "NOT_REQUESTED",
+      "verification_status": "NOT_RUN",
+      "prerequisites": [
+        "ORCH-003",
+        "ORCH-020",
+        "ORCH-025"
+      ],
+      "prerequisites_closed": false,
+      "eligible_now": false,
+      "evidence_count": 0,
+      "review_evidence_count": 0,
+      "blockers_open": []
+    },
+    "ORCH-027": {
+      "status": "NOT_STARTED",
+      "review_status": "NOT_REQUESTED",
+      "verification_status": "NOT_RUN",
+      "prerequisites": [
+        "ORCH-000",
+        "ORCH-001",
+        "ORCH-002",
+        "ORCH-003",
+        "ORCH-004",
+        "ORCH-005",
+        "ORCH-006",
+        "ORCH-007",
+        "ORCH-008",
+        "ORCH-009",
+        "ORCH-010",
+        "ORCH-011",
+        "ORCH-012",
+        "ORCH-013",
+        "ORCH-014",
+        "ORCH-015",
+        "ORCH-016",
+        "ORCH-017",
+        "ORCH-018",
+        "ORCH-019",
+        "ORCH-020",
+        "ORCH-021",
+        "ORCH-022",
+        "ORCH-023",
+        "ORCH-024",
+        "ORCH-025",
+        "ORCH-026"
+      ],
+      "prerequisites_closed": false,
+      "eligible_now": false,
+      "evidence_count": 0,
+      "review_evidence_count": 0,
+      "blockers_open": []
+    }
+  },
+  "state_digest": "sha256:53ee6a563751e7ba20ac87e4e6dbc31f73bde477541fa274b122c1782a1e4acc"
+}

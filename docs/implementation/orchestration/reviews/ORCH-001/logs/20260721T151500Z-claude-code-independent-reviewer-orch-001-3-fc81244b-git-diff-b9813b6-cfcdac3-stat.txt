@@ -1,0 +1,23 @@
+ ...claude-code-remediator-orch-001-2-943a0e4c.yaml | 414 +++++++++++++++++++++
+ ...-remediator-orch-001-2-943a0e4c-black-after.txt |   2 +
+ ...orch-001-2-943a0e4c-environment-fingerprint.txt |   5 +
+ ...h-001-2-943a0e4c-f3-durability-probe-output.txt |   7 +
+ ...ator-orch-001-2-943a0e4c-f3-durability-probe.py | 139 +++++++
+ ...or-orch-001-2-943a0e4c-git-diff-check-after.txt |   0
+ ...rch-001-2-943a0e4c-git-rev-parse-head-after.txt |   1 +
+ ...ch-001-2-943a0e4c-git-rev-parse-head-before.txt |   1 +
+ ...diator-orch-001-2-943a0e4c-git-status-after.txt |  21 ++
+ ...iator-orch-001-2-943a0e4c-git-status-before.txt |   4 +
+ ...or-orch-001-2-943a0e4c-pytest-focused-after.txt |   3 +
+ ...r-orch-001-2-943a0e4c-pytest-focused-before.txt |   3 +
+ ...iator-orch-001-2-943a0e4c-pytest-full-after.txt |  12 +
+ ...ator-orch-001-2-943a0e4c-pytest-full-before.txt |  12 +
+ ...e-remediator-orch-001-2-943a0e4c-ruff-after.txt |   1 +
+ ...h-001-2-943a0e4c-validate-real-state-after.json |   5 +
+ ...-001-2-943a0e4c-validate-real-state-before.json |   5 +
+ ...ch-001-2-943a0e4c-workflowctl-verify-after.json | 264 +++++++++++++
+ ...h-001-2-943a0e4c-workflowctl-verify-before.json | 247 ++++++++++++
+ ...Z-claude-code-remediator-orch-001-2-943a0e4c.md | 187 ++++++++++
+ .../orchestration/implementation-state.yaml        | 170 +++++----
+ tests/test_orchestration_feature_state.py          | 161 +++++++-
+ 22 files changed, 1588 insertions(+), 76 deletions(-)

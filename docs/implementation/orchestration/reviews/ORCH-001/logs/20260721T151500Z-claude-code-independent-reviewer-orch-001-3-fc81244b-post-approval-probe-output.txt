@@ -1,0 +1,59 @@
+[PASS] git archive HEAD succeeded
+[PASS] isolated copy of committed HEAD created -- HEAD cfcdac346cd8
+[PASS] copy's state file is byte-identical to the real one
+[PASS] no unguarded pinned-stage assertion on the live document -- matches=[]
+[PASS] pre-approval TestRealRepositoryState passes in the copy -- ============================= test session starts ==============================
+platform linux -- Python 3.11.15, pytest-8.4.2, pluggy-1.6.0
+rootdir: /tmp/orch001-reviewer3-c23gh_u3/tree
+configfile: pyproject.toml
+collected 4 items
+
+tests/test_orchestration_feature_state.py ....                           [100%]
+
+============================== 4 passed in 0.62s ===============================
+
+[PASS] pre-approval frontier (independently recomputed) is ORCH-001 -- ORCH-001
+[PASS] declared next_eligible_stage agrees
+[PASS] ORCH-001 is VERIFIED / review PENDING before approval
+[PASS] real CLI transition VERIFIED -> REVIEW_APPROVED applied
+[PASS] CLI reports APPLIED -- {'status': 'APPLIED', 'stage': 'ORCH-001', 'from_digest': 'sha256:d3cc44bac5bfdd346bcba9148c4633a9c516c14e7ddd5e4ef262a174f26b13c0', 'to_digest': 'sha256:b0d45dda36f238550483ae0c4a808dd6f52c2e2dfb8932
+[PASS] post-approval frontier is ORCH-002 (independent recomputation) -- ORCH-002
+[PASS] CLI's own new_next_eligible_stage agrees -- ORCH-002
+[PASS] declared next_eligible_stage updated to ORCH-002
+[PASS] ORCH-001 recorded REVIEW_APPROVED/APPROVED
+[PASS] ORCH-002 remains NOT_STARTED in the copy
+[PASS] post-approval state validates in the copy -- {
+  "status": "PASS",
+  "errors": [],
+  "state_digest": "sha256:b0d45dda36f238550483ae0c4a808dd6f52c2e2dfb8932418d09af0193742382"
+}
+
+[PASS] removed pinned assertion (== 'ORCH-001') would now fail -- frontier=ORCH-002
+[PASS] full focused suite passes post-approval inside the copy -- ...................................................................s.... [ 94%]
+....                                                                     [100%]
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_orchestration_feature_state.py:981: frontier ORCH-002 is not yet implemented to VERIFIED grade
+75 passed, 1 skipped in 1.09s
+
+[PASS] post-approval TestRealRepositoryState passes in the copy --  -- Python 3.11.15, pytest-8.4.2, pluggy-1.6.0
+rootdir: /tmp/orch001-reviewer3-c23gh_u3/tree
+configfile: pyproject.toml
+collected 4 items
+
+tests/test_orchestration_feature_state.py ...s                           [100%]
+
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_orchestration_feature_state.py:981: frontier ORCH-002 is not yet implemented to VERIFIED grade
+========================= 3 passed, 1 skipped in 0.24s =========================
+
+[PASS] real state file byte-identical after probe
+[PASS] real repository git status unchanged
+[PASS] real repository HEAD unchanged
+[PASS] live frontier still ORCH-001
+
+NOTE: guarded self-disabling anchor present: True ['if frontier == "ORCH-001":']
+NOTE: post-approval focused suite result line: 75 passed, 1 skipped in 1.09s
+NOTE: post-approval skips: ['SKIPPED [1] tests/test_orchestration_feature_state.py:981: frontier ORCH-002 is not yet implemented to VERIFIED grade']
+NOTE: post-approval real-state test outcomes: SKIPPED [1] tests/test_orchestration_feature_state.py:981: frontier ORCH-002 is not yet implemented to VERIFIED grade
+
+REVIEWER3_POST_APPROVAL_PROBE: PASS

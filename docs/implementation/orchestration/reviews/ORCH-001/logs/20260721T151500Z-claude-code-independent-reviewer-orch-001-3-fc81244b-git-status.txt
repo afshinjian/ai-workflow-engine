@@ -1,0 +1,4 @@
+## main...origin/main
+?? docs/implementation/orchestration/reviews/ORCH-001/logs/20260721T151500Z-claude-code-independent-reviewer-orch-001-3-fc81244b-environment-fingerprint.txt
+?? docs/implementation/orchestration/reviews/ORCH-001/logs/20260721T151500Z-claude-code-independent-reviewer-orch-001-3-fc81244b-git-rev-parse-head.txt
+?? docs/implementation/orchestration/reviews/ORCH-001/logs/20260721T151500Z-claude-code-independent-reviewer-orch-001-3-fc81244b-git-status.txt
