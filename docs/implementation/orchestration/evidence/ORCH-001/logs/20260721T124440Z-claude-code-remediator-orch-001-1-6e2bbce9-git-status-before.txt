@@ -1,0 +1,3 @@
+## main...origin/main
+?? docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-git-rev-parse-head-before.txt
+?? docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-git-status-before.txt

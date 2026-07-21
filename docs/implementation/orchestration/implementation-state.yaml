@@ -45,7 +45,7 @@ delivery_order:
   - ORCH-027
 stages:
   ORCH-000: {title: Independent v3 design review, status: REVIEW_APPROVED, prerequisites: [], expected_base_head: fcabc0baee84f5b98a4d63b8de3696754966e826, implementation_commit: 857d2c9b69cd85e40bdd2b9f8d252f2d3df5790e, implementer: claude-code-remediator-3, review_status: APPROVED, reviewer: claude-code-independent-reviewer-4, verification_status: PASSED, evidence: [evidence/ORCH-000/20260720T164147Z-claude-code-bootstrap-d24e29f6.yaml, evidence/ORCH-000/20260720T181000Z-claude-code-remediator-e27efbe4.yaml, evidence/ORCH-000/20260720T201500Z-claude-code-architect-1-f7bef021.yaml, evidence/ORCH-000/20260720T210000Z-claude-code-remediator-2-8387417f.yaml, evidence/ORCH-000/20260720T223000Z-claude-code-remediator-3-6e1d7d18.yaml], review_evidence: [reviews/ORCH-000/20260720T172520Z-claude-code-independent-reviewer-59f68d54.yaml, reviews/ORCH-000/20260720T194000Z-claude-code-independent-reviewer-2-b7e21ac4.yaml, reviews/ORCH-000/20260720T220000Z-claude-code-independent-reviewer-3-c4a91d02.yaml, reviews/ORCH-000/20260720T205209Z-claude-code-independent-reviewer-4-27303e9e.yaml], handoff: handoffs/ORCH-000/20260720T205209Z-claude-code-independent-reviewer-4-27303e9e.md, blockers: []}
-  ORCH-001: {title: Durable feature-state validator, status: REVIEW_REJECTED, prerequisites: [ORCH-000], expected_base_head: 46ded3e51e8a90a8292d1c2721b565d62838caca, implementation_commit: null, implementer: claude-code-implementer-1, review_status: REJECTED, reviewer: claude-code-independent-reviewer-orch-001-1, verification_status: PASSED, evidence: [evidence/ORCH-001/20260721T115508Z-claude-code-implementer-1-02891aae.yaml], review_evidence: [reviews/ORCH-001/20260721T122035Z-claude-code-independent-reviewer-orch-001-1-0a0c5a0c.yaml], handoff: handoffs/ORCH-001/20260721T122035Z-claude-code-independent-reviewer-orch-001-1-0a0c5a0c.md, blockers: []}
+  ORCH-001: {title: Durable feature-state validator, status: VERIFIED, prerequisites: [ORCH-000], expected_base_head: 46ded3e51e8a90a8292d1c2721b565d62838caca, implementation_commit: null, implementer: claude-code-remediator-orch-001-1, review_status: PENDING, reviewer: null, verification_status: PASSED, evidence: [evidence/ORCH-001/20260721T115508Z-claude-code-implementer-1-02891aae.yaml, evidence/ORCH-001/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9.yaml], review_evidence: [reviews/ORCH-001/20260721T122035Z-claude-code-independent-reviewer-orch-001-1-0a0c5a0c.yaml], handoff: handoffs/ORCH-001/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9.md, blockers: []}
   ORCH-002: {title: Schema registry and CLI v2 envelope, status: NOT_STARTED, prerequisites: [ORCH-001], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
   ORCH-003: {title: Legacy readers and migration framework, status: NOT_STARTED, prerequisites: [ORCH-002], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
   ORCH-004: {title: Execution specification, status: NOT_STARTED, prerequisites: [ORCH-003], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
@@ -181,10 +181,31 @@ unresolved_risks:
       tests do not cover the negative case for this edge (F-2, MEDIUM,
       blocking). Severity raised MEDIUM -> HIGH accordingly. ORCH-001
       returned to REVIEW_REJECTED (VERIFIED -> REVIEW_REJECTED, history
-      sequence 23); a REMEDIATOR must add the missing gate and negative
-      tests before this risk can be marked resolved and before a subsequent
-      independent reviewer re-audits LEGAL_TRANSITIONS/validate_semantics
-      line-by-line for any remaining gap of the same kind.
+      sequence 23).
+      Remediated 2026-07-21 by a distinct REMEDIATOR session
+      (claude-code-remediator-orch-001-1, history sequences 24-26,
+      evidence/ORCH-001/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9.yaml):
+      apply_transition now has an explicit `from_status == "BLOCKED" and
+      to_status == "IN_PROGRESS"` gate that raises TransitionError
+      UNRESOLVED_BLOCKER unless every stage blocker is resolved (already,
+      or via that same call's resolve_blockers) and PREREQUISITE_NOT_APPROVED
+      unless every prerequisite still recomputes as REVIEW_APPROVED,
+      mirroring the pre-existing NOT_STARTED -> IN_PROGRESS gate. Four new
+      tests in tests/test_orchestration_feature_state.py close F-2: two
+      negative (unresolved blocker rejected; unapproved prerequisite
+      rejected) and two positive (resume succeeds once both conditions
+      hold; an already-resolved blocker need not be re-supplied). Full
+      regression (758 passed, up from 754) and the focused suite (74
+      passed, up from 70) confirm no other legal transition's behavior
+      changed. Severity is left HIGH and this risk is not marked resolved
+      by this remediation session alone (a REMEDIATOR may not approve its
+      own fix, session-protocol.md section 6): a subsequent independent
+      reviewer, distinct from claude-code-implementer-1,
+      claude-code-independent-reviewer-orch-001-1 and
+      claude-code-remediator-orch-001-1, must re-audit
+      LEGAL_TRANSITIONS/validate_semantics/apply_transition line-by-line,
+      independently reproduce the fix, and confirm no remaining gap of the
+      same kind before this risk can be marked resolved.
 history:
   - sequence: 1
     at: '2026-07-19T00:00:00+00:00'
@@ -381,61 +402,100 @@ history:
     to: REVIEW_REJECTED
     evidence: [reviews/ORCH-001/20260721T122035Z-claude-code-independent-reviewer-orch-001-1-0a0c5a0c.yaml,
       handoffs/ORCH-001/20260721T122035Z-claude-code-independent-reviewer-orch-001-1-0a0c5a0c.md]
+  - sequence: 24
+    at: '2026-07-21T12:50:00Z'
+    actor: claude-code-remediator-orch-001-1
+    role: REMEDIATOR
+    action: STARTED_ORCH_001_REMEDIATION_F1_F2
+    from: REVIEW_REJECTED
+    to: IN_PROGRESS
+    evidence: [evidence/ORCH-001/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9.yaml]
+  - sequence: 25
+    at: '2026-07-21T12:55:00Z'
+    actor: claude-code-remediator-orch-001-1
+    role: REMEDIATOR
+    action: IMPLEMENTED_ORCH_001_REMEDIATION_F1_F2
+    from: IN_PROGRESS
+    to: IMPLEMENTED
+    evidence: [evidence/ORCH-001/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9.yaml]
+  - sequence: 26
+    at: '2026-07-21T13:00:00Z'
+    actor: claude-code-remediator-orch-001-1
+    role: REMEDIATOR
+    action: VERIFIED_ORCH_001_REMEDIATION_F1_F2
+    from: IMPLEMENTED
+    to: VERIFIED
+    evidence: [evidence/ORCH-001/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9.yaml,
+      handoffs/ORCH-001/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9.md]
 last_updated:
-  at: '2026-07-21T12:25:00Z'
-  by: claude-code-independent-reviewer-orch-001-1
-  role: REVIEWER
+  at: '2026-07-21T13:00:00Z'
+  by: claude-code-remediator-orch-001-1
+  role: REMEDIATOR
   reason: >-
-    REVIEWER session, distinct from claude-code-implementer-1 (the sole
-    ORCH-001 implementer) and from every ORCH-000 actor. Reviewed ORCH-001
-    ("Durable feature-state validator") at committed HEAD
-    e9a43974b21d4d5c6ab12ea9c28d484a9afedf55 ("feat: implement ORCH-001
-    feature-state validator"), the human commit of
-    claude-code-implementer-1's diff. Independently reran every stage-
-    required command and reproduced the implementer's recorded results
-    exactly: pytest -q tests/test_orchestration_feature_state.py 70
-    passed/0 failed/0 skipped; python scripts/orchestration_feature_state.py
+    REMEDIATOR session, distinct from claude-code-implementer-1 (the sole
+    ORCH-001 implementer) and from claude-code-independent-reviewer-orch-001-1
+    (the sole ORCH-001 reviewer). Read the rejection
+    (reviews/ORCH-001/20260721T122035Z-claude-code-independent-reviewer-orch-001-1-0a0c5a0c.yaml,
+    findings F-1/F-2, both HIGH/MEDIUM and blocking) and its handoff.
+    Confirmed the rejecting REVIEWER diff (history sequence 23) is
+    committed at HEAD 49e1727bf782e4c2fa769028f54f026df5edac9a with a
+    clean tree and index before any edit. Transitioned ORCH-001
+    REVIEW_REJECTED -> IN_PROGRESS -> IMPLEMENTED -> VERIFIED (history
+    sequences 24-26) within the original allowed paths only
+    (scripts/orchestration_feature_state.py,
+    tests/test_orchestration_feature_state.py, ORCH state/evidence/handoff
+    -- no plan/schema/session-protocol amendment was needed or made).
+    Fixed F-1: added an explicit `from_status == "BLOCKED" and to_status ==
+    "IN_PROGRESS"` gate in apply_transition
+    (scripts/orchestration_feature_state.py) that raises a TransitionError
+    `UNRESOLVED_BLOCKER` unless every one of the stage's existing blockers
+    is resolved (either already, or via that same call's resolve_blockers)
+    and a TransitionError `PREREQUISITE_NOT_APPROVED` unless every
+    prerequisite still recomputes as REVIEW_APPROVED, mirroring the
+    pre-existing NOT_STARTED -> IN_PROGRESS gate's structure. Fixed F-2:
+    added four new tests to tests/test_orchestration_feature_state.py
+    (test_blocked_resume_rejected_with_unresolved_blocker,
+    test_blocked_resume_rejected_with_unapproved_prerequisite,
+    test_blocked_resume_succeeds_when_blockers_resolved_and_prerequisite_approved,
+    test_blocked_resume_succeeds_with_already_resolved_blocker_not_reresolved)
+    covering both negative cases and both positive cases named by the
+    rejection's remediation_scope. Verified: pytest -q
+    tests/test_orchestration_feature_state.py 74 passed/0 failed/0 skipped
+    (70 prior + 4 new); python scripts/orchestration_feature_state.py
     validate --state implementation-state.yaml --plan
-    implementation-plan.md PASS with a byte-identical stdout digest; full
-    pytest -q 754 passed/0 failed/0 skipped; workflowctl verify PASS.
-    Confirmed changed-path scope (22 changed paths in commit e9a4397, all
-    within scripts/orchestration_feature_state.py,
-    tests/test_orchestration_feature_state.py, or this ORCH
-    state/evidence/handoff; empty diff against migration-registry.yaml,
-    every stages/*.md file, session-protocol.md, decision-log.md,
-    implementation-plan.md, implementation-state.schema.yaml,
-    pyproject.toml and src/) and that ORCH-002 remains NOT_STARTED.
-    Compared LEGAL_TRANSITIONS and check_transition_legal against
-    session-protocol.md section 2's table line-by-line (all 9 rows match)
-    and validate_semantics against implementation-state.schema.yaml's
-    trailing comment block line-by-line (every literal rule implemented
-    except two Git-introspection rules reasonably left outside a
-    single-state-file validator). An adversarial reproduction per
-    stages/ORCH-001.md's "Independent review checklist" then found a
-    concrete, reproducible defect (finding F-1, HIGH, blocking):
-    apply_transition authorizes BLOCKED -> IN_PROGRESS with no check that
-    the stage's blockers are resolved and no recheck that its
-    prerequisites remain REVIEW_APPROVED, contradicting
-    session-protocol.md section 2's row for that exact edge ("blocker
-    resolution is evidenced and prerequisites still approved"); the
-    resulting illegal state passes the tool's own validate_state with 0
-    errors. The 70-test suite's only coverage of this edge never asserts
-    the negative case (finding F-2, MEDIUM, blocking). Full findings,
-    reruns and the adversarial-probe script/output are in
-    reviews/ORCH-001/20260721T122035Z-claude-code-independent-reviewer-orch-001-1-0a0c5a0c.yaml.
-    ORCH-001 returned VERIFIED -> REVIEW_REJECTED (history sequence 23),
-    review_status REJECTED, reviewer
-    claude-code-independent-reviewer-orch-001-1, implementation_commit
-    left null (not required at REVIEW_REJECTED), verification_status
-    unchanged PASSED (the implementer's verification results themselves
-    reproduced cleanly; the rejection is about a code defect the passing
-    tests did not catch). unresolved_risks'
-    R-ORCH-001-VALIDATOR-CORRECTNESS severity raised MEDIUM -> HIGH and its
-    disposition updated to record this realized finding.
+    implementation-plan.md PASS, 0 errors, stdout digest byte-identical to
+    the pre-edit run (sha256:605098cfa5c160a418bdf8bfed692b36fe81851e26c139391326d36587b09f12);
+    full pytest -q 758 passed/0 failed/0 skipped (754 prior + 4 new);
+    workflowctl verify PASS; ruff/black/mypy unchanged clean. Independently
+    re-demonstrated all three scenarios required by the remediation task
+    with a fresh adversarial fixture
+    (evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-f1-fix-demonstration-probe.py):
+    BLOCKED -> IN_PROGRESS rejected with an unresolved blocker
+    (UNRESOLVED_BLOCKER), rejected with an unapproved prerequisite
+    (PREREQUISITE_NOT_APPROVED), and succeeds only when both conditions
+    hold, with validate_state.passed True on the successful result. Did
+    not touch LEGAL_TRANSITIONS, check_transition_legal, validate_schema,
+    validate_semantics, the CAS-guard/atomic-write path, or any other
+    legal transition's behavior, confirmed by the full regression suite's
+    unchanged pass count for every pre-existing test plus the 4 new
+    additions. Did not modify session-protocol.md, decision-log.md,
+    implementation-plan.md, implementation-state.schema.yaml, any
+    stages/*.md file, or any file under src/. review_status set to
+    PENDING, reviewer set to null (awaiting the next independent reviewer,
+    who must differ from claude-code-implementer-1,
+    claude-code-independent-reviewer-orch-001-1 and
+    claude-code-remediator-orch-001-1). implementation_commit left null
+    per session-protocol.md section 3.
     next_eligible_stage/candidate_next_stage/current_stage remain ORCH-001
-    (recomputed: ORCH-001 is not REVIEW_APPROVED, so it remains the
-    frontier; ORCH-002's prerequisite is not satisfied). This session did
-    not commit, push, remediate, implement, or start ORCH-002. Next legal
-    actor: a REMEDIATOR, distinct from claude-code-implementer-1 and from
-    claude-code-independent-reviewer-orch-001-1, in a fresh session, after
-    a human commits this diff.
+    (recomputed: ORCH-001 is VERIFIED, not REVIEW_APPROVED, so it remains
+    the frontier; ORCH-002's prerequisite is not satisfied and ORCH-002
+    remains NOT_STARTED, confirmed unchanged by direct read).
+    unresolved_risks' R-ORCH-001-VALIDATOR-CORRECTNESS disposition updated
+    to record this fix; severity left HIGH and the risk is not marked
+    resolved by this remediation session alone (a REMEDIATOR may not
+    approve its own fix, session-protocol.md section 6) -- a subsequent
+    independent reviewer must confirm it. This session did not commit,
+    push, approve its own fix, re-litigate F-1/F-2, or start ORCH-002.
+    Next legal actor: an independent REVIEWER, distinct from
+    claude-code-implementer-1 and claude-code-remediator-orch-001-1, in a
+    fresh session, after a human commits this diff.

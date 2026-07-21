@@ -651,6 +651,103 @@ class TestApplyTransition:
         assert resumed_state["stages"]["ORCH-000"]["status"] == "IN_PROGRESS"
         assert resumed_state["stages"]["ORCH-000"]["blockers"][0]["resolution"] == "fixed"
 
+    def test_blocked_resume_rejected_with_unresolved_blocker(self):
+        # F-1 regression: BLOCKED -> IN_PROGRESS must fail while any blocker
+        # remains unresolved, even though the transition table lists no role
+        # restriction for this edge.
+        state = make_state()
+        approve_stage(state, "ORCH-000")
+        state["stages"]["ORCH-001"]["status"] = "BLOCKED"
+        state["stages"]["ORCH-001"]["implementer"] = "impl-1"
+        state["stages"]["ORCH-001"]["expected_base_head"] = "a" * 40
+        state["stages"]["ORCH-001"]["blockers"] = [make_blocker(code="B_ISSUE")]
+        with pytest.raises(ofs.TransitionError, match="UNRESOLVED_BLOCKER"):
+            ofs.apply_transition(
+                state,
+                stage_id="ORCH-001",
+                to_status="IN_PROGRESS",
+                actor="impl-1",
+                role="IMPLEMENTER",
+                action="RESUME",
+                reason="test",
+                at="2026-07-21T00:00:00Z",
+            )
+
+    def test_blocked_resume_rejected_with_unapproved_prerequisite(self):
+        # F-1 regression: BLOCKED -> IN_PROGRESS must fail unless every
+        # prerequisite still recomputes as REVIEW_APPROVED, even when the
+        # stage's own blockers are all resolved by this same call.
+        state = make_state()
+        state["stages"]["ORCH-000"]["status"] = "IN_PROGRESS"
+        state["stages"]["ORCH-000"]["implementer"] = "impl-1"
+        state["stages"]["ORCH-000"]["expected_base_head"] = "a" * 40
+        state["stages"]["ORCH-001"]["status"] = "BLOCKED"
+        state["stages"]["ORCH-001"]["implementer"] = "impl-1"
+        state["stages"]["ORCH-001"]["expected_base_head"] = "a" * 40
+        state["stages"]["ORCH-001"]["blockers"] = [make_blocker(code="B_ISSUE")]
+        with pytest.raises(ofs.TransitionError, match="PREREQUISITE_NOT_APPROVED"):
+            ofs.apply_transition(
+                state,
+                stage_id="ORCH-001",
+                to_status="IN_PROGRESS",
+                actor="impl-1",
+                role="IMPLEMENTER",
+                action="RESUME",
+                reason="test",
+                at="2026-07-21T00:00:00Z",
+                resolve_blockers={"B_ISSUE": "fixed"},
+            )
+
+    def test_blocked_resume_succeeds_when_blockers_resolved_and_prerequisite_approved(self):
+        # F-1 regression, positive case: the transition succeeds exactly when
+        # both conditions from session-protocol.md's BLOCKED row hold.
+        state = make_state()
+        approve_stage(state, "ORCH-000")
+        state["stages"]["ORCH-001"]["status"] = "BLOCKED"
+        state["stages"]["ORCH-001"]["implementer"] = "impl-1"
+        state["stages"]["ORCH-001"]["expected_base_head"] = "a" * 40
+        state["stages"]["ORCH-001"]["blockers"] = [make_blocker(code="B_ISSUE")]
+        new_state = ofs.apply_transition(
+            state,
+            stage_id="ORCH-001",
+            to_status="IN_PROGRESS",
+            actor="impl-1",
+            role="IMPLEMENTER",
+            action="RESUME",
+            reason="test",
+            at="2026-07-21T00:00:00Z",
+            resolve_blockers={"B_ISSUE": "fixed"},
+        )
+        assert new_state["stages"]["ORCH-001"]["status"] == "IN_PROGRESS"
+        assert new_state["stages"]["ORCH-001"]["blockers"][0]["resolution"] == "fixed"
+        result = ofs.validate_state(new_state)
+        assert result.passed, result.errors
+
+    def test_blocked_resume_succeeds_with_already_resolved_blocker_not_reresolved(self):
+        # A blocker resolved by a prior call (resolution already set) must
+        # not force a caller to re-supply resolve_blockers for it.
+        state = make_state()
+        approve_stage(state, "ORCH-000")
+        state["stages"]["ORCH-001"]["status"] = "BLOCKED"
+        state["stages"]["ORCH-001"]["implementer"] = "impl-1"
+        state["stages"]["ORCH-001"]["expected_base_head"] = "a" * 40
+        state["stages"]["ORCH-001"]["blockers"] = [
+            make_blocker(code="B_ISSUE", resolution="already fixed")
+        ]
+        new_state = ofs.apply_transition(
+            state,
+            stage_id="ORCH-001",
+            to_status="IN_PROGRESS",
+            actor="impl-1",
+            role="IMPLEMENTER",
+            action="RESUME",
+            reason="test",
+            at="2026-07-21T00:00:00Z",
+        )
+        assert new_state["stages"]["ORCH-001"]["status"] == "IN_PROGRESS"
+        result = ofs.validate_state(new_state)
+        assert result.passed, result.errors
+
     def test_global_blocker_forces_next_eligible_none(self):
         state = make_state()
         state["stages"]["ORCH-000"]["status"] = "IN_PROGRESS"

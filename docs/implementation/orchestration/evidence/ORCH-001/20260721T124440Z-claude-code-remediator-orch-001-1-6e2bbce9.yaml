@@ -1,0 +1,432 @@
+schema_name: orchestration-implementation-evidence
+schema_version: 1.0.0
+feature_id: ORCH
+stage_id: ORCH-001
+implementation_id: 20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9
+session:
+  actor: claude-code-remediator-orch-001-1
+  role: REMEDIATOR
+started_at: '2026-07-21T12:44:40Z'
+finished_at: '2026-07-21T13:00:00Z'
+head:
+  starting: 49e1727bf782e4c2fa769028f54f026df5edac9a
+  ending: 49e1727bf782e4c2fa769028f54f026df5edac9a
+  note: >
+    This session leaves one uncommitted scoped diff (per session-protocol.md
+    section 3's two-commit pattern) containing the F-1/F-2 fix
+    (scripts/orchestration_feature_state.py,
+    tests/test_orchestration_feature_state.py), this evidence/handoff, and
+    the implementation-state.yaml update. No new commit is created by this
+    session; a human must commit this exact diff before an independent
+    reviewer acts on it.
+independence_declaration: >
+  This session has no memory of and did not participate in any prior ORCH
+  session. Actor (claude-code-remediator-orch-001-1) differs from
+  claude-code-implementer-1 (the sole ORCH-001 implementer) and from
+  claude-code-independent-reviewer-orch-001-1 (the sole ORCH-001 reviewer,
+  author of the rejection this session remediates). This remediation relies
+  only on committed repository state read this session (README.md,
+  self-governance.yaml, docs/AGENT_PROTOCOL.md, session-protocol.md,
+  implementation-state.yaml, stages/ORCH-001.md,
+  prompts/remediate-rejected.md, the rejection review evidence/handoff, the
+  rejected implementation's own evidence/handoff,
+  scripts/orchestration_feature_state.py,
+  tests/test_orchestration_feature_state.py), not on chat history.
+preflight:
+  repository_root: /home/afshin-jian/ai-workflow-engine
+  branch: main
+  head: 49e1727bf782e4c2fa769028f54f026df5edac9a
+  upstream: origin/main
+  ahead: 0
+  behind: 0
+  tree: CLEAN
+  index: CLEAN
+  merge_rebase_cherrypick_bisect: NONE_ACTIVE
+  orchestration_feature_lock: NOT_FOUND
+  stage_status_at_start: REVIEW_REJECTED
+  stage_review_status_at_start: REJECTED
+  blockers_at_start: []
+  prerequisite_check: >
+    ORCH-000 is REVIEW_APPROVED (review_status APPROVED, reviewer
+    claude-code-independent-reviewer-4, implementation_commit
+    857d2c9b69cd85e40bdd2b9f8d252f2d3df5790e), committed ancestor of HEAD
+    49e1727. Confirmed by direct read of implementation-state.yaml before
+    any edit.
+  rejection_read: >
+    Read in full: reviews/ORCH-001/20260721T122035Z-claude-code-independent-reviewer-orch-001-1-0a0c5a0c.yaml
+    (findings F-1 HIGH blocking, F-2 MEDIUM blocking; verdict REJECTED) and
+    handoffs/ORCH-001/20260721T122035Z-claude-code-independent-reviewer-orch-001-1-0a0c5a0c.md
+    (this rejection's handoff, confirming history sequence 23 is the
+    committed rejecting diff at HEAD 49e1727bf782e4c2fa769028f54f026df5edac9a).
+  true_before_snapshot_method: >
+    Before capturing any "before" command output, this session's edits to
+    scripts/orchestration_feature_state.py and
+    tests/test_orchestration_feature_state.py (already written and passing
+    at that point) were set aside with `git stash push -u` to obtain a true
+    pre-change snapshot at the unmodified starting HEAD, then restored with
+    `git stash pop` immediately after capturing the "before" commands below.
+changed_paths:
+  - scripts/orchestration_feature_state.py
+  - tests/test_orchestration_feature_state.py
+  - docs/implementation/orchestration/implementation-state.yaml
+  - docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-environment-fingerprint.txt
+  - docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-git-rev-parse-head-before.txt
+  - docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-git-status-before.txt
+  - docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-workflowctl-verify-before.json
+  - docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-pytest-full-before.txt
+  - docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-pytest-focused-before.txt
+  - docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-validate-real-state-before.json
+  - docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-pytest-focused-after.txt
+  - docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-validate-real-state-after-preedit.json
+  - docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-pytest-full-after-preedit.txt
+  - docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-ruff-after.txt
+  - docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-black-after.txt
+  - docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-mypy-after.txt
+  - docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-f1-fix-demonstration-probe.py
+  - docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-f1-fix-demonstration-probe-output.txt
+  - docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-validate-real-state-final-after.json
+  - docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-workflowctl-verify-final-after.json
+  - docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-pytest-full-final-after.txt
+  - docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-git-status-final-after.txt
+  - docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-git-rev-parse-head-after.txt
+  - docs/implementation/orchestration/handoffs/ORCH-001/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9.md
+environment_fingerprint:
+  captured_artifact: evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-environment-fingerprint.txt
+  digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+  note: >
+    Byte-identical to the environment_fingerprint_digest recorded on every
+    command in every prior ORCH-000/ORCH-001 evidence and review record for
+    this repository/machine identity.
+  applied_to: all commands below
+commands:
+  - argv: [git, rev-parse, HEAD]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-git-rev-parse-head-before.txt
+    stdout_digest: sha256:6967824fe5a52da55b42b3194b44f750f857b93bd55259d93f91d9256819a27c
+    result: 49e1727bf782e4c2fa769028f54f026df5edac9a
+    purpose: Confirm the true pre-change starting HEAD is the committed rejecting REVIEWER diff.
+    when: before
+  - argv: [git, status, --porcelain, -b]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-git-status-before.txt
+    stdout_digest: sha256:01ab97927838a7bf46f080db8419539db0d32367ca9c9661e78764b8a6cd7a48
+    result: clean, branch main, upstream origin/main, ahead 0 behind 0 (captured after `git stash push -u` set aside this session's own edits)
+    purpose: Confirm clean tree/index before any edit.
+    when: before
+  - argv: [workflowctl, verify, --config, self-governance.yaml, --output, json]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-workflowctl-verify-before.json
+    result_overall_status: PASS
+    purpose: Independent repository governance verification before any edit.
+    when: before
+  - argv: [pytest, -q]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-pytest-full-before.txt
+    result: '754 passed, 0 failed, 0 skipped'
+    purpose: Full regression suite before any edit; matches the rejected implementation's recorded count.
+    when: before
+  - argv: [pytest, -q, tests/test_orchestration_feature_state.py]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-pytest-focused-before.txt
+    result: '70 passed, 0 failed, 0 skipped'
+    purpose: Focused suite before the fix; matches the rejected implementation and rejecting review's recorded count.
+    when: before
+  - argv: [python, scripts/orchestration_feature_state.py, validate, --state,
+      docs/implementation/orchestration/implementation-state.yaml, --plan,
+      docs/implementation/orchestration/implementation-plan.md, --output, json]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-validate-real-state-before.json
+    stdout_digest: sha256:3721bea467f2256c0d355252dee88aa373bd217b55aa743458b742a74dfeeff3
+    result: 'PASS, 0 errors'
+    purpose: >
+      Validator validate against the real committed state file before any
+      edit (pre-fix validator, REVIEW_REJECTED state). state_digest
+      sha256:605098cfa5c160a418bdf8bfed692b36fe81851e26c139391326d36587b09f12,
+      byte-identical to the reviewer's recorded digest.
+    when: before
+  - argv: [git, stash, pop]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    result: restored this session's scripts/tests edits, lossless round-trip
+    purpose: Restore the fix after capturing a true pre-change baseline.
+    when: after
+  - argv: [pytest, -q, tests/test_orchestration_feature_state.py]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-pytest-focused-after.txt
+    result: '74 passed, 0 failed, 0 skipped'
+    purpose: >
+      Stage-required focused test command after the fix (70 prior + 4 new:
+      test_blocked_resume_rejected_with_unresolved_blocker,
+      test_blocked_resume_rejected_with_unapproved_prerequisite,
+      test_blocked_resume_succeeds_when_blockers_resolved_and_prerequisite_approved,
+      test_blocked_resume_succeeds_with_already_resolved_blocker_not_reresolved).
+    when: after
+  - argv: [python, scripts/orchestration_feature_state.py, validate, --state,
+      docs/implementation/orchestration/implementation-state.yaml, --plan,
+      docs/implementation/orchestration/implementation-plan.md, --output, json]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-validate-real-state-after-preedit.json
+    stdout_digest: sha256:3721bea467f2256c0d355252dee88aa373bd217b55aa743458b742a74dfeeff3
+    result: 'PASS, 0 errors'
+    purpose: >
+      Stage-required validate rerun with the fixed validator, run against
+      the real committed implementation-state.yaml as it stood before this
+      session's own state edit (still REVIEW_REJECTED), proving the fixed
+      validator still accepts the exact file the prior reviewer reviewed.
+      Byte-identical stdout digest to the pre-fix "before" run, confirming
+      the fix changes no accepted/rejected outcome for this file.
+    when: after
+  - argv: [pytest, -q]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-pytest-full-after-preedit.txt
+    result: '758 passed, 0 failed, 0 skipped'
+    purpose: >
+      Full regression suite (754 prior + 4 new) after the fix, before
+      editing implementation-state.yaml; confirms zero regression in the
+      existing suite from the fix.
+    when: after
+  - argv: [ruff, check, scripts/orchestration_feature_state.py, tests/test_orchestration_feature_state.py]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-ruff-after.txt
+    result: All checks passed!
+    purpose: Repository lint convention, applied to both changed files.
+    when: after
+  - argv: [black, --check, scripts/orchestration_feature_state.py, tests/test_orchestration_feature_state.py]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-black-after.txt
+    result: '2 files would be left unchanged'
+    purpose: Repository formatting convention, applied to both changed files.
+    when: after
+  - argv: [mypy, src]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-mypy-after.txt
+    result: 'Success: no issues found in 44 source files'
+    purpose: Sanity check; src/ is unaffected by this remediation (scripts/ is outside mypy's configured package scope).
+    when: after
+  - argv: [python3, evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-f1-fix-demonstration-probe.py]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-f1-fix-demonstration-probe-output.txt
+    result: >-
+      SCENARIO 1 PASS (unresolved blocker rejected, UNRESOLVED_BLOCKER);
+      SCENARIO 2 PASS (unapproved prerequisite rejected,
+      PREREQUISITE_NOT_APPROVED); SCENARIO 3 PASS (transition succeeds when
+      both conditions hold, validate_state.passed=True).
+    purpose: >
+      Independent, freshly-written demonstration (not reused from the
+      rejecting reviewer's adversarial probe or from the new unit tests)
+      that F-1 is fixed: explicitly required by the remediation task to
+      demonstrate all three scenarios.
+  - argv: [python, scripts/orchestration_feature_state.py, validate, --state,
+      docs/implementation/orchestration/implementation-state.yaml, --plan,
+      docs/implementation/orchestration/implementation-plan.md, --output, json]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-validate-real-state-final-after.json
+    result: 'PASS, 0 errors'
+    purpose: >
+      Re-run of the stage-required "validator validate" command after this
+      session's own implementation-state.yaml edit (ORCH-001's
+      REVIEW_REJECTED -> IN_PROGRESS -> IMPLEMENTED -> VERIFIED transitions,
+      the R-ORCH-001-VALIDATOR-CORRECTNESS disposition update, and
+      last_updated), proving the file this session leaves behind is itself
+      structurally and semantically valid.
+    when: after
+  - argv: [workflowctl, verify, --config, self-governance.yaml, --output, json]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-workflowctl-verify-final-after.json
+    result_overall_status: PASS
+    purpose: Independent repository governance re-verification after this session's edits.
+    when: after
+  - argv: [pytest, -q]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-pytest-full-final-after.txt
+    result: '758 passed, 0 failed, 0 skipped'
+    purpose: Final full regression suite re-run after the implementation-state.yaml edit; unchanged count confirms the docs-only state edit has no test effect.
+    when: after
+  - argv: [git, status, --porcelain, -b]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-git-status-final-after.txt
+    result: >-
+      docs/implementation/orchestration/implementation-state.yaml,
+      scripts/orchestration_feature_state.py and
+      tests/test_orchestration_feature_state.py modified;
+      docs/implementation/orchestration/evidence/ORCH-001/logs/ new files
+      untracked (handoffs/ORCH-001/ written immediately after this
+      command) -- exactly the declared changed_paths, nothing else.
+    purpose: Confirm only the declared changed_paths are modified/untracked after every edit.
+    when: after
+  - argv: [git, rev-parse, HEAD]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-git-rev-parse-head-after.txt
+    result: 49e1727bf782e4c2fa769028f54f026df5edac9a
+    purpose: Confirm HEAD is unchanged (this session leaves an uncommitted diff; no commit was created).
+    when: after
+tests:
+  suite: full existing regression suite plus focused suite (pytest -q)
+  passed: 758
+  failed: 0
+  skipped: 0
+  exit_code: 0
+decisions:
+  - id: DEC-1
+    summary: >
+      Add the BLOCKED -> IN_PROGRESS gate as a new conditional block in
+      apply_transition, structurally mirroring the pre-existing
+      NOT_STARTED -> IN_PROGRESS gate, rather than adding a new
+      validate_semantics rule.
+    rationale: >
+      The rejecting review's remediation_scope explicitly scoped the fix to
+      apply_transition ("(a) add an explicit BLOCKED -> IN_PROGRESS gate in
+      apply_transition"). apply_transition is the sole write path
+      (session-protocol.md's "transition ... the only write path"); gating
+      it there prevents the illegal transition from ever being constructed,
+      which is strictly stronger than only detecting it after the fact in
+      validate_semantics. This also avoids adding a new semantic rule not
+      named in implementation-state.schema.yaml's comment block, keeping
+      the diff narrower and avoiding any risk of "weakening validate_state"
+      by touching that function's rule set.
+  - id: DEC-2
+    summary: >
+      A blocker counts as "resolved" for this gate if it already carries a
+      non-null resolution, OR if this same apply_transition call resolves
+      it via resolve_blockers.
+    rationale: >
+      Mirrors the existing pattern of accepting a blocker
+      add/resolve within the same call (see resolve_blockers' existing
+      semantics in apply_transition), and matches
+      test_blocked_with_blocker_succeeds_and_resolve_reopens' existing,
+      preserved usage (resolve_blockers supplied in the same call that
+      performs the BLOCKED -> IN_PROGRESS transition). Requiring resolution
+      to have happened in a strictly prior call would break that existing,
+      passing test and contradict the CLI's single-transition-per-call
+      design.
+  - id: DEC-3
+    summary: >
+      The prerequisite check recomputes each prerequisite's status directly
+      from stages (status == "REVIEW_APPROVED"), not via
+      recompute_next_eligible.
+    rationale: >
+      recompute_next_eligible answers "what is the next eligible stage
+      overall", a different question from "are this specific stage's
+      prerequisites still approved". Using it here would incorrectly couple
+      the gate to global eligibility/ordering rather than to the stage's
+      own prerequisites list, and would raise a confusing error unrelated
+      to the actual defect (an unapproved prerequisite). Reusing the same
+      REVIEW_APPROVED-closure predicate already used by
+      recompute_next_eligible (just applied to this stage's own
+      prerequisites list) keeps the semantics consistent without coupling
+      to global frontier state.
+  - id: DEC-4
+    summary: >
+      Hand-edit implementation-state.yaml's ORCH-001 entry, history and
+      last_updated (via a text editor), rather than invoking the fixed
+      `transition` subcommand against the real governance file.
+    rationale: >
+      Same rationale as the original implementer's DEC-3
+      (evidence/ORCH-001/20260721T115508Z-claude-code-implementer-1-02891aae.yaml):
+      write_state_atomic's yaml.safe_dump would reformat the entire
+      ~700-line hand-authored flow-style document into block style, an
+      out-of-scope stylistic change. The transition subcommand's write path
+      (including this session's new gate) is instead exercised exclusively
+      against isolated temporary/in-memory fixtures in
+      tests/test_orchestration_feature_state.py and the standalone
+      demonstration probe. The hand-edit was independently re-validated
+      against the tool's own `validate` subcommand (see the "after" command
+      results above) to confirm it is structurally and semantically
+      indistinguishable from a tool-produced result.
+  - id: DEC-5
+    summary: >
+      Update the R-ORCH-001-VALIDATOR-CORRECTNESS disposition to record the
+      fix, but leave its severity HIGH and do not mark it resolved.
+    rationale: >
+      session-protocol.md section 6/"Governance-amendment authorization"
+      and the general remediator/reviewer independence rule: "A remediation
+      session cannot ... approve its fix." Only a subsequent independent
+      reviewer, distinct from claude-code-implementer-1,
+      claude-code-independent-reviewer-orch-001-1 and this session's actor,
+      can confirm the fix is sound and mark the risk resolved.
+unresolved_risks:
+  - id: R-ORCH-001-VALIDATOR-CORRECTNESS
+    severity: HIGH
+    summary: >
+      Unchanged summary text in implementation-state.yaml (this session
+      only updates disposition, not summary or severity).
+    disposition: >
+      See implementation-state.yaml's unresolved_risks entry for full text:
+      this session added the BLOCKED -> IN_PROGRESS gate and 4 regression
+      tests fixing F-1/F-2, but severity is left HIGH pending independent
+      re-review per DEC-5. All four other pre-existing unresolved_risks
+      entries (R-APPROVAL-ISOLATION, R-GOVERNANCE-TRANSACTION,
+      R-BOOTSTRAP-ROLE-OVERLAP, R-REMEDIATION-AMENDMENT-UNREVIEWED) are
+      carried forward unchanged; none is affected by this remediation.
+blockers: []
+schema_changes: []
+migration_changes: []
+worktree_digest:
+  algorithm: sha256
+  method: >-
+    SHA-256 of the newline-joined "sha256hex  relative/path" manifest lines
+    (sorted by path) for every changed_paths entry except this evidence YAML
+    itself (excluded to avoid a self-referential digest); each line's digest
+    is the SHA-256 of that file's raw bytes.
+  value: sha256:5ce8158d483f8f9d5b0c2ed83eb9bc25971267d272b55bf2e331f19b734b9950
+handoff: docs/implementation/orchestration/handoffs/ORCH-001/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9.md
+production_source_modified: false
+stage_status_changed: true
+stage_status_transition: {from: REVIEW_REJECTED, to: VERIFIED, via: [IN_PROGRESS, IMPLEMENTED]}
+review_verdict_recorded: false
+findings_remediated: [F-1, F-2]
+next_required_role: REVIEWER
+next_required_action: >
+  Independent ORCH-001 re-review, run by a session/actor distinct from
+  claude-code-implementer-1, claude-code-independent-reviewer-orch-001-1
+  and claude-code-remediator-orch-001-1, per stages/ORCH-001.md's
+  "Independent review checklist" (adversarial transition and filesystem
+  review) and session-protocol.md section 5: confirm this diff is
+  committed and current HEAD matches it, re-run pytest -q
+  tests/test_orchestration_feature_state.py and the full suite, run
+  `python scripts/orchestration_feature_state.py validate --state
+  docs/implementation/orchestration/implementation-state.yaml --plan
+  docs/implementation/orchestration/implementation-plan.md`, independently
+  reproduce that BLOCKED -> IN_PROGRESS now rejects an unresolved blocker
+  and an unapproved prerequisite and succeeds only when both are
+  satisfied, and audit apply_transition's new gate line-by-line for any
+  remaining gap of the same kind, then record REVIEW_APPROVED or
+  REVIEW_REJECTED in a new reviews/ORCH-001/<review-id>.yaml. Do not
+  implement ORCH-002 in the same session.

@@ -1,0 +1,3 @@
+SCENARIO 1 PASS: rejected with UNRESOLVED_BLOCKER: cannot resume BLOCKED -> IN_PROGRESS while blocker(s) ['B1'] remain unresolved
+SCENARIO 2 PASS: rejected with PREREQUISITE_NOT_APPROVED: cannot resume BLOCKED -> IN_PROGRESS while prerequisite(s) ['ORCH-000'] are not REVIEW_APPROVED
+SCENARIO 3 PASS: transition succeeded, status=IN_PROGRESS, validate_state.passed=True errors=[]
