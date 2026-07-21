@@ -1,0 +1,26 @@
+ ...claude-code-remediator-orch-001-1-6e2bbce9.yaml | 432 +++++++++++++++++++++
+ ...-remediator-orch-001-1-6e2bbce9-black-after.txt |   2 +
+ ...orch-001-1-6e2bbce9-environment-fingerprint.txt |   5 +
+ ...-6e2bbce9-f1-fix-demonstration-probe-output.txt |   3 +
+ ...ch-001-1-6e2bbce9-f1-fix-demonstration-probe.py |  78 ++++
+ ...rch-001-1-6e2bbce9-git-rev-parse-head-after.txt |   1 +
+ ...ch-001-1-6e2bbce9-git-rev-parse-head-before.txt |   1 +
+ ...iator-orch-001-1-6e2bbce9-git-status-before.txt |   3 +
+ ...-orch-001-1-6e2bbce9-git-status-final-after.txt |  23 ++
+ ...e-remediator-orch-001-1-6e2bbce9-mypy-after.txt |   1 +
+ ...or-orch-001-1-6e2bbce9-pytest-focused-after.txt |   3 +
+ ...r-orch-001-1-6e2bbce9-pytest-focused-before.txt |   2 +
+ ...ch-001-1-6e2bbce9-pytest-full-after-preedit.txt |  12 +
+ ...ator-orch-001-1-6e2bbce9-pytest-full-before.txt |  12 +
+ ...orch-001-1-6e2bbce9-pytest-full-final-after.txt |  12 +
+ ...e-remediator-orch-001-1-6e2bbce9-ruff-after.txt |   1 +
+ ...6e2bbce9-validate-real-state-after-preedit.json |   5 +
+ ...-001-1-6e2bbce9-validate-real-state-before.json |   5 +
+ ...1-6e2bbce9-validate-real-state-final-after.json |   5 +
+ ...h-001-1-6e2bbce9-workflowctl-verify-before.json | 239 ++++++++++++
+ ...-1-6e2bbce9-workflowctl-verify-final-after.json | 274 +++++++++++++
+ ...Z-claude-code-remediator-orch-001-1-6e2bbce9.md | 259 ++++++++++++
+ .../orchestration/implementation-state.yaml        | 178 ++++++---
+ scripts/orchestration_feature_state.py             |  29 ++
+ tests/test_orchestration_feature_state.py          |  97 +++++
+ 25 files changed, 1623 insertions(+), 59 deletions(-)

@@ -1,0 +1,36 @@
+== git diff 49e1727 f89be9b --name-only ==
+docs/implementation/orchestration/evidence/ORCH-001/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9.yaml
+docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-black-after.txt
+docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-environment-fingerprint.txt
+docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-f1-fix-demonstration-probe-output.txt
+docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-f1-fix-demonstration-probe.py
+docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-git-rev-parse-head-after.txt
+docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-git-rev-parse-head-before.txt
+docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-git-status-before.txt
+docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-git-status-final-after.txt
+docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-mypy-after.txt
+docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-pytest-focused-after.txt
+docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-pytest-focused-before.txt
+docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-pytest-full-after-preedit.txt
+docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-pytest-full-before.txt
+docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-pytest-full-final-after.txt
+docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-ruff-after.txt
+docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-validate-real-state-after-preedit.json
+docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-validate-real-state-before.json
+docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-validate-real-state-final-after.json
+docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-workflowctl-verify-before.json
+docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-workflowctl-verify-final-after.json
+docs/implementation/orchestration/handoffs/ORCH-001/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9.md
+docs/implementation/orchestration/implementation-state.yaml
+scripts/orchestration_feature_state.py
+tests/test_orchestration_feature_state.py
+
+== out-of-scope path checks (all must be empty) ==
+-- docs/implementation/orchestration/session-protocol.md --
+-- docs/implementation/orchestration/decision-log.md --
+-- docs/implementation/orchestration/implementation-plan.md --
+-- docs/implementation/orchestration/implementation-state.schema.yaml --
+-- docs/implementation/orchestration/migration-registry.yaml --
+-- pyproject.toml --
+-- stages/ --
+-- src/ --

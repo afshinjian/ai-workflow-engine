@@ -1,0 +1,40 @@
+diff --git a/scripts/orchestration_feature_state.py b/scripts/orchestration_feature_state.py
+index d5dfa23..5aaf7d8 100644
+--- a/scripts/orchestration_feature_state.py
++++ b/scripts/orchestration_feature_state.py
+@@ -933,6 +933,35 @@ def apply_transition(
+                 "MISSING_EXPECTED_BASE_HEAD: required to start NOT_STARTED -> IN_PROGRESS"
+             )
+ 
++    if from_status == "BLOCKED" and to_status == "IN_PROGRESS":
++        # session-protocol.md section 2, BLOCKED -> IN_PROGRESS row: "blocker
++        # resolution is evidenced and prerequisites still approved". A blocker
++        # counts as resolved if it already carries a non-null resolution, or
++        # if this same call resolves it via resolve_blockers.
++        resolved_now = set(resolve_blockers or {})
++        unresolved_codes = sorted(
++            {
++                b.get("code")
++                for b in stage.get("blockers", []) or []
++                if b.get("resolution") is None and b.get("code") not in resolved_now
++            }
++        )
++        if unresolved_codes:
++            raise TransitionError(
++                "UNRESOLVED_BLOCKER: cannot resume BLOCKED -> IN_PROGRESS while blocker(s) "
++                f"{unresolved_codes} remain unresolved"
++            )
++        unapproved_prereqs = sorted(
++            p
++            for p in stage.get("prerequisites", []) or []
++            if stages.get(p, {}).get("status") != "REVIEW_APPROVED"
++        )
++        if unapproved_prereqs:
++            raise TransitionError(
++                "PREREQUISITE_NOT_APPROVED: cannot resume BLOCKED -> IN_PROGRESS while "
++                f"prerequisite(s) {unapproved_prereqs} are not REVIEW_APPROVED"
++            )
++
+     effective_reviewer = reviewer if reviewer is not None else actor
+     if to_status in ("REVIEW_APPROVED", "REVIEW_REJECTED"):
+         if effective_reviewer == stage.get("implementer"):

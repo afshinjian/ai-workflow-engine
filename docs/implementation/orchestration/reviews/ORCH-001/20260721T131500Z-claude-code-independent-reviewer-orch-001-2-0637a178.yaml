@@ -1,0 +1,435 @@
+schema_name: orchestration-review-evidence
+schema_version: 1.0.0
+feature_id: ORCH
+stage_id: ORCH-001
+review_id: 20260721T131500Z-claude-code-independent-reviewer-orch-001-2-0637a178
+reviewer:
+  actor: claude-code-independent-reviewer-orch-001-2
+  role: REVIEWER
+started_at: '2026-07-21T13:15:00Z'
+finished_at: '2026-07-21T13:45:00Z'
+independence_declaration: >
+  This review session has no memory of and did not participate in any prior
+  ORCH session. Reviewer identity (claude-code-independent-reviewer-orch-001-2)
+  differs from claude-code-implementer-1 (the original ORCH-001 implementer),
+  claude-code-independent-reviewer-orch-001-1 (the first ORCH-001 reviewer,
+  who rejected on F-1/F-2), and claude-code-remediator-orch-001-1 (the
+  REMEDIATOR who fixed F-1/F-2 in the commit under review). No self-review
+  occurred.
+reviewed:
+  implementation_ids:
+    - 20260721T115508Z-claude-code-implementer-1-02891aae
+    - 20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9
+  implementation_commit: f89be9b3178794515a25d7f0d504946114b6b821
+  note: >
+    Current HEAD (f89be9b3178794515a25d7f0d504946114b6b821, "fix: remediate
+    ORCH-001 blocked resume validation") is the human-committed remediation
+    diff described by stages.ORCH-001.evidence and stages.ORCH-001.handoff at
+    the start of this review (stage status VERIFIED, review_status PENDING,
+    implementation_commit still null per session-protocol.md section 3).
+    Full SHA independently confirmed via `git rev-parse HEAD`, matching the
+    short SHA f89be9b named in the task prompt exactly (not invented).
+    `git show --stat -1 HEAD` and `git diff 49e1727 f89be9b --name-only`
+    confirm this commit's changed-path set is exactly the 25 paths under
+    scripts/orchestration_feature_state.py,
+    tests/test_orchestration_feature_state.py, and
+    docs/implementation/orchestration/{implementation-state.yaml,
+    evidence/ORCH-001/, handoffs/ORCH-001/} -- matching
+    claude-code-remediator-orch-001-1's declared changed_paths byte-for-byte
+    with no additional file. implementation_commit is recorded here (not on
+    the stage, since this review's verdict is REJECTED and
+    stages.ORCH-001.implementation_commit stays null per the same pattern
+    used by the first rejection).
+preflight:
+  repository_root: /home/afshin-jian/ai-workflow-engine
+  branch: main
+  head: f89be9b3178794515a25d7f0d504946114b6b821
+  upstream: origin/main
+  ahead: 0
+  behind: 0
+  tree: CLEAN
+  index: CLEAN
+  merge_rebase_cherrypick_bisect: NONE_ACTIVE
+  orchestration_feature_lock: NOT_FOUND
+  stage_status_at_start: VERIFIED
+  stage_review_status_at_start: PENDING
+  prerequisites: [ORCH-000]
+  prerequisites_satisfied: true
+  prerequisite_note: >
+    ORCH-000 is REVIEW_APPROVED (reviewer claude-code-independent-reviewer-4,
+    implementation_commit 857d2c9b69cd85e40bdd2b9f8d252f2d3df5790e), committed
+    ancestor of current HEAD.
+  orch_002_status_at_start: NOT_STARTED
+scope_diff:
+  compared: [49e1727, f89be9b]
+  changed_paths_count: 25
+  allowed_paths_per_stage_spec:
+    - scripts/orchestration_feature_state.py
+    - tests/test_orchestration_feature_state.py
+    - docs/implementation/orchestration/implementation-state.yaml (ORCH state)
+    - docs/implementation/orchestration/evidence/ORCH-001/ (ORCH evidence)
+    - docs/implementation/orchestration/handoffs/ORCH-001/ (ORCH handoff)
+  out_of_scope_changed_paths: []
+  out_of_scope_note: >
+    Independently reran `git diff 49e1727 f89be9b --stat` against
+    session-protocol.md, decision-log.md, implementation-plan.md,
+    implementation-state.schema.yaml, migration-registry.yaml, pyproject.toml,
+    docs/implementation/orchestration/stages/ and src/: every one of these
+    diffs is empty (saved in
+    reviews/ORCH-001/logs/20260721T131500Z-claude-code-independent-reviewer-orch-001-2-0637a178-out-of-scope-check.txt).
+    All 25 changed paths (git diff --name-only) fall under
+    scripts/orchestration_feature_state.py,
+    tests/test_orchestration_feature_state.py, or
+    docs/implementation/orchestration/{implementation-state.yaml,
+    evidence/ORCH-001/, handoffs/ORCH-001/}. No path exceeds
+    stages/ORCH-001.md's "Exact allowed files or directories". (Note: the
+    remediation-scope defect found in this review, F-3, is itself inside
+    tests/test_orchestration_feature_state.py -- an in-scope file -- so it
+    remains within a REMEDIATOR's existing authority to fix.)
+  migration_registry_changed: false
+  orch_002_status_unaffected: true
+  orch_002_status_note: >
+    stages.ORCH-002.status is NOT_STARTED both before and after this
+    remediation, confirmed by direct read of the committed
+    implementation-state.yaml at HEAD f89be9b.
+commands:
+  - argv: [git, rev-parse, HEAD]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: reviews/ORCH-001/logs/20260721T131500Z-claude-code-independent-reviewer-orch-001-2-0637a178-git-rev-parse-head.txt
+    result: f89be9b3178794515a25d7f0d504946114b6b821
+    purpose: Confirm current HEAD is the committed ORCH-001 remediation diff; obtain the full SHA (not inventing the truncated part of the prompt's short SHA).
+  - argv: [git, status, --porcelain, -b]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: reviews/ORCH-001/logs/20260721T131500Z-claude-code-independent-reviewer-orch-001-2-0637a178-git-status.txt
+    result: clean, branch main, upstream origin/main, ahead 0 behind 0
+    purpose: Confirm clean tree/index before review.
+  - argv: [git, diff, 49e1727, f89be9b, --stat]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: reviews/ORCH-001/logs/20260721T131500Z-claude-code-independent-reviewer-orch-001-2-0637a178-git-diff-49e1727-f89be9b-stat.txt
+    result: '25 files changed, 1623 insertions(+), 59 deletions(-)'
+    purpose: Independent changed-path scope check of the exact remediation diff named in the task.
+  - argv: [git, diff, 49e1727, f89be9b, --, scripts/orchestration_feature_state.py]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: reviews/ORCH-001/logs/20260721T131500Z-claude-code-independent-reviewer-orch-001-2-0637a178-git-diff-49e1727-f89be9b-script.patch
+    result: >-
+      Single additive hunk (28 new lines, 0 removed) inserting a
+      `from_status == "BLOCKED" and to_status == "IN_PROGRESS"` gate into
+      apply_transition immediately after the existing
+      NOT_STARTED -> IN_PROGRESS gate; no other line of the file changed.
+    purpose: >
+      Line-by-line inspection of the exact code change, to independently
+      confirm LEGAL_TRANSITIONS, check_transition_legal, validate_schema,
+      validate_semantics, and the CAS-guard/atomic-write path
+      (write_state_atomic, _cmd_transition's --expected-digest check) are
+      byte-for-byte unchanged -- the F-1/F-2 fix is purely additive and
+      sound.
+  - argv: [python3, -c, "out-of-scope path diffs against session-protocol.md/decision-log.md/implementation-plan.md/implementation-state.schema.yaml/migration-registry.yaml/pyproject.toml/stages//src/"]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: reviews/ORCH-001/logs/20260721T131500Z-claude-code-independent-reviewer-orch-001-2-0637a178-out-of-scope-check.txt
+    result: every listed path's diff between 49e1727 and f89be9b is empty
+    purpose: Confirm no governance/schema/plan/src file was touched by the remediation.
+  - argv: [pytest, -q, tests/test_orchestration_feature_state.py]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: reviews/ORCH-001/logs/20260721T131500Z-claude-code-independent-reviewer-orch-001-2-0637a178-pytest-focused.txt
+    stdout_digest: sha256:b4edcf44f71342e93cfe2622a9b907eeb3d2097ebe813697a360ce4d66bcd981
+    result: '74 passed, 0 failed, 0 skipped'
+    purpose: >
+      Stage-required focused rerun against committed HEAD (unmodified).
+      Matches the remediator's recorded 74 passed (70 prior + 4 new).
+  - argv: [python, scripts/orchestration_feature_state.py, validate, --state,
+      docs/implementation/orchestration/implementation-state.yaml, --plan,
+      docs/implementation/orchestration/implementation-plan.md, --output, json]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: reviews/ORCH-001/logs/20260721T131500Z-claude-code-independent-reviewer-orch-001-2-0637a178-validate-real-state.json
+    stdout_digest: sha256:eb58c7bc94749a0dfcd5b932f5f3531527f68655674c47a36ba6ffaba2ed1549
+    result: 'PASS, 0 errors; state_digest sha256:73d1d12d347a75e6a1115d798ee5ada1bb86e9e9ffeec483fc73aee715aa6556'
+    purpose: >
+      Stage-required validate rerun against the real committed state file
+      (before any edit by this review). state_digest is byte-identical to
+      evidence/ORCH-001/logs/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9-validate-real-state-final-after.json's
+      recorded digest, confirming reproducibility.
+  - argv: [pytest, -q]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: reviews/ORCH-001/logs/20260721T131500Z-claude-code-independent-reviewer-orch-001-2-0637a178-pytest-full.txt
+    stdout_digest: sha256:3bb76c75bd889c65232be823e0a469c17ad1a5487d8681c655ff4229ea457a17
+    result: '758 passed, 0 failed, 0 skipped'
+    purpose: Stage-required full regression rerun against committed HEAD (unmodified). Matches the remediator's recorded 758 passed.
+  - argv: [workflowctl, verify, --config, self-governance.yaml, --output, json]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: reviews/ORCH-001/logs/20260721T131500Z-claude-code-independent-reviewer-orch-001-2-0637a178-workflowctl-verify.json
+    stdout_digest: sha256:1c3e8bbff9ad1a52f48811561c65c8fa137d1f25bdc296d10d1bffd3de24c08a
+    result_overall_status: PASS
+    purpose: Independent repository governance re-verification at current HEAD.
+  - argv: [python3,
+      reviews/ORCH-001/logs/20260721T131500Z-claude-code-independent-reviewer-orch-001-2-0637a178-adversarial-blocked-resume-cli-probe.py]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: reviews/ORCH-001/logs/20260721T131500Z-claude-code-independent-reviewer-orch-001-2-0637a178-adversarial-blocked-resume-cli-probe-output.txt
+    stdout_digest: sha256:7e1b5445627de2a985b6bcf0a6adb0c1b5e2bf42c25c9ad041a15984843befa3
+    result: >-
+      CONFIRMED FIX HOLDS (F-1/F-2 only): SCENARIO 1 PASS (unresolved blocker
+      rejected, UNRESOLVED_BLOCKER); SCENARIO 2 PASS (unapproved prerequisite
+      rejected, PREREQUISITE_NOT_APPROVED); SCENARIO 3 PASS (transition
+      succeeds and applies when both conditions hold, and the resulting
+      on-disk state independently re-validates PASS via a fresh `validate`
+      subprocess call); ORCH-002 (an included third stage in this fixture)
+      confirmed to remain NOT_STARTED throughout.
+    purpose: >
+      A freshly written adversarial fixture, independent in both content and
+      method from the two prior probes on this stage (the rejecting
+      reviewer's and the remediator's own, both of which called
+      apply_transition directly in-process): this probe drives the CLI
+      `transition` subcommand end-to-end against real temporary state files
+      (via subprocess), exercising the CAS-digest read/compare and
+      write_state_atomic on-disk write path in addition to the gate logic
+      itself, then independently re-validates the resulting file with a
+      fresh `validate` subprocess call. Confirms the F-1/F-2 fix itself is
+      sound; does not touch or exercise F-3 (found separately below).
+  - argv: [python, scripts/orchestration_feature_state.py, transition, --state,
+      <throwaway temp copy of the real committed state file>, --stage,
+      ORCH-001, --to, REVIEW_APPROVED, --actor,
+      claude-code-independent-reviewer-orch-001-2, --role, REVIEWER, --reason,
+      "CLI-driven cross-check", --implementation-commit,
+      f89be9b3178794515a25d7f0d504946114b6b821, --expected-digest, <digest>,
+      --output, json]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    result: '{"status": "APPLIED", ..., "new_next_eligible_stage": "ORCH-002", "new_history_length": 27}'
+    purpose: >
+      Independently confirm, via the real tool (not a hand-edit), that a
+      correct ORCH-001 -> REVIEW_APPROVED transition against the real
+      committed state deterministically recomputes next_eligible_stage to
+      ORCH-002 -- establishing that the F-3 defect below is an unavoidable,
+      tool-verified consequence of legitimate approval, not an artifact of
+      any particular editing method.
+  - argv: [pytest, -q, tests/test_orchestration_feature_state.py::TestRealRepositoryState, -v]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 1
+    stdout_artifact: reviews/ORCH-001/logs/20260721T131500Z-claude-code-independent-reviewer-orch-001-2-0637a178-f3-pinned-test-failure-after-approval.txt
+    stdout_digest: sha256:798563a616e1e847834257e489c0f699c7b60965d4a54971d2b88494930d1d83
+    result: >-
+      test_committed_implementation_state_validates PASSED;
+      test_committed_state_next_eligible_stage_is_orch_001 FAILED:
+      AssertionError: assert 'ORCH-002' == 'ORCH-001' -- this test reads the
+      real repository path directly (REPO_ROOT / "docs/implementation/
+      orchestration/implementation-state.yaml"), so it was run at the point
+      in this session where this reviewer's own in-progress (uncommitted,
+      not yet finalized) edit had ORCH-001 correctly recorded
+      REVIEW_APPROVED with next_eligible_stage ORCH-002, to observe the real
+      consequence directly. That in-progress edit was subsequently reverted
+      (`git checkout --`) and replaced with this review's actual finding:
+      REJECTED on F-3, ORCH-001 returned to REVIEW_REJECTED, ORCH-002 left
+      NOT_STARTED (see resulting_state_transition below) -- the working tree
+      left behind by this review does not carry the REVIEW_APPROVED edit.
+    purpose: >
+      Demonstrate finding F-3: the pinned real-repository-state test fails
+      the moment ORCH-001 legitimately reaches REVIEW_APPROVED, which is
+      exactly the terminal state this stage's own review process is meant to
+      reach.
+checklist:
+  - item: Clean committed implementation HEAD
+    result: PASS
+    notes: HEAD f89be9b3178794515a25d7f0d504946114b6b821, tree/index clean, matches origin/main.
+  - item: Stage status VERIFIED before review
+    result: PASS
+  - item: Evidence complete (ImplementationEvidence 1.0.0 required fields)
+    result: PASS
+    notes: >-
+      All required fields present in
+      evidence/ORCH-001/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9.yaml.
+  - item: Prerequisites REVIEW_APPROVED
+    result: PASS
+    notes: ORCH-000 is REVIEW_APPROVED, committed ancestor of HEAD.
+  - item: Reviewer identity independence
+    result: PASS
+    notes: >-
+      claude-code-independent-reviewer-orch-001-2 differs from
+      claude-code-implementer-1, claude-code-independent-reviewer-orch-001-1
+      and claude-code-remediator-orch-001-1.
+  - item: Verification commands reproduce recorded results (against committed HEAD)
+    result: PASS
+    notes: >-
+      pytest -q tests/test_orchestration_feature_state.py (74 passed),
+      pytest -q (758 passed), the validate command's state_digest, and
+      workflowctl verify all reproduce byte-for-byte or count-for-count
+      against the remediator's recorded evidence, when run against the
+      unmodified committed state file.
+  - item: Changed-path scope matches stage spec's exact allowed paths
+    result: PASS
+    notes: >-
+      25 changed paths (49e1727..f89be9b), all under
+      scripts/orchestration_feature_state.py,
+      tests/test_orchestration_feature_state.py, or
+      docs/implementation/orchestration/{implementation-state.yaml,
+      evidence/ORCH-001/, handoffs/ORCH-001/}. No governance, plan, schema,
+      stages/*.md or src/ path touched (independently confirmed empty
+      diffs).
+  - item: ORCH-002 remains NOT_STARTED
+    result: PASS
+    notes: Confirmed by direct read both before and after this review's own state edit.
+  - item: F-1 fix -- BLOCKED -> IN_PROGRESS gate matches session-protocol.md section 2's row
+    result: PASS
+    notes: >-
+      apply_transition (scripts/orchestration_feature_state.py:936-963)
+      raises TransitionError UNRESOLVED_BLOCKER unless every stage blocker
+      has a non-null resolution (already, or via this call's
+      resolve_blockers), and TransitionError PREREQUISITE_NOT_APPROVED
+      unless every prerequisite's stage status is exactly REVIEW_APPROVED at
+      transition time. Direct, correct encoding of "blocker resolution is
+      evidenced and prerequisites still approved", checked freshly (not
+      cached) before any state mutation.
+  - item: F-1 fix -- no other legal transition's behavior changed
+    result: PASS
+    notes: >-
+      Single additive hunk (28 lines, 0 deletions); LEGAL_TRANSITIONS,
+      check_transition_legal, validate_schema, validate_semantics and the
+      CAS-guard/atomic-write path unchanged; regression suite pass count
+      754 -> 758 (+4 exactly) with zero failures.
+  - item: F-2 fix -- four new tests cover the required negative and positive cases
+    result: PASS
+    notes: >-
+      test_blocked_resume_rejected_with_unresolved_blocker,
+      test_blocked_resume_rejected_with_unapproved_prerequisite (negative),
+      test_blocked_resume_succeeds_when_blockers_resolved_and_prerequisite_approved,
+      test_blocked_resume_succeeds_with_already_resolved_blocker_not_reresolved
+      (positive) -- exactly the cases named by the rejection's
+      remediation_scope.
+  - item: CAS-guard and atomic-write behavior unchanged
+    result: PASS
+  - item: LEGAL_TRANSITIONS matches session-protocol.md section 2's table, line-by-line
+    result: PASS
+    notes: Unchanged from the prior review's confirmed comparison; re-confirmed unchanged by this diff.
+  - item: validate_semantics not weakened
+    result: PASS
+    notes: Entirely outside this diff's single additive hunk.
+  - item: >-
+      Adversarial transition and filesystem review (stages/ORCH-001.md's
+      Independent review checklist)
+    result: FAIL
+    notes: >-
+      F-1/F-2 themselves reproduce correctly (see F-1/F-2 adversarial probe
+      above). However, adversarially reproducing the consequence of this
+      stage's own required end-state (ORCH-001 -> REVIEW_APPROVED,
+      recomputing next_eligible_stage) surfaced F-3: a pinned test in this
+      same file that cannot survive that legitimate transition, and that no
+      future session downstream of ORCH-001 has authority to fix. See
+      finding F-3.
+findings:
+  - id: F-3
+    severity: HIGH
+    blocking: true
+    path: tests/test_orchestration_feature_state.py
+    location: 'TestRealRepositoryState.test_committed_state_next_eligible_stage_is_orch_001, line 897'
+    summary: >
+      This test asserts `ofs.recompute_next_eligible(state) == "ORCH-001"`
+      against the real committed implementation-state.yaml -- a transient
+      fact about the live governance document at the moment this test was
+      authored, encoded as though it were a permanent invariant. The moment
+      ORCH-001 legitimately reaches REVIEW_APPROVED (the exact terminal
+      state stages/ORCH-001.md's own review process exists to reach, and
+      that ORCH-002's prerequisite depends on), the real committed state's
+      recomputed next_eligible_stage correctly becomes "ORCH-002", and this
+      test starts failing -- not because of a defect in apply_transition or
+      recompute_next_eligible (both are independently confirmed correct;
+      see the CLI-driven cross-check command above), but because the test
+      itself hard-codes a fact that this stage's own success condition is
+      guaranteed to invalidate.
+    failure_scenario: >
+      A REVIEWER correctly approves ORCH-001 (VERIFIED -> REVIEW_APPROVED),
+      correctly recomputing next_eligible_stage to ORCH-002 per
+      session-protocol.md and the validator's own semantics. The very next
+      `pytest -q` run by any session anywhere in the ORCH pipeline --
+      including the ORCH-002 implementer's own stage-required verification
+      command (stages/ORCH-002.md: "pytest -q") -- now fails one test. No
+      future session has the authority to fix it: ORCH-002's allowed paths
+      (stages/ORCH-002.md) do not include
+      tests/test_orchestration_feature_state.py, and REVIEW_APPROVED is
+      immutable except by a reviewed plan amendment marking it SUPERSEDED
+      (session-protocol.md section 2) -- a governance-amendment action, not
+      an ordinary REMEDIATOR/IMPLEMENTER action. The only session with both
+      the standing authority (ORCH-001's own allowed paths, per
+      stages/ORCH-001.md) and the opportunity (before ORCH-001 becomes
+      REVIEW_APPROVED) to fix this is a REMEDIATOR acting now. Reproduced
+      concretely, not hypothetically: independently drove the real CLI
+      `transition` subcommand (not a hand-edit) against a throwaway copy of
+      the actual committed state file to REVIEW_APPROVED, and the pinned
+      test then fails deterministically with `AssertionError: assert
+      'ORCH-002' == 'ORCH-001'`.
+    reproduction: >
+      reviews/ORCH-001/logs/20260721T131500Z-claude-code-independent-reviewer-orch-001-2-0637a178-f3-pinned-test-failure-after-approval.txt,
+      preceded by the CLI-driven cross-check command in the commands list
+      above (both independent of, and not reusing, any prior probe).
+verdict: REJECTED
+resulting_state_transition:
+  stage_id: ORCH-001
+  from: VERIFIED
+  to: REVIEW_REJECTED
+review_time: '2026-07-21T13:45:00Z'
+remediation_scope: >
+  A REMEDIATOR session (distinct from claude-code-implementer-1,
+  claude-code-independent-reviewer-orch-001-1,
+  claude-code-remediator-orch-001-1 and this reviewer,
+  claude-code-independent-reviewer-orch-001-2) must, within ORCH-001's
+  existing allowed paths (tests/test_orchestration_feature_state.py -- no
+  change to scripts/orchestration_feature_state.py, plan or schema is
+  needed; F-1/F-2 are confirmed fixed and must not be re-litigated or
+  touched): fix
+  TestRealRepositoryState.test_committed_state_next_eligible_stage_is_orch_001
+  so it no longer hard-codes a specific stage name as a permanent
+  assertion against the live, evolving governance document. Acceptable
+  approaches include (not prescriptive; the remediator should pick the one
+  that best matches this test class's intent): (a) remove the test, if
+  TestRealRepositoryState.test_committed_implementation_state_validates
+  (the durable "always validates" invariant) is judged sufficient coverage
+  for this class; (b) replace the hard-coded stage-name assertion with a
+  durable invariant that survives legitimate stage advancement (e.g.
+  next_eligible_stage is a member of delivery_order and its prerequisites
+  are closed, or next_eligible_stage matches the state file's own declared
+  next_eligible_stage field, which validate_semantics already checks
+  elsewhere); or (c) some other fix the remediator judges better realizes
+  this test's original intent without re-breaking on the next legitimate
+  transition. Whichever approach is chosen, the remediator must verify that
+  full `pytest -q` passes both against the current committed state (still
+  ORCH-001 REVIEW_REJECTED at the time of the fix) and would continue to
+  pass after a subsequent, correct ORCH-001 -> REVIEW_APPROVED transition
+  (e.g. by testing against a temporary copy transitioned via the real CLI,
+  as this review did) -- not just against today's state. Rerun the full
+  required verification (focused suite, full pytest, validator validate
+  against the real committed state, workflowctl verify) and produce new
+  implementation evidence/handoff. The remediation session may not
+  re-litigate this verdict, F-1, F-2, or their fix; it must implement the
+  F-3 fix and produce new evidence before ORCH-001 can return to VERIFIED
+  for a subsequent independent review.
+next_eligible_stage_computed: ORCH-001
+next_eligible_stage_note: >
+  ORCH-001 remains the sole eligible/frontier stage (its prerequisite,
+  ORCH-000, is REVIEW_APPROVED; ORCH-001 itself is not). ORCH-002's
+  prerequisite (ORCH-001) is not REVIEW_APPROVED, so ORCH-002 correctly
+  remains NOT_STARTED and ineligible. This review does not implement
+  ORCH-002 or any remediation.
+commit_push_authority: >
+  This review session did not commit or push. Per session-protocol.md
+  section 3/5, a human must commit this review evidence, the rejection
+  handoff and the implementation-state.yaml update as one diff before any
+  further (REMEDIATOR) session may act on it.

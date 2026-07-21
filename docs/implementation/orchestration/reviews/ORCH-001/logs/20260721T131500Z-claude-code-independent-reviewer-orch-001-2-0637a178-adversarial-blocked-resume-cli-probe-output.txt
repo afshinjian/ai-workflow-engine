@@ -1,0 +1,8 @@
+SCENARIO 1 (unresolved blocker rejected): PASS
+  payload={"status": "REJECTED", "error": "UNRESOLVED_BLOCKER: cannot resume BLOCKED -> IN_PROGRESS while blocker(s) ['B_PROBE'] remain unresolved"}
+SCENARIO 2 (unapproved prerequisite rejected): PASS
+  payload={"status": "REJECTED", "error": "PREREQUISITE_NOT_APPROVED: cannot resume BLOCKED -> IN_PROGRESS while prerequisite(s) ['ORCH-000'] are not REVIEW_APPROVED"}
+SCENARIO 3 (resolved blocker + approved prerequisite succeeds, result independently re-validates PASS): PASS
+  payload={"transition": {"status": "APPLIED", "stage": "ORCH-001", "from_digest": "sha256:73937315bd21760350b2d681a186b219740940229dc4e2b186e0aac4689da29c", "to_digest": "sha256:263a71296a4e5ccf3a435835ec44d8defe8def99aa2c69c58925b1c2633f8d2e", "new_next_eligible_stage": "ORCH-001", "new_history_length": 1}, "validate": {"status": "PASS", "errors": [], "state_digest": "sha256:263a71296a4e5ccf3a435835ec44d8defe8def99aa2c69c58925b1c2633f8d2e"}}
+ORCH-002 remained NOT_STARTED throughout: True
+OVERALL: CONFIRMED FIX HOLDS

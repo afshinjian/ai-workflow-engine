@@ -1,0 +1,28 @@
+============================= test session starts ==============================
+platform linux -- Python 3.11.15, pytest-8.4.2, pluggy-1.6.0
+rootdir: /home/afshin-jian/ai-workflow-engine
+configfile: pyproject.toml
+collected 2 items
+
+tests/test_orchestration_feature_state.py .F                             [100%]
+
+=================================== FAILURES ===================================
+_ TestRealRepositoryState.test_committed_state_next_eligible_stage_is_orch_001 _
+
+self = <test_orchestration_feature_state.TestRealRepositoryState object at 0x769b9f48de90>
+
+    def test_committed_state_next_eligible_stage_is_orch_001(self):
+        state_path = REPO_ROOT / "docs/implementation/orchestration/implementation-state.yaml"
+        state, _, _ = ofs.load_state_file(state_path)
+>       assert ofs.recompute_next_eligible(state) == "ORCH-001"
+E       AssertionError: assert 'ORCH-002' == 'ORCH-001'
+E         
+E         - ORCH-001
+E         ?        ^
+E         + ORCH-002
+E         ?        ^
+
+tests/test_orchestration_feature_state.py:900: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_orchestration_feature_state.py::TestRealRepositoryState::test_committed_state_next_eligible_stage_is_orch_001
+========================= 1 failed, 1 passed in 0.15s ==========================
