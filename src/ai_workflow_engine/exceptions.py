@@ -35,3 +35,15 @@ class GovernanceInconsistencyError(WorkflowEngineError):
 
 class ProtectedPathViolationError(WorkflowEngineError):
     pass
+
+
+class SchemaDispatchError(WorkflowEngineError):
+    """Base error for schema-registry lookup/dispatch failures (fail closed, never silent)."""
+
+
+class UnknownSchemaNameError(SchemaDispatchError):
+    pass
+
+
+class UnsupportedSchemaVersionError(SchemaDispatchError):
+    pass

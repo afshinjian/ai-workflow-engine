@@ -2,7 +2,7 @@
 
 import sys
 import traceback
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, TypeVar, cast
@@ -20,6 +20,7 @@ from ai_workflow_engine.commit.gates import (
     run_push_gate,
 )
 from ai_workflow_engine.config import load_config
+from ai_workflow_engine.exceptions import UnsupportedSchemaVersionError
 from ai_workflow_engine.git.approval import load_commit_approval, load_push_approval
 from ai_workflow_engine.git.client import GitClient
 from ai_workflow_engine.git.validators import check_git, matching_paths
@@ -37,13 +38,18 @@ from ai_workflow_engine.prompt.renderer import canonical_json, render_prompt
 from ai_workflow_engine.prompt.store import load, save
 from ai_workflow_engine.prompt.validator import validate_prompt
 from ai_workflow_engine.reporting.console import print_check, print_report
-from ai_workflow_engine.reporting.json_report import render_json
+from ai_workflow_engine.reporting.json_report import render_contract_json, render_json
 from ai_workflow_engine.result import (
     CheckResult,
     Finding,
     Status,
     VerificationReport,
     combined_status,
+)
+from ai_workflow_engine.schema.contract import (
+    error_envelope,
+    resolve_contract_version,
+    success_envelope,
 )
 from ai_workflow_engine.workflow.event_store import derive_state, record_outcome
 from ai_workflow_engine.workflow.events import Verdict, WorkflowEvent
@@ -53,6 +59,7 @@ from ai_workflow_engine.workflow.transitions import WorkflowStateError
 app = typer.Typer(help="Read-only deterministic governance gates for AI-assisted development.")
 console = Console()
 _debug = False
+_contract_version = "1.0.0"
 
 
 class OutputFormat(StrEnum):
@@ -68,9 +75,33 @@ T = TypeVar("T")
 @app.callback()
 def callback(
     debug: Annotated[bool, typer.Option("--debug", help="Show tracebacks.")] = False,
+    contract_version: Annotated[
+        str,
+        typer.Option(
+            "--contract-version",
+            help="CLI JSON contract version: '1' (legacy, default) or '2' (stable envelope).",
+        ),
+    ] = "1",
 ) -> None:
-    global _debug
+    global _debug, _contract_version
     _debug = debug
+    try:
+        _contract_version = resolve_contract_version(contract_version)
+    except UnsupportedSchemaVersionError as exc:
+        # Deliberately NOT the v2 error envelope, even under --output json: until a
+        # contract version resolves, there is no way to know which envelope shape
+        # (v1's none, or v2's) would even apply -- selecting v2 here would silently
+        # assume the very thing that failed to validate. So this one case always uses
+        # the same fail-closed shape as `_protected`'s v1 path: exact-bytes stderr, no
+        # stdout, exit 2 -- raised here in the callback, before any command body runs,
+        # so an unknown/unsupported contract version never reaches JSON emission at
+        # all. See test_nonsense_contract_version_still_uses_stderr_not_v2_envelope
+        # and test_unknown_contract_version_fails_closed_with_no_stdout.
+        if _debug:
+            traceback.print_exc()
+        sys.stderr.write(f"ERROR: {exc}\n")
+        sys.stderr.flush()
+        raise typer.Exit(code=2) from exc
 
 
 def _write_stdout(text: str) -> None:
@@ -87,7 +118,16 @@ def _write_stdout(text: str) -> None:
 
 def _emit(result: CheckResult, output: OutputFormat) -> None:
     if output == OutputFormat.JSON:
-        _write_stdout(render_json(result))
+        _write_stdout(
+            render_contract_json(
+                command=result.check_name,
+                contract_version=_contract_version,
+                model=result,
+                status=result.status,
+                summary=result.summary,
+                findings=result.findings,
+            )
+        )
     else:
         print_check(result, console)
     if result.status != Status.PASS:
@@ -109,22 +149,70 @@ def _safe_check(name: str, operation: Callable[[], CheckResult]) -> CheckResult:
         )
 
 
-def _protected(operation: Callable[[], T]) -> T:
+def _contract_v2_success(command: str, data: Mapping[str, object]) -> str:
+    return render_json(success_envelope(command=command, data=dict(data)))
+
+
+def _contract_v2_error(
+    command: str,
+    *,
+    code: str,
+    message: str,
+    retryable: bool = False,
+    details: dict[str, object] | None = None,
+) -> str:
+    return render_json(
+        error_envelope(
+            command=command,
+            code=code,
+            message=message,
+            retryable=retryable,
+            details=details or {},
+        )
+    )
+
+
+def _protected(
+    operation: Callable[[], T],
+    *,
+    output: OutputFormat = OutputFormat.HUMAN,
+    command: str = "command",
+) -> T:
     try:
         return operation()
     except Exception as exc:
         if _debug:
             traceback.print_exc()
-        # Rich's Console.print (even with markup/highlight disabled) still soft-wraps
-        # text to the console width, corrupting the exact-bytes stderr contract. Write
+        if output == OutputFormat.JSON and _contract_version == "2.0.0":
+            # Contract v2 always emits exactly one JSON envelope on stdout, even for
+            # operational failures (config/approval loading, prompt rendering, gate
+            # validation) that would otherwise bypass JSON entirely.
+            # `type(exc).__name__` is a deterministic, stable code for a given
+            # exception type; `retryable` is conservatively False since these are
+            # input/environment errors (bad config, bad approval file, bad
+            # parameter), not transient ones.
+            _write_stdout(
+                _contract_v2_error(
+                    command,
+                    code=type(exc).__name__,
+                    message=str(exc),
+                    retryable=False,
+                )
+            )
+            raise typer.Exit(code=1) from exc
+        # Contract v1 (and human output) keep the exact pre-existing behavior: Rich's
+        # Console.print (even with markup/highlight disabled) still soft-wraps text to
+        # the console width, corrupting the exact-bytes stderr contract, so write
         # directly to stderr instead.
         sys.stderr.write(f"ERROR: {exc}\n")
         sys.stderr.flush()
         raise typer.Exit(code=2) from exc
 
 
-def _config(path: Path) -> EngineConfig:
-    return _protected(lambda: load_config(path))
+def _config(
+    path: Path, *, output: OutputFormat = OutputFormat.HUMAN, command: str = "config"
+) -> EngineConfig:
+    return _protected(lambda: load_config(path), output=output, command=command)
 
 
 @app.command()
@@ -144,7 +232,9 @@ def inspect(
             (loaded := load_config(config)),
             GitClient(loaded.project.repository).status(),
             summarize_workflow(loaded),
-        )
+        ),
+        output=output,
+        command="inspect",
     )
     protected = sorted(
         set(
@@ -161,6 +251,9 @@ def inspect(
         "protected_path_violations": protected,
     }
     if output == OutputFormat.JSON:
+        if _contract_version == "2.0.0":
+            _write_stdout(_contract_v2_success("inspect", payload))
+            return
         import json
 
         _write_stdout(json.dumps(payload, sort_keys=True, indent=2))
@@ -189,7 +282,7 @@ def check_git_command(
     expected_head: Annotated[str | None, typer.Option("--expected-head")] = None,
     output: OutputOption = OutputFormat.HUMAN,
 ) -> None:
-    settings = _config(config)
+    settings = _config(config, output=output, command="git")
     _emit(
         _safe_check(
             "git",
@@ -205,7 +298,7 @@ def check_git_command(
 def check_task_state_command(
     config: ConfigOption, output: OutputOption = OutputFormat.HUMAN
 ) -> None:
-    settings = _config(config)
+    settings = _config(config, output=output, command="task-state")
     _emit(_safe_check("task-state", lambda: check_task_state(settings)), output)
 
 
@@ -213,7 +306,7 @@ def check_task_state_command(
 def check_governance_command(
     config: ConfigOption, output: OutputOption = OutputFormat.HUMAN
 ) -> None:
-    settings = _config(config)
+    settings = _config(config, output=output, command="governance")
     _emit(_safe_check("governance", lambda: check_governance(settings)), output)
 
 
@@ -224,7 +317,7 @@ def check_handover_command(
     commit: Annotated[str, typer.Option("--commit")] = "HEAD",
     output: OutputOption = OutputFormat.HUMAN,
 ) -> None:
-    settings = _config(config)
+    settings = _config(config, output=output, command="handover")
     _emit(
         _safe_check("handover", lambda: check_handover(settings, source=source, commit=commit)),
         output,
@@ -234,7 +327,7 @@ def check_handover_command(
 @app.command()
 def verify(config: ConfigOption, output: OutputOption = OutputFormat.HUMAN) -> None:
     """Run all Milestone 1 deterministic checks."""
-    settings = _config(config)
+    settings = _config(config, output=output, command="verify")
     checks = [
         _safe_check("git", lambda: check_git(settings)),
         _safe_check("task-state", lambda: check_task_state(settings)),
@@ -245,7 +338,17 @@ def verify(config: ConfigOption, output: OutputOption = OutputFormat.HUMAN) -> N
         project_id=settings.project.id, status=combined_status(checks), checks=checks
     )
     if output == OutputFormat.JSON:
-        _write_stdout(render_json(report))
+        findings = [finding for check in checks for finding in check.findings]
+        _write_stdout(
+            render_contract_json(
+                command="verify",
+                contract_version=_contract_version,
+                model=report,
+                status=report.status,
+                summary=f"{report.status.value}: {len(checks)} check(s) evaluated",
+                findings=findings,
+            )
+        )
     else:
         print_report(report, console)
     if report.status != Status.PASS:
@@ -282,6 +385,11 @@ def _emit_prompt_success(
         metadata=rendered.metadata,
     )
     if output == OutputFormat.JSON:
+        if _contract_version == "2.0.0":
+            _write_stdout(
+                _contract_v2_success(rendered.context.stage, success.model_dump(mode="json"))
+            )
+            return
         sys.stdout.buffer.write(canonical_json(success.model_dump(mode="json")) + b"\n")
         sys.stdout.buffer.flush()
         return
@@ -317,9 +425,11 @@ def _run_prompt_command(
             task_id=task_id,
             allowed_paths=allowed_paths,
             remediation_findings=remediation_findings,
-        )
+        ),
+        output=output,
+        command=stage,
     )
-    rendered = _protected(lambda: render_prompt(context))
+    rendered = _protected(lambda: render_prompt(context), output=output, command=stage)
 
     check_result = _safe_check(PROMPT_CHECK_NAME, lambda: validate_prompt(rendered))
     if check_result.status != Status.PASS:
@@ -330,7 +440,7 @@ def _run_prompt_command(
     prompt_artifact: str | None = None
     metadata_artifact: str | None = None
     if store:
-        paths = _protected(lambda: save(rendered))
+        paths = _protected(lambda: save(rendered), output=output, command=stage)
         stored = True
         prompt_artifact = paths.markdown.as_posix()
         metadata_artifact = paths.metadata.as_posix()
@@ -522,10 +632,33 @@ def _agent_evidence_fail(code: str, message: str) -> dict[str, object]:
     return {"status": "FAIL", "command": "record", "finding": {"code": code, "message": message}}
 
 
+def _contract_v2_for_status_payload(payload: dict[str, object]) -> str:
+    """Wrap a legacy ``{status, command, ...}`` dict payload (state show/next/record)
+    in the v2 envelope: ``status == "PASS"`` becomes ``ok=true`` with the rest of the
+    payload as ``data``; anything else becomes ``ok=false`` with the payload's
+    ``finding`` (``{code, message}``) driving the stable error.
+    """
+    command = str(payload.get("command", "state"))
+    if payload["status"] == "PASS":
+        data = {key: value for key, value in payload.items() if key != "status"}
+        return _contract_v2_success(command, data)
+    finding = payload.get("finding")
+    if isinstance(finding, dict):
+        code = str(finding.get("code", "STATE_COMMAND_FAILED"))
+        message = str(finding.get("message", ""))
+        details: dict[str, object] = {"finding": finding}
+    else:
+        code, message, details = "STATE_COMMAND_FAILED", str(payload["status"]), {}
+    return _contract_v2_error(command, code=code, message=message, details=details)
+
+
 def _emit_state(payload: dict[str, object], output: OutputFormat, human_lines: list[str]) -> None:
     if output == OutputFormat.JSON:
-        sys.stdout.buffer.write(canonical_json(payload) + b"\n")
-        sys.stdout.buffer.flush()
+        if _contract_version == "2.0.0":
+            _write_stdout(_contract_v2_for_status_payload(payload))
+        else:
+            sys.stdout.buffer.write(canonical_json(payload) + b"\n")
+            sys.stdout.buffer.flush()
     else:
         _write_stdout("\n".join(human_lines))
     if payload["status"] != "PASS":
@@ -564,7 +697,7 @@ def state_show(
             "terminal": state.terminal,
         }
 
-    payload = _protected(build)
+    payload = _protected(build, output=output, command="show")
     if payload["status"] != "PASS":
         finding = payload["finding"]
         assert isinstance(finding, dict)
@@ -605,7 +738,7 @@ def state_next(
             }
         return {"status": "PASS", "command": "next", "next_stage": state.next_stage}
 
-    payload = _protected(build)
+    payload = _protected(build, output=output, command="next")
     if payload["status"] != "PASS":
         finding = payload["finding"]
         assert isinstance(finding, dict)
@@ -675,7 +808,7 @@ def state_record(
             "next_stage": next_state.next_stage,
         }
 
-    payload = _protected(build)
+    payload = _protected(build, output=output, command="record")
     if payload["status"] != "PASS":
         finding = payload["finding"]
         assert isinstance(finding, dict)
@@ -694,6 +827,46 @@ def state_record(
     )
     lines = [summary_line, f"Next stage: {_stage_label(payload['next_stage'])}"]
     _emit_state(payload, output, lines)
+
+
+def _contract_v2_for_agent_run_payload(payload: dict[str, object], *, status: object) -> str:
+    """Wrap `agent run`'s legacy payload in the v2 envelope.
+
+    A successful run (``status == "PASS"``) carries a ``verification``
+    ``CheckResult`` dict alongside run identity/artifacts; a pre-verification
+    failure (``RunnerError``) instead carries a plain ``finding``. Both are mapped
+    to the same stable error shape when not PASS.
+    """
+    if status == "PASS":
+        data = {
+            "run_id": payload.get("run_id"),
+            "stage": payload.get("stage"),
+            "verification": payload.get("verification"),
+            "record_artifact": payload.get("record_artifact"),
+            "patch_artifact": payload.get("patch_artifact"),
+        }
+        return _contract_v2_success("agent-run", data)
+    finding = payload.get("finding")
+    verification = payload.get("verification")
+    details: dict[str, object]
+    if isinstance(finding, dict):
+        code = str(finding.get("code", "AGENT_RUN_FAILED"))
+        message = str(finding.get("message", ""))
+        details = {"finding": finding}
+    elif isinstance(verification, dict):
+        findings = verification.get("findings") or []
+        code = str(findings[0]["code"]) if findings else f"AGENT_RUN_{status}"
+        message = str(verification.get("summary", ""))
+        details = {"findings": findings}
+    else:
+        code, message, details = f"AGENT_RUN_{status}", "", {}
+    return _contract_v2_error(
+        "agent-run",
+        code=code,
+        message=message,
+        retryable=(status == "ERROR"),
+        details=details,
+    )
 
 
 agent_app = typer.Typer(help="Run a configured non-interactive agent against a governed prompt.")
@@ -760,11 +933,14 @@ def agent_run(
             "patch_artifact": stored_patch,
         }
 
-    payload = _protected(build)
+    payload = _protected(build, output=output, command="agent-run")
     status = payload["status"]
     if output == OutputFormat.JSON:
-        sys.stdout.buffer.write(canonical_json(payload) + b"\n")
-        sys.stdout.buffer.flush()
+        if _contract_version == "2.0.0":
+            _write_stdout(_contract_v2_for_agent_run_payload(payload, status=status))
+        else:
+            sys.stdout.buffer.write(canonical_json(payload) + b"\n")
+            sys.stdout.buffer.flush()
     else:
         verification = payload.get("verification")
         summary = verification["summary"] if isinstance(verification, dict) else payload["finding"]
@@ -790,8 +966,10 @@ def commit(
     output: OutputOption = OutputFormat.HUMAN,
 ) -> None:
     """Stage exactly the human-approved paths and create the approved commit, or refuse."""
-    settings = _config(config)
-    loaded_approval = _protected(lambda: load_commit_approval(approval))
+    settings = _config(config, output=output, command="commit")
+    loaded_approval = _protected(
+        lambda: load_commit_approval(approval), output=output, command="commit"
+    )
     result = _safe_check("commit", lambda: run_commit_gate(settings, loaded_approval, approval))
     _emit(result, output)
 
@@ -803,8 +981,10 @@ def push(
     output: OutputOption = OutputFormat.HUMAN,
 ) -> None:
     """Verify the push preconditions against live Git and push once, or refuse."""
-    settings = _config(config)
-    loaded_approval = _protected(lambda: load_push_approval(approval))
+    settings = _config(config, output=output, command="push")
+    loaded_approval = _protected(
+        lambda: load_push_approval(approval), output=output, command="push"
+    )
     result = _safe_check("push", lambda: run_push_gate(settings, loaded_approval, approval))
     _emit(result, output)
 
@@ -818,14 +998,14 @@ def apply_patch(
     output: OutputOption = OutputFormat.HUMAN,
 ) -> None:
     """Apply a verified Milestone 3 patch to the working tree, gated, or refuse."""
-    settings = _config(config)
+    settings = _config(config, output=output, command="apply-patch")
 
     def gate() -> object:
         if stage not in WORKFLOW_STAGES:
             raise typer.BadParameter(f"Unknown stage: {stage!r}", param_hint="--stage")
         return None
 
-    _protected(gate)
+    _protected(gate, output=output, command="apply-patch")
     result = _safe_check(
         "apply-patch",
         lambda: run_apply_patch_gate(

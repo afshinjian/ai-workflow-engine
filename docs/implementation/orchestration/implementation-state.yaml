@@ -46,7 +46,7 @@ delivery_order:
 stages:
   ORCH-000: {title: Independent v3 design review, status: REVIEW_APPROVED, prerequisites: [], expected_base_head: fcabc0baee84f5b98a4d63b8de3696754966e826, implementation_commit: 857d2c9b69cd85e40bdd2b9f8d252f2d3df5790e, implementer: claude-code-remediator-3, review_status: APPROVED, reviewer: claude-code-independent-reviewer-4, verification_status: PASSED, evidence: [evidence/ORCH-000/20260720T164147Z-claude-code-bootstrap-d24e29f6.yaml, evidence/ORCH-000/20260720T181000Z-claude-code-remediator-e27efbe4.yaml, evidence/ORCH-000/20260720T201500Z-claude-code-architect-1-f7bef021.yaml, evidence/ORCH-000/20260720T210000Z-claude-code-remediator-2-8387417f.yaml, evidence/ORCH-000/20260720T223000Z-claude-code-remediator-3-6e1d7d18.yaml], review_evidence: [reviews/ORCH-000/20260720T172520Z-claude-code-independent-reviewer-59f68d54.yaml, reviews/ORCH-000/20260720T194000Z-claude-code-independent-reviewer-2-b7e21ac4.yaml, reviews/ORCH-000/20260720T220000Z-claude-code-independent-reviewer-3-c4a91d02.yaml, reviews/ORCH-000/20260720T205209Z-claude-code-independent-reviewer-4-27303e9e.yaml], handoff: handoffs/ORCH-000/20260720T205209Z-claude-code-independent-reviewer-4-27303e9e.md, blockers: []}
   ORCH-001: {title: Durable feature-state validator, status: REVIEW_APPROVED, prerequisites: [ORCH-000], expected_base_head: 46ded3e51e8a90a8292d1c2721b565d62838caca, implementation_commit: cfcdac346cd8ba03a17068f95d2253195798f621, implementer: claude-code-remediator-orch-001-2, review_status: APPROVED, reviewer: claude-code-independent-reviewer-orch-001-3, verification_status: PASSED, evidence: [evidence/ORCH-001/20260721T115508Z-claude-code-implementer-1-02891aae.yaml, evidence/ORCH-001/20260721T124440Z-claude-code-remediator-orch-001-1-6e2bbce9.yaml, evidence/ORCH-001/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c.yaml], review_evidence: [reviews/ORCH-001/20260721T122035Z-claude-code-independent-reviewer-orch-001-1-0a0c5a0c.yaml, reviews/ORCH-001/20260721T131500Z-claude-code-independent-reviewer-orch-001-2-0637a178.yaml, reviews/ORCH-001/20260721T151500Z-claude-code-independent-reviewer-orch-001-3-fc81244b.yaml], handoff: handoffs/ORCH-001/20260721T151500Z-claude-code-independent-reviewer-orch-001-3-fc81244b.md, blockers: []}
-  ORCH-002: {title: Schema registry and CLI v2 envelope, status: NOT_STARTED, prerequisites: [ORCH-001], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
+  ORCH-002: {title: Schema registry and CLI v2 envelope, status: VERIFIED, prerequisites: [ORCH-001], expected_base_head: 0aa7d939b79ebf83146473a369e120f01d4b73e4, implementation_commit: null, implementer: claude-code-implementer-orch-002-1, review_status: PENDING, reviewer: null, verification_status: PASSED, evidence: [evidence/ORCH-002/20260721T152237Z-claude-code-implementer-orch-002-1-e916ac25.yaml, evidence/ORCH-002/20260721T160220Z-claude-code-implementer-orch-002-1-c6b9d62e.yaml], review_evidence: [], handoff: handoffs/ORCH-002/20260721T160220Z-claude-code-implementer-orch-002-1-c6b9d62e.md, blockers: [{code: IMPLEMENTATION_REVIEW_V2_COVERAGE_GAP, summary: 'Human implementation review found the first ORCH-002 diff incomplete on three grounds: (A) --contract-version 2 enveloped only check-*/verify, leaving inspect, every prompt command, state show/next/record and agent run emitting legacy payloads even under contract v2; (B) _protected-caught operational/configuration/approval/gate exceptions bypassed JSON entirely (stderr + exit 2) regardless of --contract-version/--output, so a v2 JSON consumer received zero stdout on a config/approval failure; (C) ContractEnvelopeV2 accepted contradictory ok/data/error combinations (e.g. ok=true with data=null, or ok=false with data present) with no validation rejecting them.', owner: claude-code-implementer-orch-002-1, introduced_at: '2026-07-21T16:02:20Z', resolution: 'Resolved in the same session (history sequences 36-38, evidence/ORCH-002/20260721T160220Z-claude-code-implementer-orch-002-1-c6b9d62e.yaml): (A) every existing --output json command (inspect, all seven prompt subcommands, state show/next/record, agent run) now honors --contract-version, wrapping its legacy payload in the v2 envelope via new _contract_v2_success/_contract_v2_for_status_payload/_contract_v2_for_agent_run_payload helpers in cli.py, while the exact pre-existing v1 code path is untouched and byte-identical (proved by a dedicated v1-byte-compatibility test per command family); (B) _protected and _config now accept output/command and, under contract v2 + --output json, emit exactly one stable error envelope (ok=false, data=null, error.code=type(exc).__name__, error.message=str(exc), error.retryable=false, error.details={}) on stdout instead of stderr-only, with v1 behavior (stderr, exit 2, zero stdout) byte-for-byte unchanged; the one deliberate exception (an unresolvable --contract-version itself) still always uses the v1/stderr shape because no contract has been selected yet to envelope the error in, which is now explicitly commented and tested (test_nonsense_contract_version_still_uses_stderr_not_v2_envelope); (C) ContractEnvelopeV2 gained a model_validator(mode="after") enforcing ok=true requires data is not None and error is None, and ok=false requires data is None and error is not None, verified both via direct construction and via CLI_CONTRACT_REGISTRY.dispatch (schema/contract.py). 28 new tests were added (inspect/prompt/state/agent-run v2 success and v1-byte-compatibility, protected/configuration/prompt/agent-run v2 error envelopes, a commit writable-gate refusal in v2 that performs no write, single-JSON-document/FORCE_COLOR purity across five command families, and Finding C''s envelope consistency positive/negative cases). Focused suite 102 -> 130 passed; full pytest -q 796 -> 824 passed, 0 skipped; ruff/black/mypy clean; state validator and workflowctl verify PASS; git diff --check clean. Only stages/ORCH-002.md''s allowed paths changed (src/ai_workflow_engine/schema/, reporting/, cli.py, exceptions.py, tests/test_schema_registry.py, tests/test_cli_contract_v2.py, and this ORCH-002 state/evidence/handoff); the original evidence/ORCH-002/20260721T152237Z-...-e916ac25.yaml and its handoff are untouched.'}]}
   ORCH-003: {title: Legacy readers and migration framework, status: NOT_STARTED, prerequisites: [ORCH-002], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
   ORCH-004: {title: Execution specification, status: NOT_STARTED, prerequisites: [ORCH-003], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
   ORCH-005: {title: Attempt records and store, status: NOT_STARTED, prerequisites: [ORCH-004], expected_base_head: null, implementation_commit: null, implementer: null, review_status: NOT_REQUESTED, reviewer: null, verification_status: NOT_RUN, evidence: [], review_evidence: [], handoff: null, blockers: []}
@@ -597,79 +597,147 @@ history:
     to: REVIEW_APPROVED
     evidence: [reviews/ORCH-001/20260721T151500Z-claude-code-independent-reviewer-orch-001-3-fc81244b.yaml,
       handoffs/ORCH-001/20260721T151500Z-claude-code-independent-reviewer-orch-001-3-fc81244b.md]
+  - sequence: 32
+    at: '2026-07-21T15:22:37Z'
+    actor: claude-code-implementer-orch-002-1
+    role: IMPLEMENTER
+    action: STARTED_ORCH_002
+    from: NOT_STARTED
+    to: IN_PROGRESS
+    evidence: [evidence/ORCH-002/20260721T152237Z-claude-code-implementer-orch-002-1-e916ac25.yaml]
+  - sequence: 33
+    at: '2026-07-21T15:40:00Z'
+    actor: claude-code-implementer-orch-002-1
+    role: IMPLEMENTER
+    action: IMPLEMENTED_ORCH_002
+    from: IN_PROGRESS
+    to: IMPLEMENTED
+    evidence: [evidence/ORCH-002/20260721T152237Z-claude-code-implementer-orch-002-1-e916ac25.yaml]
+  - sequence: 34
+    at: '2026-07-21T15:45:00Z'
+    actor: claude-code-implementer-orch-002-1
+    role: IMPLEMENTER
+    action: VERIFIED_ORCH_002
+    from: IMPLEMENTED
+    to: VERIFIED
+    evidence: [evidence/ORCH-002/20260721T152237Z-claude-code-implementer-orch-002-1-e916ac25.yaml,
+      handoffs/ORCH-002/20260721T152237Z-claude-code-implementer-orch-002-1-e916ac25.md]
+  - sequence: 35
+    at: '2026-07-21T16:02:20Z'
+    actor: claude-code-implementer-orch-002-1
+    role: IMPLEMENTER
+    action: BLOCKED_ORCH_002_INCOMPLETE_V2_COVERAGE
+    from: VERIFIED
+    to: BLOCKED
+    evidence: [evidence/ORCH-002/20260721T160220Z-claude-code-implementer-orch-002-1-c6b9d62e.yaml]
+  - sequence: 36
+    at: '2026-07-21T16:05:00Z'
+    actor: claude-code-implementer-orch-002-1
+    role: IMPLEMENTER
+    action: RESUMED_ORCH_002_REMEDIATION
+    from: BLOCKED
+    to: IN_PROGRESS
+    evidence: [evidence/ORCH-002/20260721T160220Z-claude-code-implementer-orch-002-1-c6b9d62e.yaml]
+  - sequence: 37
+    at: '2026-07-21T16:45:00Z'
+    actor: claude-code-implementer-orch-002-1
+    role: IMPLEMENTER
+    action: IMPLEMENTED_ORCH_002_REMEDIATION
+    from: IN_PROGRESS
+    to: IMPLEMENTED
+    evidence: [evidence/ORCH-002/20260721T160220Z-claude-code-implementer-orch-002-1-c6b9d62e.yaml]
+  - sequence: 38
+    at: '2026-07-21T16:50:00Z'
+    actor: claude-code-implementer-orch-002-1
+    role: IMPLEMENTER
+    action: VERIFIED_ORCH_002_REMEDIATION
+    from: IMPLEMENTED
+    to: VERIFIED
+    evidence: [evidence/ORCH-002/20260721T160220Z-claude-code-implementer-orch-002-1-c6b9d62e.yaml,
+      handoffs/ORCH-002/20260721T160220Z-claude-code-implementer-orch-002-1-c6b9d62e.md]
 last_updated:
-  at: '2026-07-21T15:45:00Z'
-  by: claude-code-independent-reviewer-orch-001-3
-  role: REVIEWER
+  at: '2026-07-21T16:50:00Z'
+  by: claude-code-implementer-orch-002-1
+  role: IMPLEMENTER
   reason: >-
-    Independent REVIEWER session, distinct from claude-code-implementer-1 (the
-    original ORCH-001 implementer), claude-code-independent-reviewer-orch-001-1
-    (the first ORCH-001 reviewer, who rejected on F-1/F-2),
-    claude-code-remediator-orch-001-1 (the REMEDIATOR who fixed F-1/F-2),
-    claude-code-independent-reviewer-orch-001-2 (the second reviewer, who
-    rejected on F-3), and claude-code-remediator-orch-001-2 (the REMEDIATOR who
-    fixed F-3). Reviewed ORCH-001 at committed HEAD
-    cfcdac346cd8ba03a17068f95d2253195798f621 ("test: make ORCH-001 frontier
-    regression durable"), the human commit of the F-3 remediation (history
-    sequences 28-30); main and origin/main both resolve to that commit, tree
-    and index clean, ORCH-001 VERIFIED/PENDING and ORCH-002 NOT_STARTED at
-    start. Independently reran every stage-required command and reproduced the
-    recorded results, two of them byte-for-byte by stdout digest: pytest -q
-    tests/test_orchestration_feature_state.py 76 passed/0 failed/0 skipped
-    (sha256:180c3ff6...2289, identical to the remediator's); validator validate
-    against the real committed state PASS with state_digest
-    sha256:d3cc44bac5bfdd346bcba9148c4633a9c516c14e7ddd5e4ef262a174f26b13c0
-    (stdout sha256:30e51890...d9ea, identical); full pytest -q 760 passed/0
-    failed/0 skipped; workflowctl verify PASS; git diff --check clean. The
-    environment fingerprint was regenerated on this machine and hashed
-    independently, reproducing sha256:edd354c3...a61dc. Changed-path scope
-    (b9813b6..cfcdac3, 22 paths) is entirely within stages/ORCH-001.md's
-    allowed set, with empty diffs for scripts/orchestration_feature_state.py,
-    session-protocol.md, decision-log.md, implementation-plan.md,
-    implementation-state.schema.yaml, migration-registry.yaml,
-    architecture-v3.md, pyproject.toml, every stages/*.md file, src/, reviews/,
-    evidence/ORCH-000/ and handoffs/ORCH-000/; no production source changed at
-    all and no prior evidence or review record was overwritten. F-3 is
-    confirmed fixed: the pinned assertion is removed, a bounded static scan of
-    the whole TestRealRepositoryState class finds no literal stage name
-    asserted against the live document (the one surviving literal is guarded by
-    a dynamically discovered frontier and self-disables on approval), and the
-    replacement invariant's three properties were checked against
-    session-protocol.md section 1.8 and recompute_next_eligible's contract
-    rather than taken on the remediator's word. Verified by a freshly authored
-    post-approval probe, deliberately distinct in method from all three prior
-    probes: it exports the entire committed tree at HEAD via git archive into
-    an isolated throwaway directory, drives the real CLI transition to ORCH-001
-    REVIEW_APPROVED inside that copy with the CAS digest guard engaged, runs
-    the real pytest suite inside that copy so TestRealRepositoryState resolves
-    to a genuinely post-approval document, and re-derives the frontier from
-    session-protocol.md's rule instead of calling the tool under review
-    (REVIEWER3_POST_APPROVAL_PROBE: PASS, 22 checks, 0 failures): the simulated
-    frontier becomes ORCH-002 by three independent measures, the post-approval
-    document validates, the durable invariant holds (75 passed/1 skipped/0
-    failed inside the copy), the removed pin would now fail, ORCH-002 stays
-    NOT_STARTED, and the real governance document was confirmed byte-identical
-    afterwards. F-1/F-2 need no re-litigation:
-    scripts/orchestration_feature_state.py is byte-identical between f89be9b
-    and cfcdac3, the BLOCKED -> IN_PROGRESS gate is intact and all four F-2
-    tests pass. Verdict REVIEW_APPROVED with no blocking finding. One
-    non-blocking observation (O-1, LOW) is recorded with an explicit acceptance
-    decision: the CLI-approval regression self-skips until the new frontier
-    reaches VERIFIED grade, so pytest -q reports 759 passed/1 skipped from this
-    approval until ORCH-002 is VERIFIED; this is semantically necessary,
-    visible with a reason, self-healing, and fully covered unconditionally by
-    synthetic-fixture tests, so it is not a material coverage gap and requires
-    no remediation. ORCH-001 transitioned VERIFIED -> REVIEW_APPROVED (history
-    sequence 31) with review_status APPROVED, reviewer
-    claude-code-independent-reviewer-orch-001-3 and implementation_commit
-    cfcdac346cd8ba03a17068f95d2253195798f621; current_stage,
-    candidate_next_stage and next_eligible_stage recomputed to ORCH-002 (the
-    field values were cross-checked against those the real CLI transition
-    produces on an isolated copy of this same document, then re-validated with
-    the tool's own validate); ORCH-002 status remains NOT_STARTED. The
-    R-ORCH-001-VALIDATOR-CORRECTNESS disposition records closure on substance;
-    the severity label is left HIGH for the historical record. This session did
-    not commit, push, repair any code, re-litigate F-1/F-2, or implement
-    ORCH-002. Next legal actor: an ORCH-002 IMPLEMENTER, in a fresh session
-    distinct from every actor recorded against ORCH-001, after a human commits
-    this review diff.
+    IMPLEMENTER session, same actor as the prior in-session record (claude-code-
+    implementer-orch-002-1, distinct from every actor recorded against ORCH-000 and
+    ORCH-001), resumed ORCH-002 after a human implementation review found the
+    uncommitted diff incomplete on three grounds, still without any commit having
+    occurred (main and origin/main both remain 0aa7d939b79ebf83146473a369e120f01d4b73e4
+    throughout). Finding A: --contract-version 2 enveloped only commands routed through
+    the shared _emit helper plus verify, leaving inspect, every prompt subcommand, state
+    show/next/record and agent run emitting legacy payloads even under contract v2.
+    Finding B: _protected-caught operational/configuration/approval/gate exceptions
+    bypassed JSON entirely (stderr + exit 2) regardless of --contract-version/--output,
+    so a v2 JSON consumer received zero stdout on a config/approval failure. Finding C:
+    ContractEnvelopeV2 accepted contradictory ok/data/error combinations with no
+    validation rejecting them. stages.ORCH-002.status was hand-recorded VERIFIED ->
+    BLOCKED (history sequence 35, blocker IMPLEMENTATION_REVIEW_V2_COVERAGE_GAP,
+    resolution initially null) -> IN_PROGRESS (sequence 36, blocker resolution recorded
+    in the same edit, consistent with scripts/orchestration_feature_state.py's BLOCKED
+    -> IN_PROGRESS gate semantics: a blocker counts as resolved once its resolution
+    field is non-null) -> IMPLEMENTED (sequence 37) -> VERIFIED (sequence 38),
+    preserving the existing implementation rather than replacing it. Fixes: (A) inspect,
+    all seven prompt subcommands, state show/next/record and agent run now honor
+    --contract-version via new _contract_v2_success/_contract_v2_for_status_payload/_con
+    tract_v2_for_agent_run_payload helpers in cli.py, while every pre-existing v1 code
+    path is byte-for-byte untouched (proved per command family by a dedicated v1-byte-
+    compatibility test comparing the default and explicit --contract-version 1
+    invocations). (B) _protected and _config gained output/command parameters; under
+    contract v2 + --output json they emit exactly one stable error envelope (ok=false,
+    data=null, error.code=type(exc).__name__, error.message=str(exc),
+    error.retryable=false, error.details={}) instead of stderr-only, while v1/human
+    behavior is unchanged. The one deliberate exception -- an unresolvable --contract-
+    version itself, which cannot select an envelope shape because no contract has been
+    chosen yet -- still always uses the v1/stderr fail-closed shape; this is now
+    explicitly commented in cli.py's callback and covered by
+    test_nonsense_contract_version_still_uses_stderr_not_v2_envelope. (C)
+    ContractEnvelopeV2 gained a model_validator(mode="after") rejecting ok=true with
+    data=null/error-present and ok=false with data-present/error=null, applied on every
+    construction path including schema-registry dispatch, not just the
+    success_envelope/error_envelope builders (which already satisfied it). Added 28 new
+    tests across tests/test_cli_contract_v2.py (inspect/prompt/state/agent-run v2
+    success and isolation, v1-byte-compatibility per command family,
+    configuration/prompt/agent-run v2 error envelopes, a commit writable-gate refusal in
+    v2 that performs no write and leaves HEAD unchanged, single-JSON-
+    document/FORCE_COLOR purity across five command families and both success and error
+    shapes) and tests/test_schema_registry.py (Finding C's six positive/negative
+    envelope-consistency cases plus a registry-dispatch case and a regression guard on
+    the builders). All state/prompt/agent tests use the isolated $HOME fixture already
+    established in tests/test_cli.py (duplicated locally per that file's own precedent,
+    since conftest.py is outside this stage's allowed paths) and the
+    repository/config_factory tmp_path fixtures from conftest.py; nothing touches the
+    real repository or a real $HOME. Verification: pytest -q
+    tests/test_schema_registry.py tests/test_cli_contract_v2.py tests/test_cli.py -- 130
+    passed (up from 102); full pytest -q -rs -- 824 passed, 0 skipped (up from 795
+    passed/1 skipped -- the O-1 skip from ORCH-001's approval already self-healed in the
+    prior in-session record once ORCH-002 first reached VERIFIED, and remains healed
+    here); ruff check on every changed Python file -- clean; black --check on the same
+    files -- clean (test_cli_contract_v2.py was reformatted by black itself during
+    authoring, then reverified clean); mypy src -- "Success: no issues found in 47
+    source files" (one dict-variance error was found and fixed by widening
+    _contract_v2_success's parameter to Mapping[str, object]); the orchestration state
+    validator against the real committed document -- PASS; workflowctl verify --config
+    self-governance.yaml -- PASS; git diff --check -- clean. Changed-path scope remains
+    exactly stages/ORCH-002.md's allowed set: src/ai_workflow_engine/schema/
+    (contract.py modified for the model_validator; registry.py untouched),
+    src/ai_workflow_engine/reporting/json_report.py (untouched by this remediation --
+    render_contract_json was already correct; the new v2 paths reuse render_json
+    directly from cli.py), src/ai_workflow_engine/cli.py (modified),
+    src/ai_workflow_engine/exceptions.py (untouched by this remediation),
+    tests/test_schema_registry.py and tests/test_cli_contract_v2.py (both extended), and
+    this ORCH-002 state/evidence/handoff; no stages/*.md file, session-protocol.md,
+    architecture-v3.md, implementation-plan.md, implementation-state.schema.yaml,
+    migration-registry.yaml, scripts/orchestration_feature_state.py,
+    tests/test_orchestration_feature_state.py, or any ORCH-000/ORCH-001 record was
+    touched. The original evidence record
+    (evidence/ORCH-002/20260721T152237Z-...-e916ac25.yaml) and its handoff are byte-for-
+    byte unmodified; this session adds a new evidence record and a new handoff rather
+    than overwriting them, per session-protocol.md section 7.
+    stages.ORCH-002.implementation_commit remains null per session-protocol.md section
+    2; current_stage/candidate_next_stage/next_eligible_stage remain ORCH-002 (VERIFIED
+    is not REVIEW_APPROVED); ORCH-003 remains NOT_STARTED. This session did not commit,
+    did not push, did not record any review verdict, and did not begin ORCH-003. Next
+    legal actor: an independent ORCH-002 REVIEWER, in a fresh session distinct from
+    claude-code-implementer-orch-002-1, after a human commits this implementation diff.

@@ -1,0 +1,5 @@
+{
+  "status": "PASS",
+  "errors": [],
+  "state_digest": "sha256:53ee6a563751e7ba20ac87e4e6dbc31f73bde477541fa274b122c1782a1e4acc"
+}
