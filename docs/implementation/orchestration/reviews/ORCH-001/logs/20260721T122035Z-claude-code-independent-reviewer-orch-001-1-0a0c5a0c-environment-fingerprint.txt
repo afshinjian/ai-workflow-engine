@@ -1,0 +1,5 @@
+python: Python 3.11.15
+git: git version 2.43.0
+os: Linux afshin-jian-HP-Z6-G4-Workstation 6.17.0-35-generic #35~24.04.1-Ubuntu SMP PREEMPT_DYNAMIC Tue May 26 19:30:42 UTC 2 x86_64 x86_64 x86_64 GNU/Linux
+conda_env: ai-workflow-engine
+pytest: pytest 8.4.2

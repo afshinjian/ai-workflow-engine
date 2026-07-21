@@ -1,0 +1,29 @@
+commit e9a43974b21d4d5c6ab12ea9c28d484a9afedf55
+Author: afshin_jian <afshinjian@gmail.com>
+Date:   Tue Jul 21 15:44:22 2026 +0330
+
+    feat: implement ORCH-001 feature-state validator
+
+ ...115508Z-claude-code-implementer-1-02891aae.yaml |  411 +++++++
+ ...ude-code-implementer-1-02891aae-black-after.txt |    2 +
+ ...lementer-1-02891aae-environment-fingerprint.txt |    5 +
+ ...ementer-1-02891aae-git-rev-parse-head-after.txt |    1 +
+ ...menter-1-02891aae-git-rev-parse-head-before.txt |    1 +
+ ...ementer-1-02891aae-git-status-after-preedit.txt |    3 +
+ ...de-implementer-1-02891aae-git-status-before.txt |    1 +
+ ...plementer-1-02891aae-git-status-final-after.txt |    5 +
+ ...aude-code-implementer-1-02891aae-mypy-after.txt |    1 +
+ ...e-code-implementer-1-02891aae-pytest-before.txt |   11 +
+ ...implementer-1-02891aae-pytest-focused-after.txt |    2 +
+ ...menter-1-02891aae-pytest-full-after-preedit.txt |   12 +
+ ...lementer-1-02891aae-pytest-full-final-after.txt |   12 +
+ ...aude-code-implementer-1-02891aae-ruff-after.txt |    1 +
+ ...02891aae-validate-real-state-after-preedit.json |    5 +
+ ...1-02891aae-validate-real-state-final-after.json |    5 +
+ ...enter-1-02891aae-workflowctl-verify-before.json |  231 ++++
+ ...-1-02891aae-workflowctl-verify-final-after.json |  240 ++++
+ ...1T115508Z-claude-code-implementer-1-02891aae.md |  237 ++++
+ .../orchestration/implementation-state.yaml        |  142 ++-
+ scripts/orchestration_feature_state.py             | 1285 ++++++++++++++++++++
+ tests/test_orchestration_feature_state.py          | 1037 ++++++++++++++++
+ 22 files changed, 3608 insertions(+), 42 deletions(-)

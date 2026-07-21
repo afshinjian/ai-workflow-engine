@@ -1,0 +1,5 @@
+after BLOCK: status='BLOCKED' blocker.resolution=None
+after RESUME (no resolve_blockers passed): status='IN_PROGRESS'
+blocker still unresolved: None
+validate_state(resumed).passed = True, errors = []
+CONFIRMED: apply_transition allows BLOCKED -> IN_PROGRESS with an unresolved stage blocker, and validate_state raises no error on the result.
