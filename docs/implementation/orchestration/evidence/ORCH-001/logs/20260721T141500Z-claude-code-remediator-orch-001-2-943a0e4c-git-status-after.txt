@@ -1,0 +1,21 @@
+## main...origin/main
+ M docs/implementation/orchestration/implementation-state.yaml
+ M tests/test_orchestration_feature_state.py
+?? docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-black-after.txt
+?? docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-environment-fingerprint.txt
+?? docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-f3-durability-probe-output.txt
+?? docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-f3-durability-probe.py
+?? docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-git-diff-check-after.txt
+?? docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-git-rev-parse-head-after.txt
+?? docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-git-rev-parse-head-before.txt
+?? docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-git-status-after.txt
+?? docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-git-status-before.txt
+?? docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-pytest-focused-after.txt
+?? docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-pytest-focused-before.txt
+?? docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-pytest-full-after.txt
+?? docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-pytest-full-before.txt
+?? docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-ruff-after.txt
+?? docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-validate-real-state-after.json
+?? docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-validate-real-state-before.json
+?? docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-workflowctl-verify-after.json
+?? docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-workflowctl-verify-before.json

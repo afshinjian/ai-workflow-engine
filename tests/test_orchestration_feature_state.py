@@ -894,10 +894,167 @@ class TestRealRepositoryState:
         result = ofs.validate_state(state, plan_text=plan_text)
         assert result.passed, result.errors
 
-    def test_committed_state_next_eligible_stage_is_orch_001(self):
+    # The frontier (next_eligible_stage) advances legitimately as stages reach
+    # REVIEW_APPROVED, so its concrete value at any instant is transient. This
+    # regression therefore asserts the durable *properties* that
+    # recompute_next_eligible must always satisfy against the live governance
+    # document, never a pinned stage name. (Pinning "ORCH-001" was defect F-3:
+    # it would spuriously break the moment ORCH-001 legitimately reached
+    # REVIEW_APPROVED and the frontier correctly advanced to ORCH-002 -- a state
+    # no downstream session would have had authority to repair.)
+    @staticmethod
+    def _assert_frontier_is_durable_invariant(state):
+        frontier = ofs.recompute_next_eligible(state)
+        # (1) The recomputed frontier equals the document's own declared field
+        #     (validate_semantics enforces this too; asserted here directly so
+        #     this regression fails loudly on any drift between the two).
+        assert frontier == state["next_eligible_stage"], (
+            frontier,
+            state["next_eligible_stage"],
+        )
+        # (2) It is either null (whole feature complete or globally blocked) or
+        #     a real member of delivery_order.
+        if frontier is None:
+            return
+        assert frontier in state["delivery_order"], frontier
+        stages = state["stages"]
+        # (3) A non-null frontier is itself not yet REVIEW_APPROVED, and every
+        #     one of its prerequisites is REVIEW_APPROVED.
+        assert stages[frontier]["status"] != "REVIEW_APPROVED", frontier
+        for prereq in stages[frontier]["prerequisites"]:
+            assert stages[prereq]["status"] == "REVIEW_APPROVED", (frontier, prereq)
+
+    def test_committed_state_frontier_is_a_durable_invariant(self):
+        # Holds against the live committed document as-is, whatever legitimate
+        # status ORCH-001 currently occupies, because the invariant names no
+        # stage. This is the direct replacement for the pinned F-3 assertion.
         state_path = REPO_ROOT / "docs/implementation/orchestration/implementation-state.yaml"
         state, _, _ = ofs.load_state_file(state_path)
-        assert ofs.recompute_next_eligible(state) == "ORCH-001"
+        self._assert_frontier_is_durable_invariant(state)
+
+    def test_committed_state_frontier_invariant_holds_at_every_pre_approval_status(self):
+        # The invariant must hold at every pre-approval status the *current*
+        # frontier legitimately occupies before it is approved -- REVIEW_REJECTED
+        # (ORCH-001's committed status when this test was written) and VERIFIED
+        # (awaiting review) -- and the frontier must be unchanged in both, since
+        # neither status is REVIEW_APPROVED. This discovers the frontier
+        # dynamically rather than naming a stage, so it never re-breaks on
+        # legitimate advancement (the F-3 failure mode). Exercised on in-memory
+        # copies; the real committed document is never modified.
+        state_path = REPO_ROOT / "docs/implementation/orchestration/implementation-state.yaml"
+        base, _, _ = ofs.load_state_file(state_path)
+        frontier = ofs.recompute_next_eligible(base)
+        if frontier is None:
+            pytest.skip("no eligible frontier stage (feature complete or globally blocked)")
+        for pre_approval_status in ("REVIEW_REJECTED", "VERIFIED"):
+            state = copy.deepcopy(base)
+            stage = state["stages"][frontier]
+            stage["status"] = pre_approval_status
+            if pre_approval_status == "VERIFIED":
+                stage["review_status"] = "PENDING"
+                stage["reviewer"] = None
+            # Neither status is REVIEW_APPROVED, so the frontier is unchanged and
+            # the declared next_eligible_stage field still matches recompute.
+            self._assert_frontier_is_durable_invariant(state)
+            assert ofs.recompute_next_eligible(state) == frontier
+
+    def test_frontier_invariant_survives_a_real_cli_approval_of_the_frontier(self, tmp_path):
+        # F-3 regression proper: after a *correct* frontier -> REVIEW_APPROVED
+        # transition, the frontier legitimately advances and the durable
+        # invariant still holds -- whereas the old pinned `== "ORCH-001"`
+        # assertion would fail. Driven through the real CLI `transition`
+        # subcommand against an isolated throwaway copy of the real committed
+        # state file; the real governance document is never touched. The current
+        # frontier is discovered dynamically, so today this concretely exercises
+        # the exact ORCH-001 -> REVIEW_APPROVED / frontier -> ORCH-002 scenario
+        # F-3 named, and it keeps working after that legitimately happens.
+        state_path = REPO_ROOT / "docs/implementation/orchestration/implementation-state.yaml"
+        base, _, _ = ofs.load_state_file(state_path)
+
+        frontier = ofs.recompute_next_eligible(base)
+        if frontier is None:
+            pytest.skip("no eligible frontier stage to approve")
+        frontier_stage = base["stages"][frontier]
+        if frontier_stage["verification_status"] != "PASSED" or not frontier_stage["evidence"]:
+            # The frontier has no VERIFIED-grade implementation yet, so there is
+            # nothing legitimately approvable to simulate.
+            pytest.skip(f"frontier {frontier} is not yet implemented to VERIFIED grade")
+
+        # Pre-approval precondition a reviewer would actually face: the frontier
+        # VERIFIED, review pending. Applied only to the throwaway copy.
+        approvable = copy.deepcopy(base)
+        stage = approvable["stages"][frontier]
+        stage["status"] = "VERIFIED"
+        stage["review_status"] = "PENDING"
+        stage["reviewer"] = None
+        stage["implementation_commit"] = None
+        assert ofs.recompute_next_eligible(approvable) == frontier
+        self._assert_frontier_is_durable_invariant(approvable)
+
+        tmp_state = tmp_path / "implementation-state.yaml"
+        tmp_state.write_text(ofs.dump_state(approvable), encoding="utf-8")
+        expected_digest = ofs.compute_digest(tmp_state.read_bytes())
+
+        reviewer = "sim-independent-reviewer"
+        assert reviewer != stage["implementer"]  # reviewer-independence precondition
+
+        proc = subprocess.run(
+            [
+                sys.executable,
+                str(MODULE_PATH),
+                "transition",
+                "--state",
+                str(tmp_state),
+                "--stage",
+                frontier,
+                "--to",
+                "REVIEW_APPROVED",
+                "--actor",
+                reviewer,
+                "--role",
+                "REVIEWER",
+                "--action",
+                f"SIMULATED_APPROVE_{frontier.replace('-', '_')}",
+                "--reason",
+                "F-3 regression: frontier must advance past a pinned name",
+                "--at",
+                "2026-07-21T00:00:00Z",
+                "--reviewer",
+                reviewer,
+                "--implementation-commit",
+                "b" * 40,
+                "--add-review-evidence",
+                "reviews/simulated.yaml",
+                "--expected-digest",
+                expected_digest,
+                "--output",
+                "json",
+            ],
+            capture_output=True,
+            text=True,
+        )
+        assert proc.returncode == 0, proc.stderr + proc.stdout
+        payload = json.loads(proc.stdout)
+        assert payload["status"] == "APPLIED"
+
+        approved = yaml.safe_load(tmp_state.read_text(encoding="utf-8"))
+        assert approved["stages"][frontier]["status"] == "REVIEW_APPROVED"
+        # The frontier has legitimately advanced; the durable invariant still
+        # holds against the post-approval document.
+        self._assert_frontier_is_durable_invariant(approved)
+        new_frontier = ofs.recompute_next_eligible(approved)
+        assert new_frontier != frontier  # it advanced (or the feature completed)
+        assert new_frontier is None or new_frontier in approved["delivery_order"]
+        assert payload["new_next_eligible_stage"] == new_frontier
+        # Concretely anchor the exact scenario F-3 named, while it is still true
+        # of the live document (this self-disables once the frontier advances).
+        if frontier == "ORCH-001":
+            assert new_frontier == "ORCH-002"
+
+        # The real committed governance document is untouched by this simulation.
+        live, _, _ = ofs.load_state_file(state_path)
+        assert ofs.recompute_next_eligible(live) == frontier
+        self._assert_frontier_is_durable_invariant(live)
 
 
 # --------------------------------------------------------------------------

@@ -1,0 +1,7 @@
+LIVE: committed frontier is ORCH-001 (ORCH-001 status=REVIEW_REJECTED)
+PRE-APPROVAL: durable invariant holds; frontier still ORCH-001
+REAL CLI: ORCH-001 -> REVIEW_APPROVED APPLIED; new_next_eligible_stage=ORCH-002
+POST-APPROVAL: NEW durable regression PASSES (validate + frontier invariant; frontier now ORCH-002)
+POST-APPROVAL: OLD pinned assertion (== 'ORCH-001') WOULD FAIL (assert 'ORCH-002' == 'ORCH-001') -- F-3 fixed
+UNTOUCHED: real committed frontier still ORCH-001 after simulation
+F3_DURABILITY_PROBE: PASS

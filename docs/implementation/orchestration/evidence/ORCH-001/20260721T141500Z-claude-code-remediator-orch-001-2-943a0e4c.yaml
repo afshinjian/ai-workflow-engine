@@ -1,0 +1,414 @@
+schema_name: orchestration-implementation-evidence
+schema_version: 1.0.0
+feature_id: ORCH
+stage_id: ORCH-001
+implementation_id: 20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c
+session:
+  actor: claude-code-remediator-orch-001-2
+  role: REMEDIATOR
+started_at: '2026-07-21T14:15:00Z'
+finished_at: '2026-07-21T14:30:00Z'
+head:
+  starting: b9813b6cb6d791181db27811df9173be8667f967
+  ending: b9813b6cb6d791181db27811df9173be8667f967
+  note: >
+    This session leaves one uncommitted scoped diff (per session-protocol.md
+    section 3's two-commit pattern) containing the F-3 fix
+    (tests/test_orchestration_feature_state.py), this evidence/handoff, and the
+    implementation-state.yaml update. No new commit is created by this session;
+    a human must commit this exact diff before an independent reviewer acts on
+    it. HEAD b9813b6 is the committed REVIEWER diff (history sequence 27,
+    "docs: reject ORCH-001 for pinned frontier test") that rejected ORCH-001 on
+    F-3.
+independence_declaration: >
+  This session has no memory of and did not participate in any prior ORCH
+  session. Actor (claude-code-remediator-orch-001-2) differs from
+  claude-code-implementer-1 (the original ORCH-001 implementer),
+  claude-code-independent-reviewer-orch-001-1 (the first ORCH-001 reviewer, who
+  rejected on F-1/F-2), claude-code-remediator-orch-001-1 (the REMEDIATOR who
+  fixed F-1/F-2), and claude-code-independent-reviewer-orch-001-2 (the reviewer
+  who rejected on F-3, whose rejection this session remediates). This
+  remediation relies only on committed repository state read this session
+  (README.md, self-governance.yaml, docs/AGENT_PROTOCOL.md, session-protocol.md,
+  implementation-state.yaml, stages/ORCH-001.md, prompts/remediate-rejected.md,
+  the F-3 rejection review evidence/handoff, the prior implementation/
+  remediation evidence and handoffs, scripts/orchestration_feature_state.py,
+  tests/test_orchestration_feature_state.py), not on chat history.
+preflight:
+  repository_root: /home/afshin-jian/ai-workflow-engine
+  branch: main
+  head: b9813b6cb6d791181db27811df9173be8667f967
+  upstream: origin/main
+  ahead: 0
+  behind: 0
+  tree: CLEAN
+  index: CLEAN
+  merge_rebase_cherrypick_bisect: NONE_ACTIVE
+  orchestration_feature_lock: NOT_FOUND
+  stage_status_at_start: REVIEW_REJECTED
+  stage_review_status_at_start: REJECTED
+  blockers_at_start: []
+  prerequisite_check: >
+    ORCH-000 is REVIEW_APPROVED (review_status APPROVED, reviewer
+    claude-code-independent-reviewer-4, implementation_commit
+    857d2c9b69cd85e40bdd2b9f8d252f2d3df5790e), committed ancestor of HEAD
+    b9813b6. Confirmed by direct read of implementation-state.yaml before any
+    edit.
+  rejection_read: >
+    Read in full: reviews/ORCH-001/20260721T131500Z-claude-code-independent-reviewer-orch-001-2-0637a178.yaml
+    (finding F-3 HIGH blocking; verdict REJECTED; remediation_scope naming
+    tests/test_orchestration_feature_state.py as the only file needing change)
+    and handoffs/ORCH-001/20260721T131500Z-claude-code-independent-reviewer-orch-001-2-0637a178.md
+    (confirming history sequence 27 is the committed rejecting diff at HEAD
+    b9813b6cb6d791181db27811df9173be8667f967, F-1/F-2 confirmed fixed and not
+    to be re-litigated).
+  before_snapshot_method: >
+    All "before" command outputs below were captured at the unmodified clean
+    starting HEAD b9813b6 before any edit to
+    tests/test_orchestration_feature_state.py or implementation-state.yaml.
+changed_paths:
+  - tests/test_orchestration_feature_state.py
+  - docs/implementation/orchestration/implementation-state.yaml
+  - docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-environment-fingerprint.txt
+  - docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-git-rev-parse-head-before.txt
+  - docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-git-status-before.txt
+  - docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-pytest-focused-before.txt
+  - docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-pytest-full-before.txt
+  - docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-validate-real-state-before.json
+  - docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-workflowctl-verify-before.json
+  - docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-f3-durability-probe.py
+  - docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-f3-durability-probe-output.txt
+  - docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-pytest-focused-after.txt
+  - docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-validate-real-state-after.json
+  - docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-pytest-full-after.txt
+  - docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-ruff-after.txt
+  - docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-black-after.txt
+  - docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-workflowctl-verify-after.json
+  - docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-git-diff-check-after.txt
+  - docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-git-status-after.txt
+  - docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-git-rev-parse-head-after.txt
+  - docs/implementation/orchestration/handoffs/ORCH-001/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c.md
+environment_fingerprint:
+  captured_artifact: evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-environment-fingerprint.txt
+  digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+  note: >
+    Byte-identical to the environment_fingerprint_digest recorded on every
+    command in every prior ORCH-000/ORCH-001 evidence and review record for
+    this repository/machine identity (independently recomputed this session).
+  applied_to: all commands below
+commands:
+  - argv: [git, rev-parse, HEAD]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-git-rev-parse-head-before.txt
+    stdout_digest: sha256:3def824b984b21dead3c59967f7fa3aad5cdde11781ab65f0dffaebb403e7dff
+    result: b9813b6cb6d791181db27811df9173be8667f967
+    purpose: Confirm the true pre-change starting HEAD is the committed F-3 rejecting REVIEWER diff.
+    when: before
+  - argv: [git, status, --porcelain, -b]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-git-status-before.txt
+    stdout_digest: sha256:74d070bc5a162372206b457ec1d93099343a038405540e2344601428ad601ada
+    result: clean, branch main, upstream origin/main, ahead 0 behind 0
+    purpose: Confirm clean tree/index before any edit.
+    when: before
+  - argv: [pytest, -q, tests/test_orchestration_feature_state.py]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-pytest-focused-before.txt
+    stdout_digest: sha256:2e20c95f76ece8457e9d257958c86d55ca3bdccbf7b51707c3d4aa2063419861
+    result: '74 passed, 0 failed, 0 skipped'
+    purpose: Focused suite before the fix; matches the F-3 review's recorded count (the pinned test still present and passing against the current REVIEW_REJECTED state).
+    when: before
+  - argv: [pytest, -q]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-pytest-full-before.txt
+    stdout_digest: sha256:66f37532db2eb3a88f77df0f3811f14476dc8696697a401c17149be9de60bd93
+    result: '758 passed, 0 failed, 0 skipped'
+    purpose: Full regression suite before any edit; matches the F-3 review's recorded count.
+    when: before
+  - argv: [python, scripts/orchestration_feature_state.py, validate, --state,
+      docs/implementation/orchestration/implementation-state.yaml, --plan,
+      docs/implementation/orchestration/implementation-plan.md, --output, json]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-validate-real-state-before.json
+    stdout_digest: sha256:eff5471d7e94c3f3def0abb88adb4fb79397cdd1277beb6d3f3a77ca91b041cb
+    result: 'PASS, 0 errors (REVIEW_REJECTED state, pre-edit)'
+    purpose: Validator validate against the real committed state file before any edit.
+    when: before
+  - argv: [workflowctl, verify, --config, self-governance.yaml, --output, json]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-workflowctl-verify-before.json
+    stdout_digest: sha256:2df51882365ec22e822b12b99d15f241c7a39785c12f36f1f10b34b0b3209a3b
+    result_overall_status: PASS
+    purpose: Independent repository governance verification before any edit.
+    when: before
+  - argv: [pytest, -q, tests/test_orchestration_feature_state.py]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-pytest-focused-after.txt
+    stdout_digest: sha256:180c3ff6e13941081ab411f9adb2fa05310edf85e57af93197a7a30dfe402289
+    result: '76 passed, 0 failed, 0 skipped'
+    purpose: >
+      Stage-required focused test command after the F-3 fix. Net +2 versus the
+      74 "before": the single pinned
+      test_committed_state_next_eligible_stage_is_orch_001 was removed and
+      three durable, stage-name-free tests were added
+      (test_committed_state_frontier_is_a_durable_invariant,
+      test_committed_state_frontier_invariant_holds_at_every_pre_approval_status,
+      test_frontier_invariant_survives_a_real_cli_approval_of_the_frontier).
+    when: after
+  - argv: [python, scripts/orchestration_feature_state.py, validate, --state,
+      docs/implementation/orchestration/implementation-state.yaml, --plan,
+      docs/implementation/orchestration/implementation-plan.md, --output, json]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-validate-real-state-after.json
+    stdout_digest: sha256:30e51890a896a7b335a5d0378f3a5ad7f38a108b4ce14d0711bc460ce228d9ea
+    result: 'PASS, 0 errors; state_digest sha256:d3cc44bac5bfdd346bcba9148c4633a9c516c14e7ddd5e4ef262a174f26b13c0'
+    purpose: >
+      Stage-required validate rerun against the real committed
+      implementation-state.yaml after this session's own state edit (ORCH-001's
+      REVIEW_REJECTED -> IN_PROGRESS -> IMPLEMENTED -> VERIFIED transitions,
+      history sequences 28-30, the R-ORCH-001-VALIDATOR-CORRECTNESS disposition
+      update, and last_updated), proving the file this session leaves behind is
+      structurally and semantically valid and that next_eligible_stage still
+      recomputes to ORCH-001.
+    when: after
+  - argv: [pytest, -q]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-pytest-full-after.txt
+    stdout_digest: sha256:5381bbf9edf21a569a629b62994ca009986577e80409e5d312ee711000f15b53
+    result: '760 passed, 0 failed, 0 skipped'
+    purpose: Full regression suite (758 prior + 2 net new) after the fix; zero failures confirm no regression elsewhere.
+    when: after
+  - argv: [ruff, check, scripts/orchestration_feature_state.py, tests/test_orchestration_feature_state.py]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-ruff-after.txt
+    stdout_digest: sha256:82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18
+    result: All checks passed!
+    purpose: Repository lint convention; scripts/ unchanged but included for parity with the prior remediation.
+    when: after
+  - argv: [black, --check, scripts/orchestration_feature_state.py, tests/test_orchestration_feature_state.py]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-black-after.txt
+    stdout_digest: sha256:b9cf511501d306d2bd8355ccb165c8ddc0a6fdd62d7c72c4a7b1795cf8934c8c
+    result: '2 files would be left unchanged'
+    purpose: Repository formatting convention on the changed test file (scripts/ unchanged).
+    when: after
+  - argv: [workflowctl, verify, --config, self-governance.yaml, --output, json]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-workflowctl-verify-after.json
+    stdout_digest: sha256:9cf5eaf3bf94834ad7cb220de5eb5c7a8afd33bc43ba2150c211d9eafcafa237
+    result_overall_status: PASS
+    purpose: Independent repository governance re-verification after this session's edits.
+    when: after
+  - argv: [python3, evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-f3-durability-probe.py]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-f3-durability-probe-output.txt
+    stdout_digest: sha256:d59385b0774fdda40f0cffba202cc3965ee24eb1545c4a1beb9075e6ca80254a
+    result: >-
+      F3_DURABILITY_PROBE: PASS. Drives the real CLI `transition` subcommand to
+      ORCH-001 REVIEW_APPROVED against a throwaway copy of the real committed
+      state file: the post-approval state validates, the durable frontier
+      invariant holds, recompute_next_eligible becomes ORCH-002, the removed
+      pinned assertion (== "ORCH-001") would fail (assert 'ORCH-002' ==
+      'ORCH-001'), and the real committed document is confirmed untouched
+      (frontier still ORCH-001).
+    purpose: >
+      Independent, freshly-written end-to-end demonstration (not the pytest
+      suite) that the F-3 fix is durable: the new real-state regression passes
+      both before and after a correct ORCH-001 -> REVIEW_APPROVED transition,
+      whereas the removed pinned assertion would have failed after it.
+  - argv: [git, diff, --check]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-git-diff-check-after.txt
+    stdout_digest: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    result: no whitespace errors (empty output)
+    purpose: Stage-required git diff --check; confirms no whitespace/conflict-marker errors in the diff.
+    when: after
+  - argv: [git, status, --porcelain, -b]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-git-status-after.txt
+    stdout_digest: sha256:db1de8e648ae9653ec0e0a5091d0d7c19a64969857ec221899e8083c1ece3835
+    result: >-
+      tests/test_orchestration_feature_state.py and
+      docs/implementation/orchestration/implementation-state.yaml modified;
+      docs/implementation/orchestration/evidence/ORCH-001/logs/ new files
+      untracked (handoffs/ORCH-001/ written immediately after this command) --
+      exactly the declared changed_paths, nothing else.
+    purpose: Confirm only the declared changed_paths are modified/untracked; no out-of-scope file touched.
+    when: after
+  - argv: [git, rev-parse, HEAD]
+    cwd: /home/afshin-jian/ai-workflow-engine
+    environment_fingerprint_digest: sha256:edd354c3e5367798c6d4c0163180e414ed7e1db97b735afff58dad0b739a61dc
+    exit_code: 0
+    stdout_artifact: evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-git-rev-parse-head-after.txt
+    stdout_digest: sha256:3def824b984b21dead3c59967f7fa3aad5cdde11781ab65f0dffaebb403e7dff
+    result: b9813b6cb6d791181db27811df9173be8667f967
+    purpose: Confirm HEAD is unchanged (this session leaves an uncommitted diff; no commit was created).
+    when: after
+tests:
+  suite: full existing regression suite plus focused suite (pytest -q)
+  passed: 760
+  failed: 0
+  skipped: 0
+  exit_code: 0
+decisions:
+  - id: DEC-1
+    summary: >
+      Replace the pinned
+      TestRealRepositoryState.test_committed_state_next_eligible_stage_is_orch_001
+      (which asserted recompute_next_eligible == "ORCH-001") with a shared
+      helper _assert_frontier_is_durable_invariant plus three stage-name-free
+      tests, following approach (b) from the F-3 review's remediation_scope.
+    rationale: >
+      The review's remediation_scope offered (a) delete the test, (b) replace
+      the hard-coded stage-name assertion with a durable invariant, or (c) any
+      better fix. (b) preserves real, useful coverage of the frontier
+      computation against the live governance document while removing the
+      transient pin: the helper asserts exactly the three durable properties
+      the review recommended -- recompute equals the document's declared
+      next_eligible_stage; the frontier is null or a member of delivery_order;
+      and, when non-null, the frontier is itself not REVIEW_APPROVED and every
+      prerequisite is REVIEW_APPROVED. None names a stage, so none can re-break
+      on legitimate advancement.
+  - id: DEC-2
+    summary: >
+      Discover the frontier dynamically (recompute_next_eligible on the live
+      document) rather than writing "ORCH-001"/"ORCH-002" literals into the
+      real-state tests, and guard the one concrete ORCH-001 -> ORCH-002 anchor
+      behind `if frontier == "ORCH-001"`.
+    rationale: >
+      Writing any specific stage name into a test that reads the real,
+      advancing governance document -- even in a pre/post-approval helper --
+      would reintroduce exactly the F-3 defect class (a transient fact encoded
+      as a permanent assertion, unfixable by any downstream session once
+      ORCH-001 is REVIEW_APPROVED). Discovering the frontier and using
+      pytest.skip when there is nothing legitimately approvable makes the
+      real-state tests correct for every future committed state, while the
+      guarded literal anchor still documents and asserts the exact scenario
+      F-3 named for as long as it remains true of the live document.
+  - id: DEC-3
+    summary: >
+      Drive the post-approval scenario through the real CLI `transition`
+      subcommand against an isolated throwaway copy of the real committed
+      state file (VERIFIED precondition set on the copy only), rather than a
+      hand-edited in-memory dict.
+    rationale: >
+      The F-3 review's remediation_scope explicitly asks the remediator to
+      verify the fix "survives a subsequent, correct ORCH-001 ->
+      REVIEW_APPROVED transition (e.g. by testing against a temporary copy
+      transitioned via the real CLI, as this review did)". Using the real CLI
+      exercises apply_transition's recompute, validate_state and the
+      CAS-guard/atomic-write path end-to-end, so the test proves the durable
+      invariant against a document the tool itself produced, not one the test
+      hand-crafted. The real governance document is never modified: the
+      approval is applied only to a tmp_path copy (and, independently, in the
+      standalone f3-durability-probe.py).
+  - id: DEC-4
+    summary: >
+      Hand-edit implementation-state.yaml's ORCH-001 entry, history
+      (sequences 28-30), unresolved_risks disposition and last_updated (via a
+      text editor), rather than invoking the `transition` subcommand against
+      the real governance file.
+    rationale: >
+      Same rationale as the prior ORCH-001 sessions' DEC-4/DEC-3:
+      write_state_atomic's yaml.safe_dump would reformat the entire flow-style
+      document into block style, an out-of-scope stylistic change. The
+      transition subcommand's write path is instead exercised exclusively
+      against isolated temporary fixtures in the test suite and the standalone
+      probe. The hand-edit was independently re-validated against the tool's
+      own `validate` subcommand (PASS, state_digest
+      sha256:d3cc44bac5bfdd346bcba9148c4633a9c516c14e7ddd5e4ef262a174f26b13c0)
+      to confirm it is structurally and semantically indistinguishable from a
+      tool-produced result.
+  - id: DEC-5
+    summary: >
+      Update the R-ORCH-001-VALIDATOR-CORRECTNESS disposition to record the
+      F-3 remediation, but leave its severity HIGH and do not mark it resolved.
+    rationale: >
+      session-protocol.md section 6 and the remediator/reviewer independence
+      rule: a remediation session cannot approve its own fix. Only a
+      subsequent independent reviewer, distinct from claude-code-implementer-1,
+      claude-code-independent-reviewer-orch-001-1,
+      claude-code-remediator-orch-001-1,
+      claude-code-independent-reviewer-orch-001-2 and this session's actor, can
+      confirm the fix is sound and move the risk toward resolution.
+unresolved_risks:
+  - id: R-ORCH-001-VALIDATOR-CORRECTNESS
+    severity: HIGH
+    summary: >
+      See implementation-state.yaml's unresolved_risks entry for full text.
+      This session only appends the F-3-remediation record to the disposition;
+      severity and summary are otherwise unchanged.
+    disposition: >
+      This session removed the pinned frontier test (F-3) and replaced it with
+      a durable, stage-name-free invariant and three tests, verified to survive
+      a correct ORCH-001 -> REVIEW_APPROVED transition via the real CLI against
+      an isolated copy. Severity left HIGH pending independent re-review per
+      DEC-5. All four other pre-existing unresolved_risks entries
+      (R-APPROVAL-ISOLATION, R-GOVERNANCE-TRANSACTION, R-BOOTSTRAP-ROLE-OVERLAP,
+      R-REMEDIATION-AMENDMENT-UNREVIEWED) are carried forward unchanged; none is
+      affected by this remediation.
+blockers: []
+schema_changes: []
+migration_changes: []
+worktree_digest:
+  algorithm: sha256
+  method: >-
+    SHA-256 of the newline-joined "sha256hex  relative/path" manifest lines
+    (sorted by path) for every changed_paths entry except this evidence YAML
+    itself (excluded to avoid a self-referential digest); the handoff and all
+    log artifacts are included. Each line's leading digest is the SHA-256 of
+    that file's raw bytes. 21 files counted.
+  value: sha256:0edd615f1a14870a877140570623e8740651a3f4e19571d805717f88b6e6235a
+handoff: docs/implementation/orchestration/handoffs/ORCH-001/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c.md
+production_source_modified: false
+stage_status_changed: true
+stage_status_transition: {from: REVIEW_REJECTED, to: VERIFIED, via: [IN_PROGRESS, IMPLEMENTED]}
+review_verdict_recorded: false
+findings_remediated: [F-3]
+next_required_role: REVIEWER
+next_required_action: >
+  Independent ORCH-001 re-review, run by a session/actor distinct from
+  claude-code-implementer-1, claude-code-independent-reviewer-orch-001-1,
+  claude-code-remediator-orch-001-1, claude-code-independent-reviewer-orch-001-2
+  and claude-code-remediator-orch-001-2, per stages/ORCH-001.md's "Independent
+  review checklist" and session-protocol.md section 5: confirm this diff is
+  committed and current HEAD matches it, re-run pytest -q
+  tests/test_orchestration_feature_state.py and the full suite, run the
+  validator validate against the real committed state, independently reproduce
+  that the durable frontier invariant survives a correct ORCH-001 ->
+  REVIEW_APPROVED transition (e.g. by re-running the durability probe or an
+  equivalent CLI-driven simulation against a throwaway copy) and that the
+  removed pinned assertion would fail after it, confirm F-1/F-2 remain fixed
+  and are not re-litigated, then record REVIEW_APPROVED or REVIEW_REJECTED in a
+  new reviews/ORCH-001/<review-id>.yaml. Do not implement ORCH-002 in the same
+  session.

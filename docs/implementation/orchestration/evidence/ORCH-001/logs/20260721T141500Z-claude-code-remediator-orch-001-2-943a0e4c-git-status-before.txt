@@ -1,0 +1,4 @@
+## main...origin/main
+?? docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-environment-fingerprint.txt
+?? docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-git-rev-parse-head-before.txt
+?? docs/implementation/orchestration/evidence/ORCH-001/logs/20260721T141500Z-claude-code-remediator-orch-001-2-943a0e4c-git-status-before.txt
