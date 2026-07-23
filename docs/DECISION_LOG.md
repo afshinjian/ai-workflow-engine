@@ -4,6 +4,51 @@ Architectural decisions for `ai-workflow-engine`, newest first. Each entry recor
 decided, what alternatives were considered, and why — so a fresh session can understand *why*
 the code looks the way it does, not just what it does.
 
+## 2026-07-23 — DASH-001 closed out; AgentOS Workflow Automation program (AUTO) enrolled with AUTO-001 current
+
+**Decision:** Before starting AUTO-001, the AUTO-001 stage prompt's own precondition check
+("no conflicting task is active") found that DASH-001 was still recorded `Status: Current` in
+`docs/TASK_QUEUE.md` and its mirrors, even though its PR (#1, `5f82996`) had already merged into
+`main` — the formal flip-to-`Done` closeout step had not yet run. `self-governance.yaml` sets
+`workflow.maximum_current_tasks: 1`, enforced by `workflowctl check-task-state`, so starting a
+second `Current` task would have broken that invariant. Presented with the conflict, the Human
+Owner chose "close out DASH-001 first, then proceed with AUTO-001." DASH-001 was flipped to
+`Done` in `docs/TASK_QUEUE.md`, `docs/current_task.md`, `docs/remaining_tasks.md`, and
+`docs/PROJECT_STATE.md` (prose only; the `Current Version:` fact line untouched), and the new
+**AgentOS Workflow Automation program** (AUTO-001..AUTO-007, entry point
+`docs/workflow-automation/README.md`) was enrolled in the same edit: AUTO-001 as the sole
+`Current` task and AUTO-002..AUTO-007 as `Planned`, mirroring exactly how the DASH program was
+enrolled at DASH-001. `workflowctl check-task-state --config self-governance.yaml` re-run after
+the edit to confirm exactly 1 `Current` task.
+
+**Alternatives considered:** (a) Leaving DASH-001 marked `Current` and treating AUTO-001 as
+exempt from `docs/TASK_QUEUE.md` tracking, since AUTO-001's own file scope
+(`docs/workflow-automation/`) never overlaps DASH-001's — rejected: this repository's
+`maximum_current_tasks: 1` rule is a whole-repository invariant, not a per-program one (DASH-001's
+own stage prompt encoded the same precondition: "no other `Current` task anywhere in
+`docs/TASK_QUEUE.md`"), and a program-private state file (the option taken for the read-only
+`docs/implementation/orchestration/` ORCH package) was rejected for DASH-001 on the grounds that
+"DASH stages are ordinary tasks and belong under the existing `check-task-state` discipline" —
+the same reasoning applies to AUTO. (b) Stopping entirely and asking the Human Owner to close out
+DASH-001 in a separate session first — rejected as the Human Owner's explicit choice, given they
+authorized the closeout in the same turn as being asked. (c) Leaving AUTO-002..AUTO-007
+unenrolled (only adding AUTO-001) since the AUTO-001 authorization text did not explicitly
+request `TASK_QUEUE.md` changes — rejected for internal consistency: the DASH precedent enrolls a
+program's full known roadmap as `Planned` at its first authorized stage, and AUTO-001's own
+required deliverables already define all seven stages' scope in
+`docs/workflow-automation/stage-prompts/`.
+
+**Rationale:** Recorded here because `docs/AGENT_PROTOCOL.md` requires governance changes to be
+logged with their rationale, and because promotion of AUTO-001 to `Current` needs the recorded
+owner approval (`self-governance.yaml` `require_designer_approval_for_promotion`). The Human
+Owner's 2026-07-23 authorization ("I authorize AUTO-001.") plus the explicit "close out DASH-001
+first" choice made when presented with the conflict are that approval for both actions. This
+entry, and the `docs/TASK_QUEUE.md`/mirror edits it describes, are governance/task-state changes
+required by repository governance to satisfy AUTO-001's own preconditions — not part of
+AUTO-001's documentation deliverable set, which remains scoped to `docs/workflow-automation/`.
+No commit, push, PR, merge, or branch deletion was performed for either the closeout or the
+AUTO-001 work.
+
 ## 2026-07-23 — AgentOS Dashboard program enrolled; DASH-001 recovered from a mis-targeted execution
 
 **Decision:** Adopt the ten-stage AgentOS Dashboard program (DASH-001..DASH-010) as post-1.0

@@ -7,6 +7,16 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- AUTO-001 (2026-07-23): AgentOS Workflow Automation architecture and governance foundation —
+  the complete documentation set under `docs/workflow-automation/` (README, architecture,
+  workflow-state, agent/skill/model-provider contracts, human-authorization model, machine
+  gates, security model, failure recovery, audit model, configuration model, target-repository
+  model, CLI spec, MVP scope, stage registry, test strategy, decisions, open questions,
+  changelog, stage report template) plus `stage-prompts/AUTO-001..AUTO-007.md`. Program
+  enrollment in `docs/TASK_QUEUE.md` and its mirrors (AUTO-001 `Current`, AUTO-002..007
+  `Planned`); DASH-001 formally closed to `Done` as a precondition (see `docs/DECISION_LOG.md`).
+  Documentation-and-architecture-only; no engine, test, or dependency change.
+
 - DASH-001 (2026-07-23): AgentOS Dashboard program planning foundation — the complete
   documentation set under `docs/agentos-dashboard/` (master plan, architecture, product spec,
   security model, source-of-truth rules, data model, API/UI specs, MVP scope, test strategy,
@@ -16,6 +26,11 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
   and re-executed correctly for this repository after a mis-targeted first execution
   (`docs/agentos-dashboard/DECISIONS.md` DD-03;
   `docs/reports/agentos-dashboard/DASH-001-recovery-report.md`).
+
+### Changed
+- DASH-001 (2026-07-23): flipped from `Current` to `Done` in `docs/TASK_QUEUE.md` and its
+  mirrors — its PR (#1, `5f82996`) had already merged into `main`; this is the formal closeout
+  step, done as an AUTO-001 precondition (`docs/DECISION_LOG.md`).
 
 ## [1.0.0] — 2026-07-18 — Roadmap complete
 

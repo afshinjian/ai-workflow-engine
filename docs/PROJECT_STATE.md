@@ -18,6 +18,10 @@ plan to 1.0, and `docs/architecture.md` for the pipeline shapes.
 
 ## Completed
 
+- DASH-001 (closed 2026-07-23): AgentOS Dashboard planning foundation and contracts — the
+  complete documentation set under `docs/agentos-dashboard/`, merged into `main` via PR #1
+  (`5f82996`). Formally flipped to `Done` as an AUTO-001 precondition (see
+  `docs/DECISION_LOG.md`, 2026-07-23 AUTO-001 entry).
 - Milestone 1 (v0.1.0, released 2026-07-16): deterministic read-only Git inspection, governance
   and task-state mirror checks, source-aware handover checksum verification, protected paths,
   structured CLI/JSON results.
@@ -45,17 +49,18 @@ plan to 1.0, and `docs/architecture.md` for the pipeline shapes.
 
 ## In progress
 
-The entire approved 1.0.0 roadmap (`docs/MASTER_ROADMAP.md`) is complete. The active task is
-DASH-001 (dashboard planning foundation), the first stage of the post-1.0 **AgentOS Dashboard
-program** authorized by the Human Owner on 2026-07-23: a documentation-only stage on branch
-`governance/dash-001-documentation` establishing the planning set under
-`docs/agentos-dashboard/`. It was recovered and re-executed correctly for this repository on
-2026-07-23 after a mis-targeted first execution (see `docs/agentos-dashboard/DECISIONS.md`
-DD-03). Details: `docs/current_task.md`.
+The entire approved 1.0.0 roadmap (`docs/MASTER_ROADMAP.md`) is complete and DASH-001 is closed.
+The active task is AUTO-001 (architecture and governance contracts), the first stage of the
+post-1.0 **AgentOS Workflow Automation program** authorized by the Human Owner on 2026-07-23
+("I authorize AUTO-001."): a documentation-and-architecture-only stage on branch
+`governance/auto-001-workflow-automation-planning` establishing the governance foundation under
+`docs/workflow-automation/` for a local engine that automates a target repository's stage
+lifecycle behind a single human authorization gate. Details: `docs/current_task.md`.
 
 ## Planned
 
-Dashboard stages DASH-002..DASH-010 (`docs/TASK_QUEUE.md`; program plan
+AUTO-002..AUTO-007 (`docs/TASK_QUEUE.md`; program plan `docs/workflow-automation/README.md`)
+and Dashboard stages DASH-002..DASH-010 (program plan
 `docs/agentos-dashboard/MASTER_PLAN.md`), each requiring its own fresh Human Owner
 authorization; DASH-004 onward additionally gated on the OD-D9 dependency decision. Candidate
 future engine work (explicitly out of the delivered 1.0.0 scope) remains listed in
