@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Literal, cast
 
 from pydantic import ConfigDict, field_validator, model_validator
-from typing_extensions import TypeAliasType
+from typing_extensions import TypeAliasType, TypeIs
 
 from ai_workflow_engine.models import StrictModel
 from ai_workflow_engine.models import WorkflowStage as WorkflowStage  # re-exported for the package
@@ -41,6 +41,18 @@ WORKFLOW_STAGES: tuple[WorkflowStage, ...] = (
     "governance-review",
     "push",
 )
+
+
+def is_workflow_stage(value: str) -> TypeIs[WorkflowStage]:
+    """Return whether `value` is one of the seven canonical workflow stages.
+
+    The single shared membership test for untrusted stage strings (CLI options, parsed
+    artifacts). Returning `TypeIs` lets callers narrow a plain `str` to `WorkflowStage`
+    from the runtime check itself, so no caller needs `cast` or `type: ignore` to reach
+    the stage-typed API surface.
+    """
+    return value in WORKFLOW_STAGES
+
 
 JsonScalar = None | bool | int | str
 JsonValue = TypeAliasType("JsonValue", "JsonScalar | list[JsonValue] | dict[str, JsonValue]")

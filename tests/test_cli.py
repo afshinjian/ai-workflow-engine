@@ -1077,3 +1077,48 @@ def test_apply_patch_missing_run_exits_one(repository: Path, config_factory: obj
     )
     assert result.exit_code == 1
     assert json.loads(result.stdout)["findings"][0]["code"] == "run_unavailable"
+
+
+def test_state_record_unknown_stage_exits_two(repository: Path, config_factory: object) -> None:
+    """`state record` refuses an unsupported stage instead of recording it."""
+    config = config_factory(repository)  # type: ignore[operator]
+    result = runner.invoke(
+        app,
+        [
+            "state",
+            "record",
+            "--config",
+            str(config),
+            "--task-id",
+            "T-1",
+            "--stage",
+            "not-a-stage",
+            "--completed",
+        ],
+    )
+    assert result.exit_code == 2
+    assert "Unknown stage: 'not-a-stage'" in result.output
+
+
+def test_agent_run_unknown_stage_exits_two(repository: Path, config_factory: object) -> None:
+    """`agent run` refuses an unsupported stage before dispatching any agent."""
+    config = config_factory(repository)  # type: ignore[operator]
+    result = runner.invoke(
+        app,
+        [
+            "agent",
+            "run",
+            "--config",
+            str(config),
+            "--agent",
+            "reviewer",
+            "--task-id",
+            "T-1",
+            "--stage",
+            "not-a-stage",
+            "--prompt-id",
+            "0" * 16,
+        ],
+    )
+    assert result.exit_code == 2
+    assert "Unknown stage: 'not-a-stage'" in result.output
