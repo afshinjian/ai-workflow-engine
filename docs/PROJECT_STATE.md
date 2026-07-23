@@ -45,13 +45,21 @@ plan to 1.0, and `docs/architecture.md` for the pipeline shapes.
 
 ## In progress
 
-Nothing is in progress: the entire approved roadmap (`docs/MASTER_ROADMAP.md`) is complete and the
-project is at version 1.0.0. There is no `Current` task.
+The entire approved 1.0.0 roadmap (`docs/MASTER_ROADMAP.md`) is complete. The active task is
+DASH-001 (dashboard planning foundation), the first stage of the post-1.0 **AgentOS Dashboard
+program** authorized by the Human Owner on 2026-07-23: a documentation-only stage on branch
+`governance/dash-001-documentation` establishing the planning set under
+`docs/agentos-dashboard/`. It was recovered and re-executed correctly for this repository on
+2026-07-23 after a mis-targeted first execution (see `docs/agentos-dashboard/DECISIONS.md`
+DD-03). Details: `docs/current_task.md`.
 
 ## Planned
 
-Nothing remains in the approved roadmap. Candidate future work (explicitly out of the delivered
-scope) is listed in `docs/FINAL_COMPLETION_REPORT.md` under "Future improvements".
+Dashboard stages DASH-002..DASH-010 (`docs/TASK_QUEUE.md`; program plan
+`docs/agentos-dashboard/MASTER_PLAN.md`), each requiring its own fresh Human Owner
+authorization; DASH-004 onward additionally gated on the OD-D9 dependency decision. Candidate
+future engine work (explicitly out of the delivered 1.0.0 scope) remains listed in
+`docs/FINAL_COMPLETION_REPORT.md` under "Future improvements".
 
 ## Blockers
 

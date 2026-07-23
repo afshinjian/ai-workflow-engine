@@ -4,6 +4,43 @@ Architectural decisions for `ai-workflow-engine`, newest first. Each entry recor
 decided, what alternatives were considered, and why — so a fresh session can understand *why*
 the code looks the way it does, not just what it does.
 
+## 2026-07-23 — AgentOS Dashboard program enrolled; DASH-001 recovered from a mis-targeted execution
+
+**Decision:** Adopt the ten-stage AgentOS Dashboard program (DASH-001..DASH-010) as post-1.0
+work, enrolled in `docs/TASK_QUEUE.md` with DASH-001 as the sole `Current` task, and complete
+DASH-001 by **recovery**: the first execution was mistakenly performed in a different
+repository (`amozesh_konkur`), and its documentation output — copied here as untracked
+candidate material — was rewritten in place so every assumption matches this repository's
+actual governance (authority chain per `docs/AGENT_PROTOCOL.md` + `self-governance.yaml`;
+Current/Planned/Done task lifecycle with `workflowctl` mirror checks; branches from `main`;
+handover pair verified by `workflowctl check-handover`; upstream check instead of a baseline
+tag; this single decision log; the orchestration package treated as read-only observed state).
+The program is documentation-first, and the dashboard itself will be a separate top-level
+package (`agentos_dashboard/`) with read-only repository access — it never gains commit, push,
+or governance-mutation authority.
+
+**Alternatives considered:** (a) Discarding the copied material and re-planning from scratch —
+rejected as wasteful: the product/security/test design is repository-agnostic and sound; only
+its governance bindings were wrong. (b) Keeping the copied files verbatim and reconciling later
+— rejected: they cited nonexistent files (`CONSTITUTION.md`, `governance/`, root `AGENTS.md`,
+`scripts/create_handover.py`), a nonexistent base branch (`recovery/project-baseline`), a
+nonexistent baseline tag, foreign decision IDs (CTO-xxx/D-xxx/ISS-xxx), and a false "zero new
+dependencies (FastAPI)" claim, so leaving them in place would have created a second, false
+authority. (c) Enrolling the DASH stages outside `docs/TASK_QUEUE.md` in a program-private
+state file, like the ORCH package — rejected: unlike ORCH (a reviewed design package with its
+own session protocol), DASH stages are ordinary tasks and belong under the existing
+`check-task-state` discipline.
+
+**Rationale:** Recorded here because `docs/AGENT_PROTOCOL.md` requires governance changes to be
+logged with their rationale, and because promotion of DASH-001 to `Current` needs the recorded
+owner approval (`self-governance.yaml` `require_designer_approval_for_promotion`). The Human
+Owner's 2026-07-23 recovery directive ("I authorize recovery and correct execution of DASH-001
+in the ai-workflow-engine repository") is that approval. The known dependency gap (this
+repository pins no web framework) is deliberately not decided here; it is held open as OD-D9 in
+`docs/agentos-dashboard/OPEN_QUESTIONS.md` and blocks DASH-004, not DASH-001..003. Full
+correction inventory: `docs/agentos-dashboard/DECISIONS.md` DD-03 and
+`docs/reports/agentos-dashboard/DASH-001-recovery-report.md`.
+
 ## 2026-07-18 — `state` CLI emits a deterministic bespoke payload, not a timestamped CheckResult (T-302)
 
 **Decision:** `workflowctl state show|next|record` success output is a purpose-built canonical-JSON

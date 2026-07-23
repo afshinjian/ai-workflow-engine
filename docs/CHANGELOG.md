@@ -4,6 +4,19 @@ All notable changes to `ai-workflow-engine` are documented here. Format loosely 
 [Keep a Changelog](https://keepachangelog.com/); this project does not yet follow a formal
 release-versioning cadence beyond the milestone numbering in `docs/milestones.md`.
 
+## [Unreleased]
+
+### Added
+- DASH-001 (2026-07-23): AgentOS Dashboard program planning foundation — the complete
+  documentation set under `docs/agentos-dashboard/` (master plan, architecture, product spec,
+  security model, source-of-truth rules, data model, API/UI specs, MVP scope, test strategy,
+  stage registry, stage prompts, program decisions/questions/changelog) plus program enrollment
+  in `docs/TASK_QUEUE.md` and its mirrors, and the enrollment decision in
+  `docs/DECISION_LOG.md`. Documentation-only; no engine, test, or dependency change. Recovered
+  and re-executed correctly for this repository after a mis-targeted first execution
+  (`docs/agentos-dashboard/DECISIONS.md` DD-03;
+  `docs/reports/agentos-dashboard/DASH-001-recovery-report.md`).
+
 ## [1.0.0] — 2026-07-18 — Roadmap complete
 
 Version 1.0.0: all four milestones of `docs/milestones.md` are implemented, validated, and

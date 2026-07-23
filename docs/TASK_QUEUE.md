@@ -208,3 +208,95 @@ Fixed the `version`-fact regex (`0\.\d+\.\d+` → `\d+\.\d+\.\d+`) in `self-gove
 `docs/PROJECT_STATE.md`, version tests), reworded the stale auto-flag validator message, finalized
 the changelog, and wrote `docs/FINAL_COMPLETION_REPORT.md`. `check-governance` PASSes at 1.0.0
 (proving the regex fix). Completed 2026-07-18 — the approved roadmap is now 100% complete.
+
+## AgentOS Dashboard program
+
+Post-1.0 program authorized by the Human Owner on 2026-07-23 (authorization and its recovery
+record: `docs/agentos-dashboard/STAGE_REGISTRY.md` §4; enrollment decision:
+`docs/DECISION_LOG.md`, 2026-07-23 entry). Ten independently authorized documentation and
+implementation stages deliver a local, read-only-first governance dashboard as a separate
+top-level package (`agentos_dashboard/`), leaving `src/`, `tests/`, and the audited engine
+suite untouched. Program entry point: `docs/agentos-dashboard/MASTER_PLAN.md`; per-stage
+contracts: `docs/agentos-dashboard/stage-prompts/`; live stage view:
+`docs/agentos-dashboard/STAGE_REGISTRY.md`. Exactly one DASH task may be `Current` at a time,
+and each stage requires its own fresh written authorization — completing a stage never
+authorizes its successor.
+
+## DASH-001 — Dashboard planning foundation and contracts
+
+Status: Current
+
+Documentation-only stage on branch `governance/dash-001-documentation`: create the complete
+planning set under `docs/agentos-dashboard/` (16 documents + `stage-prompts/` with README and
+ten canonical prompts), enroll the DASH family here, mirror it in `docs/current_task.md` and
+`docs/remaining_tasks.md`, and record the enrollment decision in `docs/DECISION_LOG.md` — with
+zero changes to `src/`, `tests/`, `scripts/`, dependencies, `handover/**`, or
+`docs/implementation/orchestration/**`. Recovered and re-executed correctly for this repository
+on 2026-07-23 after a mis-targeted first execution (see `docs/agentos-dashboard/DECISIONS.md`
+DD-03); full contract: `docs/agentos-dashboard/stage-prompts/DASH-001.md`; report:
+`docs/reports/agentos-dashboard/STAGE-01-completion.md`.
+
+## DASH-002 — Repository adapter and read-only snapshot
+
+Status: Planned
+
+Root-confined read-only file adapter, fixed-argv Git read adapter, snapshot builder with
+staleness fingerprint. Contract: `docs/agentos-dashboard/stage-prompts/DASH-002.md`.
+
+## DASH-003 — Governance and Markdown parsing
+
+Status: Planned
+
+Tolerant parsers for the governance mirrors, decision log, orchestration implementation state,
+and handover manifest; consistency engine v1. Contract:
+`docs/agentos-dashboard/stage-prompts/DASH-003.md`.
+
+## DASH-004 — Local backend and dashboard shell
+
+Status: Planned
+
+Loopback-only web shell with security baseline and Overview page. Blocked on OD-D9 (serving
+stack dependency decision, `docs/agentos-dashboard/OPEN_QUESTIONS.md`). Contract:
+`docs/agentos-dashboard/stage-prompts/DASH-004.md`.
+
+## DASH-005 — Workflow board and task detail
+
+Status: Planned
+
+Queue-lane board (Planned/Current/Done), workflow-stage strip, ORCH program lane, task detail
+views. Contract: `docs/agentos-dashboard/stage-prompts/DASH-005.md`.
+
+## DASH-006 — Git, upstream, handover, and consistency views
+
+Status: Planned
+
+Git status/history pages, upstream verification, handover checksum viewer, consistency page.
+Contract: `docs/agentos-dashboard/stage-prompts/DASH-006.md`.
+
+## DASH-007 — Stage registry and prompt generation
+
+Status: Planned
+
+Registry loader, precondition engine, hash-recorded gated prompt generation with refusal path.
+Contract: `docs/agentos-dashboard/stage-prompts/DASH-007.md`.
+
+## DASH-008 — Run records, evidence, and audit timeline
+
+Status: Planned
+
+Non-authoritative local SQLite store, append-only audit trail, run/evidence/audit pages.
+Contract: `docs/agentos-dashboard/stage-prompts/DASH-008.md`.
+
+## DASH-009 — Security hardening and failure handling
+
+Status: Planned
+
+Adversarial security test corpus and failure-handling hardening, with mandatory independent
+fresh-session security review. Contract: `docs/agentos-dashboard/stage-prompts/DASH-009.md`.
+
+## DASH-010 — Integration testing, documentation, and release readiness
+
+Status: Planned
+
+End-to-end tests, operator manual, MVP closure recommendation to the Human Owner. Contract:
+`docs/agentos-dashboard/stage-prompts/DASH-010.md`.
