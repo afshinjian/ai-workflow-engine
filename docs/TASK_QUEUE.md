@@ -224,17 +224,93 @@ authorizes its successor.
 
 ## DASH-001 — Dashboard planning foundation and contracts
 
-Status: Current
+Status: Done
 
-Documentation-only stage on branch `governance/dash-001-documentation`: create the complete
+Documentation-only stage on branch `governance/dash-001-documentation`: created the complete
 planning set under `docs/agentos-dashboard/` (16 documents + `stage-prompts/` with README and
-ten canonical prompts), enroll the DASH family here, mirror it in `docs/current_task.md` and
-`docs/remaining_tasks.md`, and record the enrollment decision in `docs/DECISION_LOG.md` — with
+ten canonical prompts), enrolled the DASH family here, mirrored it in `docs/current_task.md` and
+`docs/remaining_tasks.md`, and recorded the enrollment decision in `docs/DECISION_LOG.md` — with
 zero changes to `src/`, `tests/`, `scripts/`, dependencies, `handover/**`, or
 `docs/implementation/orchestration/**`. Recovered and re-executed correctly for this repository
 on 2026-07-23 after a mis-targeted first execution (see `docs/agentos-dashboard/DECISIONS.md`
 DD-03); full contract: `docs/agentos-dashboard/stage-prompts/DASH-001.md`; report:
-`docs/reports/agentos-dashboard/STAGE-01-completion.md`.
+`docs/reports/agentos-dashboard/STAGE-01-completion.md`. Merged into `main` via PR #1
+(`5f82996`); closed out 2026-07-23 as an AUTO-001 precondition (Human Owner directive: "Close
+out DASH-001 first" — `docs/DECISION_LOG.md`, 2026-07-23 AUTO-001 entry). DASH-002..010 remain
+`Planned`, each requiring its own fresh authorization; no successor was promoted by this
+closeout.
+
+## AgentOS Workflow Automation program
+
+Post-1.0 program authorized by the Human Owner on 2026-07-23 ("I authorize AUTO-001."). Builds
+a local orchestration layer that automates a target repository's stage lifecycle (precondition
+verification, branching, implementation via Claude Code CLI, deterministic validation,
+independent QA via Codex CLI, automatic repair, commit, push, PR, squash merge, and closeout)
+behind a single human gate — explicit per-stage authorization — with every later transition
+controlled by machine gates. Program entry point: `docs/workflow-automation/README.md`;
+architecture: `docs/workflow-automation/ARCHITECTURE.md`; per-stage contracts:
+`docs/workflow-automation/stage-prompts/`. This program automates *other* repositories' stages
+(e.g. `DASH-002` in a separate target repository) — it does not itself replace this repository's
+own `docs/TASK_QUEUE.md` discipline, which continues to govern `ai-workflow-engine`'s own work
+including AUTO-00x. Exactly one AUTO task may be `Current` at a time, and each stage requires
+its own fresh written authorization — completing a stage never authorizes its successor.
+
+## AUTO-001 — Architecture and governance contracts
+
+Status: Current
+
+Documentation-and-architecture-only stage on branch
+`governance/auto-001-workflow-automation-planning`: define the complete governance and
+architecture foundation for the AgentOS Workflow Automation engine under
+`docs/workflow-automation/` (21 documents + `stage-prompts/` covering AUTO-001..AUTO-007) and
+record the enrollment decision in `docs/DECISION_LOG.md` — with zero runtime code, zero
+dependency changes, and zero changes to `src/`, `tests/`, `scripts/`, `handover/**`, or
+`docs/implementation/orchestration/**`. No commit, push, PR, merge, or branch deletion is
+performed by this stage. Full contract:
+`docs/workflow-automation/stage-prompts/AUTO-001.md`; report:
+`docs/reports/workflow-automation/AUTO-001-completion-report.md`.
+
+## AUTO-002 — Orchestrator, state machine, locking, and persistence
+
+Status: Planned
+
+Requires its own fresh authorization. Contract:
+`docs/workflow-automation/stage-prompts/AUTO-002.md`.
+
+## AUTO-003 — Deterministic repository and validation skills
+
+Status: Planned
+
+Requires its own fresh authorization. Contract:
+`docs/workflow-automation/stage-prompts/AUTO-003.md`.
+
+## AUTO-004 — Claude Code CLI and Codex CLI providers
+
+Status: Planned
+
+Requires its own fresh authorization. Contract:
+`docs/workflow-automation/stage-prompts/AUTO-004.md`.
+
+## AUTO-005 — PMO, implementation, QA, Git, merge, and closeout agents
+
+Status: Planned
+
+Requires its own fresh authorization. Contract:
+`docs/workflow-automation/stage-prompts/AUTO-005.md`.
+
+## AUTO-006 — GitHub pull request, automatic squash merge, and closeout integration
+
+Status: Planned
+
+Requires its own fresh authorization. Contract:
+`docs/workflow-automation/stage-prompts/AUTO-006.md`.
+
+## AUTO-007 — End-to-end dry run, recovery tests, and DASH integration
+
+Status: Planned
+
+Requires its own fresh authorization. Contract:
+`docs/workflow-automation/stage-prompts/AUTO-007.md`.
 
 ## DASH-002 — Repository adapter and read-only snapshot
 
