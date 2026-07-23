@@ -1,5 +1,6 @@
 import pytest
 
+from ai_workflow_engine.prompt.models import WORKFLOW_STAGES, is_workflow_stage
 from ai_workflow_engine.workflow.events import VERDICT_STAGES, Verdict, WorkflowEvent, WorkflowStage
 from ai_workflow_engine.workflow.transitions import (
     INITIAL_STAGE,
@@ -127,3 +128,24 @@ def test_check_outcome_kind_forbids_verdict(stage: WorkflowStage) -> None:
     with pytest.raises(VerdictForbidden):
         check_outcome_kind(stage, has_verdict=True)
     check_outcome_kind(stage, has_verdict=False)  # no raise
+
+
+@pytest.mark.parametrize("stage", WORKFLOW_STAGES)
+def test_is_workflow_stage_accepts_every_canonical_stage(stage: WorkflowStage) -> None:
+    assert is_workflow_stage(stage)
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "",
+        "not-a-stage",
+        "Implementation",
+        "implementation ",
+        "plan_review",
+        "push\n",
+    ],
+)
+def test_is_workflow_stage_rejects_unsupported_values(value: str) -> None:
+    """Unsupported stage strings are rejected, including near-miss casing/whitespace variants."""
+    assert not is_workflow_stage(value)

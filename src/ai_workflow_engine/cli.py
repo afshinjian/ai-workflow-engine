@@ -34,10 +34,10 @@ from ai_workflow_engine.migration.plan import build_backup_plan, build_recovery_
 from ai_workflow_engine.models import EngineConfig
 from ai_workflow_engine.prompt.context import build_prompt_context
 from ai_workflow_engine.prompt.models import (
-    WORKFLOW_STAGES,
     PromptSuccess,
     RenderedPrompt,
     WorkflowStage,
+    is_workflow_stage,
 )
 from ai_workflow_engine.prompt.renderer import canonical_json, render_prompt
 from ai_workflow_engine.prompt.store import load, save
@@ -602,7 +602,7 @@ def _check_agent_run_evidence(
     settings: EngineConfig,
     *,
     task_id: str,
-    stage: str,
+    stage: WorkflowStage,
     verdict: str | None,
     run_id: str,
 ) -> dict[str, object] | None:
@@ -612,7 +612,7 @@ def _check_agent_run_evidence(
 
     normalized_task = normalize_text(task_id)
     try:
-        record = load_run(settings.project.id, normalized_task, stage, run_id)  # type: ignore[arg-type]
+        record = load_run(settings.project.id, normalized_task, stage, run_id)
     except ArtifactError as exc:
         return _agent_evidence_fail("agent_run_unavailable", str(exc))
     if record.task_id != normalized_task or record.stage != stage:
@@ -772,7 +772,7 @@ def state_record(
 
     def build() -> dict[str, object]:
         settings = load_config(config)
-        if stage not in WORKFLOW_STAGES:
+        if not is_workflow_stage(stage):
             raise typer.BadParameter(f"Unknown stage: {stage!r}", param_hint="--stage")
         if (verdict is not None) == completed:
             raise typer.BadParameter(
@@ -893,7 +893,7 @@ def agent_run(
 
     def build() -> dict[str, object]:
         settings = load_config(config)
-        if stage not in WORKFLOW_STAGES:
+        if not is_workflow_stage(stage):
             raise typer.BadParameter(f"Unknown stage: {stage!r}", param_hint="--stage")
         agent = next((a for a in settings.agents if a.name == agent_name), None)
         if agent is None:
@@ -1005,17 +1005,17 @@ def apply_patch(
     """Apply a verified Milestone 3 patch to the working tree, gated, or refuse."""
     settings = _config(config, output=output, command="apply-patch")
 
-    def gate() -> object:
-        if stage not in WORKFLOW_STAGES:
+    def gate() -> WorkflowStage:
+        if not is_workflow_stage(stage):
             raise typer.BadParameter(f"Unknown stage: {stage!r}", param_hint="--stage")
-        return None
+        return stage
 
-    _protected(gate, output=output, command="apply-patch")
+    # The gate returns the narrowed stage so the verified value itself flows into the
+    # patch gate; nothing downstream has to re-assert the type it already proved.
+    checked_stage = _protected(gate, output=output, command="apply-patch")
     result = _safe_check(
         "apply-patch",
-        lambda: run_apply_patch_gate(
-            settings, task_id=task_id, stage=cast(WorkflowStage, stage), run_id=run_id
-        ),
+        lambda: run_apply_patch_gate(settings, task_id=task_id, stage=checked_stage, run_id=run_id),
     )
     _emit(result, output)
 

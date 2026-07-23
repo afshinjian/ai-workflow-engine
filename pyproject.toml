@@ -36,13 +36,27 @@ packages = ["src/ai_workflow_engine"]
 testpaths = ["tests"]
 addopts = "-ra"
 
+# Frozen historical orchestration artifacts. The Python files under these directories are
+# evidence: verbatim probe scripts recorded during ORCH-00x execution and review. They are
+# records of what was run, not maintained source, so they must stay byte-identical and are
+# excluded from every formatter and linter. `force-exclude`/`extend-exclude` are required
+# because pre-commit passes file paths explicitly rather than letting the tools walk the tree.
 [tool.black]
 line-length = 100
 target-version = ["py311"]
+force-exclude = '''
+/docs/implementation/orchestration/(evidence|reviews|handoffs)/
+'''
 
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+force-exclude = true
+extend-exclude = [
+  "docs/implementation/orchestration/evidence/**",
+  "docs/implementation/orchestration/reviews/**",
+  "docs/implementation/orchestration/handoffs/**",
+]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "RUF"]
