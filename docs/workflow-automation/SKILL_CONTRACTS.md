@@ -5,7 +5,7 @@
 | **Title** | AgentOS Workflow Automation — Skill Contracts |
 | **Purpose** | Contract (inputs, outputs, side effects, idempotency, failure mode) for every named skill, grouped by family. |
 | **Status** | Draft |
-| **Version** | 1.0 |
+| **Version** | 1.2 |
 | **Owner** | Documentation & Governance session (AUTO-001) · Human Owner (approval) |
 | **Dependencies** | `ARCHITECTURE.md`, `AGENT_CONTRACTS.md` |
 | **Related Documents** | `WORKFLOW_STATES.md` §7, `MACHINE_GATES.md`, `SECURITY_MODEL.md` |
@@ -92,6 +92,54 @@ output references) — never raw stdout/stderr containing potential secrets.
 configured baseline branch — the skill's argv is fixed to the stage branch, never a caller-
 supplied arbitrary ref (`SECURITY_MODEL.md` §2).
 
+**Initial-execution retry classification for `create_commit`, `push_stage_branch`,
+`create_pull_request`** (`WORKFLOW_STATES.md` §5a; Human Owner policy OD-9,
+`OPEN_QUESTIONS.md`, resolved 2026-07-24). The determining question is never *which error type*
+occurred — it is *when*: could the underlying `git`/`gh` subprocess have already reached the
+remote before the failure was observed? Absence of a confirmed side effect is not proof that no
+side effect occurred, so a timeout, connection reset, DNS failure, or lost response is **never**,
+by itself, sufficient to classify a failure as pre-effect — each of those can occur exactly as
+easily after the remote already received and acted on the write as before it sent anything.
+
+- **Proven pre-side-effect (bounded, same-state retry permitted):** the Skill's own precondition
+  check (§2, `SECURITY_MODEL.md` §5, verified immediately before execution) fails, or the `git`/
+  `gh` executable itself fails to spawn (not found, permission denied) — in both cases the
+  underlying command was never actually invoked, so nothing could have reached the remote. This
+  is a narrow, provable set; a network-layer error *surfaced by* an invoked `git`/`gh` subprocess
+  is never included here, however immediate it appears, because a subprocess wrapping a network
+  client cannot be trusted to report "connection refused before any byte left the machine" versus
+  "the write landed and the acknowledgment was lost" — the two are indistinguishable from the
+  Skill's own vantage point without positive confirmation.
+- **Possible, unknown, or indeterminate side effect (no blind retry — mandatory
+  idempotency/reconciliation check instead, same state, before any other action):** every other
+  failure of an invoked `git`/`gh` subprocess — process/network timeout, connection reset, DNS
+  failure occurring during the call, a lost or incomplete response, an ambiguous non-zero exit.
+  This is the default classification for any failure once the subprocess has actually run.
+  Reconciliation uses exactly the Skill idempotency check already defined for it (`create_commit`:
+  does the tree already match the expected committed diff; `push_stage_branch`: does the remote
+  ref already match; `create_pull_request`: does an open PR already exist for the branch).
+- **Confirmed successful side effect (reconciliation success):** advance to the state that
+  matches reality (`WORKFLOW_STATES.md` §5a item 3) — the side effect is never repeated.
+- **Recoverable inconsistency:** not applicable to these three Skills (`WORKFLOW_STATES.md` §5a
+  item 4) — nothing at this phase is a code problem `ImplementationAgent` could fix.
+- **Unrecoverable or indeterminate (`FAILED`):** the proven-pre-effect retry limit is exhausted;
+  or reconciliation cannot establish a safe state; or reconciliation finds an inconsistency with
+  no available repair; or a required invariant cannot be restored.
+- **Explicitly non-retryable, routed straight to reconciliation-then-`FAILED` if unresolved, never
+  retried under any classification:** authentication/permission failure, merge/rebase conflict,
+  an invalid or missing ref, a malformed/rejected request (a definitive HTTP 4xx other than 429),
+  or any error the Skill itself classifies as permanent in its typed result — none of these is
+  ever ambiguous about whether a side effect could have occurred, so none needs the possible-
+  side-effect reconciliation step; they are non-retryable exactly because they are diagnosable as
+  permanent, not because a side effect is impossible.
+
+Retry limit for the proven-pre-side-effect case: **3 attempts** per Skill invocation, mirroring
+the existing repair-attempt ceiling (`FAILURE_RECOVERY.md` §1) for consistency, though counted
+independently of it (`WORKFLOW_STATES.md` §5a item 1) — exhausting the limit is never silently
+extended, and reconciliation (the second bullet above) is never itself retried blindly; a second
+reconciliation attempt only follows a fresh, independent invocation that itself first re-entered
+the proven-pre-effect or possible-side-effect classification.
+
 ## 6. Reporting Skills
 
 | Skill | Input | Output | Side effect | Idempotent |
@@ -110,7 +158,7 @@ containing enough evidence for the Orchestrator to decide the next workflow-stat
 full effect is applied and confirmed, or nothing is applied.
 
 ## 8. Decision References
-DD-01, DD-05.
+DD-01, DD-05, DD-09.
 
 ## 9. Open Questions
 OD-1 (GitHub auto-merge/required-checks mechanism), OD-2 (secret-detection implementation),

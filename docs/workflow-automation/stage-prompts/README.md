@@ -5,7 +5,7 @@
 | **Title** | Stage Prompts — Index and Standard Stage Protocol |
 | **Purpose** | Directory index for the canonical AUTO stage prompts and the sole canonical home of the Standard Stage Protocol (SSP). |
 | **Status** | Draft |
-| **Version** | 1.0 |
+| **Version** | 1.3 |
 | **Owner** | Documentation & Governance session · Human Owner (approval) |
 | **Dependencies** | `../README.md`; `../STAGE_REGISTRY.md` |
 | **Related Documents** | `AUTO-001.md` … `AUTO-007.md`; `../STAGE_REPORT_TEMPLATE.md` |
@@ -21,10 +21,36 @@ authorization procedure in `../STAGE_REGISTRY.md` §3.
 **SSP — mandatory for every AUTO stage.** Act only in the role assigned to this stage. Before
 any change: read `docs/AGENT_PROTOCOL.md`, `docs/CONTEXT.md`, `self-governance.yaml`,
 `docs/PROJECT_STATE.md`, `docs/current_task.md`, `docs/TASK_QUEUE.md` (AUTO section), and
-`docs/workflow-automation/README.md`. Confirm the active stage is exactly this one and its
-status is `AUTHORIZED` in `docs/workflow-automation/STAGE_REGISTRY.md`; verify all
-preconditions; verify you are on the stage's named branch created from a clean baseline; verify
-`git status` is clean before starting. Implement ONLY this stage; refuse unrelated work, even if
+`docs/workflow-automation/README.md`. Then run exactly one of the two preflight procedures below,
+depending on whether this is the stage's first session or a later one continuing it — never both,
+never a mix.
+
+**Initial-start preflight** (`../STAGE_REGISTRY.md` §3 rule 4) — use when the registry shows this
+stage as `AUTHORIZED` and no work has begun: confirm the active stage is exactly this one and its
+status is `AUTHORIZED` in `docs/workflow-automation/STAGE_REGISTRY.md`; verify all preconditions;
+verify you are on the stage's named branch created from a clean baseline; verify `git status` is
+clean before starting. If any of these execution preconditions fails, stop before making any
+change, make no implementation change, and report the exact failed precondition to the Human
+Owner — this never invalidates a previously recorded stage authorization (`../STAGE_REGISTRY.md`
+§3 rule 17); the stage's registry state becomes `BLOCKED` until the Human Owner resolves it, and
+its task stays `Current`. Once resolved, registry state returns to `AUTHORIZED` (never straight
+to `IN_PROGRESS`) so this exact check — "status is `AUTHORIZED`" — passes cleanly before
+implementation begins; no re-authorization is needed to make that return trip
+(`../STAGE_REGISTRY.md` §3 rule 17). If preconditions pass, registry `AUTHORIZED → IN_PROGRESS`.
+
+**Resume preflight** (`../STAGE_REGISTRY.md` §3 rule 19) — use when the registry already shows
+this stage `IN_PROGRESS`, `SELF_REVIEW`, `REVIEW`, or `APPROVAL`: confirm the active stage is
+exactly this one; **do not** require or wait for status `AUTHORIZED` — those four states are the
+complete, legal resume set, and the stage never returns to `AUTHORIZED` merely to be resumed.
+Re-verify the same execution preconditions checked at initial start (named branch, clean tree,
+any stage-specific ones in this stage's own contract). If they pass, continue implementation
+normally — no registry transition occurs, and none is needed. If any fails, stop before making
+any change, make no implementation change, and report the exact failure to the Human Owner; the
+registry state is **not** moved to `BLOCKED` (`BLOCKED` is reserved for the initial-start case
+above) and is not otherwise transitioned — it stays exactly where it was, per
+`../STAGE_REGISTRY.md` §3 rule 19. Neither outcome ever triggers a new authorization event.
+
+Whichever preflight applies, once it passes: implement ONLY this stage; refuse unrelated work, even if
 discovered (record it in the stage report and, where it needs an owner decision, as a new entry
 in `../OPEN_QUESTIONS.md` instead). Stay strictly inside the stage's allowed files; treat
 `src/`, `tests/`, `scripts/`, `examples/`, `pyproject.toml`, `.pre-commit-config.yaml`,

@@ -5,7 +5,7 @@
 | **Title** | AgentOS Dashboard — Changelog |
 | **Purpose** | Append-only log of every approved change to the dashboard documentation set; the audit spine of `MASTER_PLAN.md` §8. |
 | **Status** | Draft |
-| **Version** | 1.0 |
+| **Version** | 1.2 |
 | **Owner** | Completing agent per stage · verified at review |
 | **Dependencies** | None |
 | **Related Documents** | `MASTER_PLAN.md` §7–§8 |
@@ -16,6 +16,112 @@ Entry ID `CL-YYYYMMDD-##`, newest first. Each entry: documents touched, versions
 before/after, authorizing task, approver. Entries are appended, never edited.
 
 ## Entries
+
+### CL-20260724-06 — `SUPERSEDED` task-status policy (OD-8) mirrored from the AUTO program
+
+- **Documents:** `STAGE_REGISTRY.md` §1 (state-mapping sentence) and rule 9 (Superseding).
+- **Versions:** `STAGE_REGISTRY.md` 4.0 → **5.0**.
+- **Reason for change:** Human Owner policy decision OD-8 (`OPEN_QUESTIONS.md`, resolved
+  2026-07-24): `SUPERSEDED` maps to task status `Done` — administratively closed, never
+  successful completion, distinct from `COMPLETE` in `docs/TASK_QUEUE.md` prose every time; legal
+  source states `AUTHORIZED`/`BLOCKED`/`IN_PROGRESS`/`SELF_REVIEW`/`REVIEW`/`APPROVAL`; never a
+  fourth task status; never an automatic successor authorization. Mirrored here from
+  `docs/workflow-automation/STAGE_REGISTRY.md` rule 9, so the two programs' registries do not
+  drift on this shared policy, per this registry's own existing substantive-equivalence promise
+  (§1).
+- **Authorizing task:** none required — a consistency mirror of an explicit Human Owner policy
+  decision already fully recorded elsewhere, not a new governance decision made here.
+- **Approval basis already recorded elsewhere:** `docs/DECISION_LOG.md`, 2026-07-24 entry "Human
+  Owner policy decisions recorded and applied: OD-8 ... and OD-9 ...", quoting the Human Owner's
+  OD-8 approval verbatim.
+- **Date:** 2026-07-24.
+
+### CL-20260724-05 — Resume preflight synchronized with the shared AUTO lifecycle
+
+- **Documents:** `STAGE_REGISTRY.md` §1/§2 and `stage-prompts/README.md`.
+- **Versions:** `STAGE_REGISTRY.md` 3.0 → **4.0**;
+  `stage-prompts/README.md` 1.2 → **1.3**.
+- **Reason for change:** the registry already promises that AUTO and DASH share the same
+  lifecycle/control rules except for Dashboard's explicitly named Rollback rule, but AUTO's
+  zero-transition Resume Preflight had not been mirrored after it was added. Added Dashboard
+  rule 20 and split the SSP into initial-start/resume sections. A passing or failing resume
+  leaves registry state unchanged; no state, transition, authorization rule, or task-status
+  semantic was added. Updated the explanatory rule-number crosswalk accordingly.
+- **Authorizing task:** none required — internal synchronization with an existing normative
+  equivalence promise, not a new governance policy.
+- **Approval basis already recorded elsewhere:** `docs/DECISION_LOG.md`, 2026-07-24 "twelfth
+  pass" entry and the operator's explicit instruction to apply Classification Findings 1–2.
+- **Date:** 2026-07-24.
+
+### CL-20260724-04 — Stage-prompts SSP formatter documentation resynchronized
+
+- **Documents:** `stage-prompts/README.md` (pre-commit hook description and validation-command
+  list).
+- **Versions:** `stage-prompts/README.md` 1.1 → **1.2**.
+- **Reason for change:** the SSP's pre-commit warning still named `` `ruff --fix`, `ruff-format` ``
+  as the auto-fixing hooks, stale since `ruff-format` was removed from `.pre-commit-config.yaml`
+  entirely (`docs/DECISION_LOG.md`, 2026-07-24 "seventh pass" entry) — Black is the sole
+  formatter, `ruff-check` is lint/import-sort only. Reworded to name the actual current hooks in
+  actual order (`ruff-check --fix`, `black`, `mypy`) and added `` `ruff format --check .` `` to
+  the recorded validation-command list. Repository policy is unchanged; only documentation was
+  synchronized with the already-implemented toolchain.
+- **Authorizing task:** none required — a factual documentation-synchronization fix found on
+  independent governance audit, not a new governance decision.
+- **Approval basis already recorded elsewhere:** `docs/DECISION_LOG.md`, 2026-07-24 "tenth pass"
+  entry (this change) and "seventh pass" entry (the underlying `ruff-format` removal this
+  documentation now correctly reflects).
+- **Date:** 2026-07-24.
+
+### CL-20260724-03 — Stage registry: closeout rule gap fixed, rule-equivalence claim narrowed
+
+- **Documents:** `STAGE_REGISTRY.md` §2 rule 17 (Closeout) and §1 (rule-equivalence claim).
+- **Versions:** `STAGE_REGISTRY.md` 2.0 → **3.0**.
+- **Reason for change:** rule-by-rule audit against `docs/workflow-automation/STAGE_REGISTRY.md`
+  found this registry's rule 17 was missing the entire `git`-check closeout-tolerance clause the
+  AUTO program's equivalent rule states — fixed by adding the matching clause. The §1 claim that
+  every control rule is "identical in substance" to AUTO's was overstated; narrowed to a precise
+  list of which rules are shared and which (rule 14, Rollback) is intentionally
+  program-specific.
+- **Authorizing task:** none required — a factual rule-consistency fix found on independent
+  governance audit, not a new governance decision.
+- **Approval basis already recorded elsewhere:** `docs/DECISION_LOG.md`, 2026-07-24 "seventh
+  pass" entry ("Dashboard/AUTO equivalence claim corrected...").
+- **Date:** 2026-07-24.
+
+### CL-20260724-02 — Stage registry and SSP: `BLOCKED` lifecycle and execution-precondition rules mirrored from the AUTO program
+
+- **Documents:** `STAGE_REGISTRY.md` §1 (`BLOCKED` mapping), §2 (rules 1, 8, 17–19, new),
+  `stage-prompts/README.md` (SSP resume-from-`BLOCKED` clarification).
+- **Versions:** `STAGE_REGISTRY.md` 1.0 → 2.0 (recorded in `CL-20260724-01` below);
+  `stage-prompts/README.md` 1.0 → **1.1** (not previously recorded in this changelog — this
+  entry closes that gap).
+- **Reason for change:** mirrored, into the DASH program's registry and SSP, the same
+  authorization-vs-execution-precondition rules, the `BLOCKED` state's legal transitions
+  (`BLOCKED → AUTHORIZED → IN_PROGRESS` or `BLOCKED → SUPERSEDED`), the completed-stage-amendment
+  distinction (rule 8), and the Governance Correction Record mechanism (rule 19, adopted by
+  reference), all established for the AUTO program in the same work session, so the two
+  programs' registries do not drift on shared mechanisms.
+- **Authorizing task:** none required — a consistency mirror of already-established rules, not a
+  new governance decision.
+- **Approval basis already recorded elsewhere:** `docs/DECISION_LOG.md`, 2026-07-24 "fifth pass"
+  entry ("every registry audited repository-wide").
+- **Date:** 2026-07-24.
+
+### CL-20260724-01 — DASH-001 completion recorded; stage registry synchronized
+
+- **Documents:** `STAGE_REGISTRY.md` §3 (DASH-001 row: `IN_PROGRESS` → `COMPLETE`, its actual
+  state since 2026-07-23), this changelog (this entry).
+- **Versions:** `STAGE_REGISTRY.md` 1.0 → 2.0 (also carries the same-day Finding 1–4 governance
+  corrections mirrored from `docs/workflow-automation/STAGE_REGISTRY.md`).
+- **Authorizing task:** none required — this is a factual synchronization of records with an
+  already-approved, already-merged completion (PR #1, `5f82996`), found stale on independent
+  governance audit; not a new governance decision. The two entries below still correctly read
+  "pending Human Owner acceptance at DASH-001 completion" as of when they were written
+  (2026-07-23, before that acceptance had been recorded here) and are left untouched per this
+  file's own append-only convention; DASH-001's actual completion and closeout is recorded in
+  `docs/DECISION_LOG.md` (2026-07-23 entry) and `docs/TASK_QUEUE.md`.
+- **Approver:** Human Owner (via the 2026-07-23 closeout decision recorded in
+  `docs/DECISION_LOG.md`, not a new approval act).
 
 ### CL-20260723-02 — DASH-001 recovery adaptation to `ai-workflow-engine`
 

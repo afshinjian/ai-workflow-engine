@@ -6,6 +6,159 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 
 ## [Unreleased]
 
+### Changed
+- Governance recovery (2026-07-24): fixed a real OD-9 retry-classification defect —
+  `SKILL_CONTRACTS.md`/`MODEL_PROVIDER_CONTRACTS.md` had classified retryability by error *type*
+  (timeout/reset/DNS-failure = retryable), when the approved policy requires classifying by
+  *timing* (a timeout is never, by itself, proof no side effect occurred); corrected to classify
+  strictly by whether the underlying operation was ever actually invoked (`SKILL_CONTRACTS.md` →
+  1.2, `MODEL_PROVIDER_CONTRACTS.md` → 1.2, `WORKFLOW_STATES.md` §5a item 1 tightened → 4.1);
+  appended the missing `docs/agentos-dashboard/CHANGELOG.md` entry for its own 4.0 → 5.0
+  transition (OD-8 mirror), without touching existing entries; and rewrote every live AUTO-002
+  branch-blocker description to state the settled release procedure (this recovery branch is
+  reviewed/committed/pushed/merged/deleted through the ordinary process, never renamed into the
+  AUTO-002 branch) rather than presenting it as an open choice. No policy, lifecycle state, or
+  AUTO-002 implementation changed. Full record: `docs/DECISION_LOG.md`.
+- Human Owner policy decisions applied (2026-07-24): OD-8 (`SUPERSEDED` maps to task status
+  `Done`, administratively closed, never successful completion; legal source states
+  `AUTHORIZED`/`BLOCKED`/`IN_PROGRESS`/`SELF_REVIEW`/`REVIEW`/`APPROVAL`; never automatic
+  successor authorization; no fourth task status — `STAGE_REGISTRY.md` → 6.0, Dashboard
+  registry → 5.0, `DECISIONS.md` DD-08) and OD-9 (initial-execution failure policy for the
+  implementation-provider invocation and `create_commit`/`push_stage_branch`/
+  `create_pull_request`: bounded same-state retry, then reconciliation, then advance/`REPAIRING`
+  (`IMPLEMENTING` only)/`FAILED`, per new `WORKFLOW_STATES.md` §5a — no new state or transition,
+  only new reasons on existing edges — `WORKFLOW_STATES.md` → 4.0, `DECISIONS.md` DD-09, with
+  consistency updates to `MACHINE_GATES.md`, `FAILURE_RECOVERY.md`, `AGENT_CONTRACTS.md`,
+  `SKILL_CONTRACTS.md`, `MODEL_PROVIDER_CONTRACTS.md`, `TEST_STRATEGY.md`). Both approvals
+  recorded verbatim; both `OPEN_QUESTIONS.md` entries moved Open → Resolved (→ 1.3). Full record:
+  `docs/DECISION_LOG.md`.
+- Governance recovery (2026-07-24, twelfth pass): synchronized the Dashboard lifecycle with its
+  existing substantive-equivalence promise by adding a zero-transition Resume Preflight
+  restatement (`docs/agentos-dashboard/STAGE_REGISTRY.md` → 4.0; Dashboard SSP → 1.3), corrected
+  the Dashboard/AUTO rule-number crosswalk, clarified that the runtime's six named machine gates
+  include one Precondition gate spanning two transition-source states
+  (`WORKFLOW_STATES.md` → 3.2), and corrected the handover's "unpushed ref" wording to distinguish
+  the sole no-upstream branch from two retained local stash snapshots. Recorded, without
+  resolving, two Human Owner design questions: `SUPERSEDED` task-status semantics (OD-8) and
+  initial-execution provider/commit/push/PR failure policy (OD-9;
+  `OPEN_QUESTIONS.md` → 1.2). No lifecycle state, runtime transition, authorization, task status,
+  release behavior, stash, or AUTO-002 implementation changed (`docs/DECISION_LOG.md`).
+- AUTO-001 (2026-07-24): flipped from `Current` to `Done` in `docs/TASK_QUEUE.md` and its
+  mirrors — its PR (#3, `191f600`) had already merged into `main`; this is the formal closeout
+  step. AUTO-002 enrolled as the sole `Current` task, authorized by the Human Owner
+  ("I authorize AUTO-002."), but its execution-precondition check found the working branch
+  (`feature/auto-002-orchestrator-foundation`) does not match the canonical branch
+  (`feature/auto-002-orchestrator-state-machine`); no AUTO-002 implementation was started
+  (`docs/DECISION_LOG.md`).
+- Governance recovery (2026-07-24, two passes): corrected a mis-cited authority for the AUTO-002
+  branch block in every document that repeated it (`docs/current_task.md`, `docs/TASK_QUEUE.md`,
+  `docs/PROJECT_STATE.md`, `docs/workflow-automation/STAGE_REGISTRY.md` §5, and the original
+  `docs/DECISION_LOG.md` entry itself) and a non-canonical `STAGE_REGISTRY.md` state value
+  (`AUTHORIZED (blocked — …)` → `BLOCKED`). Made the governance boundary explicit rather than
+  implied: `docs/workflow-automation/STAGE_REGISTRY.md` (+ the SSP) is now stated as the
+  exclusive authority for the AUTO-00x stage lifecycle, `HUMAN_AUTHORIZATION_MODEL.md`/
+  `WORKFLOW_STATES.md` as scoped only to the future runtime engine, a new `STAGE_REGISTRY.md` §3
+  rule 17 states that a failed execution precondition never invalidates a recorded authorization
+  and moves a stage to `BLOCKED` (≈ task status `Current`, now named explicitly in §2's mapping)
+  instead, and `stage-prompts/AUTO-002.md` now separates authorization preconditions from
+  execution preconditions. No lifecycle transition changed; no AUTO-002 implementation performed
+  (`docs/DECISION_LOG.md`).
+- Governance recovery (2026-07-24, third pass): disambiguated OD-3/OD-4 in
+  `docs/workflow-automation/OPEN_QUESTIONS.md` (authorization-gating "blocks" vs.
+  implementation-time "affects"); clarified `STAGE_REGISTRY.md` rule 16's `workflowctl verify`
+  tolerance at closeout; completed the `BLOCKED` lifecycle (later refined in the fourth pass
+  below to `BLOCKED → AUTHORIZED → IN_PROGRESS`, or `BLOCKED → SUPERSEDED`, never back to
+  `NOT_STARTED`/`PROPOSED`); fixed a retired
+  "authorization-binding" phrase left in `docs/remaining_tasks.md`; corrected
+  `docs/PROJECT_STATE.md`'s self-contradicting "Blockers" section, which claimed no blocker
+  existed and described stale Git history (`main` is in fact identical to `origin/main`, both PRs
+  merged and pushed); and rewrote the stale (though checksum-valid) `handover/PROJECT_HANDOVER.md`
+  in full, regenerating `handover/PROJECT_CHECKSUM.md` to match. No lifecycle transition changed;
+  no AUTO-002 implementation performed (`docs/DECISION_LOG.md`).
+- Governance recovery (2026-07-24, fourth pass): redefined rule 1's "clean tree" (the
+  predecessor-closeout/successor-enrollment edit that authorizes a stage is the sanctioned
+  trigger, not a violation — verified against `git status` evidence at every point in this
+  recovery); fixed a `BLOCKED`/SSP deadlock the third pass's rule 17 had introduced, by routing
+  `BLOCKED → AUTHORIZED → IN_PROGRESS` instead of straight to `IN_PROGRESS`; rewrote rule 8 to
+  distinguish frozen completion records (§4/§5, reports, `docs/DECISION_LOG.md` — corrected only
+  via a new rule-18 Governance Correction Record, never in place) from versioned living reference
+  documents (this registry, `HUMAN_AUTHORIZATION_MODEL.md`, `WORKFLOW_STATES.md`, the SSP,
+  `stage-prompts/*.md`, `OPEN_QUESTIONS.md` — amendable in place with a version bump); and
+  declared `docs/DECISION_LOG.md` itself explicitly append-only, disclosing that the two prior
+  passes had edited entries in place before that rule was explicit
+  (`STAGE_REGISTRY.md` → 3.0; `stage-prompts/README.md` → 1.2). No lifecycle transition changed;
+  no AUTO-002 implementation performed (`docs/DECISION_LOG.md`).
+- Governance recovery (2026-07-24, fifth pass): revised rule 16 (no successor is *automatically*
+  selected at closeout, but an explicit Human Owner directive covering both a predecessor's
+  closeout and a successor's authorization in one session — as happened twice, DASH-001→AUTO-001
+  and AUTO-001→AUTO-002 — satisfies rather than violates it) instead of invalidating either
+  historical authorization; audited every stage registry repository-wide and fixed
+  `docs/agentos-dashboard/STAGE_REGISTRY.md`'s stale DASH-001 `IN_PROGRESS` (actually `Done` since
+  2026-07-23) plus its drift from the AUTO registry's already-fixed rules, and appended a
+  correction entry to `docs/agentos-dashboard/CHANGELOG.md`; added three failure transitions
+  (`AUTHORIZED`/`PRECONDITIONS_CHECKED`/`PR_OPEN` → `FAILED`) to `WORKFLOW_STATES.md` §3 that
+  `MACHINE_GATES.md` required but which were absent from the transition table; and completed
+  rule 1's "clean tree" artifact list, which had itself omitted this registry's own §4/§5 and the
+  program-level changelog. `docs/implementation/orchestration/migration-registry.yaml` was
+  checked and confirmed out of scope (frozen ORCH-00x evidence, SSP-forbidden to modify).
+  `STAGE_REGISTRY.md` → 4.0; `docs/agentos-dashboard/STAGE_REGISTRY.md` → 2.0;
+  `WORKFLOW_STATES.md` → 1.2. No lifecycle transition changed; no AUTO-002 implementation
+  performed (`docs/DECISION_LOG.md`).
+- Governance recovery (2026-07-24, seventh pass): fixed a real gap in
+  `docs/agentos-dashboard/STAGE_REGISTRY.md` rule 17 (was missing AUTO's `git`-check closeout
+  tolerance) and narrowed its overstated "identical in substance" claim to a precise shared/
+  program-specific rule list (→ 3.0); fixed stale "AUTO-002 authorization requires..." wording in
+  `docs/workflow-automation/STAGE_REGISTRY.md` §7 to state the already-satisfied fact plainly;
+  **eliminated formatter non-determinism at its root** by removing the redundant `ruff-format`
+  pre-commit hook (this repository's own SSP validation commands never included it — `black` is
+  the actual canonical formatter) and re-pinning `.pre-commit-config.yaml` to the exact installed
+  tool versions (`ruff-pre-commit` → v0.15.21, `black-pre-commit-mirror` → 25.12.0,
+  `mirrors-mypy` → v1.20.2); verified `pre-commit run --all-files` idempotent across two
+  consecutive runs (zero file changes either time). Assessed extending `check-governance` to
+  validate registry/lifecycle consistency and confirmed it needs new code, not config — tracked
+  as `GOV-2` (`Planned`) rather than implemented in this session. Full record:
+  `docs/DECISION_LOG.md`.
+- `docs/workflow-automation/WORKFLOW_STATES.md` (2026-07-24): Human Owner explicitly reviewed and
+  approved the three `FAILED` transitions added in the prior pass (`AUTHORIZED`,
+  `PRECONDITIONS_CHECKED`, `PR_OPEN` → `FAILED`) as a MAJOR change under the document's own §11
+  revision policy; version bumped 1.2 → **2.0**. This approval does not authorize AUTO-002
+  implementation or any release action. Full record: `docs/DECISION_LOG.md`.
+- Governance recovery (2026-07-24, eighth pass): fixed `tests/test_migration_plan_apply.py` so
+  `ruff format --check .` and `black --check .` fully agree (extracted a long assert message to
+  a local variable, eliminating the line-wrap disagreement); audited every mention of
+  `check-governance`/`check-task-state` for overclaiming registry/lifecycle coverage and found
+  none. Full record: `docs/DECISION_LOG.md`.
+- `docs/workflow-automation/WORKFLOW_STATES.md` (2026-07-24): Human Owner explicitly reviewed and
+  approved eight further `FAILED` transitions (`BRANCH_CREATED`, `IMPLEMENTING`, `REPAIRING`,
+  `READY_TO_COMMIT`, `COMMITTED`, `PUSHED`, `AUTO_MERGE_ENABLED`, `MERGED` → `FAILED`) as a
+  separate MAJOR change under §11, completing the failure-transition model so every state
+  `TEST_STRATEGY.md` §4a requires interruption/drift testing at now has a legal transition;
+  version bumped 2.0 → **3.0** (not reusing the prior MAJOR bump's version number, per explicit
+  instruction). Consistency updates to `MACHINE_GATES.md` (→ 1.1), `FAILURE_RECOVERY.md`
+  (→ 1.1), `TEST_STRATEGY.md` (→ 1.1), and `AGENT_CONTRACTS.md` (→ 1.1) so no document contradicts
+  the completed table. This approval does not authorize AUTO-002 implementation or any release
+  action. Full record: `docs/DECISION_LOG.md`.
+- Governance recovery (2026-07-24, tenth pass): resynchronized
+  `docs/agentos-dashboard/stage-prompts/README.md` with the actual current pre-commit toolchain
+  (named the real hooks — `ruff-check --fix`, `black`, `mypy`, no `ruff-format` — in actual order,
+  and added `ruff format --check .` to its recorded validation commands, → 1.2); closed a
+  Dashboard changelog completeness gap by appending three missing entries documenting already-
+  approved revisions (`STAGE_REGISTRY.md` 2.0 → 3.0, `stage-prompts/README.md` 1.0 → 1.1 and
+  1.1 → 1.2) without touching the existing entries. No repository policy changed. Full record:
+  `docs/DECISION_LOG.md`.
+- Governance recovery (2026-07-24, eleventh pass): separated the SSP's initial-start preflight
+  from a new resume preflight (`STAGE_REGISTRY.md` new rule 19, → 5.0; SSP restructured, → 1.3;
+  `stage-prompts/AUTO-002.md` → 1.2) so resuming an already-`IN_PROGRESS` stage no longer requires
+  impossibly returning to `AUTHORIZED` — zero new transitions, both resume outcomes leave the
+  registry state unchanged; mirrored `GOV-2` into `docs/PROJECT_STATE.md` and
+  `handover/PROJECT_HANDOVER.md`, which had omitted it; rewrote every live description of
+  AUTO-002's branch blocker as a durable, branch-name-independent rule
+  (`docs/PROJECT_STATE.md`, `docs/TASK_QUEUE.md`, `docs/current_task.md`,
+  `docs/remaining_tasks.md`, `handover/PROJECT_HANDOVER.md`,
+  `docs/workflow-automation/STAGE_REGISTRY.md` §7) without touching the append-only §5 log rows
+  that correctly record the original, branch-specific discovery. Full record:
+  `docs/DECISION_LOG.md`.
+
 ### Added
 - AUTO-001 (2026-07-23): AgentOS Workflow Automation architecture and governance foundation —
   the complete documentation set under `docs/workflow-automation/` (README, architecture,

@@ -5,7 +5,7 @@
 | **Title** | AgentOS Workflow Automation — Machine Gates |
 | **Purpose** | Every automatic checkpoint that stands in for human approval after the single human gate, with pass/fail criteria and on-fail behavior. |
 | **Status** | Draft |
-| **Version** | 1.0 |
+| **Version** | 1.2 |
 | **Owner** | Documentation & Governance session (AUTO-001) · Human Owner (approval) |
 | **Dependencies** | `WORKFLOW_STATES.md`, `HUMAN_AUTHORIZATION_MODEL.md` |
 | **Related Documents** | `SKILL_CONTRACTS.md`, `SECURITY_MODEL.md`, `FAILURE_RECOVERY.md` |
@@ -21,6 +21,19 @@ After `AUTHORIZED`, no further step requires or accepts human input. Every subse
 transition is gated by a deterministic, machine-evaluated condition. A gate either passes (the
 Orchestrator advances the workflow state) or fails (the Orchestrator moves to `REPAIRING` if
 attempts remain, otherwise to `FAILED`) — there is no third outcome and no silent skip.
+
+The six gates below (§2–§7) are the **forward-progress** checkpoints and are not the exhaustive
+source of every legal `→ FAILED` transition in `WORKFLOW_STATES.md` §3: a second, general
+failure path — interruption/resume detecting authorization-bound-value drift
+(`WORKFLOW_STATES.md` §6 item 3) — independently reaches `FAILED` from every other non-terminal,
+non-`CREATED` state, including several this document names no gate for (`BRANCH_CREATED`,
+`IMPLEMENTING`, `REPAIRING`, `READY_TO_COMMIT`, `COMMITTED`, `PUSHED`, `AUTO_MERGE_ENABLED`,
+`MERGED`). A **third** failure path — bounded retry then reconciliation for a side-effecting
+operation's own first-time execution failure (`WORKFLOW_STATES.md` §5a; `IMPLEMENTING`,
+`READY_TO_COMMIT`, `COMMITTED`, `PUSHED` only) — is likewise not a gate in this document's sense:
+it never applies to a gate's own pass/fail check, only to the Skill/provider invocation that
+precedes reaching a gate state. Do not read this document's gate list as defining the complete
+`→ FAILED` surface — `WORKFLOW_STATES.md` §3 is that complete, closed list.
 
 ## 2. Precondition Gate (`AUTHORIZED → PRECONDITIONS_CHECKED → BRANCH_CREATED`)
 

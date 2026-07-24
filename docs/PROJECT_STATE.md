@@ -18,6 +18,10 @@ plan to 1.0, and `docs/architecture.md` for the pipeline shapes.
 
 ## Completed
 
+- AUTO-001 (closed 2026-07-24): AgentOS Workflow Automation architecture and governance
+  contracts — the complete documentation set under `docs/workflow-automation/`, merged into
+  `main` via PR #3 (`191f600`). Formally flipped to `Done` per Human Owner review (see
+  `docs/DECISION_LOG.md`, 2026-07-24 entry).
 - DASH-001 (closed 2026-07-23): AgentOS Dashboard planning foundation and contracts — the
   complete documentation set under `docs/agentos-dashboard/`, merged into `main` via PR #1
   (`5f82996`). Formally flipped to `Done` as an AUTO-001 precondition (see
@@ -49,28 +53,65 @@ plan to 1.0, and `docs/architecture.md` for the pipeline shapes.
 
 ## In progress
 
-The entire approved 1.0.0 roadmap (`docs/MASTER_ROADMAP.md`) is complete and DASH-001 is closed.
-The active task is AUTO-001 (architecture and governance contracts), the first stage of the
-post-1.0 **AgentOS Workflow Automation program** authorized by the Human Owner on 2026-07-23
-("I authorize AUTO-001."): a documentation-and-architecture-only stage on branch
-`governance/auto-001-workflow-automation-planning` establishing the governance foundation under
-`docs/workflow-automation/` for a local engine that automates a target repository's stage
-lifecycle behind a single human authorization gate. Details: `docs/current_task.md`.
+The entire approved 1.0.0 roadmap (`docs/MASTER_ROADMAP.md`) is complete, DASH-001 is closed,
+and AUTO-001 is closed. The active task is AUTO-002 (orchestrator, state machine, locking, and
+persistence), the second stage of the post-1.0 **AgentOS Workflow Automation program**,
+authorized by the Human Owner on 2026-07-24 ("I authorize AUTO-002."). AUTO-002's registry state
+is `BLOCKED` on a durable execution precondition, not on a fact tied to any particular branch
+name. The settled procedure: this governance-recovery branch is reviewed, committed, pushed,
+merged, and deleted through the ordinary recovery release process — it is never renamed into the
+AUTO-002 implementation branch. After that merge and cleanup, an AUTO-002 execution session
+begins from updated, clean `main` and creates or checks out the canonical branch
+(`feature/auto-002-orchestrator-state-machine`, `docs/workflow-automation/STAGE_REGISTRY.md`
+§4), which must independently satisfy the SSP's initial-start branch-binding and clean-tree
+checks (`STAGE_REGISTRY.md` §3 rules 1/14/4) before the registry transitions
+`AUTHORIZED → IN_PROGRESS`. Per rule 17, a failed execution precondition never invalidates a
+recorded authorization (`HUMAN_AUTHORIZATION_MODEL.md` is not authority here — it governs only
+the future runtime engine's authorization of workflows against *target* repositories, never this
+repository's own AUTO-00x development stages, `STAGE_REGISTRY.md` §1); this is not a new
+AUTO-002 authorization, and AUTO-002 implementation does not begin during governance recovery.
+No AUTO-002 runtime implementation has started; the task remains `Current` (registry state
+`BLOCKED`) until the canonical branch exists and passes its checks. The original branch-mismatch
+discovery (2026-07-24, on this session's own working branch, not the canonical one) remains in
+`docs/DECISION_LOG.md` as a historical record. Details: `docs/current_task.md`,
+`docs/DECISION_LOG.md` (2026-07-24 entries).
 
 ## Planned
 
-AUTO-002..AUTO-007 (`docs/TASK_QUEUE.md`; program plan `docs/workflow-automation/README.md`)
+AUTO-003..AUTO-007 (`docs/TASK_QUEUE.md`; program plan `docs/workflow-automation/README.md`)
 and Dashboard stages DASH-002..DASH-010 (program plan
 `docs/agentos-dashboard/MASTER_PLAN.md`), each requiring its own fresh Human Owner
-authorization; DASH-004 onward additionally gated on the OD-D9 dependency decision. Candidate
-future engine work (explicitly out of the delivered 1.0.0 scope) remains listed in
+authorization; DASH-004 onward additionally gated on the OD-D9 dependency decision. Separately,
+one ordinary (non-AUTO/DASH-family) governance/tooling task, **GOV-2** (`docs/TASK_QUEUE.md`):
+extending `workflowctl check-governance` to machine-verify stage-registry/lifecycle consistency,
+assessed but deliberately not implemented during the 2026-07-24 governance recovery (real
+validator code needing its own authorization, out of scope for a documentation-only recovery
+session) — requires its own fresh authorization like any other Planned task. Candidate future
+engine work (explicitly out of the delivered 1.0.0 scope) remains listed in
 `docs/FINAL_COMPLETION_REPORT.md` under "Future improvements".
 
 ## Blockers
 
-None currently. One human-approved local commit (preserving Milestone 2, GOV-1, and Stage 0)
-exists from 2026-07-17. Everything since — Stage 0's T-104 and all of Milestones 3 and 4, up to
-and including the 1.0.0 release — is uncommitted in the working tree, awaiting a fresh commit
-decision from the human; `main` is one commit ahead of `origin/main` and nothing has been pushed.
-Committing and pushing each require explicit human approval per `docs/AGENT_PROTOCOL.md` — the
-very gates Milestone 4 now provides.
+**AUTO-002 is `BLOCKED`** (`docs/workflow-automation/STAGE_REGISTRY.md` §2/§4) on a durable
+execution precondition — the sole current blocker: it stays `BLOCKED` until this governance
+recovery is merged into `main`. The recovery release procedure is settled and durable, not a fact
+about this specific branch's name: this session's own working branch is reviewed, committed,
+pushed, merged, and deleted through the ordinary recovery release process — it is **not** renamed
+into the AUTO-002 implementation branch. After that merge and cleanup, an AUTO-002 execution
+session begins from updated, clean `main` and creates or checks out the canonical branch
+(`feature/auto-002-orchestrator-state-machine`); that branch must pass its own execution-
+precondition and branch-binding checks before the registry can transition to `IN_PROGRESS`. This
+is not a new AUTO-002 authorization, and no AUTO-002 implementation begins during governance
+recovery. This does not affect the Human Owner's "I authorize AUTO-002." authorization, which
+stands (`STAGE_REGISTRY.md` §3 rule 17).
+
+`main` and `origin/main` are identical (both at `191f600`, 0 ahead/0 behind) — DASH-001 (PR #1,
+`5f82996`) and AUTO-001 (PR #3, `191f600`) have both been merged and pushed to `origin/main`.
+The 1.0.0-release working tree (Stage 0's T-104 and all of Milestones 3 and 4) was folded into
+that same history via those merges; no work is sitting uncommitted on `main` waiting for a
+push decision. The only unpushed branch is the current session's own working branch,
+`feature/auto-002-orchestrator-foundation`, which has no upstream configured
+(`workflowctl check-git` reports `upstream_missing`) — expected for a local, not-yet-pushed
+feature branch, and not itself a governance blocker. Committing and pushing any future work
+still require explicit human approval per `docs/AGENT_PROTOCOL.md` — the gates Milestone 4
+provides.

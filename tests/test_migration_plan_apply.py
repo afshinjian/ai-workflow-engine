@@ -85,9 +85,8 @@ def test_apply_dry_run_writes_nothing(source_root: Path, tmp_path: Path) -> None
     assert result.status == "DRY_RUN_OK"
     assert _snapshot(source_root) == before_source
     after_tree = {str(p.relative_to(tmp_path)) for p in tmp_path.rglob("*")}
-    assert (
-        after_tree == before_tree
-    ), "dry-run apply must not create any file anywhere, including a backup object"
+    message = "dry-run apply must not create any file anywhere, including a backup object"
+    assert after_tree == before_tree, message
 
 
 def test_apply_without_dry_run_refuses_before_any_mutation(

@@ -6,15 +6,20 @@
 | **Branch** | `feature/auto-002-orchestrator-state-machine` |
 | **Commit message** | `feat(workflow): add orchestrator, state machine, locking, and persistence (AUTO-002)` |
 | **Report** | `docs/reports/workflow-automation/AUTO-002-completion-report.md` |
-| **Status/Version** | Draft · 1.0 |
+| **Status/Version** | Draft · 1.2 |
 
 Apply the Standard Stage Protocol in `README.md` in full.
 
 ## Canonical Prompt
 
 You are the **Engine implementation session** executing **AUTO-002 — Orchestrator, state
-machine, locking, and persistence**. Preconditions: AUTO-001 `COMPLETE`; recorded authorization
-"I authorize AUTO-002"; branch `feature/auto-002-orchestrator-state-machine` from clean `main`.
+machine, locking, and persistence**. Authorization preconditions (`../STAGE_REGISTRY.md` §3 rule
+1): AUTO-001 `COMPLETE`; recorded authorization "I authorize AUTO-002". Execution precondition —
+branch `feature/auto-002-orchestrator-state-machine` from clean `main` — verified at initial
+start via the SSP's initial-start preflight (`../STAGE_REGISTRY.md` §3 rule 4; failure →
+`BLOCKED`, rule 17) and re-verified on every resume via the SSP's resume preflight
+(`../STAGE_REGISTRY.md` §3 rule 19; failure → session stops, registry state unchanged, never
+`BLOCKED`). Neither outcome ever invalidates the authorization above.
 
 **Allowed**: create `agentos_workflow/{__init__.py, orchestrator/__init__.py,
 orchestrator/engine.py, orchestrator/state_store.py, orchestrator/lock.py, config/__init__.py,

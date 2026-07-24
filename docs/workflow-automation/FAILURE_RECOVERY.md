@@ -3,17 +3,18 @@
 | Field | Value |
 |---|---|
 | **Title** | AgentOS Workflow Automation — Failure Recovery |
-| **Purpose** | Automatic repair policy, `FAILED` semantics, interruption resume, and restart requirements. |
+| **Purpose** | Automatic repair policy, `FAILED` semantics, interruption resume, restart requirements, and initial-execution failure/reconciliation policy. |
 | **Status** | Draft |
-| **Version** | 1.0 |
+| **Version** | 1.2 |
 | **Owner** | Documentation & Governance session (AUTO-001) · Human Owner (approval) |
 | **Dependencies** | `WORKFLOW_STATES.md`, `MACHINE_GATES.md` |
 | **Related Documents** | `AGENT_CONTRACTS.md` §3-4, `AUDIT_MODEL.md` |
 
 ## Table of Contents
-1. Automatic Repair Policy · 2. Repair Attempt Contents · 3. FAILED Semantics ·
-4. Safety of a Failed Workflow · 5. Restart Requires New Authorization · 6. Resume vs. Restart ·
-7. Decision References · 8. Open Questions · 9. Future Revisions
+1. Automatic Repair Policy · 1a. Initial-Execution Failure and Reconciliation ·
+2. Repair Attempt Contents · 3. FAILED Semantics · 4. Safety of a Failed Workflow ·
+5. Restart Requires New Authorization · 6. Resume vs. Restart · 7. Decision References ·
+8. Open Questions · 9. Future Revisions
 
 ## 1. Automatic Repair Policy
 
@@ -25,7 +26,30 @@
   independent Codex QA (`MACHINE_GATES.md` §4) run again in full — a repair is never assumed
   correct and never partially re-validated.
 - After 3 failed repair attempts, the workflow is marked `FAILED`. There is no 4th attempt, and
-  no automatic escalation to a different provider or strategy.
+  no automatic escalation to a different provider or strategy. This exhausted-attempts path
+  transitions out via `VALIDATING`/`QA_RUNNING` (whichever gate the Nth attempt failed at),
+  already in `WORKFLOW_STATES.md` §3's table.
+- Separately, if a repair attempt itself is unrecoverable — the provider invocation crashes or
+  times out with no usable output to re-validate — the workflow transitions directly
+  `REPAIRING → FAILED` (`WORKFLOW_STATES.md` §3) rather than looping back to `VALIDATING` with
+  nothing to validate. This is distinct from the exhausted-attempts path above and from
+  `REPAIRING`'s other `→ FAILED` reason (interruption/resume authorization drift,
+  `WORKFLOW_STATES.md` §6 item 3) — all three are enumerated, not conflated, in the canonical
+  table.
+
+## 1a. Initial-Execution Failure and Reconciliation
+
+Distinct from this section's repair-attempt policy (which is about `ImplementationAgent`
+producing a *code* fix after `VALIDATING`/`QA_RUNNING` rejects a diff): the policy for a
+side-effecting operation's own first-time execution failing — the implementation-provider
+invocation, `create_commit`, `push_stage_branch`, `create_pull_request` — is normative in
+`WORKFLOW_STATES.md` §5a (Human Owner policy decision OD-9, `OPEN_QUESTIONS.md`, resolved
+2026-07-24; `DECISIONS.md` DD-09). Summary: bounded same-state retry before any side effect;
+idempotency/reconciliation check, never a blind retry, once a side effect may have occurred;
+reconciliation success advances normally; a recoverable inconsistency uses this section's
+existing `REPAIRING` path (never a second repair lifecycle, and only reachable from
+`IMPLEMENTING`, never directly from `READY_TO_COMMIT`/`COMMITTED`/`PUSHED`); everything else
+reaches `FAILED`. Full text: `WORKFLOW_STATES.md` §5a.
 
 ## 2. Repair Attempt Contents
 
@@ -71,11 +95,11 @@ looks unchanged. There is no "retry failed workflow" command that skips authoriz
   lock; there is no ambiguity about which workflow "resume" refers to (MVP constraint).
 
 ## 7. Decision References
-DD-04.
+DD-04, DD-09.
 
 ## 8. Open Questions
 OD-4 (whether transient infrastructure retries are cleanly separated from the repair-attempt
-counter in the eventual implementation).
+counter in the eventual implementation). OD-9 resolved 2026-07-24 — §1a, `OPEN_QUESTIONS.md`.
 
 ## 9. Future Revisions
 Changing the repair-attempt limit (3) or the "re-run everything after every attempt" rule is a

@@ -257,25 +257,41 @@ its own fresh written authorization — completing a stage never authorizes its 
 
 ## AUTO-001 — Architecture and governance contracts
 
-Status: Current
+Status: Done
 
 Documentation-and-architecture-only stage on branch
-`governance/auto-001-workflow-automation-planning`: define the complete governance and
+`governance/auto-001-workflow-automation-planning`: defined the complete governance and
 architecture foundation for the AgentOS Workflow Automation engine under
 `docs/workflow-automation/` (21 documents + `stage-prompts/` covering AUTO-001..AUTO-007) and
-record the enrollment decision in `docs/DECISION_LOG.md` — with zero runtime code, zero
+recorded the enrollment decision in `docs/DECISION_LOG.md` — with zero runtime code, zero
 dependency changes, and zero changes to `src/`, `tests/`, `scripts/`, `handover/**`, or
-`docs/implementation/orchestration/**`. No commit, push, PR, merge, or branch deletion is
-performed by this stage. Full contract:
+`docs/implementation/orchestration/**`. Full contract:
 `docs/workflow-automation/stage-prompts/AUTO-001.md`; report:
-`docs/reports/workflow-automation/AUTO-001-completion-report.md`.
+`docs/reports/workflow-automation/AUTO-001-completion-report.md`. Merged into `main` via PR #3
+(`191f600`); formally closed out to `Done` 2026-07-24 per Human Owner review — see
+`docs/DECISION_LOG.md`, 2026-07-24 entry.
 
 ## AUTO-002 — Orchestrator, state machine, locking, and persistence
 
-Status: Planned
+Status: Current
 
-Requires its own fresh authorization. Contract:
-`docs/workflow-automation/stage-prompts/AUTO-002.md`.
+Engine implementation session. Authorized by the Human Owner 2026-07-24 ("I authorize
+AUTO-002."); the sole `Current` task. Full contract:
+`docs/workflow-automation/stage-prompts/AUTO-002.md`; canonical branch per
+`docs/workflow-automation/STAGE_REGISTRY.md` §4: `feature/auto-002-orchestrator-state-machine`.
+**Blocked on a durable execution precondition (discovered 2026-07-24, not tied to any specific
+branch's name): AUTO-002 stays `BLOCKED` until this governance recovery is merged into `main`.
+The recovery release procedure is settled: this session's working branch is reviewed, committed,
+pushed, merged, and deleted through the ordinary recovery release process — it is not renamed
+into the AUTO-002 implementation branch. After that merge and cleanup, an AUTO-002 session begins
+from updated, clean `main` and creates or checks out the canonical branch above, which must
+independently pass the SSP's initial-start branch-binding and clean-tree checks
+(`docs/workflow-automation/stage-prompts/README.md`; `STAGE_REGISTRY.md` §3 rules 1/14/4) before
+the registry transitions to `IN_PROGRESS`. Per rule 17, a failed execution precondition never
+invalidates a recorded authorization; the Human Owner's authorization stands, and the stage's
+registry state is `BLOCKED` (§2) — still `Current` here, not demoted to `Planned`. This is not a
+new AUTO-002 authorization, and implementation must not begin during governance recovery. See
+`docs/DECISION_LOG.md`, 2026-07-24 entries.**
 
 ## AUTO-003 — Deterministic repository and validation skills
 
@@ -311,6 +327,49 @@ Status: Planned
 
 Requires its own fresh authorization. Contract:
 `docs/workflow-automation/stage-prompts/AUTO-007.md`.
+
+## GOV-2 — Extend `check-governance` to validate stage-registry/lifecycle consistency
+
+Status: Planned
+
+**Scope, assessed but not implemented during 2026-07-24 governance recovery** (this is a
+documentation-only task record; no code was written). Confirmed by reading
+`src/ai_workflow_engine/governance/validators.py`: `check_governance`/`check_task_state` today
+validate only (a) task-status agreement across the configured Markdown mirrors and (b)
+byte-equality of configured regex-extracted "facts" (currently only the `version` fact). Neither
+function reads `docs/workflow-automation/STAGE_REGISTRY.md` or
+`docs/agentos-dashboard/STAGE_REGISTRY.md` at all, so none of the following are machine-checked
+today: a registry's per-stage `State` cell (e.g. `BLOCKED`) against its task's
+`docs/TASK_QUEUE.md` status (e.g. `Current`) under the documented state-model mapping (this needs
+semantic mapping, e.g. `BLOCKED`/`AUTHORIZED`/`IN_PROGRESS`/... ≈ `Current`, not the existing
+fact-checker's byte-equality, which cannot express a mapping); agreement of a shared control rule
+across the AUTO and DASH registries where §1 claims equivalence (as audited manually,
+2026-07-24 — see `docs/DECISION_LOG.md`); or a `Future Revisions`-governed document's declared
+`Version` bump actually corresponding to a MAJOR/MINOR change classification (would need either
+richer document metadata than a `Version` table cell provides today, or a Human-Owner-recorded
+classification per change to check against).
+
+**Recommended shape when authorized:** a new `governance/registry.py` module parsing each
+program's `STAGE_REGISTRY.md` §Registry table (tolerant Markdown-table parsing, matching this
+project's existing conservative-parsing principle, `docs/DECISION_LOG.md` "Milestone 1" entry),
+a documented state→task-status mapping table (not hard-coded per program, since DASH and AUTO
+both already state the same mapping), a new `check-name` (e.g. `check-registries`) wired into
+`workflowctl verify`, and a config surface in `self-governance.yaml` naming which registries to
+check (this repository currently has two; a target repository being governed by a future engine
+would have its own). Version-policy compliance (MAJOR/MINOR classification correctness) is
+flagged as the hardest of the three to automate safely and may need to stay a documented,
+human-reviewed judgment call rather than a machine check, unless a future revision adds a
+structured changelog-per-document field the tool can parse.
+
+**Why not implemented now:** out of scope for a governance-recovery session (documentation and
+process correctness, not new engine functionality); writing new validator code is implementation
+work this session's mandate excludes, and — consistent with the very rules this recovery has been
+enforcing — adding new `workflowctl` capability is itself engine work requiring its own stage
+authorization and independent review, not something to slip in unauthorized during a
+documentation pass. Tests are correctly expected for every new validator per this repository's
+existing test-coverage discipline (`docs/AGENT_PROTOCOL.md`), to be added alongside the
+implementation, not before it exists. Requires its own fresh authorization, as an ordinary
+(non-AUTO/DASH-family) engine task.
 
 ## DASH-002 — Repository adapter and read-only snapshot
 

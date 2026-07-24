@@ -5,7 +5,7 @@
 | **Title** | AgentOS Workflow Automation — Model Provider Contracts |
 | **Purpose** | Contract for every Model Provider adapter: invocation shape, isolation guarantees, and the hard boundary that providers never authorize or bypass gates. |
 | **Status** | Draft |
-| **Version** | 1.0 |
+| **Version** | 1.2 |
 | **Owner** | Documentation & Governance session (AUTO-001) · Human Owner (approval) |
 | **Dependencies** | `ARCHITECTURE.md` §6, `AGENT_CONTRACTS.md` |
 | **Related Documents** | `SECURITY_MODEL.md`, `CONFIGURATION_MODEL.md` |
@@ -44,6 +44,36 @@ repair — the most recent QA report and prior diff.
 recommended commit message) — evidence for the Orchestrator's own deterministic validation, not
 a substitute for it.
 
+**Initial-execution retry classification** (`WORKFLOW_STATES.md` §5a; Human Owner policy OD-9,
+`OPEN_QUESTIONS.md`, resolved 2026-07-24). As with the Git/GitHub Skills (`SKILL_CONTRACTS.md`
+§5), the determining question is *when* the failure occurred, not *what kind* it was — a timeout
+or crash is never, by itself, proof that the provider had not already written files to the stage
+branch before it happened.
+
+- **Proven pre-side-effect (bounded, same-state retry permitted):** the CLI process fails to
+  spawn at all (executable not found, permission denied) — provably before it could have written
+  anything, since it never ran.
+- **Possible, unknown, or indeterminate side effect (no blind retry — mandatory reconciliation
+  first, same state):** the process times out, is killed, or exits abnormally *after* having
+  started, for any reason — it may already have written a partial or complete diff before the
+  interruption. Reconciliation: inspect the stage branch's actual diff against the stage contract
+  to determine whether a partial or complete implementation attempt already exists, and whether a
+  completion report was produced.
+- **Confirmed successful side effect (reconciliation success):** a complete, valid diff and
+  completion report already exist matching the attempt — advance normally
+  (`WORKFLOW_STATES.md` §5a item 3); the provider is never re-invoked to redo already-completed
+  work.
+- **Recoverable inconsistency:** a partial or malformed diff exists with no valid completion
+  report — this is exactly the case the existing `REPAIRING` path (reached via the normal
+  `IMPLEMENTING → VALIDATING` route, `WORKFLOW_STATES.md` §5a item 4) is for; it is not treated
+  as a reason to retry the same provider invocation again.
+- **Unrecoverable or indeterminate (`FAILED`):** the proven-pre-effect retry limit is exhausted;
+  or reconciliation cannot determine what state the diff is in; or a required invariant (e.g. the
+  stage branch itself) cannot be restored.
+
+Retry limit for the proven-pre-side-effect case: **3 attempts**, counted independently of the
+repair-attempt counter (`FAILURE_RECOVERY.md` §1, §1a).
+
 ## 3. CodexCLIProvider
 
 **Wraps:** the local Codex CLI executable (configured path + timeout per target repository).
@@ -81,7 +111,7 @@ each other:
   implementation session's framing) as well as a security property (`SECURITY_MODEL.md` §3).
 
 ## 6. Decision References
-DD-03.
+DD-03, DD-09.
 
 ## 7. Open Questions
 None blocking AUTO-001; concrete CLI invocation shape (argv, stdin/stdout protocol) is AUTO-004

@@ -5,7 +5,7 @@
 | **Title** | AgentOS Workflow Automation — Human Authorization Model |
 | **Purpose** | Defines the single human gate, the authorization binding, and every condition that invalidates it. |
 | **Status** | Draft |
-| **Version** | 1.0 |
+| **Version** | 1.1 |
 | **Owner** | Documentation & Governance session (AUTO-001) · Human Owner (approval) |
 | **Dependencies** | `WORKFLOW_STATES.md` §2-3 |
 | **Related Documents** | `MACHINE_GATES.md`, `TARGET_REPOSITORY_MODEL.md`, `CLI_SPEC.md`, `FAILURE_RECOVERY.md` |
@@ -28,6 +28,12 @@ After a valid authorization is captured and bound, every later transition is aut
 controlled by machine gates (`MACHINE_GATES.md`). No other point in the workflow asks for or
 accepts human approval. Models (`ClaudeCLIProvider`, `CodexCLIProvider`) never authorize
 workflows and never bypass machine gates (`MODEL_PROVIDER_CONTRACTS.md` §1).
+
+**Scope.** This entire document — every binding field in §2 and every invalidation condition in
+§4 — governs only the runtime machine above: one execution of the *finished* engine against an
+authorized *target repository's* stage. It is never authority for this repository's own AUTO-00x
+development-stage lifecycle (building the engine itself), which `STAGE_REGISTRY.md` and the
+Standard Stage Protocol govern exclusively; see that document's §1.
 
 ## 2. Authorization Binding
 
