@@ -5,7 +5,7 @@
 | **Title** | Stage Prompts — Index and Standard Stage Protocol |
 | **Purpose** | Directory index for the canonical DASH stage prompts and the sole canonical home of the Standard Stage Protocol (SSP). |
 | **Status** | Draft |
-| **Version** | 1.0 |
+| **Version** | 1.3 |
 | **Owner** | Documentation & Governance session · Human Owner (approval) |
 | **Dependencies** | `../MASTER_PLAN.md`; `../STAGE_REGISTRY.md` |
 | **Related Documents** | `DASH-001.md` … `DASH-010.md`; `../STAGE_REPORT_TEMPLATE.md` |
@@ -21,10 +21,29 @@ authorization procedure in `../STAGE_REGISTRY.md` §2.
 **SSP — mandatory for every DASH stage.** Act only in the role assigned to this stage. Before
 any change: read `docs/AGENT_PROTOCOL.md`, `docs/CONTEXT.md`, `self-governance.yaml`,
 `docs/PROJECT_STATE.md`, `docs/current_task.md`, `docs/TASK_QUEUE.md` (DASH section), and
-`docs/agentos-dashboard/MASTER_PLAN.md`. Confirm the active stage is exactly this one and its
-status is AUTHORIZED in `docs/agentos-dashboard/STAGE_REGISTRY.md`; verify all preconditions;
+`docs/agentos-dashboard/MASTER_PLAN.md`. Then run exactly one of the two preflight procedures
+below, depending on whether this is the stage's first session or a later one continuing it —
+never both, never a mix.
+
+**Initial-start preflight** (`../STAGE_REGISTRY.md` §2 rule 4) — use when the registry shows this
+stage as `AUTHORIZED` and no work has begun: confirm the active stage is exactly this one and its
+status is `AUTHORIZED` in `docs/agentos-dashboard/STAGE_REGISTRY.md`; verify all preconditions;
 verify you are on the stage's named branch created from a clean `main`; verify `git status` is
-clean before starting. Implement ONLY this stage; refuse unrelated work, even if discovered
+clean before starting. If any execution precondition fails, stop, make no change, and report it
+to the Human Owner — this never invalidates a recorded authorization (`../STAGE_REGISTRY.md` §2
+rule 18); registry state becomes `BLOCKED` until resolved, then returns to `AUTHORIZED` (never
+straight to `IN_PROGRESS`) so this exact check keeps passing, with no re-authorization needed for
+that return trip. If preconditions pass, registry `AUTHORIZED → IN_PROGRESS`.
+
+**Resume preflight** (`../STAGE_REGISTRY.md` §2 rule 20) — use when the registry already shows
+this stage `IN_PROGRESS`, `SELF_REVIEW`, `REVIEW`, or `APPROVAL`: confirm the active stage is
+exactly this one; do not require or wait for status `AUTHORIZED`. Re-verify the same execution
+preconditions checked at initial start (named branch, clean tree, and any stage-specific
+preconditions). If they pass, continue normally with no registry transition. If any fails, stop,
+make no change, and report the exact failure to the Human Owner; registry state remains unchanged
+and is not moved to `BLOCKED`. Neither outcome triggers re-authorization.
+
+Whichever preflight applies, once it passes: implement ONLY this stage; refuse unrelated work, even if discovered
 (record it in the stage report and, where it needs an owner decision, as a new entry in
 `../OPEN_QUESTIONS.md` instead). Stay strictly inside the stage's allowed files; treat `src/`,
 `tests/`, `scripts/`, `examples/`, `pyproject.toml`, `.pre-commit-config.yaml`,
@@ -34,9 +53,11 @@ and its default `pytest` collection (`testpaths=["tests"]`) must be provably unc
 update tests for everything you build. Then run and record: focused stage tests;
 `pytest agentos_dashboard/tests` (from DASH-002 on); `python -m pytest tests --collect-only -q`
 (regression — collection count unchanged) and `pytest tests` (green); `ruff check .`;
-`black --check .`; `mypy agentos_dashboard` (from DASH-002 on);
-`pre-commit run --all-files` — warning: this repository's hooks auto-fix (`ruff --fix`,
-`ruff-format`); if a hook mutates any file outside the stage's allowed list (notably the
+`ruff format --check .`; `black --check .`; `mypy agentos_dashboard` (from DASH-002 on);
+`pre-commit run --all-files`, running, in order, exactly the hooks in `.pre-commit-config.yaml`:
+`ruff-check` (`--fix`, linting and import-sort only), then `black` (the sole formatter — there is
+no `ruff-format` hook; `ruff` never reformats), then `mypy` — warning: `ruff-check --fix` and
+`black` auto-fix; if a hook mutates any file outside the stage's allowed list (notably the
 frozen evidence scripts under `docs/implementation/orchestration/**`), restore those files
 byte-exactly to HEAD and record the incident in the report, and identify any pre-existing
 hook failure at HEAD as pre-existing rather than fixing it out of scope; `git diff --check`;

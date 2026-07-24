@@ -5,7 +5,7 @@
 | **Title** | AgentOS Workflow Automation — Decisions |
 | **Purpose** | Append-only record of program-level decisions (DD-##). Subordinate to `docs/DECISION_LOG.md`; cross-posted there when repository governance requires. |
 | **Status** | Draft |
-| **Version** | 1.0 |
+| **Version** | 1.1 |
 | **Owner** | Documentation & Governance session (append) · Human Owner (approval) |
 | **Dependencies** | `README.md` |
 | **Related Documents** | `docs/DECISION_LOG.md` |
@@ -105,3 +105,27 @@ Cross-posted from `docs/DECISION_LOG.md` (2026-07-23 AUTO-001 entry) for program
 visibility: DASH-001 was flipped from `Current` to `Done` in `docs/TASK_QUEUE.md` and its
 mirrors before AUTO-001 work began, to satisfy this repository's `maximum_current_tasks: 1`
 invariant. Full rationale: `docs/DECISION_LOG.md`.
+
+## DD-08 — `SUPERSEDED` maps to task status `Done`, administratively closed, never successful completion (OD-8)
+
+Cross-posted from `docs/DECISION_LOG.md` (2026-07-24 OD-8/OD-9 entry). Human Owner policy
+decision resolving OD-8: `COMPLETE` and `SUPERSEDED` both map to task status `Done` (the
+three-status model gains no fourth status), but `docs/TASK_QUEUE.md`'s prose must always
+distinguish successful completion from administrative closure for a superseded stage. Legal
+source states for `SUPERSEDED`: `AUTHORIZED`, `BLOCKED`, `IN_PROGRESS`, `SELF_REVIEW`, `REVIEW`,
+`APPROVAL` — never `NOT_STARTED`/`PROPOSED`/`COMPLETE`. Superseding never automatically
+authorizes or starts a successor. Full rationale and verbatim approval: `docs/DECISION_LOG.md`.
+
+## DD-09 — Initial-execution failure policy: bounded retry, then reconciliation, then advance/repair/FAIL (OD-9)
+
+Cross-posted from `docs/DECISION_LOG.md` (2026-07-24 OD-8/OD-9 entry). Human Owner policy
+decision resolving OD-9 for the implementation-provider invocation and the `create_commit`/
+`push_stage_branch`/`create_pull_request` Skills: a transient failure before any side effect
+gets a bounded, same-state retry; a failure with a possible or unknown side effect never
+retries blindly and instead performs an idempotency/reconciliation check; reconciliation success
+advances normally (no duplicate side effect); a recoverable inconsistency uses the existing
+`REPAIRING` path (never a second repair lifecycle); everything else — retry exhausted,
+reconciliation indeterminate, an unrepairable inconsistency, or a broken invariant — reaches
+`FAILED`. No new state or transition; only new reasons on existing edges plus a same-state retry
+sub-procedure. Full normative text: `docs/workflow-automation/WORKFLOW_STATES.md` §5a. Full
+rationale and verbatim approval: `docs/DECISION_LOG.md`.

@@ -5,7 +5,7 @@
 | **Title** | AgentOS Workflow Automation — Agent Contracts |
 | **Purpose** | Responsibilities, allowed skills, inputs/outputs, and boundaries for each Agent. |
 | **Status** | Draft |
-| **Version** | 1.0 |
+| **Version** | 1.2 |
 | **Owner** | Documentation & Governance session (AUTO-001) · Human Owner (approval) |
 | **Dependencies** | `ARCHITECTURE.md`, `SKILL_CONTRACTS.md`, `MODEL_PROVIDER_CONTRACTS.md` |
 | **Related Documents** | `WORKFLOW_STATES.md`, `MACHINE_GATES.md` |
@@ -58,7 +58,11 @@ prior implementation diff.
 **Output:** a diff on the stage branch plus a stage completion report artifact.
 
 **Drives transitions:** `BRANCH_CREATED → IMPLEMENTING → VALIDATING`;
-`REPAIRING → VALIDATING`.
+`REPAIRING → VALIDATING`. The provider invocation that drives `IMPLEMENTING → VALIDATING` (and a
+`REPAIRING` attempt) is subject to the initial-execution retry/reconciliation policy
+(`WORKFLOW_STATES.md` §5a) — `ImplementationAgent` returns the typed result; the Orchestrator,
+never the Agent, decides whether that result means retry, reconciled success, `REPAIRING`, or
+`FAILED` (§1 above).
 
 ## 4. QAAgent
 
@@ -88,7 +92,11 @@ session.
 
 **Output:** commit SHA, pushed ref, PR number/URL.
 
-**Drives transitions:** `READY_TO_COMMIT → COMMITTED → PUSHED → PR_OPEN`.
+**Drives transitions:** `READY_TO_COMMIT → COMMITTED → PUSHED → PR_OPEN`. Each of these three
+Skills (`create_commit`, `push_stage_branch`, `create_pull_request`) is subject to the
+initial-execution retry/reconciliation policy (`WORKFLOW_STATES.md` §5a) — `GitAgent` returns the
+typed Skill result; the Orchestrator, never the Agent, decides whether that result means retry,
+reconciled success, or `FAILED` (§1 above; no `REPAIRING` path applies at this phase, §5a item 4).
 
 ## 6. MergeAgent
 
@@ -135,12 +143,19 @@ first re-verifying the merge (`FAILURE_RECOVERY.md` §4).
 | `GitAgent` | `READY_TO_COMMIT` → `COMMITTED` → `PUSHED` → `PR_OPEN` |
 | `MergeAgent` | `PR_OPEN` → `AUTO_MERGE_ENABLED` → `WAITING_FOR_CHECKS` → `MERGED` |
 | `CloseoutAgent` | `MERGED` → `CLOSING` → `DONE` |
+| Orchestrator (no Agent) | `BRANCH_CREATED`/`IMPLEMENTING`/`REPAIRING`/`READY_TO_COMMIT`/`COMMITTED`/`PUSHED`/`AUTO_MERGE_ENABLED`/`MERGED` → `FAILED` on interruption/resume authorization-bound-value drift (`WORKFLOW_STATES.md` §6 item 3) |
 
 Deterministic validation between `VALIDATING` and `QA_RUNNING` is Orchestrator-owned (not a
-named Agent) — see `MACHINE_GATES.md` §2.
+named Agent) — see `MACHINE_GATES.md` §2. The interruption/resume drift check that can move any
+of the states above to `FAILED` is likewise Orchestrator-owned, not driven by any named Agent —
+it is the Orchestrator's own resume logic (`WORKFLOW_STATES.md` §6), never delegated. The
+initial-execution retry/reconciliation decision for `IMPLEMENTING`/`READY_TO_COMMIT`/
+`COMMITTED`/`PUSHED` (`WORKFLOW_STATES.md` §5a) is likewise Orchestrator-owned: `ImplementationAgent`
+and `GitAgent` return typed results only, never decide retry, reconciliation, or the resulting
+transition themselves (§1 above).
 
 ## 9. Decision References
-DD-01, DD-03.
+DD-01, DD-03, DD-09.
 
 ## 10. Open Questions
 None blocking AUTO-001; agent implementation detail is AUTO-005 scope.
