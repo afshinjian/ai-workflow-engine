@@ -5,7 +5,7 @@
 | **Title** | AgentOS Workflow Automation — Machine Gates |
 | **Purpose** | Every automatic checkpoint that stands in for human approval after the single human gate, with pass/fail criteria and on-fail behavior. |
 | **Status** | Draft |
-| **Version** | 1.2 |
+| **Version** | 1.3 |
 | **Owner** | Documentation & Governance session (AUTO-001) · Human Owner (approval) |
 | **Dependencies** | `WORKFLOW_STATES.md`, `HUMAN_AUTHORIZATION_MODEL.md` |
 | **Related Documents** | `SKILL_CONTRACTS.md`, `SECURITY_MODEL.md`, `FAILURE_RECOVERY.md` |
@@ -43,6 +43,18 @@ the authorization binding; stage ordering valid (predecessor stage complete, no 
 work detected); stage branch successfully created from the verified baseline commit. Any
 failure moves the workflow to `FAILED` (a precondition failure is not repairable by
 `ImplementationAgent` — it is a target-repository or authorization-state problem).
+
+### 2a. Resume form of the precondition gate (Human Owner clarification, 2026-07-27)
+
+On resume, "working tree state as expected" means the state- and evidence-specific matrix in
+`WORKFLOW_STATES.md` §6a. The Orchestrator obtains repository, Git, contract, and runtime
+observations independently; caller-copied authorization strings are never live evidence.
+Cleanliness is mandatory at the states §6a names as clean. Intentional implementation/repair
+changes are accepted only within configured allowed paths, never forbidden paths, and only when
+persisted attempt/audit evidence makes those changes expected. A possible branch creation,
+provider invocation, commit, push, PR, merge, or closeout effect is reconciled against its
+persisted operation evidence before repetition or transition; appearance alone never advances
+the workflow.
 
 ## 3. Deterministic Validation Gate (`VALIDATING`)
 

@@ -7,6 +7,11 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Changed
+- AUTO-002 (2026-07-27): completed the AgentOS Workflow Automation orchestrator/state-machine
+  foundation and its approved security remediation. After the configured validation gates
+  passed, the Human Owner accepted AUTO-002 for closure without another independent review and
+  authorized one local Conventional Commit. AUTO-002 is `Done`; AUTO-003 remains `Planned` and
+  separately authorization-gated. No push or merge is authorized.
 - Governance recovery (2026-07-24): fixed a real OD-9 retry-classification defect —
   `SKILL_CONTRACTS.md`/`MODEL_PROVIDER_CONTRACTS.md` had classified retryability by error *type*
   (timeout/reset/DNS-failure = retryable), when the approved policy requires classifying by

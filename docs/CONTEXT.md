@@ -10,8 +10,8 @@ available — everything you need is in these files.
    review discipline this project uses.
 2. `docs/PROJECT_STATE.md` — overall condition, what's done, what's in progress, what's planned,
    any blockers.
-3. `docs/current_task.md` — the exactly-one active task right now, with its acceptance
-   criteria.
+3. `docs/current_task.md` — the active-task mirror, which explicitly records when no task is
+   active.
 4. `docs/TASK_QUEUE.md` — everything else, in priority order, with dependencies noted inline.
 5. `handover/PROJECT_HANDOVER.md` — narrative detail on what changed most recently and why,
    checksum-verified against tampering by `handover/PROJECT_CHECKSUM.md`.

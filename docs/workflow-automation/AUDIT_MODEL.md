@@ -5,7 +5,7 @@
 | **Title** | AgentOS Workflow Automation — Audit Model |
 | **Purpose** | State-transition and command-execution audit record schema, append-only guarantee, and its scope. |
 | **Status** | Draft |
-| **Version** | 1.0 |
+| **Version** | 1.1 |
 | **Owner** | Documentation & Governance session (AUTO-001) · Human Owner (approval) |
 | **Dependencies** | `WORKFLOW_STATES.md`, `SECURITY_MODEL.md` §1 |
 | **Related Documents** | `CONFIGURATION_MODEL.md` (`audit_directory`), `SKILL_CONTRACTS.md` §6 |
@@ -43,7 +43,8 @@ Sanitization (secret redaction) happens before a reference file is written (`SEC
 | Field | Description |
 |---|---|
 | `workflow_id` | Identifier for this workflow instance. |
-| `target_repository` | Identity + path bound at authorization. |
+| `target_repository` | Repository identity bound at authorization. |
+| `repository_path` | Canonical repository path independently bound at authorization. |
 | `stage_id` | Stage identifier. |
 | `from_state` / `to_state` | The transition (`WORKFLOW_STATES.md` §2). |
 | `timestamp` | ISO-8601 timestamp. |
@@ -66,7 +67,7 @@ Audit records are stored under the target repository's configured `audit_directo
 §2-3 is binding regardless of file layout.
 
 ## 6. Decision References
-DD-04.
+DD-04, DD-31.
 
 ## 7. Open Questions
 None blocking AUTO-001; storage file format is AUTO-002 scope.

@@ -273,32 +273,35 @@ dependency changes, and zero changes to `src/`, `tests/`, `scripts/`, `handover/
 
 ## AUTO-002 — Orchestrator, state machine, locking, and persistence
 
-Status: Current
+Status: Done
 
-Engine implementation session. Authorized by the Human Owner 2026-07-24 ("I authorize
-AUTO-002."); the sole `Current` task. Full contract:
+Engine implementation completed and accepted for closure by the Human Owner on 2026-07-27
+without an additional independent review. Authorized originally on 2026-07-24 ("I authorize
+AUTO-002."). Full contract:
 `docs/workflow-automation/stage-prompts/AUTO-002.md`; canonical branch per
 `docs/workflow-automation/STAGE_REGISTRY.md` §4: `feature/auto-002-orchestrator-state-machine`.
-**Blocked on a durable execution precondition (discovered 2026-07-24, not tied to any specific
-branch's name): AUTO-002 stays `BLOCKED` until this governance recovery is merged into `main`.
-The recovery release procedure is settled: this session's working branch is reviewed, committed,
-pushed, merged, and deleted through the ordinary recovery release process — it is not renamed
-into the AUTO-002 implementation branch. After that merge and cleanup, an AUTO-002 session begins
-from updated, clean `main` and creates or checks out the canonical branch above, which must
-independently pass the SSP's initial-start branch-binding and clean-tree checks
-(`docs/workflow-automation/stage-prompts/README.md`; `STAGE_REGISTRY.md` §3 rules 1/14/4) before
-the registry transitions to `IN_PROGRESS`. Per rule 17, a failed execution precondition never
-invalidates a recorded authorization; the Human Owner's authorization stands, and the stage's
-registry state is `BLOCKED` (§2) — still `Current` here, not demoted to `Planned`. This is not a
-new AUTO-002 authorization, and implementation must not begin during governance recovery. See
-`docs/DECISION_LOG.md`, 2026-07-24 entries.**
+**Execution precondition resolved 2026-07-24: the governance recovery merged into `main` via
+PR #4 (`163bcee`) and the prior non-canonical branch was deleted both locally and remotely. A
+fresh AUTO-002 session verified `main` == `origin/main`, a clean working tree, and both retained
+stashes untouched, then created the canonical branch above from clean `main`, satisfying the
+SSP's initial-start branch-binding and clean-tree checks
+(`docs/workflow-automation/stage-prompts/README.md`; `STAGE_REGISTRY.md` §3 rules 1/14/4). Per
+rule 17(a), registry state moved `BLOCKED → AUTHORIZED → IN_PROGRESS` with no new Human Owner
+authorization act; the Human Owner's "I authorize AUTO-002." record stands unchanged. Full
+record: `docs/workflow-automation/STAGE_REGISTRY.md` §5 ("execution precondition resolved"
+entry).** The delivered state machine, authorization boundary, persistence, locking, local
+observation, and remediation work passed the configured gates before the Human Owner directed
+closure and one local commit. AUTO-003 remains `Planned` and requires separate authorization.
 
 ## AUTO-003 — Deterministic repository and validation skills
 
 Status: Planned
 
 Requires its own fresh authorization. Contract:
-`docs/workflow-automation/stage-prompts/AUTO-003.md`.
+`docs/workflow-automation/stage-prompts/AUTO-003.md`. Future improvements carried forward from
+AUTO-002—not AUTO-002 blockers—include the first authorized implementation of deterministic
+infrastructure-retry audit accounting and any local repository/security observations needed by
+AUTO-003. Remote/GitHub reconciliation remains assigned to the later GitHub integration stages.
 
 ## AUTO-004 — Claude Code CLI and Codex CLI providers
 

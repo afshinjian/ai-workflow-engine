@@ -13,6 +13,365 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-07-27 — Human Owner accepts AUTO-002 for closure without another independent review
+
+**Decision:** After reviewing the implementation report and validation results, the Human Owner
+accepted the current AUTO-002 implementation as sufficient, explicitly directed that no further
+independent review or search for findings occur, and authorized final integrity checks,
+governance closure, and one local Conventional Commit. This is the controlling closure decision
+for the pending-review language in the entry immediately below; the technical remediation record
+remains intact.
+
+AUTO-002 moves from registry `IN_PROGRESS` to `COMPLETE` and task status `Current` to `Done`.
+AUTO-003 remains `NOT_STARTED`/`Planned`: predecessor completion satisfies only one precondition
+and is not successor authorization. The approved action includes no push, merge, upstream change,
+branch change, stash mutation, architectural redesign, or AUTO-003 implementation.
+
+**Future work:** Existing POSIX portability boundaries, infrastructure-retry accounting when a
+future stage first introduces such operations, remote/GitHub reconciliation, and other
+out-of-scope improvements do not reopen or block AUTO-002. They remain assigned to the relevant
+future AUTO stage or project backlog and require separate Human Owner authorization.
+
+## 2026-07-27 — AUTO002-IR3-01..IR3-05: Human-Owner-authorized remediation pending fresh independent review
+
+**Decision:** The Human Owner authorized implementation of every task from the third independent
+review. The implementation is deliberately not self-approved: AUTO-002 remains `IN_PROGRESS` and
+must receive a completely fresh independent review before any commit or merge approval.
+
+The approved changes bind implementation reconciliation to the authorization record, exact current
+branch tip, latest persisted attempt, independently-derived authorized-baseline diff, path policy,
+and an exact structured completion report (DD-27); reject hardlinked mutable persistence targets
+before writes (DD-28); confine authorization and attempt sidecars to the literal workflow directory
+using descriptor-relative no-symlink operations (DD-29); reject duplicate JSON keys in those
+sidecars and completion reports (DD-30); and reconcile the audit model's separate repository
+identity/path fields with the implemented record schema (DD-31).
+
+**Scope:** Only the five approved remediation tasks, their regression tests, and their governance
+updates were performed. No dependency, packaged `src/` implementation, AUTO-003/AUTO-005 work,
+commit, push, merge, branch, stash, upstream, GitHub, or other external-service action was
+authorized or performed.
+
+## 2026-07-27 — AUTO002-IR-01..IR-05: a second independent review reproduced five defects the prior pass reported as resolved; all five remediated, F11 reclassified
+
+**Decision:** A second, independent review of AUTO-002 reproduced five concrete defects, two of
+them in code the immediately preceding remediation pass (the entry directly below) had reported
+as hardened. That prior pass's completion claims for **F04, F05, F08, and F09 are therefore
+invalidated as overstated**: each fixed a real defect, but none closed the class of defect its
+governance text claimed. This entry records the corrected position and the remediation. The
+verdict of the review that found these is not erased and is not to be read as approval of this
+work — this remediation is **pending fresh independent review**, and no independent approval has
+been obtained for it.
+
+**What the review reproduced, and the corrected status of the prior claims:**
+
+- **IR-01 (lock, `agentos_workflow/orchestrator/lock.py`)** — `canonical_lock_path` resolves the
+  repository *root* but appends `.agentos/workflow.lock` lexically, so a symlinked `<repo>/.agentos`
+  was followed at open time and an external file was truncated and overwritten. **Corrects F04
+  (`DECISIONS.md` DD-16):** resolving the root is not confinement. Fixed by a descriptor-relative
+  `O_NOFOLLOW` walk (`DECISIONS.md` DD-21); 8 regression tests.
+- **IR-02 (state/audit storage, `state_store.py`)** — validating `workflow_id` as a safe path
+  *component* does not stop a symlinked `<root>/<workflow_id>` directory being followed; audit
+  records were written outside the configured root, and unconfined reads could replay a planted
+  external history. **Corrects F05 (DD-16) and the path-confinement half of F08 (DD-17).** Fixed by
+  one shared confined-open primitive used by both histories and by reads and writes
+  (`DECISIONS.md` DD-22); 10 regression tests.
+- **IR-03 (changed-path authorization, `config/schema.py`, `orchestrator/engine.py`)** —
+  noncanonical-but-non-traversing patterns (`docs/./secret/**`, `docs//secret/**`, backslash,
+  Windows-drive and UNC forms) were accepted and passed raw into matching, so a
+  `forbidden_changed_paths` rule stayed inert and a broader allowed rule won. **Corrects F09
+  (DD-18):** rejecting absolute and `..` patterns was necessary but far from sufficient, and the
+  inert-forbidden-pattern hazard DD-18 named was still live. Fixed by strict rejection of every
+  noncanonical spelling plus canonicalisation of observed Git paths (`DECISIONS.md` DD-23); 48
+  regression tests.
+- **IR-04 (writer ordering, `state_store.py`)** — the reader enforced non-decreasing timestamps but
+  the writer did not, so the supported writer could append a record that made the history
+  permanently unreadable by the supported reader. **Corrects the ordering half of F08 (DD-17):**
+  a read-side-only check was an incomplete invariant. Fixed by enforcing the reader's own rule at
+  append time, under the append lock, before any byte is written (`DECISIONS.md` DD-24); 17
+  regression tests.
+- **IR-05 (duplicate JSON keys, `state_store.py`)** — standard JSON parsing accepted duplicate
+  object keys with last-key-wins, so a record carrying two `to_state` or `timestamp` values
+  validated cleanly and replayed as whichever value the parser kept. Fixed by
+  `object_pairs_hook`-based rejection at every nesting level, before model validation
+  (`DECISIONS.md` DD-25); 12 regression tests.
+
+**F11:** the prior pass asserted "F11 was already resolved by a prior session and was not
+reopened." That claim is superseded. An exhaustive local search (all governance records, reports,
+addenda, stage prompts, tests, implementation, `git log -S` across all refs, and both stashes; no
+network) finds the token `F11` only in the two prose assertions that it was resolved — never a
+definition. F11 is reclassified **`INSUFFICIENT_DURABLE_EVIDENCE`**: *F11 historical definition and
+regression mapping could not be reconstructed from durable repository evidence.* No definition was
+invented and no code was changed to manufacture evidence (`DECISIONS.md` DD-26).
+
+**F13 (governance consistency):** the prior F13 entry is not deleted, but its assertion that
+governance was consistent with the code no longer held once IR-01..IR-05 were reproduced. This
+entry, DD-21 through DD-26, and the corresponding report addendum are the corrected record.
+
+**Validation:** `pytest tests agentos_workflow/tests` — 1967 passed, 0 failed, 0 errors, 0 skipped,
+0 xfailed, 0 deselected, 0 warnings (baseline before this pass: 1872 passed; +95 regression tests).
+Bare `pytest` — 978 passed; this is *not* full coverage of this work, because
+`pyproject.toml`'s `testpaths = ["tests"]` excludes `agentos_workflow/tests` entirely. Ruff, Black,
+`mypy src`, `mypy agentos_workflow`, and `git diff --check` all clean. `workflowctl verify` reports
+the single pre-existing `upstream_missing` finding (this branch has no upstream and upstream
+configuration was out of scope and untouched); all other checks pass.
+
+**Alternatives considered:** for IR-03, normalizing patterns to canonical form instead of rejecting
+them — declined, because a rewriting step risks reinterpreting glob tokens and because two
+spellings mapping to one stored pattern makes configuration review harder; strict rejection gives
+exactly one spelling per intent. For IR-01/IR-02, checking the resolved path before opening —
+declined as a check-then-open race; the kernel refusing the open is the enforcement.
+
+**Status:** AUTO-002 remains `IN_PROGRESS`, now **pending fresh independent review**. No commit,
+push, merge, branch change, upstream change, or stash mutation occurred. AUTO-003 and AUTO-005
+remain unauthorized and `NOT_STARTED`.
+
+## 2026-07-27 — AUTO002-F04/F05/F06/F08/F09/F10/F12/F13: sequential remediation pass completed; governance reconciled
+
+**Decision:** Following the F07 Human Owner decision recorded immediately below, remediation
+continued sequentially through F08 (audit-record invariants), F09 (configuration-pattern
+confinement), F10 (workflow-ID reuse bypass), and F12 (regression-test-adequacy audit), each
+reproduced adversarially before being fixed, per the same discipline F04-F07 already established.
+This entry is F13: the governance-reconciliation finding, synchronizing `DECISIONS.md`,
+`CHANGELOG.md`, and the completion report for every finding in this pass.
+
+**What was found and fixed, in order:**
+
+- **F04/F05/F06** (canonical repository locking, JSONL append durability, durable retry/attempt
+  accounting) were implemented and tested earlier in this same remediation session, ahead of F07;
+  `DECISIONS.md` DD-16 records them at the level of detail directly verifiable against current
+  code.
+- **F07** (local reconciliation-evidence verification): recorded in the entry immediately below
+  this one and in `DECISIONS.md` DD-15.
+- **F08** (audit-record invariants, `state_store.py`): a naive (non-timezone-aware) timestamp, a
+  command's `completion_time` preceding its own `start_time`, an `stdout_ref`/`stderr_ref`
+  resolving outside the audit directory, a `StateTransitionRecord` whose own `workflow_id` field
+  disagreed with the file it was read from, and a persisted sequence with out-of-order timestamps
+  were all previously accepted with no validation. All four are now rejected
+  (`DECISIONS.md` DD-17); 44 new regression tests.
+- **F09** (configuration-pattern confinement, `config/schema.py`): `allowed_changed_paths`/
+  `forbidden_changed_paths` accepted an absolute or parent-traversal glob pattern that could never
+  match any real repository-relative changed path — for `forbidden_changed_paths` specifically, an
+  inert pattern gives the false appearance of a protection that was never in effect. Now rejected
+  (`DECISIONS.md` DD-18); 8 new regression tests.
+- **F10** (workflow-ID reuse, `engine.py`): `ResumedWorkflow` — a plain, unguarded dataclass, unlike
+  `WorkflowSession` — could be constructed directly and used to durably persist a fabricated
+  `CREATED -> AUTHORIZED` transition (via `.transition_to(WorkflowState.AUTHORIZED, actor="human")`
+  against a fresh, never-replayed machine) *before* `AuthorizationBypassError` was finally raised —
+  the corrupting write happened first, every time. `ResumedWorkflow.transition_to` now rejects
+  `AUTHORIZED` before any persistence is attempted (`DECISIONS.md` DD-19); 5 new regression tests.
+  `authorize()` itself was independently re-verified and found already airtight against reuse.
+- **F12** (regression-test-adequacy audit, no code change): a full-suite run plus a targeted sweep
+  found no test anywhere in the AUTO-002 suite still asserting, as expected, behavior any of the
+  above fixes made unsafe (`DECISIONS.md` DD-20).
+
+**Validation, every finding:** full combined suite (`pytest tests agentos_workflow/tests`) green
+throughout, ending at 1872 passed; `ruff check --no-cache agentos_workflow/`,
+`black --check agentos_workflow/`, and `mypy --no-incremental agentos_workflow` all clean after
+every fix; `git diff --check` clean. No dependency added; no network or GitHub access
+implemented; no general Skill/Agent interface implemented; no mutable Git operation authorized;
+no commit, push, merge, pull request, branch change, upstream change, or stash mutation occurred
+at any point in this pass.
+
+**Acknowledged, explicitly recorded limitations (not silently papered over):** `CommandExecutionRecord`
+has no `workflow_id` field, so its identity cannot be cross-checked against its file the way
+`StateTransitionRecord`'s now is (F08/DD-17); `ImplementationDiffEvidence` has no `attempt_number`
+or `changed_paths` field, so per-attempt evidence binding and changed-path scope checking remain
+open (F07/DD-15).
+
+**Scope/status:** AUTO-002 remains `IN_PROGRESS`; AUTO-003 and AUTO-005 remain unauthorized and
+`NOT_STARTED`. F11 was already resolved by a prior session and was not reopened. F13 (this entry)
+completes the sequential remediation pass F04 through F13; remaining next steps belong to a fresh
+independent review, not to this session.
+
+## 2026-07-27 — Human Owner decision: AUTO002-F07 evidence verification scope
+
+**Decision:** `ReconciliationEvidence` must never be accepted merely because a caller supplies a
+success Boolean, internally self-consistent fields, or a nonblank reference string — lack of an
+authorized verifier must never be interpreted as successful evidence. The Human Owner authorized a
+narrow extension of DD-14's existing read-only local-observation boundary, evidence-verification-
+only: `ImplementationDiffEvidence` (`IMPLEMENTING`) and `CommitEvidence` (`READY_TO_COMMIT`) are
+locally verifiable and are now independently re-derived from real Git state (commit existence,
+branch-ancestry reachability, or an independently recomputed tree SHA) before being trusted, using
+a new fixed-argv, read-only `LocalEvidenceObserver` (`agentos_workflow/observation/evidence.py`)
+built on the same pattern as DD-14's `LocalResumeObserver` — no arbitrary command surface, no
+mutable Git operation, no network or GitHub call. `ImplementationDiffEvidence`'s completion-report
+reference is confined to a bare filename the engine itself resolves to
+`<audit_directory>/<workflow_id>/evidence/<state.value>/<artifact_name>`
+(`resolve_evidence_artifact`), with path-component validation, audit-root confinement (defeating
+both parent traversal and symlink escape), and an existing-regular-file check — a caller-supplied
+path is never taken at face value. `RemoteRefEvidence` (`COMMITTED`) and `PullRequestEvidence`
+(`PUSHED`) describe remote/GitHub facts AUTO-002 has no authorized network-reaching observer for;
+both now unconditionally fail closed with a new `ReconciliationVerifierUnavailableError`, remaining
+pending future authorized Skill/GitHub observation work. This decision explicitly does not
+authorize network access, GitHub access, a general Skill or Agent interface, any mutable Git
+operation, or starting AUTO-003 or AUTO-005.
+
+**Rationale:** Without this decision, any caller (or a future buggy or compromised Skill) could
+claim any reconciliation outcome for any commit, remote ref, or pull request and have it accepted
+verbatim — the exact "evidence-free bypass path" class of defect this program's governance has
+previously required be closed rather than left as a weaker parallel path. Confining the newly
+authorized verification strictly to already-locally-observable facts, and failing closed rather
+than guessing for everything else (remote/PR state), keeps the extension narrow and auditable
+rather than opening a general execution or network capability.
+
+**What changed:** `agentos_workflow/observation/evidence.py` added (`LocalEvidenceObserver`,
+`LocalEvidenceObservationError`, `resolve_evidence_artifact`); `agentos_workflow/observation/
+__init__.py` exports them; `agentos_workflow/orchestrator/engine.py` gained
+`ReconciliationVerifierUnavailableError`, `LocalEvidenceVerificationFailedError`, and
+`_verify_evidence_locally`, wired into the existing `evaluate_initial_execution_failure`
+immediately after its existing internal-consistency check — no public signature changed.
+`docs/workflow-automation/DECISIONS.md` gained DD-15 (version 1.4 → 1.5);
+`docs/workflow-automation/CHANGELOG.md` gained a corresponding `[Unreleased]` entry (version 2.3 →
+2.4); `docs/reports/workflow-automation/AUTO-002-completion-report.md` gained a corresponding
+addendum. Two gaps are explicitly acknowledged as remaining, not silently assumed solved:
+evidence-artifact binding does not yet reach the specific retry attempt (no `attempt_number` field
+exists on any evidence type to bind against), and `ImplementationDiffEvidence` has no
+`changed_paths` field, so changed-path scope is not independently checkable from evidence alone
+today.
+
+**Scope/status:** AUTO-002 remains `IN_PROGRESS`; AUTO-003 and AUTO-005 remain unauthorized and
+`NOT_STARTED`. No commit, push, merge, branch change, upstream change, or stash mutation occurred.
+
+## 2026-07-27 — Governance Correction Record: DD-14 ordering defect in `DECISIONS.md` corrected; `STAGE_REGISTRY.md` §6 decision index synchronized
+
+**Decision:** A fresh session, resuming AUTO-002 under an explicit trust-boundary instruction not
+to treat its handoff as authoritative proof, independently reconciled the F01/F02/F03 findings
+before starting F04. That reconciliation found two governance-document defects, both introduced by
+the immediately preceding (F03) session, neither previously disclosed in any handoff or report:
+
+1. `docs/workflow-automation/DECISIONS.md`'s DD-14 entry (recorded in the entry immediately below
+   this one) was physically appended between DD-01 and DD-02, rather than after DD-13, breaking
+   this file's otherwise-strict ascending DD-01→DD-13 ordering with no supersession note explaining
+   the placement.
+2. `docs/workflow-automation/STAGE_REGISTRY.md` §6 ("Decision References") still read "DD-01
+   through DD-13," not updated to reflect DD-14's addition.
+
+The Human Owner reviewed this finding and authorized this Governance Correction Record
+(`STAGE_REGISTRY.md` §3 rule 18), explicitly directing that DD-14 not be moved, deleted,
+renumbered, or rewritten, and that no earlier decision entry's text be altered.
+
+**Corrected facts:**
+
+- DD-14 is valid and binding, exactly as originally recorded; its content is unchanged by this
+  correction.
+- The ordering defect does not invalidate DD-14 or any other decision.
+- No decision identifier is being changed by this record; no historical decision text is being
+  removed.
+- The effective decision sequence, for all purposes going forward, is **DD-01 through DD-14**,
+  regardless of DD-14's physical position in `DECISIONS.md`.
+- This record supersedes only the implied physical ordering of `DECISIONS.md`; it does not
+  supersede or re-litigate the content of any decision, including DD-14 itself.
+
+**What changed:** `docs/workflow-automation/DECISIONS.md` gained an append-only "Governance
+Correction Record (2026-07-27) — DD-14 physical placement" note after DD-13 (version 1.3 → 1.4),
+cross-referencing this entry; DD-14's own text is untouched. `docs/workflow-automation/
+STAGE_REGISTRY.md` §6 corrected to "DD-01 through DD-14," with a one-line note pointing back to
+this record (version 6.1 → 6.2). `docs/workflow-automation/CHANGELOG.md` gained a corresponding
+`[Unreleased]` entry (version 2.2 → 2.3). `docs/reports/workflow-automation/
+AUTO-002-completion-report.md` gained a short addendum disclosing the defect and its correction,
+per the same append-only, no-rewrite discipline every prior addendum to that report has followed.
+
+**Who found it and when:** an independent fresh-session governance reconciliation audit, performed
+2026-07-27, before any AUTO002-F04 work began, per the session's standing instruction not to trust
+the prior session's handoff without direct verification.
+
+**Scope/status:** AUTO-002 remains `IN_PROGRESS`; AUTO-003 remains unauthorized and `NOT_STARTED`.
+No workflow state, transition, implementation file, or test file was touched by this correction. No
+commit, push, merge, branch change, or stash mutation occurred. The pre-existing, expected
+`upstream_missing` `workflowctl verify` finding is untouched and not addressed by this record.
+
+## 2026-07-27 — Human Owner decisions: AUTO002-F03 local read-only observation boundary and state-specific resume policy
+
+**Decision:** The Human Owner expanded AUTO-002 only enough to add a typed, local, read-only
+resume observation boundary, then supplied the authoritative per-state branch, HEAD,
+working-tree, control-artifact, ancestry, baseline-protection, and uncertain-operation policy.
+Production resume constructs the observer internally and makes every authorization decision;
+test adapters may return raw observations but never a verdict. Fixed allowlisted local Git
+queries, confined contract reads, and canonical runtime-version observation are permitted.
+Arbitrary commands, mutation, network/GitHub access, Providers, the general Skill interface,
+and importing the root `GitClient` remain prohibited.
+
+**Rationale:** `WorkflowSession.resume` could previously accept a
+`CurrentAuthorizationBinding` copied directly from `authorization.json`, so repository,
+contract, Git, and runtime facts were never independently observed. The prior phrases
+"working tree state as expected" and "cleanliness where expected" also lacked a state/crash-
+boundary definition. The new policy closes both gaps without adding a workflow state, changing
+an edge, or starting AUTO-003.
+
+**Scope/status:** Recorded normatively in `docs/workflow-automation/DECISIONS.md` DD-14,
+`WORKFLOW_STATES.md` §6a, `MACHINE_GATES.md` §2a, `ARCHITECTURE.md`, and
+`stage-prompts/AUTO-002.md`. AUTO-002 remains `IN_PROGRESS`; AUTO-003 remains unauthorized and
+`NOT_STARTED`.
+
+## 2026-07-26 — Human Owner policy decision recorded and applied: OD-4 (infrastructure retries, repair attempts, and initial-execution attempts are three separate durable counters)
+
+**Decision:** The Human Owner supplied the explicit policy sign-off `OPEN_QUESTIONS.md` OD-4 was
+waiting on before AUTO-002 could encode the infrastructure-retry/repair-attempt separation as
+load-bearing behavior rather than documentation intent. Recorded here verbatim as the approval
+basis, then summarized by what changed.
+
+**OD-4 approval, verbatim:**
+
+> I am the Human Owner of this repository.
+>
+> I approve the following governance decision for OD-4.
+>
+> Infrastructure retries are separate from the provider-driven repair-attempt counter.
+>
+> Infrastructure retries are permitted only when durable evidence proves that invocation did not
+> begin and no external side effect could have occurred.
+>
+> Infrastructure retries do not increment the repair-attempt counter.
+>
+> If invocation may have started, infrastructure retry is prohibited. Mandatory reconciliation is
+> required.
+>
+> Repair attempts, initial-execution attempts, and infrastructure retries are three separate
+> durable event streams and counters.
+>
+> Record this as the official Human Owner disposition for OD-4.
+>
+> Update only the required governance documentation and completion report accordingly.
+>
+> Do not change implementation unless this governance decision requires a purely documentary
+> synchronization.
+
+**What changed:** `docs/workflow-automation/WORKFLOW_STATES.md` §5's parenthetical ("`OPEN_QUESTIONS.md`
+OD-4 tracks confirming this separation before AUTO-002 implementation") is replaced with a
+resolved-confirmation statement citing this entry — no wording about the *policy itself* changed,
+since §5 already stated exactly the three-way separation this approval confirms (infrastructure
+retry: Skill-internal, bounded, backoff, never touches the repair counter; repair attempts:
+the `VALIDATING`/`QA_RUNNING` ⇄ `REPAIRING` cycle, §3/`FAILURE_RECOVERY.md`; initial-execution
+attempts: §5a's provider/commit/push/PR policy, OD-9) — version 4.1 → **4.2**. Cross-posted as
+`docs/workflow-automation/DECISIONS.md` DD-13. `OPEN_QUESTIONS.md` OD-4 moved from Open to
+Resolved (version 1.3 → 1.4). `docs/workflow-automation/STAGE_REGISTRY.md` §6 corrected to include
+DD-13 (and, on the same pass, DD-09 through DD-12, which a prior audit found missing — version 6.0
+→ **6.1**).
+
+**No AUTO-002 code change was required or made**, per this approval's own instruction to leave
+implementation untouched absent a genuine documentary-synchronization need. AUTO-002's
+`AttemptKind.INITIAL_EXECUTION`/`AttemptKind.REPAIR` (`agentos_workflow/orchestrator/engine.py`)
+already implement two of this approval's three streams as independent, durable counters exactly
+as approved. The third stream — infrastructure retry (e.g. a flaky GitHub API call) — has no
+corresponding code anywhere in `agentos_workflow/` today, because AUTO-002 implements no Skill,
+Provider, or Git/GitHub call of any kind (`AUTO-002.md`'s own out-of-scope list) — there is no
+infrastructure call yet for such a retry to apply to. Building that third counter is therefore
+correctly deferred to whichever future stage first introduces an actual infrastructure call
+(a Git/GitHub Skill, most likely AUTO-003 or AUTO-006) — that stage's own implementation must
+honor this approval's three-way separation from the moment it introduces the first retryable
+infrastructure call, not retrofit it later. Checked `docs/TASK_QUEUE.md`, `docs/current_task.md`,
+`docs/PROJECT_STATE.md` for any other live content referencing OD-4's `Open` status needing
+sync — none found beyond the AUTO-002 completion report, corrected separately in its own addendum.
+
+**Alternatives considered:** Adding a placeholder third `AttemptKind` member to AUTO-002's code now,
+even with no infrastructure call to drive it — rejected as speculative implementation for a
+capability this stage's own contract explicitly excludes, and as exactly the kind of
+unrequested, unused abstraction this repository's engineering discipline avoids elsewhere.
+
+**Rationale:** OD-4 was a policy-confirmation gate, not an open design question — `WORKFLOW_STATES.md`
+§5 already fully specified the three-way separation this approval ratifies; what was missing was
+solely the Human Owner's sign-off making it load-bearing, which this entry supplies.
+
 ## 2026-07-24 — Governance Correction Record: OD-9 retry-classification defect fixed, a missing Dashboard changelog entry appended, and the AUTO-002 branch procedure made fully durable
 
 **Decision:** A further independent audit (Codex) found three defects in how the already-approved

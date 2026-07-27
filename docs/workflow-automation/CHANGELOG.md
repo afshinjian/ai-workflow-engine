@@ -5,7 +5,7 @@
 | **Title** | AgentOS Workflow Automation — Changelog |
 | **Purpose** | Program-level changelog, newest first. |
 | **Status** | Draft |
-| **Version** | 2.1 |
+| **Version** | 2.8 |
 | **Owner** | Documentation & Governance session |
 | **Dependencies** | None |
 | **Related Documents** | `docs/CHANGELOG.md` (repository-level; cross-posted there) |
@@ -13,6 +13,73 @@
 ## [Unreleased]
 
 ### Changed
+- AUTO-002 (2026-07-27): Human Owner reviewed the implementation/remediation report and
+  validation results, accepted the stage as sufficient, explicitly waived another independent
+  review, and authorized closure plus one local commit. AUTO-002 is now `COMPLETE`/`Done`; no
+  successor, push, or merge is authorized. Remaining portability, infrastructure-retry, and
+  remote-reconciliation items are future work, not AUTO-002 blockers (DD-32).
+- AUTO-002 (2026-07-27): Human Owner authorized all five tasks from a third independent review.
+  Implementation reconciliation now binds evidence to the authorization record, exact branch tip,
+  latest persisted attempt, independently-derived baseline diff, path policy, and a strict
+  workflow/stage/attempt/branch/head/path completion report. Mutable persistence rejects hardlink
+  aliases; authorization and attempt sidecars use literal workflow-directory descriptor
+  confinement; authorization, attempt, and completion-report JSON reject duplicate keys; and
+  `AUDIT_MODEL.md` now documents repository identity and canonical path as separate fields.
+  Governance reconciled in DD-27 through DD-31. AUTO-002 remains `IN_PROGRESS`, pending fresh
+  independent review; no commit, push, merge, network access, or later-stage work was performed.
+- AUTO-002 (2026-07-27): a **second independent review reproduced five defects (IR-01..IR-05)**,
+  two of them in code the pass below reported as hardened — invalidating that pass's completion
+  claims for F04, F05, F08, and F09 as overstated. All five remediated: IR-01 repository-lock
+  confinement via descriptor-relative `O_NOFOLLOW` walk (`orchestrator/lock.py`, new
+  `LockPathConfinementError`); IR-02 state/audit record confinement via one shared confined-open
+  primitive covering both histories and both reads and writes (`orchestrator/state_store.py`, new
+  `StateStorePathConfinementError`); IR-03 strict rejection of every noncanonical changed-path
+  pattern plus canonicalisation of observed Git paths (`config/schema.py`, `orchestrator/engine.py`);
+  IR-04 chronological ordering enforced at append time under the append lock (`state_store.py`, new
+  `StateStoreOrderingError`); IR-05 duplicate JSON object keys rejected at every nesting level
+  (`state_store.py`). F11 reclassified `INSUFFICIENT_DURABLE_EVIDENCE` — its historical definition
+  and regression mapping could not be reconstructed from durable repository evidence; no definition
+  was invented. Governance reconciled (`DECISIONS.md` DD-21 → DD-26, version 1.6 → 1.7). Validation:
+  1967 passed (`pytest tests agentos_workflow/tests`; +95 regression tests over the prior 1872),
+  Ruff/Black/mypy(`src`)/mypy(`agentos_workflow`)/`git diff --check` clean, `workflowctl verify`
+  clean apart from the pre-existing `upstream_missing` finding. AUTO-002 remains `IN_PROGRESS` and
+  is now **pending fresh independent review** — no independent approval has been obtained for this
+  remediation. AUTO-003/AUTO-005 remain unauthorized and `NOT_STARTED`. Full ledger:
+  `docs/DECISION_LOG.md`, `docs/reports/workflow-automation/AUTO-002-completion-report.md`.
+- AUTO-002 (2026-07-27): sequential remediation pass F04/F05/F06 (locking, JSONL durability,
+  attempt accounting; implemented earlier this session), F08 (audit-record identity/timestamp/
+  path-confinement/ordering invariants hardened, `state_store.py`), F09 (changed-path config
+  patterns confined to repository-relative form, `config/schema.py`), F10 (`ResumedWorkflow.
+  transition_to` now rejects `AUTHORIZED` before any persistence, closing a lower-level
+  authorization-bypass write), and F12 (regression-test-adequacy audit, no code change) completed
+  and governance-reconciled (`DECISIONS.md` DD-16 → DD-20, version 1.5 → 1.6). Full ledger:
+  `docs/DECISION_LOG.md`, `docs/reports/workflow-automation/AUTO-002-completion-report.md`.
+  AUTO-002 remains `IN_PROGRESS`; AUTO-003/AUTO-005 remain unauthorized and `NOT_STARTED`.
+- AUTO-002 (2026-07-27): Human Owner decision AUTO002-F07 — reconciliation evidence must never
+  be accepted merely on a caller's success claim, self-consistency, or a nonblank reference
+  string. Narrowly extended DD-14's local-observation boundary (evidence-verification-only) with
+  `LocalEvidenceObserver`/`resolve_evidence_artifact` (`agentos_workflow/observation/evidence.py`,
+  new); `ImplementationDiffEvidence`/`CommitEvidence` are now independently re-verified from real
+  local Git/filesystem state before being trusted, wired transparently into the existing
+  `evaluate_initial_execution_failure` (no public signature changed).
+  `RemoteRefEvidence`/`PullRequestEvidence` now unconditionally fail closed
+  (`ReconciliationVerifierUnavailableError`) — remote/GitHub verification remains unauthorized and
+  pending future work; this does not authorize AUTO-003 or AUTO-005 (`DECISIONS.md` DD-15 → 1.5).
+  Full record: `docs/DECISION_LOG.md`.
+- Governance Correction Record (2026-07-27): a fresh-session reconciliation, performed before
+  AUTO002-F04, found `DECISIONS.md`'s DD-14 entry had been appended out of physical sequence
+  (between DD-01 and DD-02 instead of after DD-13) and `STAGE_REGISTRY.md` §6 left reading "DD-01
+  through DD-13." Human Owner authorized a Governance Correction Record (`STAGE_REGISTRY.md` §3
+  rule 18): DD-14 remains valid and binding, unmoved and unrewritten; the effective decision
+  sequence is DD-01 through DD-14; `STAGE_REGISTRY.md` §6 corrected accordingly (`DECISIONS.md` →
+  1.4, `STAGE_REGISTRY.md` → 6.2). No workflow state, transition, implementation, or test changed.
+  Full record: `docs/DECISION_LOG.md`.
+- AUTO-002 (2026-07-27): Human Owner resolved AUTO002-F03's live-observation and
+  state-specific-resume ambiguity. Added the strictly local, fixed-argv, read-only AUTO-002
+  observation exception and the authoritative branch/HEAD/worktree/evidence matrix
+  (`ARCHITECTURE.md` → 1.1, `WORKFLOW_STATES.md` §6a → 4.3, `MACHINE_GATES.md` §2a → 1.3,
+  `DECISIONS.md` DD-14 → 1.3, and `stage-prompts/AUTO-002.md` → 1.3). No state or transition
+  changed; AUTO-003 remains unauthorized and `NOT_STARTED`.
 - Governance recovery (2026-07-24): fixed an OD-9 retry-classification defect —
   `SKILL_CONTRACTS.md`/`MODEL_PROVIDER_CONTRACTS.md` classified retryability by error type
   instead of by timing (whether the operation had actually been invoked); corrected to classify

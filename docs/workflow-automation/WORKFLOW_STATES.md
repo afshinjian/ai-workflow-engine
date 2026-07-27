@@ -5,7 +5,7 @@
 | **Title** | AgentOS Workflow Automation — Workflow States |
 | **Purpose** | Normative runtime state machine for one workflow execution against one target-repository stage: exact allowed/forbidden transitions, retry behavior, interruption recovery, and idempotency. |
 | **Status** | Draft |
-| **Version** | 4.1 |
+| **Version** | 4.3 |
 | **Owner** | Documentation & Governance session (AUTO-001) · Human Owner (approval) |
 | **Dependencies** | `ARCHITECTURE.md` §3; `HUMAN_AUTHORIZATION_MODEL.md`; `MACHINE_GATES.md` |
 | **Related Documents** | `AGENT_CONTRACTS.md`, `FAILURE_RECOVERY.md`, `AUDIT_MODEL.md` |
@@ -157,8 +157,22 @@ forward progress (`HUMAN_AUTHORIZATION_MODEL.md` §1).
 - Transient infrastructure failures inside a single Skill invocation (e.g. a network error
   calling the GitHub API in `WAITING_FOR_CHECKS`) may be retried a small, fixed number of times
   by that Skill with backoff, entirely separate from the repair-attempt counter. This is an
-  infrastructure retry, not a repair attempt, and it never changes workflow state by itself
-  (`OPEN_QUESTIONS.md` OD-4 tracks confirming this separation before AUTO-002 implementation).
+  infrastructure retry, not a repair attempt, and it never changes workflow state by itself.
+  Infrastructure retry is permitted only when durable evidence proves the invocation never began
+  and no external side effect could have occurred; if invocation may have started, infrastructure
+  retry is prohibited and mandatory reconciliation applies instead (§5a items 1-2's same
+  proven-no-side-effect/possible-side-effect boundary, applied here to Skill-internal
+  infrastructure failures rather than the operation-level failures §5a governs). Repair attempts,
+  initial-execution attempts (§5a), and infrastructure retries are three separate durable event
+  streams and counters, never conflated. Human Owner policy decision confirming this separation as
+  load-bearing (OD-4, `OPEN_QUESTIONS.md`, resolved 2026-07-26); verbatim approval and full
+  rationale: `docs/DECISION_LOG.md`, 2026-07-26 OD-4 entry; cross-posted as `DECISIONS.md` DD-13.
+  No Skill exists yet to perform an infrastructure call at all (AUTO-002's own scope excludes
+  Git/GitHub integration), so this stream has no corresponding implementation today — whichever
+  future stage first introduces a retryable infrastructure call (most likely AUTO-003 or AUTO-006)
+  must implement it as its own, third, independent durable counter from the outset, never merged
+  into or inferred from the `AttemptKind.INITIAL_EXECUTION`/`AttemptKind.REPAIR` counters AUTO-002
+  already implements for the other two streams.
 - No transition is retried an unbounded number of times; every retry path has a fixed ceiling
   recorded in the corresponding Skill contract (`SKILL_CONTRACTS.md`).
 
@@ -264,6 +278,52 @@ State is persisted after every transition (`AUDIT_MODEL.md`). On process restart
    lock (MVP); the lock itself is what makes "safe resume" well-defined instead of racing a
    second invocation.
 
+### 6a. State-specific resume repository policy (Human Owner clarification, 2026-07-27)
+
+Section 6 item 2's phrases "branch existence" and "working-tree cleanliness where expected"
+are state- and evidence-dependent, not a universal clean-tree rule. Resume compares typed live
+observations with persisted authorization, transition, attempt, command, and reconciliation
+evidence. Repository appearance alone never proves a side effect succeeded.
+
+- `AUTHORIZED`: baseline branch and bound baseline SHA; normally no planned branch and a clean
+  application tree. A planned branch/current checkout at exactly the bound baseline is only an
+  uncertain, reconcilable branch-creation boundary.
+- `PRECONDITIONS_CHECKED`: either the clean pre-creation form on baseline with no planned branch,
+  or the clean post-creation-but-unrecorded form whose planned branch equals the bound baseline.
+- `BRANCH_CREATED`: planned branch checked out and equal to the bound baseline while no
+  implementation-attempt evidence exists.
+- `IMPLEMENTING` and `REPAIRING`: planned branch descends from the bound baseline; dirty,
+  staged, or untracked application files are permitted only within stage-authorized paths and
+  must agree with persisted attempt/audit evidence. An incomplete invocation reconciles before
+  repetition.
+- `VALIDATING` and `QA_RUNNING`: the same branch and scope constraints apply; command/QA
+  evidence determines whether an interrupted operation may be repeated.
+- `READY_TO_COMMIT`: normally contains the authorized implementation diff. A clean tree with an
+  advanced HEAD is uncertain commit completion and requires matching persisted commit-attempt
+  evidence and independent reconciliation.
+- `COMMITTED`: clean application tree, planned branch checked out, and HEAD exactly matching
+  persisted commit evidence while descending from the bound baseline.
+- `PUSHED`, `PR_OPEN`, `AUTO_MERGE_ENABLED`, and `WAITING_FOR_CHECKS`: retain the `COMMITTED`
+  local invariants and additionally require matching persisted remote-ref/PR evidence and
+  independent observation through the applicable authorized adapter. AUTO-002's local-only
+  observer does not fabricate or accept caller assertions for unavailable remote/GitHub facts.
+- `MERGED`: independently persisted/observed merge evidence, clean application tree, and current
+  branch either planned or baseline during closeout.
+- `CLOSING`: clean application tree; persisted closeout-operation evidence determines whether
+  planned or baseline is the expected branch and which cleanup effects require reconciliation.
+- Terminal states and `CREATED` are not resumable for ordinary execution.
+
+The bound baseline SHA must remain the live baseline ref before merge. Whenever a planned branch
+is required, the bound baseline SHA is its ancestor; at the pre-implementation branch-created
+boundary the two SHAs are equal. `.agentos/**` entries are excluded from application dirtiness
+only when they are configuration-permitted, workflow-generated control/state/lock/audit/
+temporary protocol artifacts; arbitrary user files under that prefix are not excluded.
+
+Working-tree classification distinguishes modified, staged, untracked, deleted, renamed,
+workflow-owned, allowed, forbidden, and unexpected paths. No new state or transition is created
+by this policy. Uncertain operations remain in their existing state and use the persisted
+attempt/reconciliation protocol before any possible repetition.
+
 ## 7. Idempotency Expectations
 
 Every Skill invoked by a state transition is idempotent with respect to the intended end
@@ -292,10 +352,10 @@ a brand-new workflow at `CREATED`, requiring fresh human authorization
 (`HUMAN_AUTHORIZATION_MODEL.md` §4, `FAILURE_RECOVERY.md` §5).
 
 ## 9. Decision References
-DD-04, DD-05, DD-09.
+DD-04, DD-05, DD-09, DD-13.
 
 ## 10. Open Questions
-OD-4, OD-6. (OD-8, OD-9 resolved 2026-07-24 — `OPEN_QUESTIONS.md`.)
+OD-6. (OD-4 resolved 2026-07-26; OD-8, OD-9 resolved 2026-07-24 — `OPEN_QUESTIONS.md`.)
 
 ## 11. Future Revisions
 Any new state or transition is a MAJOR change to this document and requires Human Owner

@@ -5,7 +5,7 @@
 | **Title** | AgentOS Workflow Automation — Architecture |
 | **Purpose** | Normative component model, layering, execution flow, and package layout. |
 | **Status** | Draft |
-| **Version** | 1.0 |
+| **Version** | 1.1 |
 | **Owner** | Documentation & Governance session (AUTO-001) · Human Owner (approval) |
 | **Dependencies** | `README.md` §4 |
 | **Related Documents** | `AGENT_CONTRACTS.md`, `SKILL_CONTRACTS.md`, `MODEL_PROVIDER_CONTRACTS.md`, `WORKFLOW_STATES.md` |
@@ -132,5 +132,20 @@ DD-01, DD-03, DD-06.
 None blocking AUTO-001. OD-3, OD-5 affect AUTO-002 implementation choices.
 
 ## 10. Future Revisions
+
+## AUTO-002 read-only resume observation clarification (2026-07-27)
+
+Human Owner decision for AUTO002-F03 authorizes one narrow exception to the planned AUTO-003
+Skill boundary: AUTO-002 owns a typed, local, read-only observation component used only by the
+Orchestrator's resume precondition check. It may read the configured target repository, stage
+contract, installed engine version, and fixed allowlisted local Git observations. It may not
+expose arbitrary commands, mutate Git or the working tree, access GitHub or the network, invoke
+Providers, implement the general Skill interface, or import the legacy
+`src/ai_workflow_engine/git/` client.
+
+The production `WorkflowSession.resume` path constructs this observer internally. Test
+dependency injection may replace the observer only with raw observations; the Orchestrator
+retains the authorization/drift/reconciliation decision. This clarification is strictly
+separate from AUTO-003, which remains unauthorized and `NOT_STARTED`.
 Package layout may be refined during AUTO-002 without invalidating this document's layering
 model, which is binding for all later stages.
