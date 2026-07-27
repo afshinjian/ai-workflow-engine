@@ -293,16 +293,37 @@ entry).** The delivered state machine, authorization boundary, persistence, lock
 observation, and remediation work passed the configured gates before the Human Owner directed
 closure and one local commit. AUTO-003 remains `Planned` and requires separate authorization.
 
-## AUTO-003 — Deterministic repository and validation skills
+## GOV-AUTO-01 — Local Human-Gated Task Runner
 
 Status: Current
 
+Authorized by the Human Owner on 2026-07-27 as a governance and developer-experience task
+(non-AUTO-family, so it carries no stage-registry entry). Adds a local Bash automation layer for
+the repository's standard task cycle — `scripts/workflow-next.sh` (read-only preflight plus one
+agent session), `scripts/prompts/implement-next-task.md` (the canonical implementation prompt),
+`scripts/workflow-approve.sh` (the Human approval and single-commit gate), and
+`docs/automation-workflow.md`. It automates the mechanical steps **without replacing the Human
+Owner approval gate**: neither script pushes, merges, changes branches, alters upstream, or
+touches stashes, and no commit occurs without two explicit `APPROVE` confirmations. No
+dependencies were added. Implemented and validated 2026-07-27, pending Human Owner approval;
+not committed.
+
+## AUTO-003 — Deterministic repository and validation skills
+
+Status: Done
+
 Authorized by the Human Owner on 2026-07-27 ("I authorize AUTO-003."), on branch
 `feature/auto-003-repository-validation-skills` created from clean `main` at `87a5062` (the
-AUTO-002 merge). Implements the Repository, Contract, Validation, and Reporting skill families
+AUTO-002 merge). Implemented the Repository, Contract, Validation, and Reporting skill families
 (`docs/workflow-automation/SKILL_CONTRACTS.md` §2, §3, §4, §6) in `agentos_workflow/skills/`,
-and resolves OD-2 (secret redaction) as an implementation decision. Commit, push, merge, and
-AUTO-004 are all explicitly excluded by the authorization. Contract:
+and resolved OD-2 (secret redaction) as an implementation decision (DD-33; also DD-34, DD-35).
+Validation: 222 focused tests, 2,204 combined, engine collection unchanged at 978; ruff, black,
+mypy, pre-commit, and `git diff --check` clean. The Human Owner approved the implementation on
+2026-07-27 ("I approve the AUTO-003 implementation.") and authorized exactly one local commit,
+created as `908be94`; push and merge were explicitly withheld. Closed to `Done` on 2026-07-27
+when the Human Owner authorized GOV-AUTO-01 as **the single active task**, which requires
+AUTO-003 to leave `Current` under `maximum_current_tasks: 1`. Report:
+`docs/reports/workflow-automation/AUTO-003-completion-report.md`. Contract:
 `docs/workflow-automation/stage-prompts/AUTO-003.md`. Future improvements carried forward from
 AUTO-002—not AUTO-002 blockers—include the first authorized implementation of deterministic
 infrastructure-retry audit accounting and any local repository/security observations needed by

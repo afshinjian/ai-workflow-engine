@@ -6,7 +6,26 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 
 ## [Unreleased]
 
+### Added
+- GOV-AUTO-01 (2026-07-27): a local, Human-gated task runner for the repository's standard task
+  cycle — `scripts/workflow-next.sh` (read-only preflight, then exactly one agent session with the
+  canonical prompt), `scripts/prompts/implement-next-task.md`, `scripts/workflow-approve.sh` (the
+  Human approval gate and the only path that creates a commit), and `docs/automation-workflow.md`.
+  It automates the mechanical steps **without replacing the Human Owner approval gate**: neither
+  script pushes, merges, changes branches, alters upstream, or mutates stashes; a dirty worktree
+  blocks starting a task, an empty worktree blocks approval, unknown agent arguments fail closed,
+  `eval` is never used, and a commit requires two separate exact-`APPROVE` confirmations plus a
+  displayed-and-confirmed file list (never `git add -A`). 59 tests in
+  `tests/test_workflow_runner_scripts.py` against disposable temporary repositories; `bash -n` and
+  `shellcheck` clean. No dependencies added. Implemented and validated, pending Human Owner
+  approval; not committed.
+
 ### Changed
+- AUTO-003 (2026-07-27): implemented, approved by the Human Owner, and committed locally as
+  `908be94` (push and merge explicitly withheld). Delivered the deterministic Repository, Contract,
+  Validation, and Reporting Skill families in `agentos_workflow/skills/`; resolved OD-2 (DD-33) and
+  recorded DD-34/DD-35. Closed to `Done` when the Human Owner authorized GOV-AUTO-01 as the single
+  active task. **AUTO-004 is explicitly not authorized.**
 - AUTO-002 (2026-07-27): completed the AgentOS Workflow Automation orchestrator/state-machine
   foundation and its approved security remediation. After the configured validation gates
   passed, the Human Owner accepted AUTO-002 for closure without another independent review and

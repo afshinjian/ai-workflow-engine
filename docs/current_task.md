@@ -3,19 +3,23 @@
 Mirror of `docs/TASK_QUEUE.md`'s `Current` set. Must contain exactly the same task ID(s) at the
 same status as the task queue — `workflowctl check-task-state` fails otherwise.
 
-## AUTO-003 — Deterministic repository and validation skills
+## GOV-AUTO-01 — Local Human-Gated Task Runner
 
 Status: Current
 
-Authorized by the Human Owner on 2026-07-27 ("I authorize AUTO-003."). Branch:
-`feature/auto-003-repository-validation-skills`, created from clean, synchronized `main` at
-`87a5062`. Contract: `docs/workflow-automation/stage-prompts/AUTO-003.md`; Standard Stage
-Protocol: `docs/workflow-automation/stage-prompts/README.md`.
+Authorized by the Human Owner on 2026-07-27 as a governance and developer-experience task. It is
+not an AUTO-family stage and therefore has no `STAGE_REGISTRY.md` entry and no stage contract; its
+authorization is this task record plus the Human Owner's written instruction.
 
-Scope: implement the Repository (§2), Contract (§3), Validation (§4), and Reporting (§6) skill
-families of `docs/workflow-automation/SKILL_CONTRACTS.md` in `agentos_workflow/skills/`, with
-secret-redaction defense-in-depth resolving OD-2. GitHub-facing skills (AUTO-006), Model
-Providers (AUTO-004), and Agents (AUTO-005) are out of scope.
+Scope — create or modify only: `scripts/workflow-next.sh`, `scripts/workflow-approve.sh`,
+`scripts/prompts/implement-next-task.md`, `docs/automation-workflow.md`, directly relevant script
+tests, and the minimum governance/task-queue/current-task/changelog/completion-report/handoff
+files needed to record the task. No dependencies added; Bash and standard tools only.
 
-The authorization explicitly prohibits commit, push, merge, and beginning AUTO-004. The stage
-stops for Human Owner approval.
+Objective: automate the mechanical parts of the repository's standard task cycle — preflight,
+prompt delivery, change review, and the commit itself — **without replacing the Human Owner
+approval gate**. Push, merge, branch changes, upstream changes, and stash mutation are never
+performed by either script.
+
+Implemented and validated 2026-07-27; **not committed**. Awaiting Human Owner approval.
+AUTO-004 is not authorized and must not be started.
