@@ -5,7 +5,7 @@
 | **Title** | AgentOS Workflow Automation — Agent Contracts |
 | **Purpose** | Responsibilities, allowed skills, inputs/outputs, and boundaries for each Agent. |
 | **Status** | Draft |
-| **Version** | 1.2 |
+| **Version** | 1.3 |
 | **Owner** | Documentation & Governance session (AUTO-001) · Human Owner (approval) |
 | **Dependencies** | `ARCHITECTURE.md`, `SKILL_CONTRACTS.md`, `MODEL_PROVIDER_CONTRACTS.md` |
 | **Related Documents** | `WORKFLOW_STATES.md`, `MACHINE_GATES.md` |
@@ -55,7 +55,14 @@ automatic repair when directed.
 **Input (repair):** the latest structured QA report (`validate_qa_report` output) plus the
 prior implementation diff.
 
-**Output:** a diff on the stage branch plus a stage completion report artifact.
+**Output:** a diff on the stage branch plus a stage completion report artifact. The completion
+report is a non-empty JSON object that binds `workflow_id`, `stage_id`, `attempt_number`,
+`stage_branch`, `observed_head_sha`, and the canonical, sorted, unique `changed_paths`. Before
+reconciliation can accept it, the Orchestrator independently verifies that the branch is the
+authorized planned branch, the head is its exact current tip, the attempt is the latest persisted
+implementation attempt, the changed paths exactly equal the Git diff from the authorized baseline
+to that head and satisfy the authorized path policy, and the artifact is confined to that
+workflow's own audit directory.
 
 **Drives transitions:** `BRANCH_CREATED → IMPLEMENTING → VALIDATING`;
 `REPAIRING → VALIDATING`. The provider invocation that drives `IMPLEMENTING → VALIDATING` (and a
@@ -155,7 +162,7 @@ and `GitAgent` return typed results only, never decide retry, reconciliation, or
 transition themselves (§1 above).
 
 ## 9. Decision References
-DD-01, DD-03, DD-09.
+DD-01, DD-03, DD-09, DD-27.
 
 ## 10. Open Questions
 None blocking AUTO-001; agent implementation detail is AUTO-005 scope.

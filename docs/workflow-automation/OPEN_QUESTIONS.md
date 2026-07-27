@@ -5,7 +5,7 @@
 | **Title** | AgentOS Workflow Automation — Open Questions |
 | **Purpose** | Owner-decision register (OD-#) with dispositions and what each question blocks. |
 | **Status** | Draft |
-| **Version** | 1.3 |
+| **Version** | 1.4 |
 | **Owner** | Documentation & Governance session · Human Owner (dispositions) |
 | **Dependencies** | `DECISIONS.md` |
 | **Related Documents** | `STAGE_REGISTRY.md` (preconditions cite entries here) |
@@ -50,24 +50,13 @@ being `Open` at authorization time is expected, not a defect.
 - **Recommendation:** A lock file recording the workflow ID and process identity, checked for
   liveness on every command, with an OS-level advisory lock as the actual mutual-exclusion
   primitive underneath it.
-- **Disposition:** Open. Blocks AUTO-002's **implementation** (it must be resolved before
-  AUTO-002 can reach `COMPLETE` — `stage-prompts/AUTO-002.md`'s Stage-Specific Notes name this as
-  one of two questions AUTO-002 itself resolves), not AUTO-002's authorization or start: AUTO-002
-  was authorized and remains validly authorized while this is `Open` (`STAGE_REGISTRY.md` §3 rule
-  17). Does not block AUTO-001.
-
-### OD-4 — Separation of infrastructure retries from the repair-attempt counter
-
-- **Question:** Confirm that transient infrastructure retries (e.g. a flaky GitHub API call
-  during `WAITING_FOR_CHECKS`) never increment the 3-attempt repair counter
-  (`FAILURE_RECOVERY.md` §1, `WORKFLOW_STATES.md` §5).
-- **Recommendation:** Confirmed by design intent in this document set; needs Human Owner
-  sign-off before AUTO-002 encodes it as load-bearing behavior rather than documentation intent.
-- **Disposition:** Open. Affects AUTO-002's **implementation confidence only** — not a
-  `STAGE_REGISTRY.md` §3 rule 1 authorization gate; AUTO-002 was authorized and remains validly
-  authorized while this is `Open` (§3 rule 17). Should be confirmed by the Human Owner before
-  AUTO-002's retry/repair-counter logic is implemented as load-bearing, i.e. during AUTO-002's
-  implementation, not before its authorization. Does not block AUTO-001.
+- **Disposition:** Resolved 2026-07-26, as an AUTO-002 implementation decision (not a Human
+  Owner policy call — `stage-prompts/AUTO-002.md`'s Stage-Specific Notes name this as one of two
+  questions AUTO-002 itself resolves). `agentos_workflow/orchestrator/lock.py` uses `flock` alone
+  as the sole mutual-exclusion authority; the metadata file is diagnostic-only and no PID
+  liveness check is performed against it (a refinement of this entry's recommendation, not a
+  verbatim adoption — PID reuse makes liveness-checking a stale PID unsafe). Full rationale:
+  `DECISIONS.md` DD-10.
 
 ### OD-5 — Final configuration file location/naming
 
@@ -77,7 +66,11 @@ being `Open` at authorization time is expected, not a defect.
 - **Recommendation:** Keep the default path for ergonomics, `--config` override always
   available (`CLI_SPEC.md` §3), matching this repository's own `--config` convention for
   `workflowctl`.
-- **Disposition:** Open. Blocks nothing in AUTO-001; affects AUTO-002 discovery code.
+- **Disposition:** Resolved 2026-07-26, as an AUTO-002 implementation decision finalizing DD-02's
+  "naming open" parenthetical. `agentos_workflow/config/loader.py` keeps `.agentos/workflow.yaml`
+  (relative to `repository_path`) as the default, discovered via `discover_config_path`, with an
+  explicit override path always accepted and taking precedence; a missing file at the resolved
+  path is a precondition failure, never an assumed default. Full rationale: `DECISIONS.md` DD-11.
 
 ### OD-6 — Cancellation semantics once a stage branch carries agent work
 
@@ -131,3 +124,22 @@ being `Open` at authorization time is expected, not a defect.
   `docs/DECISION_LOG.md` (2026-07-24 entry); normative text: `WORKFLOW_STATES.md` §5a (DD-09).
 - **Does not change:** the transition table's edges, the authorization model, the repair-attempt
   counter, or AUTO-002's current lifecycle state.
+
+### OD-4 — Separation of infrastructure retries from the repair-attempt counter
+
+- **Question:** Confirm that transient infrastructure retries (e.g. a flaky GitHub API call
+  during `WAITING_FOR_CHECKS`) never increment the 3-attempt repair counter
+  (`FAILURE_RECOVERY.md` §1, `WORKFLOW_STATES.md` §5).
+- **Resolution (2026-07-26):** Human Owner confirmed the separation and additionally directed
+  that infrastructure retries, repair attempts, and initial-execution attempts are three separate
+  durable event streams and counters; infrastructure retry is permitted only on durable
+  proven-no-side-effect evidence and is prohibited (mandatory reconciliation instead) once
+  invocation may have started. `WORKFLOW_STATES.md` §5 updated to state this explicitly (version
+  4.1 → 4.2). Human Owner policy decision, verbatim text and full rationale:
+  `docs/DECISION_LOG.md` (2026-07-26 entry); normative text: `WORKFLOW_STATES.md` §5 (DD-13).
+- **Does not change:** any AUTO-002 code. AUTO-002 already implements two of the three streams
+  (`AttemptKind.INITIAL_EXECUTION`, `AttemptKind.REPAIR`) as independent durable counters; the
+  third (infrastructure retry) has no implementation anywhere in AUTO-002 because no Skill,
+  Provider, or Git/GitHub call exists yet to retry — deferred to whichever future stage first
+  introduces one (most likely AUTO-003 or AUTO-006), which must implement it as its own
+  independent counter from the outset.

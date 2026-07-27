@@ -6,7 +6,7 @@
 | **Branch** | `feature/auto-002-orchestrator-state-machine` |
 | **Commit message** | `feat(workflow): add orchestrator, state machine, locking, and persistence (AUTO-002)` |
 | **Report** | `docs/reports/workflow-automation/AUTO-002-completion-report.md` |
-| **Status/Version** | Draft · 1.2 |
+| **Status/Version** | Draft · 1.3 |
 
 Apply the Standard Stage Protocol in `README.md` in full.
 
@@ -52,3 +52,13 @@ Write the report, recommend the commit message above, then STOP per SSP.
 Reference contracts: `../ARCHITECTURE.md` §4 (package layout), `../HUMAN_AUTHORIZATION_MODEL.md`
 (binding fields), `../AUDIT_MODEL.md` (record schemas). Resolves `../OPEN_QUESTIONS.md` OD-3 and
 OD-5 as implementation decisions, recorded in `../DECISIONS.md`.
+
+## Human Owner AUTO002-F03 scope clarification (2026-07-27)
+
+AUTO-002 may additionally create `agentos_workflow/observation/**` solely for typed local
+read-only resume observation. This narrow component may read confined stage-contract content,
+the running package version, and fixed allowlisted local Git facts needed by
+`WORKFLOW_STATES.md` §6/§6a. It may not mutate Git or files, expose arbitrary commands, perform
+network/GitHub operations, implement the general Skill interface, invoke Agents/Providers, or
+import the legacy root Git client. Production `WorkflowSession.resume` invokes it internally;
+caller-copied bindings are not live evidence. AUTO-003 remains unauthorized and `NOT_STARTED`.

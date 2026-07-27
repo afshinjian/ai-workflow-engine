@@ -5,7 +5,7 @@
 | **Title** | AgentOS Workflow Automation — Stage Registry |
 | **Purpose** | Live status of AUTO-001..007, the stage-lifecycle state model (distinct from the runtime `WORKFLOW_STATES.md` machine the finished engine will use), master stage-control rules, and the append-only authorization log. A *view* of `docs/TASK_QUEUE.md`, never a competing workflow. |
 | **Status** | Draft |
-| **Version** | 6.0 |
+| **Version** | 6.6 |
 | **Owner** | Documentation & Governance session · Human Owner (approval and stage authorization) |
 | **Dependencies** | `README.md` §5; `MVP_SCOPE.md`; `TEST_STRATEGY.md` |
 | **Related Documents** | `stage-prompts/README.md`, `docs/AGENT_PROTOCOL.md`, `self-governance.yaml`, `docs/TASK_QUEUE.md` |
@@ -248,7 +248,7 @@ Report paths: `docs/reports/workflow-automation/AUTO-0XX-completion-report.md`.
 | Stage | Title | Role | State | Branch | Prompt |
 |---|---|---|---|---|---|
 | AUTO-001 | Architecture and governance contracts | Documentation & Governance session | COMPLETE | `governance/auto-001-workflow-automation-planning` | `stage-prompts/AUTO-001.md` |
-| AUTO-002 | Orchestrator, state machine, locking, and persistence | Engine implementation session | BLOCKED | `feature/auto-002-orchestrator-state-machine` | `stage-prompts/AUTO-002.md` |
+| AUTO-002 | Orchestrator, state machine, locking, and persistence | Engine implementation session | COMPLETE | `feature/auto-002-orchestrator-state-machine` | `stage-prompts/AUTO-002.md` |
 | AUTO-003 | Deterministic repository and validation skills | Engine implementation session | NOT_STARTED | `feature/auto-003-repository-validation-skills` | `stage-prompts/AUTO-003.md` |
 | AUTO-004 | Claude Code CLI and Codex CLI providers | Engine implementation session | NOT_STARTED | `feature/auto-004-model-providers` | `stage-prompts/AUTO-004.md` |
 | AUTO-005 | PMO, implementation, QA, Git, merge, and closeout agents | Engine implementation session | NOT_STARTED | `feature/auto-005-agents` | `stage-prompts/AUTO-005.md` |
@@ -263,29 +263,37 @@ Report paths: `docs/reports/workflow-automation/AUTO-0XX-completion-report.md`.
 | 2026-07-24 | AUTO-002 | Human Owner: "I authorize AUTO-002." Preconditions re-checked after AUTO-001 was closed out to `Done` (PR #3, `191f600`): all passed except the planned-stage-branch binding — the session's working branch (`feature/auto-002-orchestrator-foundation`) does not match this registry's bound branch (`feature/auto-002-orchestrator-state-machine`), an invalidation condition under `HUMAN_AUTHORIZATION_MODEL.md` §2/§4. Implementation was not started; blocked pending Human Owner resolution (`docs/DECISION_LOG.md`, 2026-07-24 entry). | Engine implementation session |
 | 2026-07-24 | AUTO-002 (correction) | Governance recovery session, no Human Owner action: the row above's citation of `HUMAN_AUTHORIZATION_MODEL.md` §2/§4 as the authority invalidating this authorization was found incorrect on audit and is preserved above unchanged for the historical record. That document's binding fields govern the *runtime* engine's future authorization of workflows against *target* repositories (`WORKFLOW_STATES.md` §1), not this repository's own AUTO-00x development-stage lifecycle. The correct, still-controlling authority is the SSP's "verify you are on the stage's named branch created from a clean baseline" precondition (`stage-prompts/README.md`; contract `stage-prompts/AUTO-002.md`; Control Rule 14 above) — an ordinary stage-lifecycle precondition failure. The Human Owner's "I authorize AUTO-002" authorization was never in question and stands; only the branch precondition is unmet. State corrected from the non-canonical `AUTHORIZED (blocked — …)` to the canonical `BLOCKED` (§2). No lifecycle transition changed; no implementation performed. Full rationale: `docs/DECISION_LOG.md`, 2026-07-24 governance-recovery entry. | Governance Recovery session |
 | 2026-07-24 | AUTO-002 (Governance Correction Record, rule 18) | Corrects the two rows above, in place of the in-place merge a prior governance-recovery pass mistakenly applied to them (itself a rule-8/append-only violation, since remediated by restoring both rows verbatim). Both rows above stand as originally written. For the record: the first row's `HUMAN_AUTHORIZATION_MODEL.md` §2/§4 citation is incorrect for the reason the second row already states; the corrected, controlling authority is `STAGE_REGISTRY.md` §3 rule 14 (the SSP's named-branch check) and rule 17 (execution-precondition failure does not invalidate authorization). The Human Owner's "I authorize AUTO-002" authorization stands, unaffected by either row's wording. Full audit trail: `docs/DECISION_LOG.md`, 2026-07-24 entries (three governance-recovery passes). | Governance Recovery session |
+| 2026-07-24 | AUTO-002 (execution precondition resolved) | The governance recovery merged into `main` via PR #4 (`163bcee`); the prior non-canonical branch (`feature/auto-002-orchestrator-foundation`) was deleted both locally and remotely. A fresh AUTO-002 session verified `main` == `origin/main`, a clean working tree, and both retained stashes untouched, then created the canonical branch `feature/auto-002-orchestrator-state-machine` from clean `main`, satisfying the SSP's initial-start branch-binding and clean-tree checks (`stage-prompts/README.md`; rule 14). Per rule 17(a), registry state moves `BLOCKED → AUTHORIZED → IN_PROGRESS`; no new Human Owner authorization act occurs at either step — the Human Owner's "I authorize AUTO-002." record above stands unchanged. Implementation of the stage's package skeleton begins under this entry. | Engine implementation session |
+| 2026-07-27 | AUTO-002 (Human Owner closure) | Human Owner reviewed the implementation and validation report, accepted AUTO-002 as sufficient, explicitly waived another independent review, directed that out-of-scope observations remain future work, and authorized governance closure plus one local commit. Registry state moves `IN_PROGRESS → COMPLETE`; task status moves `Current → Done`. This closure authorizes no successor, push, or merge. | Human Owner |
 
 ## 6. Decision References
-DD-01 through DD-06, DD-08.
+DD-01 through DD-32. (DD-14 was appended out of physical sequence in `DECISIONS.md`; corrected by
+Governance Correction Record, `docs/DECISION_LOG.md`, 2026-07-27 — DD-14 itself is unaffected and
+binding. DD-15 through DD-20 record the AUTO002-F07 through F12 remediation findings, appended
+`docs/DECISION_LOG.md`, 2026-07-27. DD-21 through DD-25 record the AUTO002-IR-01 through IR-05
+findings of a *second* independent review, which reproduced five defects — two of them in code
+DD-16/DD-17/DD-18 had reported as hardened, invalidating the F04/F05/F08/F09 completion claims as
+overstated. DD-26 reclassifies F11 as `INSUFFICIENT_DURABLE_EVIDENCE`, superseding the prior
+"already resolved" assertion. The IR-01..IR-05 remediation is **pending fresh independent
+review**; no independent approval has been obtained for it. DD-27 through DD-31 record the
+Human-Owner-authorized remediation of the third independent review's evidence-binding,
+hardlink-alias, workflow-sidecar-confinement, duplicate-key, and audit-schema findings. That
+remediation was subsequently accepted for closure by the Human Owner without another independent
+review. DD-32 records that explicit closure decision and its no-successor/no-push/no-merge
+boundary.)
 
 ## 7. Open Questions
 OD-1 through OD-7 (`OPEN_QUESTIONS.md`); none block AUTO-001 closure. AUTO-002's authorization
 precondition (AUTO-001 `COMPLETE` plus a fresh Human Owner record) was **satisfied and recorded**
-on 2026-07-24 (§5) — this is a completed fact, not an outstanding requirement. AUTO-002's current
-status is registry state `BLOCKED` (§2, §3 rule 17): the authorization stands; a separate,
-unrelated execution precondition (its named branch, per §4) is unmet until the settled release
-procedure completes. This is a durable rule, not a fact about any specific branch that happens to
-be checked out during any particular governance session: this governance-recovery branch is
-reviewed, committed, pushed, merged, and deleted through the ordinary recovery release process —
-never renamed into the AUTO-002 branch — and it holds until, after that, an AUTO-002 session
-begins from updated, clean `main` and creates or checks out the §4 canonical branch, independent
-of which branch a prior recovery session used or whether that branch still exists (rule 19
-governs whether that check is an initial-start or resume check). This is not a new AUTO-002
-authorization, and implementation does not begin during governance recovery. Re-authorization is
-not required and has not been requested; nothing about AUTO-002's
-authorization remains to be done or repeated. AUTO-003's own authorization precondition (AUTO-002
-`COMPLETE` plus a fresh Human Owner record) genuinely remains outstanding — AUTO-002 has not
-reached `COMPLETE` — and is correctly described as a future requirement, unlike the AUTO-002
-sentence this replaces.
+on 2026-07-24 (§5) — this is a completed fact, not an outstanding requirement. AUTO-002's
+previously-unmet execution precondition (its named branch, per §4) was satisfied on 2026-07-24
+once the settled governance-recovery release procedure completed and a fresh AUTO-002 session
+created the canonical branch from clean `main` (§5, "execution precondition resolved" entry);
+registry state accordingly moved `BLOCKED → AUTHORIZED → IN_PROGRESS` per rule 17(a), with no new
+Human Owner authorization act. On 2026-07-27 the Human Owner accepted AUTO-002 for closure and
+directed `IN_PROGRESS → COMPLETE` without an additional review. AUTO-003's predecessor condition
+is now satisfied, but its separate fresh Human Owner authorization is not; it remains
+`NOT_STARTED`.
 
 ## 8. Future Revisions
 Registry table and log grow append-only; control-rule changes are MAJOR.
