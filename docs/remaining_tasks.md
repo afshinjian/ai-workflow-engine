@@ -5,14 +5,16 @@ must agree with the task queue — `workflowctl check-task-state` fails otherwis
 
 The approved 1.0.0 roadmap (`docs/MASTER_ROADMAP.md`) is complete. DASH-001 and AUTO-001 were
 previously closed to `Done`. AUTO-002 was accepted and closed to `Done` by the Human Owner on
-2026-07-27. There is no `Current` task. Remaining work belongs to the DASH program
-(DASH-002..010, all `Planned`), the rest of the AUTO program (AUTO-003..007, all `Planned`), and
-the ordinary governance/tooling task GOV-2. Each requires its own fresh written authorization
-before it may become `Current`; closing AUTO-002 authorizes none of them.
+2026-07-27, then published and merged into `main` (PR #5, merge commit `87a5062`) under a separate
+Human Owner authorization the same day. **AUTO-003 is `Current`**, authorized by the Human Owner on
+2026-07-27. Remaining work belongs to the DASH program (DASH-002..010, all `Planned`), the rest of
+the AUTO program (AUTO-004..007, all `Planned`), and the ordinary governance/tooling task GOV-2.
+Each requires its own fresh written authorization before it may become `Current`; authorizing
+AUTO-003 authorizes none of them.
 
 | Task | Title | Status |
 |---|---|---|
-| AUTO-003 | Deterministic repository and validation skills | Planned |
+| AUTO-003 | Deterministic repository and validation skills | Current |
 | GOV-2 | Extend `check-governance` to validate stage-registry/lifecycle consistency | Planned |
 | AUTO-004 | Claude Code CLI and Codex CLI providers | Planned |
 | AUTO-005 | PMO, implementation, QA, Git, merge, and closeout agents | Planned |

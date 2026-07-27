@@ -295,9 +295,14 @@ closure and one local commit. AUTO-003 remains `Planned` and requires separate a
 
 ## AUTO-003 — Deterministic repository and validation skills
 
-Status: Planned
+Status: Current
 
-Requires its own fresh authorization. Contract:
+Authorized by the Human Owner on 2026-07-27 ("I authorize AUTO-003."), on branch
+`feature/auto-003-repository-validation-skills` created from clean `main` at `87a5062` (the
+AUTO-002 merge). Implements the Repository, Contract, Validation, and Reporting skill families
+(`docs/workflow-automation/SKILL_CONTRACTS.md` §2, §3, §4, §6) in `agentos_workflow/skills/`,
+and resolves OD-2 (secret redaction) as an implementation decision. Commit, push, merge, and
+AUTO-004 are all explicitly excluded by the authorization. Contract:
 `docs/workflow-automation/stage-prompts/AUTO-003.md`. Future improvements carried forward from
 AUTO-002—not AUTO-002 blockers—include the first authorized implementation of deterministic
 infrastructure-retry audit accounting and any local repository/security observations needed by

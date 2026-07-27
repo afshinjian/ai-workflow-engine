@@ -5,14 +5,38 @@
 | **Title** | AgentOS Workflow Automation — Changelog |
 | **Purpose** | Program-level changelog, newest first. |
 | **Status** | Draft |
-| **Version** | 2.8 |
+| **Version** | 2.9 |
 | **Owner** | Documentation & Governance session |
 | **Dependencies** | None |
 | **Related Documents** | `docs/CHANGELOG.md` (repository-level; cross-posted there) |
 
 ## [Unreleased]
 
+### Added
+- AUTO-003 (2026-07-27): implemented the deterministic Repository, Contract, Validation, and
+  Reporting Skill families in `agentos_workflow/skills/` (`SKILL_CONTRACTS.md` §2, §3, §4, §6) —
+  31 named Skills over fixed argv, each returning a typed `SkillResult`/`SkillFailure` rather than
+  raising to the Orchestrator (§7), with retry classification following §5 exactly. The forbidden
+  Git operations of `SECURITY_MODEL.md` §2 are unreachable by construction (no caller-supplied
+  verb, no `--force`/`-D`/`reset`/`rebase`/`--amend` literal anywhere), machine-checked by an
+  AST assertion over the module's own source; baseline mutation is refused by a required
+  baseline parameter, and branch deletion requires a `MergeConfirmation` token with no default.
+  Report and audit writes are confined to the audit root by descriptor-relative `O_NOFOLLOW`
+  walks, are content-hash idempotent, and refuse to overwrite differing content. 222 new tests
+  against temporary real Git repositories and fixture contracts (`TEST_STRATEGY.md` §3); the
+  engine's own `GitClient` is neither imported nor modified, and `src/`, `tests/`, and the default
+  `pytest` collection are provably unchanged (978 collected before and after). Decisions:
+  DD-33 (OD-2), DD-34, DD-35. Stage remains `IN_PROGRESS`, stopped for Human Owner approval;
+  no commit, push, merge, or AUTO-004 work was performed.
+
 ### Changed
+- AUTO-003 (2026-07-27): **OD-2 resolved** — secret handling is an environment allowlist as the
+  primary control plus named, linear-time regex output redaction as defense-in-depth, applied to
+  every string leaving a Skill. Entropy-based detection was considered and rejected (DD-33).
+- AUTO-002 (2026-07-27): published and merged into `main` under a separate Human Owner
+  authorization — branch pushed, PR #5 merged by merge commit `87a5062` (parents `163bcee` +
+  `20c9890`) after CI passed, `main` synchronized. The stage branch was retained and both
+  pre-existing stashes left untouched. No registry state changed; AUTO-002 was already `COMPLETE`.
 - AUTO-002 (2026-07-27): Human Owner reviewed the implementation/remediation report and
   validation results, accepted the stage as sufficient, explicitly waived another independent
   review, and authorized closure plus one local commit. AUTO-002 is now `COMPLETE`/`Done`; no

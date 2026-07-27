@@ -768,3 +768,76 @@ decision. Full rationale, authorization, and the companion `STAGE_REGISTRY.md` �
   authorized automatically. Out-of-scope observations remain future work. Push and merge remain
   prohibited by this closure instruction.
 - **Reconsideration trigger:** none; later improvements require a separately authorized task.
+
+## DD-33 — OD-2 resolved: secret handling is an environment allowlist plus regex output redaction
+
+- **Status:** Accepted. AUTO-003 implementation decision, 2026-07-27. Resolves `OPEN_QUESTIONS.md`
+  OD-2, which was recorded as blocking AUTO-003/AUTO-004 security hardening.
+- **Context:** OD-2 asked whether secret handling should be regex-pattern-based redaction of known
+  secret shapes, an allowlist-only environment capture, or both. Its recommendation was both.
+  `SECURITY_MODEL.md` §1 already names both controls but left the implementation open. OD-2 is a
+  question the stage contract (`stage-prompts/AUTO-003.md`) names AUTO-003 as resolving, so this
+  is an implementation decision, not a Human Owner policy call — the same posture DD-10 took for
+  OD-3 under AUTO-002.
+- **Decision:** Implement both, with an explicit primacy ordering. The **environment allowlist is
+  the primary control**: `skills/__init__.py::_build_environment` constructs each subprocess
+  environment from `PATH`, pinned `LC_ALL`/`LANG`, interactive-prompt suppression, and only the
+  variables a target repository's `allowed_environment_variables` names — nothing else in the
+  operator's environment is forwarded. **Regex redaction is defense-in-depth**:
+  `skills/__init__.py::redact_secrets` replaces known secret shapes with an opaque
+  `[REDACTED:<kind>]` marker naming the pattern that matched, and is applied to every string
+  leaving a Skill — failure details, command stdout/stderr, report payloads (recursively), and
+  audit events.
+- **Rejected alternative — entropy-based detection:** considered and deliberately not implemented.
+  It would flag Git SHAs, content hashes, and base64 test fixtures, all of which this engine's own
+  output is full of; a redactor that fires on ordinary output trains operators to ignore it. The
+  patterns are therefore explicit and named rather than statistical.
+- **Consequences:** Redaction is lossy, irreversible, and idempotent (re-redacting redacted text
+  neither corrupts the marker nor leaks a fragment). It is explicitly *not* a guarantee: a secret
+  with no recognizable shape and no label is not detectable by pattern alone, which is precisely
+  why the allowlist — not the redactor — is the primary control. Every pattern is written to match
+  in linear time, because redaction runs over untrusted target-repository output where a
+  catastrophically backtracking pattern would be a reachable denial-of-service vector.
+  `run_secret_detection` reuses the same shapes for the *opposite* purpose (failing the gate on a
+  secret committed to the diff) and suppresses placeholder values so the gate stays trustworthy.
+- **Reconsideration trigger:** a credential format in real use that the named patterns miss, or
+  evidence that placeholder suppression is hiding a real finding.
+
+## DD-34 — Skills return typed failures; destructive Git operations are structurally unreachable
+
+- **Status:** Accepted. AUTO-003 implementation decision, 2026-07-27.
+- **Context:** `SKILL_CONTRACTS.md` §7 requires every Skill to return a typed failure rather than
+  raise, and `SECURITY_MODEL.md` §2 requires the forbidden Git operations to be unreachable *by
+  construction* rather than refused at runtime. Both needed a concrete mechanism.
+- **Decision:** (a) Every Skill returns `SkillResult[T]`, carrying either a value or a
+  `SkillFailure` with a `FailureKind` and a `RetryClassification`; no Skill raises to the
+  Orchestrator, and even a subprocess spawn failure becomes a record so the audit trail has no
+  gaps. (b) `skills/repository.py` exposes only named functions whose mutating verb is a literal
+  in that function's own argv tuple — there is no general "run a git command" entry point and no
+  caller-supplied verb — so `--force`, `-D`, `reset`, `rebase`, and `commit --amend` have no
+  expressible form. (c) Every ref-mutating Skill takes the baseline branch as a *required*
+  parameter and refuses when its target equals it. (d) `delete_local_branch`/`delete_remote_branch`
+  require a `MergeConfirmation` token with no default, so `SECURITY_MODEL.md` §5's
+  "only after `verify_merge_completion`" precondition is unexpressible to violate rather than
+  merely discouraged; the token's producer arrives in AUTO-006.
+- **Consequences:** The prohibition is machine-checked, not review-dependent:
+  `test_skills_repository.py::test_no_forbidden_argv_tokens` parses the module's own AST and fails
+  if a forbidden token ever appears in a string literal. Retry classification follows
+  `SKILL_CONTRACTS.md` §5 exactly — only a spawn failure is `PROVEN_PRE_SIDE_EFFECT`, and a
+  timeout on a network-touching Skill is `POSSIBLE_SIDE_EFFECT`, never proven pre-effect.
+- **Reconsideration trigger:** a Skill family that genuinely requires a caller-supplied Git verb,
+  which would need its own security review.
+
+## DD-35 — Branch-relative change sets use three-dot (merge-base) diff semantics
+
+- **Status:** Accepted. AUTO-003 implementation decision, 2026-07-27.
+- **Context:** `list_changed_files` and `inspect_diff` feed scope enforcement
+  (`SECURITY_MODEL.md` §7). Two-dot and three-dot diff answer different questions, and the choice
+  determines whether scope violations are attributed correctly.
+- **Decision:** Both Skills use `base...branch` (three-dot, diff against the merge base).
+- **Consequences:** The change set is what the stage branch *introduced*. Two-dot would also
+  report everything that landed on the baseline after the branch was cut, so an unrelated baseline
+  commit touching a forbidden path would be attributed to the stage and fail its scope gate. This
+  is a deliberate divergence from `observation/evidence.py::changed_paths`, which uses two-dot
+  because it answers a different question — the exact path set between two specific commits.
+- **Reconsideration trigger:** a workflow that needs the absolute two-commit path set for scope.

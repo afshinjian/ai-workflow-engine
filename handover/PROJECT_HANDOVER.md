@@ -13,50 +13,65 @@ The released `ai-workflow-engine` 1.0.0 roadmap is complete. In the post-1.0 pro
 - AUTO-002 is `Done` and registry `COMPLETE`. It delivered the `agentos_workflow/` orchestrator,
   19-state workflow state machine, authorization capture and replay, append-only state/audit
   persistence, repository locking, retry/attempt accounting, configuration, and narrowly scoped
-  local resume/evidence observation. It also includes the Human-Owner-approved security and
-  correctness remediation recorded in `docs/workflow-automation/DECISIONS.md` DD-15..DD-31.
-- AUTO-003..AUTO-007 remain `Planned`/`NOT_STARTED`. None is authorized by AUTO-002 closure.
+  local resume/evidence observation, plus the Human-Owner-approved remediation in
+  `docs/workflow-automation/DECISIONS.md` DD-15..DD-31. **It has since been published and merged
+  into `main`** (see below), so `agentos_workflow/` now exists on the baseline.
+- **AUTO-003 is `Current` and registry `IN_PROGRESS`**, implemented and validated on
+  `feature/auto-003-repository-validation-skills`, stopped and awaiting Human Owner approval.
+- AUTO-004..AUTO-007 remain `Planned`/`NOT_STARTED`. None is authorized by AUTO-003's work.
 - GOV-2 remains `Planned`.
 
-There is no active `Current` task. The Human Owner reviewed AUTO-002's implementation and
-validation report on 2026-07-27, accepted it as sufficient, explicitly waived another independent
-review, and authorized one local Conventional Commit. Push and merge were explicitly prohibited.
+## AUTO-002 publication and merge (2026-07-27)
 
-## AUTO-002 validation and integrity
+Under a Human Owner authorization separate from AUTO-002's closure, the stage branch was pushed
+and merged into `main`:
 
-Before closure:
+- PR **#5**, merged by merge commit **`87a5062`** (parents `163bcee` + `20c9890`) — a merge
+  commit, matching the two-parent shape of PRs #1–#4, not a squash or fast-forward.
+- Both CI runs passed **before** the merge was performed.
+- Local `main` == `origin/main` == `87a5062`; `agentos_workflow/` is present on `main`.
+- The AUTO-002 feature branch was **retained** (no governance rule required its deletion), and
+  both pre-existing recovery stashes were left untouched.
 
-- `pytest -q tests agentos_workflow/tests -p no:cacheprovider`: 1,982 passed.
-- Focused remediation/evidence suite: 134 passed.
-- Ruff, Black, mypy for both `agentos_workflow` and `src`, and `git diff --check`: passed.
-- Governance, task-state, and handover checks: passed.
-- `workflowctl verify --config self-governance.yaml` reported only `upstream_missing`, the
-  pre-existing condition for the local AUTO-002 branch. No upstream was created.
+This resolved the precondition that previously made AUTO-003 unstartable: its contract requires a
+branch cut from clean `main`, and `main` had not contained `agentos_workflow/`.
 
-Git inspection showed AUTO-002 began at `163bcee` on
-`feature/auto-002-orchestrator-state-machine`. Before the authorized closure commit, no
-intervening commit, push, merge, branch switch, upstream change, or stash mutation had occurred.
-The two pre-existing recovery stashes remained untouched.
+## AUTO-003 — current state
 
-## Future work
+Authorized 2026-07-27 ("I authorize AUTO-003."), with commit, push, merge, and AUTO-004 all
+explicitly prohibited. Branch `feature/auto-003-repository-validation-skills`, cut from clean
+`main` at `87a5062`.
 
-Future work does not reopen AUTO-002:
+Delivered `agentos_workflow/skills/` — 31 Skills across the Repository (§2), Contract (§3),
+Validation (§4), and Reporting (§6) families of `SKILL_CONTRACTS.md`. Every Skill is a named
+function over fixed argv returning a typed `SkillResult`, never raising to the Orchestrator. The
+forbidden Git operations of `SECURITY_MODEL.md` §2 are unreachable by construction and
+machine-checked by an AST assertion over the module's own source. OD-2 is resolved (DD-33);
+DD-34 and DD-35 record the other two implementation decisions.
 
-- AUTO-003 may implement deterministic repository/validation Skills and the first infrastructure
-  retry accounting when an authorized operation actually needs it.
-- Remote/GitHub reconciliation belongs to the later GitHub integration stages.
-- Portability beyond the current explicit POSIX `fcntl`/`dir_fd`/`O_NOFOLLOW` boundary is a
-  project-backlog improvement.
-- GOV-2 may extend lifecycle/governance consistency checking.
+Validation, all recorded in `docs/reports/workflow-automation/AUTO-003-completion-report.md`:
 
-Every item above requires its own task authorization. Do not begin AUTO-003 merely because its
-predecessor is complete.
+- Focused suite 222 passed; `agentos_workflow/tests` 1,226 passed; `tests` 978 passed; combined
+  2,204 passed.
+- Engine default collection unchanged: 978 on the branch and on a clean `main` worktree.
+- Ruff, Black, mypy (`agentos_workflow` and `src`), `pre-commit run --all-files` (mutated
+  nothing), and `git diff --check`: all clean.
+- `workflowctl verify` — `task-state`, `governance`, `handover` PASS; `git` FAIL with
+  **`upstream_missing` only**, the expected condition for an unpushed local stage branch given
+  `require_upstream: true`. AUTO-002 recorded the identical condition.
+
+**Nothing is committed.** The stage's work is uncommitted working-tree state, deliberately, per
+the authorization.
 
 ## Next session
 
 1. Verify `git status`, recent history, and this handover checksum.
-2. Confirm no task is `Current`.
-3. Wait for an explicit Human Owner authorization naming the next task.
-4. Create or use only that task's governed branch and scope.
+2. Confirm AUTO-003 is the only `Current` task and the registry shows `IN_PROGRESS`.
+3. AUTO-003 is awaiting **Human Owner approval**. Do not advance its registry state, commit its
+   work, or begin AUTO-004 without a fresh explicit instruction.
+4. Should the Human Owner approve, closure and any commit/push/merge each require their own
+   explicit authorization — approval of the implementation is not by itself authorization to
+   commit or publish it.
 
-Do not push or merge the AUTO-002 commit without a separate Human Owner instruction.
+Completing a stage never authorizes its successor. AUTO-004 requires its own fresh written
+authorization naming it.

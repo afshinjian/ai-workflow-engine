@@ -41,7 +41,15 @@ being `Open` at authorization time is expected, not a defect.
 - **Recommendation:** Both — allowlist environment forwarding (`SECURITY_MODEL.md` §1) as the
   primary control, plus regex-based output redaction as defense-in-depth for secrets that leak
   into command output despite the allowlist.
-- **Disposition:** Open. Blocks AUTO-003/AUTO-004 security hardening; does not block AUTO-001.
+- **Disposition:** Resolved 2026-07-27, as an AUTO-003 implementation decision (not a Human Owner
+  policy call — `stage-prompts/AUTO-003.md` names this as the question AUTO-003 itself resolves,
+  the same posture DD-10 took for OD-3 under AUTO-002). Both controls are implemented, with an
+  explicit primacy ordering: `agentos_workflow/skills/__init__.py::_build_environment` builds every
+  subprocess environment from the configured `allowed_environment_variables` allowlist (the primary
+  control), and `redact_secrets` applies named, linear-time secret-shape patterns to every string
+  leaving a Skill (defense-in-depth). Entropy-based detection was considered and rejected — it
+  would flag Git SHAs and content hashes, and a redactor that fires on ordinary output trains
+  operators to ignore it. Full rationale: `DECISIONS.md` DD-33.
 
 ### OD-3 — Repository lock implementation
 
