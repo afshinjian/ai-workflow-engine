@@ -13,6 +13,36 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-07-28 — GOV-AUTO-02 local task authorization and launch gate
+
+**Decision:** The Human Owner authorized GOV-AUTO-02 — Local Task Authorization and Launch Gate.
+The task is the single `Current` task while its completed implementation remains uncommitted and
+pending Human Owner approval. AUTO-006, GOV-3, DASH-002, and every other planned task remain
+unauthorized.
+
+**Design:** `scripts/workflow-authorize.sh <TASK_ID> [claude|codex]` accepts only an explicit task
+ID; it never reads queue order to choose work. It requires the default-branch baseline, a clean
+worktree/index, no existing `Current` task, a `Planned`/ready target, completed structured program
+predecessors, resolved established owner-decision gates, and passing task-state/governance/
+handover checks. The script displays the task, status, predecessor, canonical implementation
+branch, current branch/HEAD, agent, and exact governance allowlist, then requires two exact
+`AUTHORIZE` confirmations before changing anything.
+
+**Phase separation:** authorization reconciles the queue, mirrors, project state, decision log,
+changelogs, relevant stage registry, handoff, and checksum, validates again, and creates exactly
+one local `docs(governance): authorize TASK-ID` commit containing only those records. An optional
+agent is invoked through `workflow-next.sh` only after the commit is verified and the worktree is
+clean. Implementation and its later `workflow-approve.sh` commit remain separate. The script has
+no push, merge, branch/upstream mutation, stash mutation, automatic predecessor closure, or task
+implementation path.
+
+**Limitations:** AUTO/DASH predecessor and canonical-branch data are structured in their stage
+registries. Ordinary queue-only GOV tasks declare no machine-readable predecessor, so the gate
+reports none declared and relies on their explicit status/blocker prose plus the common baseline
+and Human confirmations. Open-decision refusal recognizes the repository's established
+“blocked on” and “must be resolved before TASK authorization” wording; a future structured
+dependency schema could replace that conservative text check.
+
 ## 2026-07-28 — AUTO-005 approved, closed to `Done`, and merged; the QA report collision deferred to GOV-3
 
 **Decision:** The Human Owner approved the AUTO-005 implementation, explicitly accepted all five

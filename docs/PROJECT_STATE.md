@@ -75,11 +75,12 @@ plan to 1.0, and `docs/architecture.md` for the pipeline shapes.
 
 ## In progress
 
-No task is in progress. AUTO-005 was approved, committed as `430cbb4`, closed to `Done`, and merged
-into `main` on 2026-07-28; AUTO-002, AUTO-003, AUTO-004, and GOV-AUTO-01 were closed and merged
-earlier. Every remaining task requires its own explicit Human Owner authorization naming it before
-work begins — closing a stage never authorizes its successor
-(`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 16).
+GOV-AUTO-02 — Local Task Authorization and Launch Gate is the single `Current` task. The Human
+Owner explicitly authorized it on 2026-07-28. Implementation and focused validation are complete:
+the new Bash gate authorizes exactly one Human-named task, creates one governance-only local
+authorization commit, and optionally hands the already-authorized task to the existing runner.
+The complete diff is uncommitted and pending Human Owner approval. No AUTO-006, GOV-3, dashboard,
+or other planned implementation has begun.
 
 ## Planned
 

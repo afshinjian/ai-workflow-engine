@@ -15,7 +15,7 @@ read handoff → identify one authorised task → implement → validate
 
 Running that by hand means retyping the same preflight checks and the same implementation prompt
 every session, and it makes the commit step a free-form `git add`/`git commit` where the exact
-staged set is easy to get wrong. These two scripts make the mechanical parts repeatable while
+staged set is easy to get wrong. These scripts make the mechanical parts repeatable while
 leaving every judgment call — which task, whether the work is acceptable, whether to commit —
 with the Human Owner.
 
@@ -23,6 +23,7 @@ What they deliberately do **not** do: decide what to work on, approve anything, 
 
 | Script | Role |
 |---|---|
+| `scripts/workflow-authorize.sh` | Authorize and record **one Human-named task**, create one governance-only local commit, and optionally launch the runner |
 | `scripts/workflow-next.sh` | Read-only preflight, then launch **one** agent session with the canonical prompt |
 | `scripts/prompts/implement-next-task.md` | The canonical implementation prompt both agents receive |
 | `scripts/workflow-approve.sh` | The Human approval gate and the **only** path that creates a commit |
@@ -41,13 +42,13 @@ What they deliberately do **not** do: decide what to work on, approve anything, 
 
 ## 3. Executable setup
 
-Both scripts are committed with their executable bit set. If a checkout loses it:
+All three scripts are committed with their executable bit set. If a checkout loses it:
 
 ```bash
-chmod +x scripts/workflow-next.sh scripts/workflow-approve.sh
+chmod +x scripts/workflow-authorize.sh scripts/workflow-next.sh scripts/workflow-approve.sh
 ```
 
-Both resolve the repository root from **their own location**, following symlinks, so they work
+All three resolve the repository root from **their own location**, following symlinks, so they work
 when invoked from any directory:
 
 ```bash
@@ -57,10 +58,15 @@ when invoked from any directory:
 ## 4. Command usage
 
 ```bash
+scripts/workflow-authorize.sh <TASK_ID> [claude|codex]
+
 scripts/workflow-next.sh <claude|codex>
 
 scripts/workflow-approve.sh [-m "<conventional commit message>"]
 ```
+
+`workflow-authorize.sh` requires one exact task ID and accepts at most one allowlisted agent. It
+never selects a task from queue order.
 
 `workflow-next.sh` takes exactly one argument and fails closed on anything else — no argument, two
 arguments, `CLAUDE`, `gemini`, or a shell fragment all exit `2` without launching anything.
@@ -151,20 +157,44 @@ deliberate act you perform yourself.
 ## 5. Intended daily workflow
 
 ```bash
-scripts/workflow-next.sh claude
-# or:
-scripts/workflow-next.sh codex
+scripts/workflow-authorize.sh AUTO-006 claude
 
-# inspect the implementation report and repository diff
+# Agent implements, validates, and stops for approval.
 
 scripts/workflow-approve.sh
 ```
 
+The separated form is equivalent:
+
+```bash
+scripts/workflow-authorize.sh AUTO-006
+scripts/workflow-next.sh claude
+```
+
+`workflow-authorize.sh` authorizes and records only the exact task named by the Human Owner. It
+requires a clean default-branch baseline, verifies task/governance/handover state, checks task
+readiness and structured program predecessor/decision gates, displays the complete transition,
+and requires two exact `AUTHORIZE` confirmations. It then creates exactly one local
+governance-only commit. With an agent argument it launches `workflow-next.sh` only after that
+commit is verified and the worktree is clean.
+
+`workflow-next.sh` implements the already-authorized task; it does not authorize one.
+`workflow-approve.sh` performs the later Human approval gate and local implementation commit.
+None of the scripts pushes or merges. A completed predecessor must be approved, closed, and
+published separately by the Human Owner before a successor can be authorized; previous-task
+closure is never automatic.
+
 ## 6. State transitions
 
 ```text
-clean worktree
-   │  scripts/workflow-next.sh <agent>
+clean default-branch baseline, no Current task
+   │  workflow-authorize.sh <Human-named task> [agent]
+   ▼
+validate readiness → AUTHORIZE → display transition → AUTHORIZE
+   │  both confirmations pass             │  either declined → unchanged repository
+   ▼                                      ▼
+one governance-only local commit         stop
+   │  optional agent, clean tree
    ▼
 preflight (read-only: branch, HEAD, status, stashes, diff --check, prompt present)
    │  passes                              │  fails → exit 2..7, nothing launched
@@ -188,11 +218,14 @@ clean worktree (not pushed, not merged)
 
 | Guarantee | How it is enforced |
 |---|---|
-| No task starts without repository-recorded authorization | The prompt requires the agent to verify authorization in the task queue/registry and stop with `NO_AUTHORISED_NEXT_TASK` otherwise |
+| No automatic task selection | The authorization gate accepts one exact Human-supplied task ID and derives none from queue order |
+| No task starts without repository-recorded authorization | The authorization gate commits the task/mirror/registry transition before optional runner launch; the prompt independently verifies that record |
+| Previous-task closure is separate | Any existing `Current` task fails with `ACTIVE_TASK_MUST_BE_CLOSED_FIRST`; no status is closed automatically |
+| Authorization and implementation commits stay distinct | The authorization allowlist contains only governance/changelog/handoff records; implementation starts after that commit and clean-tree verification |
 | Only one task per run | The prompt mandates one task; the runner launches exactly one session |
 | No automatic commit after implementation | `workflow-next.sh` contains no commit path at all |
 | Commit requires explicit Human input | Two separate confirmations, each requiring the exact token `APPROVE` |
-| Push and merge never happen | Neither script contains a push/merge/rebase/reset/checkout invocation; asserted by a regex test over both scripts |
+| Push and merge never happen | None of the three scripts contains a push/merge implementation path; focused tests use a real bare remote and verify it remains untouched |
 | Stashes are never changed | Only read-only `stash list` is used; `workflow-next.sh` also compares the stash count before and after the session and warns on any change |
 | A dirty worktree prevents starting | `workflow-next.sh` exits `4` on any uncommitted change |
 | An empty worktree prevents approval | `workflow-approve.sh` exits `4` when there is nothing to commit |
@@ -244,9 +277,14 @@ clean worktree (not pushed, not merged)
 
 ## 10. Known limitations
 
-- **The runner cannot verify that a task is authorised.** It checks repository *state*, not
-  governance semantics. Task authorization is enforced by the prompt and by the agent's reading of
-  the task queue and stage registry — a human instruction, not a machine gate.
+- **Ordinary queue-only tasks have no structured predecessor metadata.** For AUTO/DASH stages,
+  the gate verifies the numbered predecessor's registry state and canonical branch. Ordinary GOV
+  tasks are treated as having no declared predecessor unless they join a structured registry;
+  their explicit queue status, blocker language, clean baseline, and Human confirmations still
+  apply.
+- **Open-decision checks rely on established governance wording.** Explicit `blocked on` task
+  language and “must be resolved before TASK authorization” program records fail closed. A future
+  structured dependency schema would make this stronger without free-form Markdown matching.
 - **Commit-message validation is structural, not semantic.** It enforces the Conventional Commit
   shape and a minimum length; it cannot tell whether the message honestly describes the diff.
 - **The whole-worktree staging model.** The approval script stages every changed file, after

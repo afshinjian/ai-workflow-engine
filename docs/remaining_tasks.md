@@ -12,8 +12,9 @@ implemented, validated, approved, committed as `a302c95`, and merged into `main`
 **AUTO-004 was closed to `Done` on 2026-07-28** — implemented, validated, approved, committed as
 `84616d5`, and published to `main` under the same Human Owner decision. **AUTO-005 was closed to
 `Done` on 2026-07-28** — implemented, validated, approved, committed as `430cbb4`, and published
-to `main` under the same decision — so no task is `Current` at this point in the record. Remaining
-work belongs to the DASH program (DASH-002..010, all `Planned`), the rest of the AUTO program
+to `main` under the same decision. GOV-AUTO-02 is now the single `Current` task: its local
+authorization gate is implemented and validated, pending Human Owner approval. Remaining work
+belongs to the DASH program (DASH-002..010, all `Planned`), the rest of the AUTO program
 (AUTO-006..007, both `Planned`), and the ordinary governance/tooling tasks GOV-2 and GOV-3 — the
 latter recorded on 2026-07-28 by Human Owner decision as explicit future work for the QA report
 artifact collision AUTO-005 documented and worked around, still `Planned` and unauthorized. Each
@@ -22,6 +23,7 @@ authorizes none of them, and **AUTO-006 is explicitly not authorized**.
 
 | Task | Title | Status |
 |---|---|---|
+| GOV-AUTO-02 | Local Task Authorization and Launch Gate | Current |
 | GOV-2 | Extend `check-governance` to validate stage-registry/lifecycle consistency | Planned |
 | GOV-3 | Attempt-aware report artifact naming in the Reporting Skills | Planned |
 | AUTO-006 | GitHub pull request, automatic squash merge, and closeout integration | Planned |

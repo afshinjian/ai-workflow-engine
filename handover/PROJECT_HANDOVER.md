@@ -18,8 +18,11 @@ The released `ai-workflow-engine` 1.0.0 roadmap is complete. In the post-1.0 pro
   the closure decision said so in terms.
 - GOV-2 and GOV-3 remain `Planned`, each needing its own authorization. **GOV-3** was created on
   2026-07-28 to carry the QA report artifact collision AUTO-005 found and worked around.
+- **GOV-AUTO-02 is the single `Current` task.** Its local task authorization and launch gate is
+  implemented and validated, with the complete diff uncommitted and pending Human Owner approval.
+  Report: `docs/reports/GOV-AUTO-02-completion-report.md`.
 
-No task is `Current`. That is a legal state: `maximum_current_tasks: 1` is a ceiling, not a quota.
+No successor is authorized. AUTO-006, GOV-3, and DASH-002 remain `Planned`.
 
 ## What happened on 2026-07-28
 
@@ -53,6 +56,7 @@ Owner decided both halves explicitly (`STAGE_REGISTRY.md` §3 rule 16).
 | Fact | Value |
 |---|---|
 | Baseline | `main`, carrying the AUTO-005 merge and matching `origin/main` |
+| Current implementation | GOV-AUTO-02, uncommitted, pending Human Owner approval |
 | AUTO-005 implementation commit | `430cbb4`, merged |
 | Stage branches | `feature/auto-004-model-providers` and `feature/auto-005-agents` — both pushed and **retained**; neither may be deleted |
 | Stashes | `stash@{0}`, `stash@{1}` — both untouched since before AUTO-002 |
@@ -110,11 +114,11 @@ Approved, committed as `430cbb4`, closed to `Done`/`COMPLETE`, and merged into `
 
 1. Verify `git status`, recent history, and this handover checksum.
 2. Confirm which task, if any, is `Current` — read `docs/TASK_QUEUE.md`, not this file alone.
-3. As of this writing, no task is `Current`. Starting any work requires a fresh written Human Owner authorization
-   naming the task — **AUTO-006 is explicitly not authorized**, and neither are AUTO-007, GOV-2,
-   GOV-3, or DASH-002..010.
+3. As of this writing, GOV-AUTO-02 is the single `Current` task, implemented and pending Human
+   Owner approval. Review its diff and completion report; do not infer approval or commit it
+   without the explicit Human Owner decision.
 4. Never delete either stash, and never delete `feature/auto-004-model-providers` or
    `feature/auto-005-agents`.
 
-Completing a task never authorizes its successor. AUTO-006 requires its own fresh written
-authorization naming it.
+Completing GOV-AUTO-02 will not authorize a successor. AUTO-006 requires its own fresh written
+authorization naming it; do not begin it or GOV-3.

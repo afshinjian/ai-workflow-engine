@@ -7,6 +7,19 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- GOV-AUTO-02 (2026-07-28): `scripts/workflow-authorize.sh <TASK_ID> [claude|codex]`, a local
+  two-confirmation Human authorization gate. It validates an explicitly named planned/ready task,
+  clean default-branch baseline, single-Current invariant, structured program predecessor and
+  owner-decision gates, and repository governance/handoff state; displays the exact transition;
+  requires `AUTHORIZE` twice; updates the authoritative mirrors, relevant stage registry,
+  changelogs, handoff, and checksum; then creates one governance-only local authorization commit.
+  Optional launch delegates to `workflow-next.sh` only after that commit and a clean-tree check.
+  It never selects a task, closes a predecessor, implements, pushes, merges, changes branch/
+  upstream, or mutates stashes. 29 focused disposable-repository tests cover input/state/Human
+  gates, mirror/checksum/commit behavior, runner modes and status propagation, remote/stash
+  integrity, validation refusal, and post-staging index recovery. Implemented and validated,
+  pending Human Owner approval; not committed. Report:
+  `docs/reports/GOV-AUTO-02-completion-report.md`.
 - GOV-3 (2026-07-28): recorded as `Planned` future work by Human Owner decision — the Reporting
   Skills write one artifact per workflow identifier per kind, but a bounded repair loop produces
   several genuinely different QA and stage reports per workflow. AUTO-005 works around it with a
