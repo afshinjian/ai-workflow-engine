@@ -17,12 +17,14 @@ implemented, validated, approved, and committed as
 `d212e4d2dae2cd0a3510c54d7cd098fdfd5da548`. **AUTO-006 was closed to `Done` on 2026-07-28** —
 implemented, validated, approved, committed locally as
 `d8d356d060076be4ad78afb4d20891004a946204`, and published to `main` under the same Human Owner
-decision — so no task is `Current` at this point in the record. Remaining work otherwise belongs
+decision. **GOV-AUTO-03 was authorized by the Human Owner on 2026-07-28** as the single `Current`
+task — implemented and validated the same day, stopped for Human Owner approval before any commit;
+report: `docs/reports/GOV-AUTO-03-completion-report.md`. Remaining work otherwise belongs
 to the DASH program (DASH-002..010, all `Planned`), AUTO-007 (`Planned`), and the ordinary
 governance/tooling tasks GOV-2 and GOV-3 — the latter recorded on 2026-07-28 by Human Owner
 decision as explicit future work for the QA report artifact collision AUTO-005 documented and
 worked around, still `Planned` and unauthorized. Each of those requires its own fresh written
-authorization before it may become `Current`; closing AUTO-006 authorizes none of them.
+authorization before it may become `Current`; authorizing GOV-AUTO-03 authorizes none of them.
 
 | Task | Title | Status |
 |---|---|---|

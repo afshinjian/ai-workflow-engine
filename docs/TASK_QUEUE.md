@@ -480,6 +480,30 @@ stage adds it (DD-38, `docs/workflow-automation/OPEN_QUESTIONS.md` OD-10). Repor
 This closure authorizes no successor: AUTO-007, GOV-2, and GOV-3 all remain `Planned` and
 unauthorized.
 
+## GOV-AUTO-03 — Human-Approved Commit with Automatic Task Closeout
+
+Status: Done
+
+Authorized by the Human Owner on 2026-07-28 as a governance and developer-experience task
+(non-AUTO-family, so it carries no stage-registry lifecycle state — recorded in
+`docs/workflow-automation/STAGE_REGISTRY.md` §5 for continuity only, per the GOV-AUTO-01/02
+precedent). Extends `scripts/workflow-approve.sh` so that, after Human approval, it performs both
+the approved implementation commit and the governance closeout of that same task (task queue
+`Current → Done`, mirrors, project state, decision log, changelog, stage registry where
+applicable, program changelog where applicable, completion-report addendum, handover, checksum)
+as one controlled local commit — never a separate `docs(governance): close TASK_ID` commit. The
+closeout transaction is gated on the same `project.id: ai-workflow-engine` marker
+`scripts/workflow-authorize.sh` already uses, so any other repository (including every existing
+disposable test sandbox) keeps the unchanged GOV-AUTO-01 plain approval/commit gate. Closeout
+generation is fail-closed: every edit is an `awk`-guarded, precondition-checked replacement, and
+any failure restores the generated governance files from a pre-closeout backup while leaving the
+approved implementation diff untouched. 26 new focused tests in
+`tests/test_workflow_approve_closeout.py`; the pre-existing GOV-AUTO-01/02 suites
+(`tests/test_workflow_runner_scripts.py`, `tests/test_workflow_authorize_script.py`, 88 tests)
+pass unmodified. Implemented and validated 2026-07-28; report:
+`docs/reports/GOV-AUTO-03-completion-report.md`. Stopped for Human Owner approval before any
+commit; does not begin AUTO-007.
+
 ## AUTO-007 — End-to-end dry run, recovery tests, and DASH integration
 
 Status: Planned

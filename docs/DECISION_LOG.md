@@ -13,6 +13,62 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-07-28 — Human Owner approved and closed GOV-AUTO-03
+
+**Decision:** The Human Owner reviewed the implementation diff for `GOV-AUTO-03` on
+branch `main` at base `c8e59fb3ccb5429266122c2468bd83a3201c1223`, typed the two exact `APPROVE` confirmations
+required by `scripts/workflow-approve.sh`, and approved the Conventional Commit
+message `feat(workflow): add automatic task closeout to approval gate (GOV-AUTO-03)`. The script then performed the deterministic governance closeout
+(`GOV-AUTO-03` moves `Current -> Done`) and staged the approved implementation
+together with the generated closeout records in one local commit.
+
+**Boundaries:** This decision approves and closes only `GOV-AUTO-03`. It does not
+push, merge, authorize a successor task, change branches, alter upstream, or mutate
+stashes.
+
+## 2026-07-28 — GOV-AUTO-03 authorized and implemented, awaiting Human Owner approval
+
+**Decision:** The Human Owner recorded: *"I authorize one new governance and developer-experience
+task: GOV-AUTO-03 — Human-Approved Commit with Automatic Task Closeout."* This is a governance and
+developer-experience task outside the AUTO family (no stage-registry lifecycle state, matching the
+GOV-AUTO-01/02 precedent), extending the local Human-gated workflow so that
+`scripts/workflow-approve.sh`, after Human Owner approval, performs both the approved
+implementation commit and the governance closeout of that same task as one controlled local
+commit — never a separate `docs(governance): close TASK_ID` commit. Publication and merge remain
+separate Human Owner actions.
+
+**Implementation summary.** `workflow-approve.sh` now branches on the same stable
+`project.id: ai-workflow-engine` marker `workflow-authorize.sh` already uses (plus the full
+governance file set being present): any other repository — including every pre-existing
+disposable test sandbox — takes the unchanged GOV-AUTO-01 plain approval/commit gate; this
+repository takes a new path that, after the same two exact `APPROVE` confirmations, identifies the
+single `Current` task from the authoritative task queue, verifies the `current_task.md` and
+`remaining_tasks.md` mirrors and (where applicable) the stage registry agree with it, verifies the
+approved Conventional Commit message names that task, displays the full transition, then performs
+a fail-closed deterministic closeout (task queue `Current → Done`, mirrors, project state,
+decision log, changelog, stage registry `COMPLETE` where applicable, program changelog where
+applicable, a completion-report addendum, handover, and a regenerated checksum) using
+`awk`-guarded, precondition-checked replacements — never broad free-form text substitution — before
+re-running `task-state`/`governance`/`handover` validation and creating exactly one local commit
+containing the approved implementation and the generated closeout records together. A
+pre-closeout backup of every governance file the closeout may touch is restored verbatim on any
+failure, leaving the approved implementation diff and the index untouched; the script never
+pushes, merges, changes branches, alters upstream, or mutates stashes, and never authorizes a
+successor task.
+
+**Validation.** 26 new focused tests in `tests/test_workflow_approve_closeout.py` (task discovery
+and mirror/registry agreement, both approval gates, closeout content and single-commit behaviour,
+closeout-failure atomicity, and Git safety); the pre-existing GOV-AUTO-01 suite
+(`tests/test_workflow_runner_scripts.py`, 60 tests) and GOV-AUTO-02 suite
+(`tests/test_workflow_authorize_script.py`, 28 tests) pass unmodified. Full repository suite
+2,590-green (`tests` + `agentos_workflow/tests`); ruff, black, and mypy (`src` and
+`agentos_workflow`) clean; `git diff --check` clean; `bash -n` and `shellcheck` clean on all three
+scripts.
+
+**Boundaries:** this decision authorizes only GOV-AUTO-03. It does not authorize, and this session
+did not begin, AUTO-007 or any other task. Implementation is complete and validated but
+**uncommitted**, awaiting a separate Human Owner approval decision before any commit is created.
+
 ## 2026-07-28 — AUTO-006 approved, closed to `Done`, and merged; no successor authorized
 
 **Decision:** The Human Owner reviewed the AUTO-006 implementation and validation report

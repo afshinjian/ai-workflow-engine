@@ -7,6 +7,28 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- GOV-AUTO-03 (2026-07-28): implemented, Human-Owner-approved, and closed
+  `Current -> Done` in one local commit via scripts/workflow-approve.sh's automatic
+  task closeout (GOV-AUTO-03).
+- GOV-AUTO-03 (2026-07-28): authorized by the Human Owner as a governance and developer-experience
+  task ("I authorize one new governance and developer-experience task: GOV-AUTO-03 — Human-Approved
+  Commit with Automatic Task Closeout"). Extends `scripts/workflow-approve.sh` so that, after the
+  same two exact `APPROVE` confirmations, it identifies the single `Current` task, verifies the
+  task-queue/mirror/registry/report/commit-message evidence corresponds to it, performs a
+  fail-closed deterministic governance closeout (task queue, mirrors, project state, decision log,
+  changelog, stage registry where applicable, program changelog where applicable, completion-report
+  addendum, handover, checksum) using `awk`-guarded precondition-checked replacements, re-runs
+  `task-state`/`governance`/`handover` validation, and creates exactly one local commit containing
+  the approved implementation and the generated closeout records together — never a separate
+  closure commit. Gated on the `project.id: ai-workflow-engine` marker `workflow-authorize.sh`
+  already uses, so every other repository (including the pre-existing test sandboxes) keeps the
+  unchanged GOV-AUTO-01 plain approval/commit gate. A pre-closeout backup restores every generated
+  governance file verbatim on failure, leaving the approved implementation untouched; the script
+  never pushes, merges, changes branches, alters upstream, mutates stashes, or authorizes a
+  successor. 26 new tests in `tests/test_workflow_approve_closeout.py`; the pre-existing
+  GOV-AUTO-01/02 suites (88 tests) pass unmodified. Implementation complete and validated; stopped
+  for Human Owner approval before any commit. Report:
+  `docs/reports/GOV-AUTO-03-completion-report.md`.
 - AUTO-006 (2026-07-28): explicitly authorized by the Human Owner through the local
   two-confirmation task gate, then implemented — the eight Git/GitHub Skills of
   `SKILL_CONTRACTS.md` §5 (`agentos_workflow/skills/git_github.py`): `create_commit`,

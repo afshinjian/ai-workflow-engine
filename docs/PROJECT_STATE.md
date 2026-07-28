@@ -17,6 +17,8 @@ approval-gated controlled commit and push. All four milestones are implemented. 
 plan to 1.0, and `docs/architecture.md` for the pipeline shapes.
 
 ## Completed
+- GOV-AUTO-03 (closed 2026-07-28): implemented, Human-Owner-approved, and
+  closed via scripts/workflow-approve.sh's automatic task closeout (GOV-AUTO-03).
 
 - AUTO-006 (closed 2026-07-28): the eight Git/GitHub Skills of `SKILL_CONTRACTS.md` §5 in
   `agentos_workflow/skills/git_github.py` — `create_commit`, `push_stage_branch`,
@@ -91,12 +93,15 @@ plan to 1.0, and `docs/architecture.md` for the pipeline shapes.
 
 ## In progress
 
-No task is in progress. AUTO-006 was implemented, validated, approved, committed as
-`d8d356d060076be4ad78afb4d20891004a946204`, closed to `Done`, and merged into `main` on
-2026-07-28; GOV-AUTO-02 and every earlier task were closed on their own dates. Every remaining
-task requires its own fresh written Human Owner authorization naming it before work begins.
-Closing AUTO-006 authorizes no successor; AUTO-007, GOV-2, and GOV-3 remain explicitly
-unauthorized.
+**GOV-AUTO-03** (authorized 2026-07-28): extends `scripts/workflow-approve.sh` so that, after
+Human Owner approval, it performs the approved implementation commit and the deterministic
+governance closeout of that same task together as one controlled local commit, gated on the
+`project.id: ai-workflow-engine` marker so every other repository keeps the unchanged GOV-AUTO-01
+plain commit gate. Implemented and validated; stopped for Human Owner approval before any commit.
+Report: `docs/reports/GOV-AUTO-03-completion-report.md`. AUTO-006 was implemented, validated,
+approved, committed as `d8d356d060076be4ad78afb4d20891004a946204`, closed to `Done`, and merged
+into `main` on 2026-07-28. Authorizing GOV-AUTO-03 authorizes no successor; AUTO-007, GOV-2, and
+GOV-3 remain explicitly unauthorized.
 
 ## Planned
 
