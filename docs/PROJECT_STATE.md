@@ -18,6 +18,13 @@ plan to 1.0, and `docs/architecture.md` for the pipeline shapes.
 
 ## Completed
 
+- GOV-AUTO-02 (closed 2026-07-28): the local Human task authorization and launch gate in
+  `scripts/workflow-authorize.sh`, with exact task naming, fail-closed readiness and baseline
+  checks, two Human confirmations, governance-only authorization commits, and optional launch
+  through the existing runner only after authorization is committed and verified. Implemented,
+  validated, approved by the Human Owner, and committed as
+  `d212e4d2dae2cd0a3510c54d7cd098fdfd5da548`. Report:
+  `docs/reports/GOV-AUTO-02-completion-report.md`.
 - AUTO-005 (closed 2026-07-28): the six AgentOS Workflow Automation Agents in
   `agentos_workflow/agents/` — `PMOAgent`, `ImplementationAgent`, `QAAgent`, `GitAgent`,
   `MergeAgent`, `CloseoutAgent` — each bounded by a capability broker to the Skills and Provider
@@ -75,12 +82,10 @@ plan to 1.0, and `docs/architecture.md` for the pipeline shapes.
 
 ## In progress
 
-GOV-AUTO-02 — Local Task Authorization and Launch Gate is the single `Current` task. The Human
-Owner explicitly authorized it on 2026-07-28. Implementation and focused validation are complete:
-the new Bash gate authorizes exactly one Human-named task, creates one governance-only local
-authorization commit, and optionally hands the already-authorized task to the existing runner.
-The complete diff is uncommitted and pending Human Owner approval. No AUTO-006, GOV-3, dashboard,
-or other planned implementation has begun.
+No task is in progress. GOV-AUTO-02 was implemented, validated, approved, committed as
+`d212e4d2dae2cd0a3510c54d7cd098fdfd5da548`, and closed to `Done` on 2026-07-28. Every remaining
+task requires its own fresh written Human Owner authorization naming it before work begins.
+Closing GOV-AUTO-02 authorizes no successor; AUTO-006 remains explicitly unauthorized.
 
 ## Planned
 
@@ -106,7 +111,10 @@ engine work (explicitly out of the delivered 1.0.0 scope) remains listed in
 There is no active task blocker. Every planned successor still requires separate Human Owner
 authorization.
 
-`main` and `origin/main` are identical and carry the AUTO-005 merge. Both
+Before this governance-only closure commit, `main` and `origin/main` were identical at the
+GOV-AUTO-02 implementation commit `d212e4d2dae2cd0a3510c54d7cd098fdfd5da548`. The closure
+commit is local only and leaves local `main` one commit ahead of `origin/main`; no push or merge
+was authorized. Both
 `feature/auto-004-model-providers` and `feature/auto-005-agents` were pushed to `origin` and
 retained, not deleted. Stage branches created later and not yet pushed produce the pre-existing
 `upstream_missing` finding from `workflowctl check-git` — the tolerance

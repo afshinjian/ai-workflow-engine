@@ -3,11 +3,13 @@
 Mirror of `docs/TASK_QUEUE.md`'s `Current` set. Must contain exactly the same task ID(s) at the
 same status as the task queue — `workflowctl check-task-state` fails otherwise.
 
-## GOV-AUTO-02 — Local Task Authorization and Launch Gate
+## No task is currently active
 
-Status: Current
+GOV-AUTO-02 — Local Task Authorization and Launch Gate was closed `Current → Done` on 2026-07-28
+by explicit Human Owner decision: implemented, validated, approved, and committed as
+`d212e4d2dae2cd0a3510c54d7cd098fdfd5da548`.
 
-Explicitly authorized by the Human Owner on 2026-07-28. Implementation and focused validation are
-complete and the full diff is left uncommitted for inspection. The task is pending Human Owner
-approval; no implementation commit, push, merge, successor authorization, branch/upstream change,
-or stash mutation has occurred.
+The `Current` set is empty. Under `self-governance.yaml`'s `maximum_current_tasks: 1`, this is a
+legal state: the maximum is a ceiling, not a quota. Every remaining task is `Planned` and requires
+its own fresh written Human Owner authorization before it may become `Current`. This closure
+authorizes no successor; AUTO-006 is explicitly not authorized.

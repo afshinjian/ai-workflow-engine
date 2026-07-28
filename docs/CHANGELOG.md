@@ -17,8 +17,9 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
   It never selects a task, closes a predecessor, implements, pushes, merges, changes branch/
   upstream, or mutates stashes. 29 focused disposable-repository tests cover input/state/Human
   gates, mirror/checksum/commit behavior, runner modes and status propagation, remote/stash
-  integrity, validation refusal, and post-staging index recovery. Implemented and validated,
-  pending Human Owner approval; not committed. Report:
+  integrity, validation refusal, and post-staging index recovery. Implemented, validated,
+  approved by the Human Owner, and committed as
+  `d212e4d2dae2cd0a3510c54d7cd098fdfd5da548`. Report:
   `docs/reports/GOV-AUTO-02-completion-report.md`.
 - GOV-3 (2026-07-28): recorded as `Planned` future work by Human Owner decision — the Reporting
   Skills write one artifact per workflow identifier per kind, but a bounded repair loop produces
@@ -73,6 +74,11 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
   approval; not committed.
 
 ### Changed
+- GOV-AUTO-02 (2026-07-28): closed `Current → Done` by explicit Human Owner decision, recording
+  that it was implemented, validated, approved, and committed as
+  `d212e4d2dae2cd0a3510c54d7cd098fdfd5da548`. No task is now `Current`. The governance-only
+  closure authorizes no push, merge, successor, or work on AUTO-006, which remains `Planned` and
+  explicitly unauthorized.
 - AUTO-005 (2026-07-28): approved by the Human Owner, closed `Current → Done` / registry
   `IN_PROGRESS → COMPLETE`, and published — committed locally as `430cbb4`, pushed as
   `feature/auto-005-agents`, and merged into `main`, which now carries `agentos_workflow/agents/`.

@@ -318,7 +318,14 @@ authorized AUTO-004 as the single `Current` task
 
 ## GOV-AUTO-02 — Local Task Authorization and Launch Gate
 
-Status: Current
+Status: Done
+
+Closed `Current → Done` on 2026-07-28 by explicit Human Owner decision, recording that the task
+was implemented, validated, approved, and committed as
+`d212e4d2dae2cd0a3510c54d7cd098fdfd5da548`. This is a governance-only closeout: no push, merge,
+successor authorization, branch/upstream change, or stash mutation was authorized. No task is
+`Current`, and AUTO-006 remains `Planned` and explicitly unauthorized. Report:
+`docs/reports/GOV-AUTO-02-completion-report.md`.
 
 Authorized by the Human Owner on 2026-07-28 as a governance and developer-experience task. Adds
 `scripts/workflow-authorize.sh <TASK_ID> [claude|codex]`, a fail-closed local gate that accepts
@@ -328,10 +335,8 @@ handoff records, and creates exactly one local governance-only authorization com
 agent is launched through the existing `scripts/workflow-next.sh` only after that commit is
 verified and the worktree is clean.
 
-Implementation and focused validation are complete. The task remains `Current`, pending Human
-Owner inspection and approval; its implementation is deliberately uncommitted. The gate never
-selects a task, closes a predecessor, implements a task, pushes, merges, changes branch/upstream,
-or mutates stashes. Report: `docs/reports/GOV-AUTO-02-completion-report.md`.
+The gate never selects a task, closes a predecessor, implements a task, pushes, merges, changes
+branch/upstream, or mutates stashes.
 
 ## AUTO-003 — Deterministic repository and validation skills
 

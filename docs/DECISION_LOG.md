@@ -13,6 +13,22 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-07-28 — GOV-AUTO-02 closed to `Done`
+
+**Decision:** The Human Owner closed GOV-AUTO-02 from `Current` to `Done` and directed the
+governance and handoff records to state that it was implemented, validated, approved, and
+committed as `d212e4d2dae2cd0a3510c54d7cd098fdfd5da548`. Exactly one governance-only local commit
+is authorized for this closure.
+
+**Resulting state:** No task is `Current`. GOV-AUTO-02 is `Done`; AUTO-006, AUTO-007, GOV-2,
+GOV-3, and DASH-002..010 remain `Planned` and require their own fresh written Human Owner
+authorization. This decision authorizes no successor and specifically does not authorize
+AUTO-006.
+
+**Boundaries:** No push, merge, successor implementation, branch/upstream change, or stash
+mutation is authorized. The session must stop after the single local closure commit and report
+its hash.
+
 ## 2026-07-28 — GOV-AUTO-02 local task authorization and launch gate
 
 **Decision:** The Human Owner authorized GOV-AUTO-02 — Local Task Authorization and Launch Gate.
