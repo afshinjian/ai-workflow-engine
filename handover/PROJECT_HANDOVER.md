@@ -9,54 +9,74 @@ commands.
 The released `ai-workflow-engine` 1.0.0 roadmap is complete. In the post-1.0 programs:
 
 - DASH-001 is `Done`; DASH-002..DASH-010 remain `Planned`.
-- AUTO-001 is `Done`.
-- AUTO-002 is `Done` and registry `COMPLETE`. It delivered the `agentos_workflow/` orchestrator,
-  19-state workflow state machine, authorization capture and replay, append-only state/audit
-  persistence, repository locking, retry/attempt accounting, configuration, and narrowly scoped
-  local resume/evidence observation. It also includes the Human-Owner-approved security and
-  correctness remediation recorded in `docs/workflow-automation/DECISIONS.md` DD-15..DD-31.
-- AUTO-003..AUTO-007 remain `Planned`/`NOT_STARTED`. None is authorized by AUTO-002 closure.
+- AUTO-001 and AUTO-002 are `Done`. AUTO-002 was published and merged into `main` via PR #5
+  (merge commit `87a5062`, parents `163bcee` + `20c9890`), so `agentos_workflow/` is on the
+  baseline.
+- **AUTO-003 is `Done`** and registry `COMPLETE`. It delivered the deterministic Repository,
+  Contract, Validation, and Reporting Skill families in `agentos_workflow/skills/`, resolved OD-2
+  (DD-33), and recorded DD-34/DD-35. The Human Owner approved it on 2026-07-27 and authorized
+  exactly one local commit, created as **`908be94`**. Push and merge were explicitly withheld —
+  **`908be94` is still unpushed and unmerged.**
+- **GOV-AUTO-01 — Local Human-Gated Task Runner is `Current`**, implemented and validated,
+  **uncommitted**, awaiting Human Owner approval.
+- AUTO-004..AUTO-007 remain `Planned`/`NOT_STARTED`. **AUTO-004 is explicitly not authorized.**
 - GOV-2 remains `Planned`.
 
-There is no active `Current` task. The Human Owner reviewed AUTO-002's implementation and
-validation report on 2026-07-27, accepted it as sufficient, explicitly waived another independent
-review, and authorized one local Conventional Commit. Push and merge were explicitly prohibited.
+## Current Git state
 
-## AUTO-002 validation and integrity
+| Fact | Value |
+|---|---|
+| Branch | `feature/auto-003-repository-validation-skills` |
+| HEAD | `908be94` (the AUTO-003 commit) |
+| Upstream | **none** — this branch has never been pushed |
+| Worktree | dirty by design: the complete GOV-AUTO-01 diff awaits inspection |
+| Stashes | `stash@{0}`, `stash@{1}` — both untouched since before AUTO-002 |
 
-Before closure:
+`main` is at `87a5062` and matches `origin/main`. The AUTO-003 commit exists only on the local
+feature branch.
 
-- `pytest -q tests agentos_workflow/tests -p no:cacheprovider`: 1,982 passed.
-- Focused remediation/evidence suite: 134 passed.
-- Ruff, Black, mypy for both `agentos_workflow` and `src`, and `git diff --check`: passed.
-- Governance, task-state, and handover checks: passed.
-- `workflowctl verify --config self-governance.yaml` reported only `upstream_missing`, the
-  pre-existing condition for the local AUTO-002 branch. No upstream was created.
+## GOV-AUTO-01 — current state
 
-Git inspection showed AUTO-002 began at `163bcee` on
-`feature/auto-002-orchestrator-state-machine`. Before the authorized closure commit, no
-intervening commit, push, merge, branch switch, upstream change, or stash mutation had occurred.
-The two pre-existing recovery stashes remained untouched.
+Authorized 2026-07-27 as a governance/developer-experience task **outside the AUTO family** — it
+has no stage-registry lifecycle and no stage contract; its authoritative record is
+`docs/TASK_QUEUE.md` and `docs/current_task.md`.
 
-## Future work
+Delivered a local, Human-gated automation layer for the standard task cycle:
 
-Future work does not reopen AUTO-002:
+- `scripts/workflow-next.sh <claude|codex>` — read-only preflight, then exactly one agent session
+  seeded with the canonical prompt. Refuses a dirty worktree; fails closed on any unknown agent;
+  no `eval`; propagates the agent's exit status.
+- `scripts/prompts/implement-next-task.md` — the canonical implementation prompt, including the
+  four terminal tokens and the explicit statement that independent review is **not** mandatory for
+  every ordinary task.
+- `scripts/workflow-approve.sh` — the Human approval gate and the only path that commits. Two
+  exact-`APPROVE` confirmations, Conventional-Commit validation, staging restricted to the
+  displayed file list (never `git add -A`), and an `EXIT` trap that unstages without discarding
+  working-tree content if anything fails after staging.
+- `docs/automation-workflow.md` — operator documentation.
 
-- AUTO-003 may implement deterministic repository/validation Skills and the first infrastructure
-  retry accounting when an authorized operation actually needs it.
-- Remote/GitHub reconciliation belongs to the later GitHub integration stages.
-- Portability beyond the current explicit POSIX `fcntl`/`dir_fd`/`O_NOFOLLOW` boundary is a
-  project-backlog improvement.
-- GOV-2 may extend lifecycle/governance consistency checking.
+Validation: 59 script tests (`tests/test_workflow_runner_scripts.py`), 2,263 combined tests,
+ruff/black/mypy clean, `bash -n` and `shellcheck` clean, plus manual smoke tests in disposable
+repositories. Full detail: `docs/reports/GOV-AUTO-01-completion-report.md`.
 
-Every item above requires its own task authorization. Do not begin AUTO-003 merely because its
-predecessor is complete.
+**Nothing is committed.** Approval and commit are the Human Owner's next act.
+
+## One governance decision needing confirmation
+
+AUTO-003 was closed `Current` → `Done` (registry `IN_PROGRESS` → `COMPLETE`) because the Human
+Owner's GOV-AUTO-01 authorization named it "the single active and Human-Owner-authorized task",
+which AUTO-003 could not remain `Current` alongside under `maximum_current_tasks: 1`. That reading
+rests on the Human Owner having approved AUTO-003 and authorized its commit. **If AUTO-003 was
+meant to stay open, revert that closure** in `docs/TASK_QUEUE.md`, the two mirrors, and
+`STAGE_REGISTRY.md` §4.
 
 ## Next session
 
 1. Verify `git status`, recent history, and this handover checksum.
-2. Confirm no task is `Current`.
-3. Wait for an explicit Human Owner authorization naming the next task.
-4. Create or use only that task's governed branch and scope.
+2. Confirm GOV-AUTO-01 is the only `Current` task.
+3. GOV-AUTO-01 awaits **Human Owner approval**. Do not commit it without a fresh instruction.
+4. Two publication decisions remain open and unauthorized: pushing/merging the AUTO-003 commit
+   `908be94`, and anything to do with AUTO-004.
 
-Do not push or merge the AUTO-002 commit without a separate Human Owner instruction.
+Completing a task never authorizes its successor. AUTO-004 requires its own fresh written
+authorization naming it.
