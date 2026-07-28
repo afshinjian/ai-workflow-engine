@@ -13,6 +13,82 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-07-28 — AUTO-004 approved, closed to `Done`, and merged; AUTO-005 authorized separately
+
+**Decision:** An AUTO-005 session's authorization-precondition check found AUTO-004 still
+`IN_PROGRESS`/`Current` with its work committed as `84616d5` on `feature/auto-004-model-providers`
+but absent from `main`. Three preconditions were therefore unmet:
+`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 1 (predecessor `COMPLETE`) and rule 10
+(no stage N+1 before N is `COMPLETE`); `maximum_current_tasks: 1` (AUTO-004 held the single
+`Current` slot); and rule 14 (AUTO-005's branch must come from current `main`, which carried no
+`agentos_workflow/providers/` for AUTO-005's Agents to be restricted to). Per rule 16 the session
+stopped, made no change, and reported the conflict rather than resolving it on its own initiative.
+
+The Human Owner, presented with it, gave one written decision resolving all of it: approve the
+AUTO-004 implementation; close it `Current → Done` and `IN_PROGRESS → COMPLETE` recording commit
+`84616d5`; publish it (push the stage branch, update `main` from `origin/main` without rewriting
+history, merge by the established safe merge policy, push `main`, retain the branch, leave both
+stashes untouched); and *then*, only after that integration and its closure checks passed,
+authorize AUTO-005 as the single `Current` task.
+
+**Rationale — why the completion report was not rewritten:** commit `84616d5` was created after
+`docs/reports/workflow-automation/AUTO-004-completion-report.md` was written, so that report's
+"No commit, push, pull request, merge … was performed" Confirmation was true when written. Rule 8
+protects completion records from in-place editing, and the Human Owner's decision explicitly
+required that the report "is not rewritten to pretend the commit existed when it was produced".
+The later commit, approval, and merge are recorded instead by three append-only artifacts: a new
+addendum section at the end of that report, a new `STAGE_REGISTRY.md` §5 row, and this entry.
+Editing the report's Confirmation section in place — the tempting "just make it accurate now" fix —
+was rejected because it would silently rewrite what the delivering session actually did and
+observed, which is exactly the failure rule 8 and rule 18 exist to prevent.
+
+**Rationale — why closure and authorization are two acts, not one:** this is the fourth occurrence
+of the predecessor-still-`Current` pattern (after DASH-001→AUTO-001, AUTO-001→AUTO-002, and
+GOV-AUTO-01→AUTO-004) and was handled identically: the session detects and reports, the Human
+Owner decides both halves explicitly in one written directive. Rule 16 forbids a session selecting
+or authorizing a successor on its own initiative in the same session as a closeout; it does not
+forbid the Human Owner directing both when shown a genuine conflict. The `Current` set was
+verifiably empty between the two acts, and AUTO-005's authorization is recorded as its own
+`STAGE_REGISTRY.md` §5 row conditioned on the AUTO-004 integration having succeeded first.
+
+**What this decision does not do:** it authorizes no AUTO-005 commit, push, or merge — AUTO-005
+stops at a Human Owner approval report — and it authorizes no work on AUTO-006 or any later stage.
+Neither stash was touched, and `feature/auto-004-model-providers` was retained, not deleted.
+
+## 2026-07-28 — GOV-AUTO-01 closed to `Done`; AUTO-004 authorized as the single `Current` task
+
+**Decision:** An AUTO-004 session's authorization-precondition check found GOV-AUTO-01 still
+recorded `Current` in `docs/TASK_QUEUE.md`, `docs/current_task.md`, and `docs/remaining_tasks.md`
+even though its commit `a302c95` had already been merged into `main` via `a3b5b0a`. Under
+`self-governance.yaml`'s `maximum_current_tasks: 1`, that blocked
+`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 1's "no other `Current` task anywhere in the
+queue" precondition, so AUTO-004 could not be recorded `Current`. Per rule 16 the session stopped,
+made no change, and put the conflict to the Human Owner rather than resolving it on its own
+initiative.
+
+The Human Owner, presented with the conflict, gave one written decision resolving both: close
+GOV-AUTO-01 `Current → Done` — recording that it was implemented, validated, approved, committed
+as `a302c95`, and merged into `main` via `a3b5b0a` — and then authorize and begin AUTO-004 as the
+single `Current` task, with commit, push, merge, and any work on AUTO-005 or another task
+explicitly prohibited.
+
+**Rationale:** This is the third occurrence of the predecessor-still-`Current` pattern rule 16
+describes, after DASH-001→AUTO-001 (2026-07-23) and AUTO-001→AUTO-002 (2026-07-24), and it was
+handled the same way: the session detects and reports, the Human Owner decides. Rule 16 forbids a
+session selecting or authorizing a successor on its own initiative in the same session as a
+closeout; it does not forbid the Human Owner directing both explicitly when shown a genuine
+conflict. Recording the closure as an inference from the merge — "it is on `main`, therefore it
+must be `Done`" — was rejected for exactly that reason: the merge is evidence of the Human Owner's
+approval, not a substitute for the Human Owner's closure act, and a session that promotes itself
+past a `Current` task on inferred approval is the failure mode `maximum_current_tasks: 1` and
+rule 16 exist to prevent.
+
+**What this decision does not do:** it authorizes no successor to AUTO-004 (rule 16), no push or
+merge of the AUTO-004 work, and no reopening of GOV-AUTO-01. The stale
+`handover/PROJECT_HANDOVER.md` — which still described GOV-AUTO-01 as uncommitted and reported
+HEAD as `908be94` on the AUTO-003 branch — is refreshed under the same decision's explicit
+instruction to update the handoff.
+
 ## 2026-07-27 — Human Owner accepts AUTO-002 for closure without another independent review
 
 **Decision:** After reviewing the implementation report and validation results, the Human Owner

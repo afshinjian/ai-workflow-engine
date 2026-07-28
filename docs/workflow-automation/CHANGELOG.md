@@ -5,7 +5,7 @@
 | **Title** | AgentOS Workflow Automation — Changelog |
 | **Purpose** | Program-level changelog, newest first. |
 | **Status** | Draft |
-| **Version** | 2.9 |
+| **Version** | 2.11 |
 | **Owner** | Documentation & Governance session |
 | **Dependencies** | None |
 | **Related Documents** | `docs/CHANGELOG.md` (repository-level; cross-posted there) |
@@ -13,6 +13,26 @@
 ## [Unreleased]
 
 ### Added
+- AUTO-004 (2026-07-28): implemented the Model Provider layer in `agentos_workflow/providers/`
+  (`MODEL_PROVIDER_CONTRACTS.md`) — the common `Provider` interface (§1), `ClaudeCLIProvider` (§2,
+  implementation and repair) and `CodexCLIProvider` (§3, independent QA) as subprocess adapters
+  over the target repository's own configured executable and timeout, and `MockProvider` (§4). The
+  package raises nothing to the Orchestrator: every failure, including spawn failure, timeout, and
+  malformed CLI output, is a typed `ProviderFailure`. Retry classification follows §2's "*when*,
+  not *what*" rule — a spawn failure is the single `PROVEN_PRE_SIDE_EFFECT` case; a timeout, an
+  abnormal exit, and a clean exit with unreadable output are all `POSSIBLE_SIDE_EFFECT` and never
+  eligible for a blind retry. Session isolation (§5) is enforced by a per-invocation `0o700`
+  directory keyed by workflow/provider/invocation with `TMPDIR` redirected into it, stateless
+  provider instances, and a fresh instance per selection. `MockProvider`'s exclusion from real
+  workflows (`MVP_SCOPE.md` §3) is structural on four independent counts: it is not a
+  `CLIProvider` and live selection is typed to return one, it is absent from the live registry, it
+  has no `from_config`, and no live module imports or names it (asserted by AST). Prompts travel
+  on stdin, never argv; only allowlisted environment variables reach a provider process, `HOME`
+  never implicitly among them. 106 new tests with the process boundary mocked by executable
+  substitution, so the default suite needs no Claude or Codex CLI; engine collection provably
+  unchanged at 1,037. No dependencies added; no existing runtime module modified. Stage remains
+  `IN_PROGRESS`, stopped for Human Owner approval; no commit, push, merge, or AUTO-005 work was
+  performed.
 - AUTO-003 (2026-07-27): implemented the deterministic Repository, Contract, Validation, and
   Reporting Skill families in `agentos_workflow/skills/` (`SKILL_CONTRACTS.md` §2, §3, §4, §6) —
   31 named Skills over fixed argv, each returning a typed `SkillResult`/`SkillFailure` rather than
@@ -30,6 +50,16 @@
   no commit, push, merge, or AUTO-004 work was performed.
 
 ### Changed
+- AUTO-004 (2026-07-28): approved, closed, and published. The Human Owner approved the
+  implementation, recorded commit `84616d5`, moved the stage `IN_PROGRESS → COMPLETE` (task
+  `Current → Done`), and authorized publication: `feature/auto-004-model-providers` pushed to
+  `origin`, local `main` fast-forwarded from `origin/main`, the stage branch merged into `main` by
+  the established safe merge policy, and `main` pushed. `main` now carries
+  `agentos_workflow/providers/`, so AUTO-005's Agents have real Providers to be restricted to. The
+  stage branch was retained (no deletion) and both pre-existing stashes untouched. Per
+  `STAGE_REGISTRY.md` §3 rule 8 the stage completion report was **not** rewritten — the commit
+  post-dates it — and the commit, approval, and merge are recorded in a new append-only addendum
+  to that report, a new §5 Authorization Log row, and `docs/DECISION_LOG.md`.
 - AUTO-003 (2026-07-27): **OD-2 resolved** — secret handling is an environment allowlist as the
   primary control plus named, linear-time regex output redaction as defense-in-depth, applied to
   every string leaving a Skill. Entropy-based detection was considered and rejected (DD-33).

@@ -295,7 +295,7 @@ closure and one local commit. AUTO-003 remains `Planned` and requires separate a
 
 ## GOV-AUTO-01 — Local Human-Gated Task Runner
 
-Status: Current
+Status: Done
 
 Authorized by the Human Owner on 2026-07-27 as a governance and developer-experience task
 (non-AUTO-family, so it carries no stage-registry entry). Adds a local Bash automation layer for
@@ -305,8 +305,16 @@ agent session), `scripts/prompts/implement-next-task.md` (the canonical implemen
 `docs/automation-workflow.md`. It automates the mechanical steps **without replacing the Human
 Owner approval gate**: neither script pushes, merges, changes branches, alters upstream, or
 touches stashes, and no commit occurs without two explicit `APPROVE` confirmations. No
-dependencies were added. Implemented and validated 2026-07-27, pending Human Owner approval;
-not committed.
+dependencies were added. Implemented and validated 2026-07-27.
+
+Closed `Current → Done` on 2026-07-28 by explicit Human Owner decision, which recorded that the
+task was implemented, validated, approved, committed as `a302c95`, and merged into `main` via
+`a3b5b0a`. The closeout bookkeeping had lagged the merge: `main` already carried the work while
+this record, both mirrors, and `handover/PROJECT_HANDOVER.md` still showed the task `Current` and
+uncommitted. The same decision resolved the resulting `maximum_current_tasks: 1` conflict and
+authorized AUTO-004 as the single `Current` task
+(`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 16; §5, 2026-07-28 rows). Report:
+`docs/reports/GOV-AUTO-01-completion-report.md`.
 
 ## AUTO-003 — Deterministic repository and validation skills
 
@@ -331,10 +339,42 @@ AUTO-003. Remote/GitHub reconciliation remains assigned to the later GitHub inte
 
 ## AUTO-004 — Claude Code CLI and Codex CLI providers
 
-Status: Planned
+Status: Done
 
-Requires its own fresh authorization. Contract:
-`docs/workflow-automation/stage-prompts/AUTO-004.md`.
+Closed `Current → Done` on 2026-07-28 by explicit Human Owner decision ("I approve the AUTO-004
+implementation and authorize its formal closure and publication"), recording that the stage was
+implemented, validated, approved by the Human Owner, and committed locally as `84616d5`. The same
+decision authorized publication — pushing `feature/auto-004-model-providers` and merging it into
+`main` — and, only after that integration and its closure checks passed, a separate explicit
+authorization of AUTO-005. Registry state `IN_PROGRESS → COMPLETE`
+(`docs/workflow-automation/STAGE_REGISTRY.md` §4; §5 closure row, 2026-07-28).
+
+The commit `84616d5` was created after the stage completion report had already been written, so
+that report's "no commit was performed" statement was accurate when written and is **not**
+rewritten; the commit, the approval, and the merge are recorded in a new append-only addendum to
+that report, per `docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 8.
+
+Authorized by the Human Owner on 2026-07-28 ("I authorize AUTO-004 — Claude Code CLI and Codex
+CLI providers"), directing branch creation from the clean, synchronized `main` (`a3b5b0a`),
+implementation of AUTO-004 only, the standard implementation and validation workflow, a bounded
+self-review, governance/handoff updates, and a stop for Human Owner approval; commit, push,
+merge, and beginning AUTO-005 were all explicitly prohibited. The same decision closed
+GOV-AUTO-01 to `Done` first, so this is the single `Current` task under
+`maximum_current_tasks: 1`.
+
+Initial-start preflight (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 4) passed: the
+active stage is exactly AUTO-004, AUTO-002 (the contract's named precondition) and AUTO-003 are
+`COMPLETE`, branch `feature/auto-004-model-providers` was created from clean `main`, and
+`git status` was clean. Per rule 17(a) the registry state moves
+`NOT_STARTED → AUTHORIZED → IN_PROGRESS` under this single recorded authorization act.
+
+Delivers the Model Provider layer (`docs/workflow-automation/MODEL_PROVIDER_CONTRACTS.md`) in
+`agentos_workflow/providers/`: the common `Provider` interface, `ClaudeCLIProvider` and
+`CodexCLIProvider` as subprocess adapters over the configured executable and timeout, and
+`MockProvider` as an offline test/dry-run substitute that is structurally excluded from any real
+authorized workflow (`MVP_SCOPE.md` §3). Contract:
+`docs/workflow-automation/stage-prompts/AUTO-004.md`. Report:
+`docs/reports/workflow-automation/AUTO-004-completion-report.md`.
 
 ## AUTO-005 — PMO, implementation, QA, Git, merge, and closeout agents
 

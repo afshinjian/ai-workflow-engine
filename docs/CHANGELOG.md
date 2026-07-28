@@ -7,6 +7,20 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- AUTO-004 (2026-07-28): the AgentOS Workflow Automation Model Provider layer in
+  `agentos_workflow/providers/` — the common `Provider` interface, `ClaudeCLIProvider`
+  (implementation and repair) and `CodexCLIProvider` (independent QA) as subprocess adapters over
+  each target repository's own configured executable and timeout, and `MockProvider` for offline
+  tests and dry runs. Nothing in the package raises to the Orchestrator; every failure is typed,
+  and retry classification turns on *when* a failure occurred, never what kind it was. Prompts
+  travel on stdin rather than argv, only allowlisted environment variables reach a provider
+  process, each invocation runs in its own `0o700` session directory, and every string leaving the
+  package is redacted. `MockProvider` is structurally unable to be selected for a real authorized
+  workflow. 106 new tests, with the process boundary mocked by executable substitution so no
+  Claude or Codex CLI is needed; default `pytest` collection unchanged at 1,037. No dependencies
+  added and no existing runtime module modified. Implemented and validated, pending Human Owner
+  approval; not committed. Report:
+  `docs/reports/workflow-automation/AUTO-004-completion-report.md`.
 - GOV-AUTO-01 (2026-07-27): a local, Human-gated task runner for the repository's standard task
   cycle — `scripts/workflow-next.sh` (read-only preflight, then exactly one agent session with the
   canonical prompt), `scripts/prompts/implement-next-task.md`, `scripts/workflow-approve.sh` (the
@@ -21,11 +35,25 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
   approval; not committed.
 
 ### Changed
+- AUTO-004 (2026-07-28): approved by the Human Owner, closed `Current → Done` / registry
+  `IN_PROGRESS → COMPLETE`, and published — committed locally as `84616d5`, pushed as
+  `feature/auto-004-model-providers`, and merged into `main`, which now carries
+  `agentos_workflow/providers/`. The stage branch was retained and both pre-existing stashes left
+  untouched. The stage completion report was **not** rewritten: its "no commit was performed"
+  Confirmation was accurate when written, and the later commit, approval, and merge are recorded
+  in a new append-only addendum to it plus `docs/workflow-automation/STAGE_REGISTRY.md` §5 and
+  `docs/DECISION_LOG.md`.
+- GOV-AUTO-01 (2026-07-28): closed `Current → Done` by explicit Human Owner decision, recording
+  that it was implemented, validated, approved, committed as `a302c95`, and merged into `main` via
+  `a3b5b0a`. The closeout bookkeeping had lagged the merge — `main` already carried the work while
+  the task queue, both mirrors, and the handover still showed it `Current` and uncommitted. The
+  same decision resolved the resulting `maximum_current_tasks: 1` conflict and authorized AUTO-004
+  as the single `Current` task (`docs/DECISION_LOG.md`, 2026-07-28).
 - AUTO-003 (2026-07-27): implemented, approved by the Human Owner, and committed locally as
   `908be94` (push and merge explicitly withheld). Delivered the deterministic Repository, Contract,
   Validation, and Reporting Skill families in `agentos_workflow/skills/`; resolved OD-2 (DD-33) and
   recorded DD-34/DD-35. Closed to `Done` when the Human Owner authorized GOV-AUTO-01 as the single
-  active task. **AUTO-004 is explicitly not authorized.**
+  active task.
 - AUTO-002 (2026-07-27): completed the AgentOS Workflow Automation orchestrator/state-machine
   foundation and its approved security remediation. After the configured validation gates
   passed, the Human Owner accepted AUTO-002 for closure without another independent review and
