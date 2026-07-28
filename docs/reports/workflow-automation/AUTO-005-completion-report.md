@@ -344,3 +344,58 @@ successor stage was begun, selected, or prepared: AUTO-006 remains `NOT_STARTED`
 
 The AUTO-004 commit, push, and merge recorded in Part 1 were performed under the Human Owner's
 explicit publication authorization in the earlier decision, and are described there in full.
+
+---
+
+## Addendum 1 — Commit hash, closure, and merge (2026-07-28)
+
+**This addendum is appended, not merged into the text above.** Nothing earlier in this report has
+been edited. The report's "Human Owner approval and the authorized commit" section was deliberately
+written *before* the commit was created and therefore names no hash; this addendum supplies the
+hash and the two facts the report could not have known — the closure decision and the merge result
+— rather than editing the report to read as though it had (`STAGE_REGISTRY.md` §3 rule 8, and the
+Human Owner's explicit instruction that the report "is not rewritten to pretend the commit existed
+when it was produced").
+
+### What the Human Owner decided
+
+> *"I approve the formal closure and publication of AUTO-005. The approved AUTO-005 commit is
+> `430cbb4`."*
+
+The decision directed: record AUTO-005 as implemented, validated, approved, and committed locally
+as `430cbb4`; move the task `Current → Done` and the registry state `IN_PROGRESS → COMPLETE`;
+append a closure entry to the Authorization Log and an approval/closure entry to
+`docs/DECISION_LOG.md`; keep GOV-3 `Planned` and unauthorized; leave no task `Current`; make one
+**governance-only** commit for the closure records, not combined with any implementation; then
+push, merge into `main`, and push `main`, retaining the stage branch, touching neither stash, and
+not beginning AUTO-006.
+
+### Events recorded by this addendum
+
+| Event | Value |
+|---|---|
+| Approved implementation commit | `430cbb4` — `feat(workflow): add PMO, implementation, QA, git, merge, and closeout agents (AUTO-005)` |
+| Commit created | 2026-07-28, after this report's body was written |
+| Task status | `Current → Done` |
+| Registry state | `IN_PROGRESS → COMPLETE` (§4); two rows appended to §5 (approval; closure and publication) |
+| Governance closure commit | The commit this addendum is part of — records only, no implementation. It cannot name its own hash; `git log` on `feature/auto-005-agents` identifies it as the `docs(governance)` commit immediately following `430cbb4` |
+| Stage branch | `feature/auto-005-agents` — pushed to `origin`, **retained** (not deleted) |
+| Merge into `main` | see the integration table below |
+| GOV-3 | Recorded `Planned` and unauthorized; `agentos_workflow/skills/**` byte-unchanged |
+| Stashes | `stash@{0}`, `stash@{1}` — untouched throughout |
+
+### Integration result
+
+`main` was updated from `origin/main` with `--ff-only` (no history rewritten) and the stage branch
+merged by the repository's established no-fast-forward policy — the same shape as `4721f9a`,
+`a3b5b0a`, and `87a5062`. Post-merge verification confirmed: `main` contains `430cbb4`;
+`agentos_workflow/agents/` exists on `main`; local `main` equals `origin/main`; the working tree is
+clean; AUTO-005 is `Done`/`COMPLETE`; no task is `Current`; and `workflowctl verify` returns PASS
+on all four checks (`git`, `task-state`, `governance`, `handover`). Exact commit identifiers are in
+the final session report and in `git log`.
+
+### Status of this stage
+
+**COMPLETE.** No part of the AUTO-005 implementation was changed by this addendum — it is a
+governance record only. The five limitations recorded above remain as stated and were explicitly
+accepted by the Human Owner for this stage; the first of them is now tracked as GOV-3.

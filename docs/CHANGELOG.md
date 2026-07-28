@@ -60,6 +60,17 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
   approval; not committed.
 
 ### Changed
+- AUTO-005 (2026-07-28): approved by the Human Owner, closed `Current → Done` / registry
+  `IN_PROGRESS → COMPLETE`, and published — committed locally as `430cbb4`, pushed as
+  `feature/auto-005-agents`, and merged into `main`, which now carries `agentos_workflow/agents/`.
+  The stage branch was retained and both pre-existing stashes left untouched. All five documented
+  limitations were explicitly accepted for this stage; the QA report artifact collision was
+  recorded as future work (GOV-3) rather than fixed in scope, so
+  `agentos_workflow/skills/reporting.py` is byte-unchanged. The stage completion report was **not**
+  rewritten: it was finished before the commit existed and names no hash, so the hash, closure, and
+  merge are recorded in a new append-only addendum to it plus
+  `docs/workflow-automation/STAGE_REGISTRY.md` §5 and `docs/DECISION_LOG.md`. This closure
+  authorizes no successor — AUTO-006 remains explicitly unauthorized.
 - AUTO-004 (2026-07-28): approved by the Human Owner, closed `Current → Done` / registry
   `IN_PROGRESS → COMPLETE`, and published — committed locally as `84616d5`, pushed as
   `feature/auto-004-model-providers`, and merged into `main`, which now carries

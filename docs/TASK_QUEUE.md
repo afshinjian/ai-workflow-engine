@@ -378,7 +378,20 @@ authorized workflow (`MVP_SCOPE.md` §3). Contract:
 
 ## AUTO-005 — PMO, implementation, QA, Git, merge, and closeout agents
 
-Status: Current
+Status: Done
+
+Closed `Current → Done` on 2026-07-28 by explicit Human Owner decision ("I approve the formal
+closure and publication of AUTO-005"), recording that the stage was implemented, validated,
+approved by the Human Owner, and committed locally as `430cbb4`. The same decision authorized
+publication — pushing `feature/auto-005-agents` and merging it into `main`. Registry state
+`IN_PROGRESS → COMPLETE` (`docs/workflow-automation/STAGE_REGISTRY.md` §4; §5 closure row,
+2026-07-28).
+
+The commit `430cbb4` post-dates the stage completion report, which recorded the approval and the
+authorized commit *before* that commit existed and is therefore **not** rewritten; the commit
+hash, the closure, and the merge are recorded in a new append-only addendum to that report, per
+`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 8. This closure authorizes no successor:
+AUTO-006, AUTO-007, GOV-2, and GOV-3 all remain `Planned` and unauthorized.
 
 Authorized by the Human Owner on 2026-07-28 ("After AUTO-004 is successfully merged and all
 closure checks pass, I authorize AUTO-005 — Agents"), as the single `Current` task after AUTO-004

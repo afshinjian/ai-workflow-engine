@@ -10,20 +10,18 @@ Human Owner authorization the same day. AUTO-003 was implemented, approved, comm
 `908be94`, and closed to `Done` on 2026-07-27. GOV-AUTO-01 was closed to `Done` on 2026-07-28 —
 implemented, validated, approved, committed as `a302c95`, and merged into `main` via `a3b5b0a`.
 **AUTO-004 was closed to `Done` on 2026-07-28** — implemented, validated, approved, committed as
-`84616d5`, and published to `main` under the same Human Owner decision. **AUTO-005 is
-`Current`**, authorized by the Human Owner in that same decision but as its own explicit,
-separately-conditioned act — "after AUTO-004 is successfully merged and all closure checks pass" —
-on branch `feature/auto-005-agents` created from the resulting clean `main`. Remaining work
-belongs to the DASH program (DASH-002..010, all `Planned`), the rest of the AUTO program
-(AUTO-006..007, both `Planned`), and the ordinary governance/tooling tasks GOV-2 and GOV-3 —
-the latter recorded on 2026-07-28 by Human Owner decision as explicit future work for the QA
-report artifact collision AUTO-005 documented and worked around. Each requires its
-own fresh written authorization before it may become `Current`; authorizing AUTO-005 authorizes
-none of them, and **AUTO-006 is explicitly not authorized**.
+`84616d5`, and published to `main` under the same Human Owner decision. **AUTO-005 was closed to
+`Done` on 2026-07-28** — implemented, validated, approved, committed as `430cbb4`, and published
+to `main` under the same decision — so no task is `Current` at this point in the record. Remaining
+work belongs to the DASH program (DASH-002..010, all `Planned`), the rest of the AUTO program
+(AUTO-006..007, both `Planned`), and the ordinary governance/tooling tasks GOV-2 and GOV-3 — the
+latter recorded on 2026-07-28 by Human Owner decision as explicit future work for the QA report
+artifact collision AUTO-005 documented and worked around, still `Planned` and unauthorized. Each
+requires its own fresh written authorization before it may become `Current`; closing AUTO-005
+authorizes none of them, and **AUTO-006 is explicitly not authorized**.
 
 | Task | Title | Status |
 |---|---|---|
-| AUTO-005 | PMO, implementation, QA, Git, merge, and closeout agents | Current |
 | GOV-2 | Extend `check-governance` to validate stage-registry/lifecycle consistency | Planned |
 | GOV-3 | Attempt-aware report artifact naming in the Reporting Skills | Planned |
 | AUTO-006 | GitHub pull request, automatic squash merge, and closeout integration | Planned |

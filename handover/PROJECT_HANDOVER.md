@@ -12,17 +12,25 @@ The released `ai-workflow-engine` 1.0.0 roadmap is complete. In the post-1.0 pro
 - AUTO-001, AUTO-002, AUTO-003, and AUTO-004 are `Done` and registry `COMPLETE`. All four are
   merged into `main`.
 - GOV-AUTO-01 is `Done` — committed as `a302c95`, merged via `a3b5b0a`.
-- **AUTO-005 — Agents is `Current`**, registry `IN_PROGRESS`, implemented, validated, and
-  **approved by the Human Owner on 2026-07-28**, who accepted every documented limitation and
-  authorized exactly one local commit on `feature/auto-005-agents` — the commit this handover is
-  part of. Push and merge were explicitly withheld, so the branch is unpushed and unmerged, and
-  the stage stays `IN_PROGRESS`/`Current`: approval of the implementation is not closure.
-- AUTO-006 and AUTO-007 remain `Planned`/`NOT_STARTED`. **AUTO-006 is explicitly not authorized.**
-- GOV-2 and GOV-3 remain `Planned`, each needing its own authorization.
+- **AUTO-005 is `Done`** and registry `COMPLETE` as of 2026-07-28 — implemented, validated,
+  approved, committed as `430cbb4`, and merged into `main` under the same decision.
+- AUTO-006 and AUTO-007 remain `Planned`/`NOT_STARTED`. **AUTO-006 is explicitly not authorized** —
+  the closure decision said so in terms.
+- GOV-2 and GOV-3 remain `Planned`, each needing its own authorization. **GOV-3** was created on
+  2026-07-28 to carry the QA report artifact collision AUTO-005 found and worked around.
+
+No task is `Current`. That is a legal state: `maximum_current_tasks: 1` is a ceiling, not a quota.
 
 ## What happened on 2026-07-28
 
-One Human Owner decision did three things, in order, and the order matters:
+Two AUTO stages were closed and merged on the same day. The **AUTO-005** sequence came second:
+approve the implementation and authorize exactly one commit (`430cbb4`); then, separately, approve
+closure and publication — governance records committed on their own, branch pushed, merged into
+`main`, `main` pushed, stage branch retained, stashes untouched, AUTO-006 explicitly not
+authorized. The QA report artifact collision AUTO-005 disclosed was **recorded as GOV-3 rather than
+fixed**, so `agentos_workflow/skills/**` stayed byte-unchanged.
+
+The **AUTO-004** sequence came first, and one Human Owner decision did three things in order:
 
 1. **Approved and closed AUTO-004**, recording commit `84616d5`. Its completion report was **not**
    rewritten — that report's "no commit was performed" statement was accurate when written, and the
@@ -44,22 +52,18 @@ Owner decided both halves explicitly (`STAGE_REGISTRY.md` §3 rule 16).
 
 | Fact | Value |
 |---|---|
-| Branch | `feature/auto-005-agents` |
-| Created from | clean `main` at `4721f9a` |
-| Upstream | **none** — this branch has never been pushed |
-| HEAD before this commit | `4721f9a` (the AUTO-004 merge on `main`) |
+| Baseline | `main`, carrying the AUTO-005 merge and matching `origin/main` |
+| AUTO-005 implementation commit | `430cbb4`, merged |
+| Stage branches | `feature/auto-004-model-providers` and `feature/auto-005-agents` — both pushed and **retained**; neither may be deleted |
 | Stashes | `stash@{0}`, `stash@{1}` — both untouched since before AUTO-002 |
 
-`main` is at `4721f9a` and matches `origin/main`. `feature/auto-004-model-providers` exists locally
-and on `origin` and must not be deleted — the Human Owner's decision retained it explicitly.
+All four `workflowctl verify` checks pass on `main`. A stage branch created later and not yet
+pushed will produce the pre-existing `upstream_missing` finding — the tolerance
+`STAGE_REGISTRY.md` §3 rule 16 and the SSP both name.
 
-`workflowctl check-git` reports `upstream_missing` on the AUTO-005 branch. Expected and
-pre-existing for a stage branch never intended to be pushed (`STAGE_REGISTRY.md` §3 rule 16; the
-SSP). Every other configured check passes. On `main`, all four checks pass.
+## AUTO-005 — what was delivered
 
-## AUTO-005 — current state
-
-Delivered the six Agents in `agentos_workflow/agents/` (`AGENT_CONTRACTS.md` §2-7):
+The six Agents in `agentos_workflow/agents/` (`AGENT_CONTRACTS.md` §2-7):
 
 - `__init__.py` — the capability primitives: `AgentResult` (which has **no** state field, so an
   Agent deciding its own transition is unrepresentable), the `CapabilityBroker`, the per-Agent
@@ -84,19 +88,17 @@ Validation: 133 focused tests, 1,465 in `agentos_workflow` (from 1,332), 1,037 i
 (collection unchanged); ruff, black, mypy, and `pre-commit` clean; `git diff --check` clean. Full
 detail: `docs/reports/workflow-automation/AUTO-005-completion-report.md`.
 
-The Human Owner approved this implementation on 2026-07-28 and authorized **exactly one local
-commit**, which is the commit containing this file. Push, merge, branch switching, upstream
-changes, stash changes, and beginning AUTO-006 were all explicitly prohibited, and none was
-performed.
+Approved, committed as `430cbb4`, closed to `Done`/`COMPLETE`, and merged into `main` — all on
+2026-07-28, under two separate Human Owner decisions (approval, then closure and publication).
 
 ## Known open items
 
-- **QA report artifacts collide within one workflow.** `generate_qa_report` allows one
-  `reports/qa.json` per workflow identifier, but a repair loop runs up to four different QA rounds.
-  AUTO-005 works around it with a per-attempt audit scope, because `skills/**` is outside its
-  allowed paths. The Human Owner accepted this for AUTO-005 and directed it be tracked as explicit
-  future work: **GOV-3 — Attempt-aware report artifact naming in the Reporting Skills**
-  (`docs/TASK_QUEUE.md`, `Planned`, needs its own authorization).
+- **QA report artifacts collide within one workflow** — tracked as **GOV-3** (`docs/TASK_QUEUE.md`,
+  `Planned`, unauthorized). `generate_qa_report` allows one `reports/qa.json` per workflow
+  identifier, but a repair loop runs up to four different QA rounds. AUTO-005 works around it with
+  a per-attempt audit scope because `skills/**` was outside its allowed paths; the Human Owner
+  accepted that for the stage and directed the real fix — an attempt-aware artifact name — be
+  deferred rather than absorbed into AUTO-005's scope.
 - **The Git/GitHub Skill call shapes are AUTO-005's proposal**, exercised against fakes and
   unverified against AUTO-006's eventual signatures.
 - **`detect_future_stage_work` needs a later-stage path map** that no configuration field supplies;
@@ -107,12 +109,12 @@ performed.
 ## Next session
 
 1. Verify `git status`, recent history, and this handover checksum.
-2. Confirm AUTO-005 is the only `Current` task.
-3. AUTO-005's implementation is approved and committed, but the stage is **not closed** — closure
-   (`IN_PROGRESS → COMPLETE`, `Current → Done`) is a separate Human Owner act.
-4. Publication decisions remain open and unauthorized: pushing or merging this branch, and anything
-   to do with AUTO-006.
-5. Never delete either stash, and never delete `feature/auto-004-model-providers`.
+2. Confirm which task, if any, is `Current` — read `docs/TASK_QUEUE.md`, not this file alone.
+3. As of this writing, no task is `Current`. Starting any work requires a fresh written Human Owner authorization
+   naming the task — **AUTO-006 is explicitly not authorized**, and neither are AUTO-007, GOV-2,
+   GOV-3, or DASH-002..010.
+4. Never delete either stash, and never delete `feature/auto-004-model-providers` or
+   `feature/auto-005-agents`.
 
 Completing a task never authorizes its successor. AUTO-006 requires its own fresh written
 authorization naming it.

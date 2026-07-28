@@ -18,6 +18,13 @@ plan to 1.0, and `docs/architecture.md` for the pipeline shapes.
 
 ## Completed
 
+- AUTO-005 (closed 2026-07-28): the six AgentOS Workflow Automation Agents in
+  `agentos_workflow/agents/` — `PMOAgent`, `ImplementationAgent`, `QAAgent`, `GitAgent`,
+  `MergeAgent`, `CloseoutAgent` — each bounded by a capability broker to the Skills and Provider
+  roles its own contract lists, none deciding its own workflow-state transition, plus the
+  Orchestrator-owned `VALIDATING` sequence and the bounded repair loop. Implemented, validated,
+  approved by the Human Owner, committed as `430cbb4`, and merged into `main` under the same
+  decision. Report: `docs/reports/workflow-automation/AUTO-005-completion-report.md`.
 - AUTO-004 (closed 2026-07-28): the AgentOS Workflow Automation Model Provider layer in
   `agentos_workflow/providers/` — the common `Provider` interface, `ClaudeCLIProvider` and
   `CodexCLIProvider` as subprocess adapters over each target repository's own configured
@@ -68,24 +75,24 @@ plan to 1.0, and `docs/architecture.md` for the pipeline shapes.
 
 ## In progress
 
-**AUTO-005 — PMO, implementation, QA, Git, merge, and closeout agents** is the single active task,
-authorized by the Human Owner on 2026-07-28 and `IN_PROGRESS` on branch `feature/auto-005-agents`,
-created from clean `main` after the AUTO-004 merge. It implements the six Agents of
-`docs/workflow-automation/AGENT_CONTRACTS.md` §2-7 in `agentos_workflow/agents/`, each bounded to
-its contract's Skills and Provider roles, plus the Orchestrator-owned `VALIDATING` sequence (§8)
-and the bounded repair loop (`docs/workflow-automation/FAILURE_RECOVERY.md` §1-2). AUTO-002,
-AUTO-003, AUTO-004, and GOV-AUTO-01 are closed and merged. AUTO-006, AUTO-007, and every other
-remaining task require their own explicit Human Owner authorization naming them — closing or
-authorizing a stage never authorizes its successor
+No task is in progress. AUTO-005 was approved, committed as `430cbb4`, closed to `Done`, and merged
+into `main` on 2026-07-28; AUTO-002, AUTO-003, AUTO-004, and GOV-AUTO-01 were closed and merged
+earlier. Every remaining task requires its own explicit Human Owner authorization naming it before
+work begins — closing a stage never authorizes its successor
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 16).
 
 ## Planned
 
-AUTO-005..AUTO-007 (`docs/TASK_QUEUE.md`; program plan `docs/workflow-automation/README.md`)
+AUTO-006..AUTO-007 (`docs/TASK_QUEUE.md`; program plan `docs/workflow-automation/README.md`)
 and Dashboard stages DASH-002..DASH-010 (program plan
 `docs/agentos-dashboard/MASTER_PLAN.md`), each requiring its own fresh Human Owner
 authorization; DASH-004 onward additionally gated on the OD-D9 dependency decision. Separately,
-one ordinary (non-AUTO/DASH-family) governance/tooling task, **GOV-2** (`docs/TASK_QUEUE.md`):
+two ordinary (non-AUTO/DASH-family) governance/tooling tasks. **GOV-3**
+(`docs/TASK_QUEUE.md`) was recorded on 2026-07-28 by Human Owner decision as explicit future work:
+the Reporting Skills write one artifact per workflow identifier per kind, but a bounded repair loop
+produces several genuinely different QA and stage reports per workflow; AUTO-005 works around it
+with a per-attempt audit scope, and the fix is an attempt-aware artifact name. **GOV-2**
+(`docs/TASK_QUEUE.md`):
 extending `workflowctl check-governance` to machine-verify stage-registry/lifecycle consistency,
 assessed but deliberately not implemented during the 2026-07-24 governance recovery (real
 validator code needing its own authorization, out of scope for a documentation-only recovery
@@ -98,7 +105,8 @@ engine work (explicitly out of the delivered 1.0.0 scope) remains listed in
 There is no active task blocker. Every planned successor still requires separate Human Owner
 authorization.
 
-`main` and `origin/main` are identical and carry the AUTO-004 merge; `feature/auto-004-model-
-providers` was pushed to `origin` and retained, not deleted. Stage branches created later and not
-yet pushed produce the pre-existing `upstream_missing` finding from `workflowctl check-git` — the
-tolerance `docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 16 and the SSP both name.
+`main` and `origin/main` are identical and carry the AUTO-005 merge. Both
+`feature/auto-004-model-providers` and `feature/auto-005-agents` were pushed to `origin` and
+retained, not deleted. Stage branches created later and not yet pushed produce the pre-existing
+`upstream_missing` finding from `workflowctl check-git` — the tolerance
+`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 16 and the SSP both name.
