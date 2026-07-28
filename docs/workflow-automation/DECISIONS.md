@@ -5,7 +5,7 @@
 | **Title** | AgentOS Workflow Automation — Decisions |
 | **Purpose** | Append-only record of program-level decisions (DD-##). Subordinate to `docs/DECISION_LOG.md`; cross-posted there when repository governance requires. |
 | **Status** | Draft |
-| **Version** | 1.9 |
+| **Version** | 1.10 |
 | **Owner** | Documentation & Governance session (append) · Human Owner (approval) |
 | **Dependencies** | `README.md` |
 | **Related Documents** | `docs/DECISION_LOG.md` |
@@ -841,3 +841,88 @@ decision. Full rationale, authorization, and the companion `STAGE_REGISTRY.md` �
   is a deliberate divergence from `observation/evidence.py::changed_paths`, which uses two-dot
   because it answers a different question — the exact path set between two specific commits.
 - **Reconsideration trigger:** a workflow that needs the absolute two-commit path set for scope.
+
+## DD-36 — `create_commit` stages the working tree's current diff rather than a caller-supplied path list
+
+- **Status:** Accepted. AUTO-006 implementation decision, 2026-07-28.
+- **Context:** `SKILL_CONTRACTS.md` §5's table names "staged allowed paths, commit message" as
+  `create_commit`'s input, implying the caller stages specific paths before invoking it. But
+  `GitAgent.create_commit` (`agents/git.py`, delivered by AUTO-005) calls this Skill with only
+  `repository_path`, `branch`, `message`, and `expected_head_sha` — no path list — and modifying
+  `agents/git.py` is outside AUTO-006's allowed files (`stage-prompts/AUTO-006.md`: only
+  `agentos_workflow/skills/git_github.py`, `agentos_workflow/tests/**`, and SSP-required
+  documentation). No other Agent has a Skill capability that stages files either
+  (`AGENT_SKILL_CONTRACTS`, `agents/__init__.py`), so nothing upstream of `create_commit` ever
+  runs `git add`.
+- **Decision:** `create_commit` treats "the input" as the working tree's current diff: it runs
+  `git add -A` (after re-verifying `expected_head_sha` and the current branch), then commits
+  whatever that staged. This is safe by construction at the point this Skill is ever reachable
+  (`READY_TO_COMMIT`, reached only after the `VALIDATING` gate's `run_scope_validation` has
+  already passed, `MACHINE_GATES.md` §3): the working tree's diff and the allowed-path diff are
+  the same set of files by the time this Skill runs, so "stage everything currently changed" and
+  "stage the allowed paths" coincide.
+- **Consequences:** `create_commit`'s actual call shape (as `GitAgent` already exercises it in
+  `test_agents_git_merge.py`) is honored without touching AUTO-005's Agent code. The idempotency
+  check (`_reused_commit`) is correspondingly a bit more work than "same paths, same message":
+  it confirms `HEAD`'s parent equals `expected_head_sha`, the tree is clean, and the commit
+  subject matches, before treating a repeated call as a safe no-op.
+- **Reconsideration trigger:** a future stage giving `ImplementationAgent` or `GitAgent` its own
+  staging Skill, at which point `create_commit` should accept an explicit path list instead and
+  refuse to stage anything itself.
+
+## DD-37 — OD-1 resolved: native GitHub auto-merge, never engine-side polling merge
+
+- **Status:** Accepted. AUTO-006 implementation decision, 2026-07-28, resolving OD-1
+  (`OPEN_QUESTIONS.md`).
+- **Context:** OD-1 asked whether `enable_automatic_squash_merge` should use GitHub's native
+  `gh pr merge --auto --squash` (which waits server-side for required checks) or have the engine
+  poll `read_required_checks` itself and issue a plain squash merge once green. The stage
+  contract (`stage-prompts/AUTO-006.md`) already named the native form as the intended
+  resolution.
+- **Decision:** `enable_automatic_squash_merge`'s only merge-enabling call is
+  `gh pr merge <number> --auto --squash`, after re-verifying the PR's current head SHA against
+  GitHub itself immediately before that call (`SECURITY_MODEL.md` §5's "destructive Skills
+  re-verify their precondition immediately before execution", applied here even though this
+  Skill sits outside §5's originally-named list, because enabling auto-merge is an irreversible
+  GitHub-side state change). `read_required_checks` remains implemented and is used for the
+  engine's own `WAITING_FOR_CHECKS` visibility, exactly as OD-1's recommendation described, but
+  it never gates or substitutes for GitHub's own merge decision.
+- **Consequences:** No engine-side polling-then-merge loop exists; GitHub's branch protection is
+  the sole authority over when the squash merge actually happens once auto-merge is enabled.
+  `enable_automatic_squash_merge` has exactly one `gh pr merge` call site in the module's source,
+  asserted by `test_skills_git_github.py::test_exactly_one_merge_enabling_call_site` over the
+  module's own AST — the same structural-proof technique `SECURITY_MODEL.md` §4's no-admin-bypass
+  claim already uses elsewhere in this program.
+- **Reconsideration trigger:** a target repository whose branch protection does not support
+  native GitHub auto-merge, which would need a documented fallback to engine-side polling.
+
+## DD-38 (discovered, not resolved by this stage) — five of eight Git/GitHub Skill calls never receive `allowed_environment_variables`
+
+- **Status:** Recorded as a discovered gap; not fixed in this stage. Requires its own Human Owner
+  decision. See `OPEN_QUESTIONS.md` OD-10.
+- **Context:** While self-reviewing this stage's diff against `GitAgent`/`MergeAgent`'s actual
+  call sites (`agents/git.py`, `agents/merge.py`, delivered by AUTO-005), five of the eight
+  Skills this stage binds are invoked without `allowed_environment_variables` at all:
+  `create_pull_request`, `read_pull_request_state` (`GitAgent`), and
+  `enable_automatic_squash_merge`, `read_required_checks`, `verify_merge_completion`
+  (`MergeAgent`). Every one of those five is a `gh` invocation. Only `push_stage_branch`
+  (`GitAgent`) forwards `self._allowed_environment_variables`; `create_commit` and
+  `verify_head_sha` are local-only and do not need it.
+- **Why this matters:** `_build_environment` (`skills/__init__.py`) forwards *only* `PATH` plus
+  the caller-supplied allowlist to every Skill subprocess — never the operator's full
+  environment, and never `HOME` unless it is itself allowlisted (`SECURITY_MODEL.md` §1). `gh`
+  needs either a `GH_TOKEN`/`GITHUB_TOKEN` environment variable or a readable
+  `$HOME/.config/gh/hosts.yml` to authenticate. With no `allowed_environment_variables` reaching
+  the subprocess at all, none of those five Skills can authenticate to GitHub in a real
+  deployment — they would fail every time, not merely under an edge case.
+- **Why this stage does not fix it:** the fix is a one-line addition to each of five call sites in
+  `agents/git.py`/`agents/merge.py`, which are `agentos_workflow/agents/**` — outside AUTO-006's
+  allowed files (`stage-prompts/AUTO-006.md`). Per the Standard Stage Protocol, an unrelated
+  problem discovered mid-stage is recorded, not fixed, when it needs a scope decision.
+- **Recommended shape when authorized:** add `allowed_environment_variables=self._allowed_environment_variables`
+  to the five call sites above, mirroring `push_stage_branch`'s existing call; `GitAgent` and
+  `CloseoutAgent` already carry that field on `self`, so `MergeAgent` would need the same
+  constructor parameter added. Small, mechanical, and testable against the existing
+  `test_agents_git_merge.py` fakes by asserting the kwarg is now present in the recorded call.
+- **Reconsideration trigger:** none — this is not a design choice awaiting new information, it is
+  a known defect awaiting authorization to fix.

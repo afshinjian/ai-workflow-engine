@@ -5,7 +5,7 @@
 | **Title** | AgentOS Workflow Automation — Open Questions |
 | **Purpose** | Owner-decision register (OD-#) with dispositions and what each question blocks. |
 | **Status** | Draft |
-| **Version** | 1.4 |
+| **Version** | 1.5 |
 | **Owner** | Documentation & Governance session · Human Owner (dispositions) |
 | **Dependencies** | `DECISIONS.md` |
 | **Related Documents** | `STAGE_REGISTRY.md` (preconditions cite entries here) |
@@ -32,7 +32,11 @@ being `Open` at authorization time is expected, not a defect.
   protection supports it, with `read_required_checks` used for the engine's own
   `WAITING_FOR_CHECKS` visibility either way — never as a substitute for GitHub's own merge
   decision.
-- **Disposition:** Open. Blocks AUTO-006 implementation detail; does not block AUTO-001.
+- **Disposition:** Resolved 2026-07-28, as an AUTO-006 implementation decision (the stage
+  contract, `stage-prompts/AUTO-006.md`, already named this resolution). `enable_automatic_squash_merge`
+  (`agentos_workflow/skills/git_github.py`) calls only `gh pr merge <number> --auto --squash`;
+  `read_required_checks` is implemented and used solely for `WAITING_FOR_CHECKS` visibility, never
+  to gate or substitute for GitHub's own merge decision. Full rationale: `DECISIONS.md` DD-37.
 
 ### OD-2 — Secret-redaction implementation
 
@@ -98,6 +102,27 @@ being `Open` at authorization time is expected, not a defect.
   always a hard stop until this is explicitly resolved.
 - **Disposition:** Open. Blocks nothing now; would be a MAJOR change to `HUMAN_AUTHORIZATION_MODEL.md`
   §4 and `WORKFLOW_STATES.md` if ever resolved.
+
+### OD-10 — Five of eight Git/GitHub Skill call sites never forward `allowed_environment_variables`
+
+- **Question:** `GitAgent.create_pull_request`, `GitAgent.read_pull_request_state`,
+  `MergeAgent.enable_auto_merge`, `MergeAgent.await_required_checks`, and
+  `MergeAgent.confirm_merge` (`agents/git.py`/`agents/merge.py`, AUTO-005) each invoke a `gh`-based
+  Skill (`agentos_workflow/skills/git_github.py`, AUTO-006) without passing
+  `allowed_environment_variables` at all — only `GitAgent.push_stage_branch` forwards it. Every
+  Skill subprocess environment is built from an explicit allowlist and nothing else
+  (`SECURITY_MODEL.md` §1; `skills/__init__.py::_build_environment`), so with no allowlisted
+  variables reaching these five calls, `gh` has no path to a `GH_TOKEN`/`GITHUB_TOKEN` or a
+  readable `$HOME` in a real deployment. Should `agents/git.py`/`agents/merge.py` be amended to
+  forward it (mirroring `push_stage_branch`'s existing call), and if so, in which stage?
+- **Recommendation:** Add `allowed_environment_variables=self._allowed_environment_variables` to
+  the five call sites named above; give `MergeAgent` the same constructor field `GitAgent` and
+  `CloseoutAgent` already carry. Small and mechanical, but it touches `agentos_workflow/agents/**`,
+  which was outside AUTO-006's allowed files — discovered during AUTO-006's self-review and
+  recorded rather than fixed in that stage, per the Standard Stage Protocol.
+- **Disposition:** Open. Blocks nothing's *authorization*, but a real (non-fake-`gh`) run of
+  `GitAgent`/`MergeAgent` against actual GitHub cannot authenticate until this is fixed — affects
+  AUTO-007's end-to-end dry run and any real deployment. Full context: `DECISIONS.md` DD-38.
 
 ## Resolved
 

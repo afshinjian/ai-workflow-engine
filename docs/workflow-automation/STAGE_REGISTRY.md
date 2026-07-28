@@ -5,7 +5,7 @@
 | **Title** | AgentOS Workflow Automation — Stage Registry |
 | **Purpose** | Live status of AUTO-001..007, the stage-lifecycle state model (distinct from the runtime `WORKFLOW_STATES.md` machine the finished engine will use), master stage-control rules, and the append-only authorization log. A *view* of `docs/TASK_QUEUE.md`, never a competing workflow. |
 | **Status** | Draft |
-| **Version** | 6.10 |
+| **Version** | 6.12 |
 | **Owner** | Documentation & Governance session · Human Owner (approval and stage authorization) |
 | **Dependencies** | `README.md` §5; `MVP_SCOPE.md`; `TEST_STRATEGY.md` |
 | **Related Documents** | `stage-prompts/README.md`, `docs/AGENT_PROTOCOL.md`, `self-governance.yaml`, `docs/TASK_QUEUE.md` |
@@ -252,7 +252,7 @@ Report paths: `docs/reports/workflow-automation/AUTO-0XX-completion-report.md`.
 | AUTO-003 | Deterministic repository and validation skills | Engine implementation session | COMPLETE | `feature/auto-003-repository-validation-skills` | `stage-prompts/AUTO-003.md` |
 | AUTO-004 | Claude Code CLI and Codex CLI providers | Engine implementation session | COMPLETE | `feature/auto-004-model-providers` | `stage-prompts/AUTO-004.md` |
 | AUTO-005 | PMO, implementation, QA, Git, merge, and closeout agents | Engine implementation session | COMPLETE | `feature/auto-005-agents` | `stage-prompts/AUTO-005.md` |
-| AUTO-006 | GitHub pull request, automatic squash merge, and closeout integration | Engine implementation session | AUTHORIZED | `feature/auto-006-pr-merge-closeout` | `stage-prompts/AUTO-006.md` |
+| AUTO-006 | GitHub pull request, automatic squash merge, and closeout integration | Engine implementation session | COMPLETE | `feature/auto-006-pr-merge-closeout` | `stage-prompts/AUTO-006.md` |
 | AUTO-007 | End-to-end dry run, recovery tests, and DASH integration | Engine implementation session (+ independent security review) | NOT_STARTED | `fix/auto-007-e2e-dry-run-recovery` | `stage-prompts/AUTO-007.md` |
 
 ## 5. Authorization Log (append-only)
@@ -283,9 +283,12 @@ Report paths: `docs/reports/workflow-automation/AUTO-0XX-completion-report.md`.
 | 2026-07-28 | GOV-AUTO-02 (closure, recorded here for continuity only) | Human Owner closed GOV-AUTO-02 `Current → Done`, recording that it was implemented, validated, approved, and committed as `d212e4d2dae2cd0a3510c54d7cd098fdfd5da548`. GOV-AUTO-02 has no AUTO lifecycle state in this registry; its authoritative status is `Done` in `docs/TASK_QUEUE.md`. No task remains `Current`. This governance-only closure authorizes no successor, push, merge, or work on AUTO-006, which remains `NOT_STARTED`/`Planned` and explicitly unauthorized. | Human Owner |
 
 | 2026-07-28 | AUTO-006 | Human Owner supplied both exact `AUTHORIZE` confirmations through `scripts/workflow-authorize.sh`. Preconditions passed on the default-branch baseline at `0a663a35ea502b7524344d69c595cfb1cc9984c0`. Registry moves `NOT_STARTED → AUTHORIZED`; implementation has not started. | Human Owner |
+| 2026-07-28 | AUTO-006 (initial-start preflight passed) | Engine implementation session verified: active stage exactly AUTO-006 with registry status `AUTHORIZED`; predecessors AUTO-003 and AUTO-005 `COMPLETE`; `docs/current_task.md`/`docs/TASK_QUEUE.md` agree (`Current`); `main`/`origin/main` clean at `3336184619bc6464f62a162ee34d869957b08928` (the authorization commit itself, `git status` clean, no stray files). Branch `feature/auto-006-pr-merge-closeout` created from that clean `main`. Per rule 4 the registry state moves `AUTHORIZED → IN_PROGRESS`; no new Human Owner authorization act occurs. Implementation of `agentos_workflow/skills/git_github.py` (the eight Git/GitHub Skills of `SKILL_CONTRACTS.md` §5) begins under this entry. | Engine implementation session |
+| 2026-07-28 | AUTO-006 (Human Owner approval, closure, and publication) | Human Owner: "I approve the formal closure and publication of AUTO-006. The approved AUTO-006 implementation commit is `d8d356d060076be4ad78afb4d20891004a946204`." Recorded that AUTO-006 was implemented, validated, approved, and committed locally as `d8d356d060076be4ad78afb4d20891004a946204`. Registry state moves `IN_PROGRESS → COMPLETE`; task status moves `Current → Done`. The same decision authorized publication — push `feature/auto-006-pr-merge-closeout` to `origin`, update local `main` from `origin/main`, merge the stage branch by the repository's established safe merge policy, push `main`, retain the stage branch, and leave both stashes untouched. It explicitly withheld authorization for AUTO-007 and for GOV-AUTO-03. **Record-integrity note (rule 8):** commit `d8d356d` was created *after* `docs/reports/workflow-automation/AUTO-006-completion-report.md` had been written, so that report's "no commit … was performed" Confirmation was accurate at the time of writing; per the Human Owner's explicit instruction it is **not** rewritten. The commit, the approval, and the merge are recorded in a new append-only addendum appended to that report, plus this row and `docs/DECISION_LOG.md` (2026-07-28 AUTO-006 closure entry). The two limitations AUTO-006 self-reported (Orchestrator wiring of the Merge Safety Gate / Checks-Wait Gate; the `allowed_environment_variables` gap, OD-10) were explicitly accepted, not fixed, by this closure. This closure authorizes no successor by itself (rule 16); AUTO-007 and GOV-AUTO-03 remain unauthorized. | Human Owner |
 
 ## 6. Decision References
-DD-01 through DD-32. (DD-14 was appended out of physical sequence in `DECISIONS.md`; corrected by
+DD-01 through DD-38 (see `DECISIONS.md`; this line has historically lagged DD additions — DD-33
+through DD-35 (AUTO-003) and DD-36 through DD-38 (AUTO-006) are the most recent). (DD-14 was appended out of physical sequence in `DECISIONS.md`; corrected by
 Governance Correction Record, `docs/DECISION_LOG.md`, 2026-07-27 — DD-14 itself is unaffected and
 binding. DD-15 through DD-20 record the AUTO002-F07 through F12 remediation findings, appended
 `docs/DECISION_LOG.md`, 2026-07-27. DD-21 through DD-25 record the AUTO002-IR-01 through IR-05
@@ -311,7 +314,11 @@ registry state accordingly moved `BLOCKED → AUTHORIZED → IN_PROGRESS` per ru
 Human Owner authorization act. On 2026-07-27 the Human Owner accepted AUTO-002 for closure and
 directed `IN_PROGRESS → COMPLETE` without an additional review. AUTO-003's predecessor condition
 is now satisfied, but its separate fresh Human Owner authorization is not; it remains
-`NOT_STARTED`.
+`NOT_STARTED`. OD-1 (GitHub auto-merge mechanism) was resolved 2026-07-28 as an AUTO-006
+implementation decision (`OPEN_QUESTIONS.md`, `DECISIONS.md` DD-37). AUTO-006's own self-review
+discovered and recorded a new entry, OD-10 (`allowed_environment_variables` not reaching five of
+the eight `gh`-based Skill call sites in `agents/git.py`/`agents/merge.py`), `Open` and requiring
+its own fix decision — it blocks nothing's authorization but blocks any real (non-fake-`gh`) run.
 
 ## 8. Future Revisions
 Registry table and log grow append-only; control-rule changes are MAJOR.

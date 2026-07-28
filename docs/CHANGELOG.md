@@ -8,7 +8,23 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 
 ### Added
 - AUTO-006 (2026-07-28): explicitly authorized by the Human Owner through the local
-  two-confirmation task gate; authorization commit and implementation remain separate.
+  two-confirmation task gate, then implemented — the eight Git/GitHub Skills of
+  `SKILL_CONTRACTS.md` §5 (`agentos_workflow/skills/git_github.py`): `create_commit`,
+  `push_stage_branch`, `create_pull_request`, `read_pull_request_state`, `verify_head_sha`,
+  `read_required_checks`, `enable_automatic_squash_merge`, `verify_merge_completion`. These bind
+  the eight Skill names `GitAgent`/`MergeAgent` (AUTO-005) already called against fakes with the
+  identical keyword shapes; no Agent code changed. `enable_automatic_squash_merge` has exactly
+  one `gh pr merge` call site (`--auto --squash`, never `--admin`), and no `gh` invocation ever
+  carries a `--repo` flag, so no Skill can be redirected at an arbitrary GitHub repository. OD-1
+  resolved in favor of native GitHub auto-merge. 33 new tests: real temporary Git repositories
+  for the local Skills, `gh` mocked at the process boundary (a fake executable on `PATH`) for the
+  GitHub-facing ones. `agentos_workflow` suite 1,498-green (up from 1,465); engine collection
+  unchanged at 1,066. Self-review found, and recorded without fixing, that five of the eight
+  Skill calls in AUTO-005's Agent code never forward `allowed_environment_variables`, so `gh`
+  cannot authenticate in a real deployment until a future stage adds it
+  (`docs/workflow-automation/DECISIONS.md` DD-38, `OPEN_QUESTIONS.md` OD-10). Implementation
+  complete and validated; stopped for Human Owner approval before any commit. Report:
+  `docs/reports/workflow-automation/AUTO-006-completion-report.md`.
 - GOV-AUTO-02 (2026-07-28): `scripts/workflow-authorize.sh <TASK_ID> [claude|codex]`, a local
   two-confirmation Human authorization gate. It validates an explicitly named planned/ready task,
   clean default-branch baseline, single-Current invariant, structured program predecessor and
@@ -76,6 +92,17 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
   approval; not committed.
 
 ### Changed
+- AUTO-006 (2026-07-28): approved by the Human Owner, closed `Current → Done` / registry
+  `IN_PROGRESS → COMPLETE`, and published — committed locally as `d8d356d`, pushed as
+  `feature/auto-006-pr-merge-closeout`, and merged into `main`, which now carries
+  `agentos_workflow/skills/git_github.py`. The stage branch was retained and both pre-existing
+  stashes left untouched. The two documented limitations (Orchestrator wiring of the Merge Safety
+  Gate / Checks-Wait Gate not performed; the `allowed_environment_variables` gap on five `gh`-based
+  Skill calls, OD-10) were explicitly accepted rather than fixed in scope. The stage completion
+  report was **not** rewritten: the commit post-dates it, so the commit, approval, and merge are
+  recorded in a new append-only addendum to that report, a new
+  `docs/workflow-automation/STAGE_REGISTRY.md` §5 row, and `docs/DECISION_LOG.md`. This closure
+  authorizes no successor — AUTO-007 and GOV-AUTO-03 remain unauthorized.
 - GOV-AUTO-02 (2026-07-28): closed `Current → Done` by explicit Human Owner decision, recording
   that it was implemented, validated, approved, and committed as
   `d212e4d2dae2cd0a3510c54d7cd098fdfd5da548`. No task is now `Current`. The governance-only

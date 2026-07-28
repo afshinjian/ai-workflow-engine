@@ -9,125 +9,112 @@ commands.
 The released `ai-workflow-engine` 1.0.0 roadmap is complete. In the post-1.0 programs:
 
 - DASH-001 is `Done`; DASH-002..DASH-010 remain `Planned`.
-- AUTO-001, AUTO-002, AUTO-003, and AUTO-004 are `Done` and registry `COMPLETE`. All four are
-  merged into `main`.
-- GOV-AUTO-01 is `Done` — committed as `a302c95`, merged via `a3b5b0a`.
-- **AUTO-005 is `Done`** and registry `COMPLETE` as of 2026-07-28 — implemented, validated,
-  approved, committed as `430cbb4`, and merged into `main` under the same decision.
-- AUTO-006 and AUTO-007 remain `Planned`/`NOT_STARTED`. **AUTO-006 is explicitly not authorized** —
-  the closure decision said so in terms.
-- GOV-2 and GOV-3 remain `Planned`, each needing its own authorization. **GOV-3** was created on
-  2026-07-28 to carry the QA report artifact collision AUTO-005 found and worked around.
-- **GOV-AUTO-02 is `Done`** as of 2026-07-28 — implemented, validated, approved, and committed as
-  `d212e4d2dae2cd0a3510c54d7cd098fdfd5da548`. Report:
-  `docs/reports/GOV-AUTO-02-completion-report.md`.
+- AUTO-001 through **AUTO-006** are `Done` and registry `COMPLETE`.
+- GOV-AUTO-01 and GOV-AUTO-02 are both `Done` — `a302c95`/`a3b5b0a` and
+  `d212e4d2dae2cd0a3510c54d7cd098fdfd5da548` respectively.
+- **AUTO-006 was approved and closed on 2026-07-28** — implemented, validated, approved by the
+  Human Owner, committed as `d8d356d060076be4ad78afb4d20891004a946204`, and authorized for
+  publication into `main` under the same decision. Report:
+  `docs/reports/workflow-automation/AUTO-006-completion-report.md` (see its Addendum 1).
+- AUTO-007 remains `NOT_STARTED`/`Planned`. GOV-2 and GOV-3 remain `Planned`, each needing its own
+  authorization. GOV-AUTO-03 has not been authorized.
 
-No task is `Current`. No successor is authorized. AUTO-006, GOV-3, and DASH-002 remain `Planned`.
+No task is `Current` as of this commit. That is a legal state: `maximum_current_tasks: 1` is a
+ceiling, not a quota.
 
-## What happened on 2026-07-28
+## What this commit is
 
-Two AUTO stages were closed and merged on the same day. The **AUTO-005** sequence came second:
-approve the implementation and authorize exactly one commit (`430cbb4`); then, separately, approve
-closure and publication — governance records committed on their own, branch pushed, merged into
-`main`, `main` pushed, stage branch retained, stashes untouched, AUTO-006 explicitly not
-authorized. The QA report artifact collision AUTO-005 disclosed was **recorded as GOV-3 rather than
-fixed**, so `agentos_workflow/skills/**` stayed byte-unchanged.
+This is the **AUTO-006 governance closure commit** — records only, no runtime code. It exists
+because the Human Owner's closure-and-publication decision requires `main`, after the merge, to
+carry a consistent record set (task queue, both mirrors, project state, stage registry, both
+changelogs, decision log, this handover, and the checksum) showing AUTO-006 `Done`/`COMPLETE`. The
+implementation itself is `d8d356d060076be4ad78afb4d20891004a946204`, which this commit does not
+touch.
 
-The **AUTO-004** sequence came first, and one Human Owner decision did three things in order:
+The AUTO-006 completion report was **not** rewritten. Its Confirmation section says no commit was
+performed, which was true when written — `d8d356d` came afterwards. The commit, the approval, and
+the merge are recorded in a new append-only addendum at the end of that report, a new
+`docs/workflow-automation/STAGE_REGISTRY.md` §5 row, and `docs/DECISION_LOG.md`
+(`STAGE_REGISTRY.md` §3 rule 8; the Human Owner's explicit instruction).
 
-1. **Approved and closed AUTO-004**, recording commit `84616d5`. Its completion report was **not**
-   rewritten — that report's "no commit was performed" statement was accurate when written, and the
-   commit came afterwards. The commit, approval, and merge are recorded in a new append-only
-   addendum at the end of it, a new `STAGE_REGISTRY.md` §5 row, and `docs/DECISION_LOG.md`
-   (§3 rule 8).
-2. **Published AUTO-004**: the governance closure records were committed as `4659172`, the branch
-   was pushed, and `main` moved `a3b5b0a → 4721f9a` by a no-fast-forward merge (parents `a3b5b0a` +
-   `4659172`). `main` was pushed. The stage branch was **retained**, not deleted.
-3. **Authorized AUTO-005**, explicitly conditioned on step 2 succeeding. It did — all four
-   `workflowctl verify` checks returned PASS on `main` — so `feature/auto-005-agents` was created
-   from that clean, synchronized `main` and AUTO-005 became the single `Current` task.
+## What AUTO-006 delivered (committed as `d8d356d`, on `feature/auto-006-pr-merge-closeout`)
 
-This was the fifth predecessor-still-`Current` conflict this repository has hit. It was handled the
-same way as the previous four: the session detected it, made no change, and reported it; the Human
-Owner decided both halves explicitly (`STAGE_REGISTRY.md` §3 rule 16).
+Two new files only: `agentos_workflow/skills/git_github.py` (the eight Git/GitHub Skills of
+`SKILL_CONTRACTS.md` §5 — `create_commit`, `push_stage_branch`, `create_pull_request`,
+`read_pull_request_state`, `verify_head_sha`, `read_required_checks`,
+`enable_automatic_squash_merge`, `verify_merge_completion`) and
+`agentos_workflow/tests/test_skills_git_github.py` (33 tests). No file under
+`agentos_workflow/agents/**`, `agentos_workflow/orchestrator/**`, `src/`, or `tests/` was touched.
+
+Binds the eight Skill names `GitAgent`/`MergeAgent` (AUTO-005) already called against fakes —
+those Agents needed no code change because this stage matched their existing call shapes exactly.
+OD-1 (native GitHub auto-merge vs. engine-side polling) resolved in favor of native
+`gh pr merge --auto --squash` (`docs/workflow-automation/DECISIONS.md` DD-37).
+
+**Two things this stage explicitly did not do**, both flagged for a Human Owner decision rather
+than resolved unilaterally:
+
+1. **Orchestrator wiring.** The stage contract's Build section says to "wire the Merge Safety Gate
+   and Checks-Wait Gate into the Orchestrator," but the contract's own Allowed-files list names
+   only the Skill file, tests, and docs — not `agentos_workflow/orchestrator/**`. This session
+   followed the Allowed-files list; `orchestrator/engine.py` is untouched, consistent with
+   AUTO-005's own report already stating Agent-to-Orchestrator wiring belongs to AUTO-007.
+2. **`allowed_environment_variables` gap (new: OD-10, `DECISIONS.md` DD-38).** Five of the eight
+   Skill calls — `create_pull_request`, `read_pull_request_state`,
+   `enable_automatic_squash_merge`, `read_required_checks`, `verify_merge_completion` — are
+   invoked by `GitAgent`/`MergeAgent` (AUTO-005 code) without `allowed_environment_variables`, so
+   in a real deployment `gh` has no path to a `GH_TOKEN`/`GITHUB_TOKEN` or a readable `$HOME` and
+   cannot authenticate. The fix is small and mechanical (five call sites in
+   `agents/git.py`/`agents/merge.py`) but requires authorization to touch
+   `agentos_workflow/agents/**`, outside AUTO-006's allowed files. Does not affect the default test
+   suite (the fake `gh` needs no auth) but would block a real end-to-end run.
+
+Validation: 33 new focused tests; `agentos_workflow` suite 1,498-green (from 1,465); engine
+`tests` collection unchanged at 1,066 (no `tests/`/`src/` file touched); ruff, black, mypy clean
+on both `agentos_workflow` and `src`; `git diff --check` clean; `workflowctl verify` PASSes
+`task-state`/`governance`/`handover` and FAILs only the pre-existing, documented
+`upstream_missing` finding for the freshly created, not-yet-pushed stage branch. Full detail:
+`docs/reports/workflow-automation/AUTO-006-completion-report.md`.
 
 ## Current Git state
 
 | Fact | Value |
 |---|---|
-| Baseline | `main` and `origin/main` matched at GOV-AUTO-02 implementation commit `d212e4d2dae2cd0a3510c54d7cd098fdfd5da548` before closure |
-| Current local state | one governance-only GOV-AUTO-02 closure commit ahead of `origin/main`; not pushed or merged |
-| GOV-AUTO-02 implementation commit | `d212e4d2dae2cd0a3510c54d7cd098fdfd5da548`, approved and closed |
+| Active branch | `feature/auto-006-pr-merge-closeout` |
+| Implementation commit | `d8d356d060076be4ad78afb4d20891004a946204` — the approved AUTO-006 work |
+| This commit | governance closure records for AUTO-006 |
+| Next step | push this branch, merge into `main`, push `main` (authorized) |
 | AUTO-005 implementation commit | `430cbb4`, merged |
-| Stage branches | `feature/auto-004-model-providers` and `feature/auto-005-agents` — both pushed and **retained**; neither may be deleted |
+| GOV-AUTO-02 implementation commit | `d212e4d2dae2cd0a3510c54d7cd098fdfd5da548`, merged |
+| Stage branches | `feature/auto-004-model-providers`, `feature/auto-005-agents` — pushed and **retained**; `feature/auto-006-pr-merge-closeout` — about to be pushed under this decision; none may be deleted |
 | Stashes | `stash@{0}`, `stash@{1}` — both untouched since before AUTO-002 |
 
-The GOV-AUTO-02 implementation and validation are recorded in
-`docs/reports/GOV-AUTO-02-completion-report.md`. Its closure changes governance and handoff
-records only. A stage branch created later and not yet pushed will produce the pre-existing
-`upstream_missing` finding — the tolerance `STAGE_REGISTRY.md` §3 rule 16 and the SSP both name.
-
-## AUTO-005 — what was delivered
-
-The six Agents in `agentos_workflow/agents/` (`AGENT_CONTRACTS.md` §2-7):
-
-- `__init__.py` — the capability primitives: `AgentResult` (which has **no** state field, so an
-  Agent deciding its own transition is unrepresentable), the `CapabilityBroker`, the per-Agent
-  Skill/Provider contract tables, the live provider gateway, and the two **Orchestrator-owned**
-  sequences §8 says are not Agents: `run_deterministic_validation` (`MACHINE_GATES.md` §3) and
-  `run_repair_loop` (`FAILURE_RECOVERY.md` §1-2).
-- `pmo.py` — every Precondition Gate check, reported together; the contract-hash comparison catches
-  a stage contract edited after authorization; branch name and base SHA come from the authorization
-  record, never the contract.
-- `implementation.py` — implement and repair; the provider's `files_changed` is a claim, and the
-  truth is derived from Git independently.
-- `qa.py` — independent QA; cannot read the implementation report (the Skill is not in its
-  capability set) and refuses to let a QA pass override a failed deterministic gate.
-- `git.py`, `merge.py`, `closeout.py` — commit/push/PR, the merge-safety gate (head SHA verified
-  *before* the merge is enabled, no admin path in executable code), and closeout (no destructive
-  step without a `MergeConfirmation` bound to its own branch; baseline restored first).
-
-The eight GitHub-facing Skills belong to AUTO-006 and are **named but unbound**: reaching for one
-fails as `SKILL_UNAVAILABLE` naming AUTO-006 rather than returning a fabricated success.
-
-Validation: 133 focused tests, 1,465 in `agentos_workflow` (from 1,332), 1,037 in `tests/`
-(collection unchanged); ruff, black, mypy, and `pre-commit` clean; `git diff --check` clean. Full
-detail: `docs/reports/workflow-automation/AUTO-005-completion-report.md`.
-
-Approved, committed as `430cbb4`, closed to `Done`/`COMPLETE`, and merged into `main` — all on
-2026-07-28, under two separate Human Owner decisions (approval, then closure and publication).
+Local `main` carries the `docs(governance): authorize AUTO-006` commit
+(`3336184619bc6464f62a162ee34d869957b08928`) one ahead of `origin/main` — a pre-existing,
+already-recorded state, not new divergence introduced by this commit.
 
 ## Known open items
 
+- **OD-10 / DD-38** (new, AUTO-006): five Git/GitHub Skill call sites never receive
+  `allowed_environment_variables` — see above. Requires its own Human Owner decision.
+- **Orchestrator wiring of the Merge Safety Gate / Checks-Wait Gate** is not performed — see
+  above; likely AUTO-007's responsibility, unresolved.
 - **QA report artifacts collide within one workflow** — tracked as **GOV-3** (`docs/TASK_QUEUE.md`,
   `Planned`, unauthorized). `generate_qa_report` allows one `reports/qa.json` per workflow
-  identifier, but a repair loop runs up to four different QA rounds. AUTO-005 works around it with
-  a per-attempt audit scope because `skills/**` was outside its allowed paths; the Human Owner
-  accepted that for the stage and directed the real fix — an attempt-aware artifact name — be
-  deferred rather than absorbed into AUTO-005's scope.
-- **The Git/GitHub Skill call shapes are AUTO-005's proposal**, exercised against fakes and
-  unverified against AUTO-006's eventual signatures.
-- **`detect_future_stage_work` needs a later-stage path map** that no configuration field supplies;
-  with the default empty map the check passes trivially. Worth an explicit wiring decision.
-- **The Agents are not yet driven by the Orchestrator's state machine** — that wiring is outside
-  this stage's allowed files and belongs to AUTO-007.
+  identifier, but a repair loop runs up to four QA rounds. AUTO-005 worked around it with a
+  per-attempt audit scope; the real fix — an attempt-aware artifact name — is deferred.
+- **`detect_future_stage_work` needs a later-stage path map** that no configuration field
+  supplies; with the default empty map the check passes trivially. Worth an explicit wiring
+  decision.
 
 ## Next session
 
 1. Verify `git status`, recent history, and this handover checksum.
-2. Confirm which task, if any, is `Current` — read `docs/TASK_QUEUE.md`, not this file alone.
-3. As of this writing, no task is `Current`. Starting any work requires a fresh written Human
-   Owner authorization naming the task. AUTO-006 is explicitly not authorized, and neither are
-   AUTO-007, GOV-2, GOV-3, or DASH-002..010.
-4. Never delete either stash, and never delete `feature/auto-004-model-providers` or
-   `feature/auto-005-agents`.
-
-Completing GOV-AUTO-02 did not authorize a successor. AUTO-006 requires its own fresh written
-authorization naming it; do not begin it or GOV-3.
-
-## Authorization update — 2026-07-28
-
-AUTO-006 is the single `Current` task after two exact Human Owner `AUTHORIZE` confirmations.
-The authorization-only commit contains governance and handoff records; implementation has not
-started. No predecessor was closed automatically, and no push, merge, upstream, branch, or stash
-operation was performed.
+2. Confirm which task, if any, is `Current` — read `docs/TASK_QUEUE.md`, not this file alone. As
+   of this writing no task is `Current`.
+3. AUTO-007, GOV-2, GOV-3, and GOV-AUTO-03 all require their own fresh written authorization
+   naming them — closing AUTO-006 authorized none of them.
+   (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 16).
+4. Never delete either stash, and never delete `feature/auto-004-model-providers`,
+   `feature/auto-005-agents`, or `feature/auto-006-pr-merge-closeout` — the Human Owner's decision
+   explicitly retains all three.

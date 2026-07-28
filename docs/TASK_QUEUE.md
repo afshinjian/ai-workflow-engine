@@ -441,10 +441,44 @@ stage stops for Human Owner approval. Contract:
 
 ## AUTO-006 — GitHub pull request, automatic squash merge, and closeout integration
 
-Status: Current
+Status: Done
 
-Requires its own fresh authorization. Contract:
+Closed `Current → Done` on 2026-07-28 by explicit Human Owner decision ("I approve the formal
+closure and publication of AUTO-006. The approved AUTO-006 implementation commit is
+`d8d356d060076be4ad78afb4d20891004a946204`"), recording that the stage was implemented, validated,
+approved by the Human Owner, and committed locally as
+`d8d356d060076be4ad78afb4d20891004a946204`. The same decision authorized publication — pushing
+`feature/auto-006-pr-merge-closeout` and merging it into `main`. Registry state
+`IN_PROGRESS → COMPLETE` (`docs/workflow-automation/STAGE_REGISTRY.md` §4; §5 closure row,
+2026-07-28).
+
+The commit `d8d356d060076be4ad78afb4d20891004a946204` was created after the stage completion
+report had already been written, so that report's "no commit … was performed" Confirmation
+statement was accurate when written and is **not** rewritten; the commit, the approval, and the
+merge are recorded in a new append-only addendum to that report, per
+`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 8.
+
+Authorized by the Human Owner on 2026-07-28 through the local two-confirmation task gate
+(`scripts/workflow-authorize.sh`). Branch `feature/auto-006-pr-merge-closeout` created from clean
+`main`; registry state moved `AUTHORIZED → IN_PROGRESS`
+(`docs/workflow-automation/STAGE_REGISTRY.md` §5).
+
+Implemented and validated the same day: the eight Git/GitHub Skills of `SKILL_CONTRACTS.md` §5 —
+`create_commit`, `push_stage_branch`, `create_pull_request`, `read_pull_request_state`,
+`verify_head_sha`, `read_required_checks`, `enable_automatic_squash_merge`,
+`verify_merge_completion` — in the new file `agentos_workflow/skills/git_github.py`, binding the
+eight Skill names `GitAgent`/`MergeAgent` (AUTO-005) already called against fakes; no Agent code
+changed. OD-1 resolved in favor of native GitHub auto-merge (`docs/workflow-automation/DECISIONS.md`
+DD-37). 33 new tests, `agentos_workflow` suite 1,498-green, engine `tests` collection unchanged at
+1,066. Self-review discovered, and recorded without fixing (outside this stage's allowed files),
+that five of the eight Skill calls in AUTO-005's Agent code never forward
+`allowed_environment_variables`, so `gh` cannot authenticate in a real deployment until a future
+stage adds it (DD-38, `docs/workflow-automation/OPEN_QUESTIONS.md` OD-10). Report:
+`docs/reports/workflow-automation/AUTO-006-completion-report.md`. Contract:
 `docs/workflow-automation/stage-prompts/AUTO-006.md`.
+
+This closure authorizes no successor: AUTO-007, GOV-2, and GOV-3 all remain `Planned` and
+unauthorized.
 
 ## AUTO-007 — End-to-end dry run, recovery tests, and DASH integration
 

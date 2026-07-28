@@ -5,7 +5,7 @@
 | **Title** | AgentOS Workflow Automation — Changelog |
 | **Purpose** | Program-level changelog, newest first. |
 | **Status** | Draft |
-| **Version** | 2.13 |
+| **Version** | 2.15 |
 | **Owner** | Documentation & Governance session |
 | **Dependencies** | None |
 | **Related Documents** | `docs/CHANGELOG.md` (repository-level; cross-posted there) |
@@ -13,6 +13,30 @@
 ## [Unreleased]
 
 ### Added
+- AUTO-006 (2026-07-28, implementation): implemented the eight Git/GitHub Skills of
+  `SKILL_CONTRACTS.md` §5 in the new file `agentos_workflow/skills/git_github.py` —
+  `create_commit`, `push_stage_branch`, `create_pull_request`, `read_pull_request_state`,
+  `verify_head_sha`, `read_required_checks`, `enable_automatic_squash_merge`,
+  `verify_merge_completion` — binding the eight Skill names `GitAgent`/`MergeAgent` (AUTO-005)
+  already called against fakes; no Agent code changed. `enable_automatic_squash_merge` has
+  exactly one `gh pr merge` call site, always `--auto --squash`, never `--admin` (asserted by an
+  AST test over the module's own source); every `gh` invocation is `cwd`-scoped to the target
+  repository with no `--repo` flag, so no argv can redirect a Skill at an arbitrary GitHub
+  repository. OD-1 resolved in favor of native GitHub auto-merge (`DECISIONS.md` DD-37).
+  Retry classification follows `SKILL_CONTRACTS.md` §5's asymmetric policy: `create_commit`,
+  `push_stage_branch`, and `create_pull_request` classify `POSSIBLE_SIDE_EFFECT` once their
+  subprocess has run, even for `create_commit`'s purely local case, since a hook or partial write
+  could already have applied. 33 new tests: real temporary Git repositories for the local Skills
+  (the same technique `test_skills_repository.py` uses), and `gh` mocked at the process boundary
+  — a fake executable placed first on `PATH`, with call recording, never internals patched —
+  for the five GitHub-facing Skills. `agentos_workflow` suite 1,498-green (up from 1,465); engine
+  `tests` collection unchanged at 1,066 (no `tests/`/`src/` file touched). Self-review discovered
+  and recorded, but did not fix (outside this stage's allowed files), that five of the eight
+  Skill calls in `agents/git.py`/`agents/merge.py` never forward
+  `allowed_environment_variables`, so `gh` cannot authenticate in a real deployment until a
+  future stage adds it (`DECISIONS.md` DD-38, `OPEN_QUESTIONS.md` OD-10). Stage remains
+  `IN_PROGRESS`, stopped for Human Owner approval; no commit, push, merge, or AUTO-007 work was
+  performed.
 - AUTO-005 (2026-07-28): implemented the six Agents of `AGENT_CONTRACTS.md` §2-7 in
   `agentos_workflow/agents/`, together with the two Orchestrator-owned sequences §8 says are not
   Agents. The capability boundary of §1 is enforced three independent ways: a broker that refuses
@@ -76,6 +100,19 @@
   no commit, push, merge, or AUTO-004 work was performed.
 
 ### Changed
+- AUTO-006 (2026-07-28): approved, closed, and published. The Human Owner approved the
+  implementation, recorded commit `d8d356d`, moved the stage `IN_PROGRESS → COMPLETE` (task
+  `Current → Done`), and authorized publication: `feature/auto-006-pr-merge-closeout` pushed to
+  `origin`, local `main` updated from `origin/main`, the stage branch merged into `main` by the
+  established safe merge policy, and `main` pushed. `main` now carries
+  `agentos_workflow/skills/git_github.py`. The stage branch was retained (no deletion) and both
+  pre-existing stashes untouched. The two documented limitations — Orchestrator wiring of the
+  Merge Safety Gate / Checks-Wait Gate, and the `allowed_environment_variables` gap on five
+  `gh`-based Skill calls (OD-10, DD-38) — were explicitly accepted rather than fixed in scope. Per
+  `STAGE_REGISTRY.md` §3 rule 8 the completion report was **not** rewritten — the commit
+  post-dates it — and the commit, approval, and merge are recorded in a new append-only addendum,
+  a new §5 row, and `docs/DECISION_LOG.md`. No successor is authorized: AUTO-007 remains
+  `NOT_STARTED`.
 - AUTO-005 (2026-07-28): approved, closed, and published. The Human Owner approved the
   implementation, explicitly accepted all five documented limitations, recorded commit `430cbb4`,
   moved the stage `IN_PROGRESS → COMPLETE` (task `Current → Done`), and authorized publication:
