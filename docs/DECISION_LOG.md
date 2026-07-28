@@ -13,6 +13,41 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-07-28 — AUTO-006 implemented, awaiting Human Owner approval
+
+**Decision:** Acting under the standing AUTO-006 authorization below, an engine implementation
+session created branch `feature/auto-006-pr-merge-closeout` from clean `main` (initial-start
+preflight, `STAGE_REGISTRY.md` §3 rule 4; registry `AUTHORIZED → IN_PROGRESS`) and implemented
+the eight Git/GitHub Skills of `SKILL_CONTRACTS.md` §5 in the new file
+`agentos_workflow/skills/git_github.py`: `create_commit`, `push_stage_branch`,
+`create_pull_request`, `read_pull_request_state`, `verify_head_sha`, `read_required_checks`,
+`enable_automatic_squash_merge`, `verify_merge_completion`. These bind the eight Skill names
+`GitAgent`/`MergeAgent` (AUTO-005) already call against fakes with the exact same keyword shapes
+— no Agent code changed. OD-1 (native GitHub auto-merge vs. engine-side polling) is resolved in
+favor of native `gh pr merge --auto --squash` (`DECISIONS.md` DD-37); `create_commit`'s staging
+design (`git add -A` rather than a caller-supplied path list, since `GitAgent` never passes one)
+is recorded as DD-36.
+
+**Discovered during self-review, not fixed in this stage:** five of the eight Skill calls
+(`create_pull_request`, `read_pull_request_state`, `enable_automatic_squash_merge`,
+`read_required_checks`, `verify_merge_completion`) are invoked by `GitAgent`/`MergeAgent`
+without `allowed_environment_variables`, so in a real deployment `gh` has no path to a
+`GH_TOKEN`/`GITHUB_TOKEN` or a readable `$HOME`. Fixing it requires editing
+`agentos_workflow/agents/**`, outside AUTO-006's allowed files. Recorded as `DECISIONS.md` DD-38
+and `OPEN_QUESTIONS.md` OD-10, both `Open`/unresolved, for a future Human Owner decision.
+
+**Validation:** 33 new focused tests (`test_skills_git_github.py`); `agentos_workflow/tests`
+1,498-green (was 1,465); `tests` collection unchanged at 1,066 (no `tests/`/`src/` file touched);
+`tests` suite 1,066-green; ruff, black, and `mypy --no-incremental` clean on both
+`agentos_workflow` and `src`; `git diff --check` clean; `workflowctl verify` PASSes on
+`task-state`, `governance`, and `handover`, and FAILs `git` only on the pre-existing, documented
+`upstream_missing` finding for a freshly created, not-yet-pushed stage branch (`STAGE_REGISTRY.md`
+§3 rule 16's named tolerance).
+
+**Boundaries:** No commit, push, merge, branch change, or stash mutation was performed. The
+complete diff is left in the working tree for Human Owner review. Full report:
+`docs/reports/workflow-automation/AUTO-006-completion-report.md`.
+
 ## 2026-07-28 — Human Owner authorized AUTO-006
 
 **Decision:** The Human Owner typed the two exact `AUTHORIZE` confirmations for

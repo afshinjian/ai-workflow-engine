@@ -8,7 +8,23 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 
 ### Added
 - AUTO-006 (2026-07-28): explicitly authorized by the Human Owner through the local
-  two-confirmation task gate; authorization commit and implementation remain separate.
+  two-confirmation task gate, then implemented — the eight Git/GitHub Skills of
+  `SKILL_CONTRACTS.md` §5 (`agentos_workflow/skills/git_github.py`): `create_commit`,
+  `push_stage_branch`, `create_pull_request`, `read_pull_request_state`, `verify_head_sha`,
+  `read_required_checks`, `enable_automatic_squash_merge`, `verify_merge_completion`. These bind
+  the eight Skill names `GitAgent`/`MergeAgent` (AUTO-005) already called against fakes with the
+  identical keyword shapes; no Agent code changed. `enable_automatic_squash_merge` has exactly
+  one `gh pr merge` call site (`--auto --squash`, never `--admin`), and no `gh` invocation ever
+  carries a `--repo` flag, so no Skill can be redirected at an arbitrary GitHub repository. OD-1
+  resolved in favor of native GitHub auto-merge. 33 new tests: real temporary Git repositories
+  for the local Skills, `gh` mocked at the process boundary (a fake executable on `PATH`) for the
+  GitHub-facing ones. `agentos_workflow` suite 1,498-green (up from 1,465); engine collection
+  unchanged at 1,066. Self-review found, and recorded without fixing, that five of the eight
+  Skill calls in AUTO-005's Agent code never forward `allowed_environment_variables`, so `gh`
+  cannot authenticate in a real deployment until a future stage adds it
+  (`docs/workflow-automation/DECISIONS.md` DD-38, `OPEN_QUESTIONS.md` OD-10). Implementation
+  complete and validated; stopped for Human Owner approval before any commit. Report:
+  `docs/reports/workflow-automation/AUTO-006-completion-report.md`.
 - GOV-AUTO-02 (2026-07-28): `scripts/workflow-authorize.sh <TASK_ID> [claude|codex]`, a local
   two-confirmation Human authorization gate. It validates an explicitly named planned/ready task,
   clean default-branch baseline, single-Current invariant, structured program predecessor and
