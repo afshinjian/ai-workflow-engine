@@ -7,6 +7,31 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- GOV-3 (2026-07-28): recorded as `Planned` future work by Human Owner decision — the Reporting
+  Skills write one artifact per workflow identifier per kind, but a bounded repair loop produces
+  several genuinely different QA and stage reports per workflow. AUTO-005 works around it with a
+  per-attempt audit scope; the fix is an attempt-aware artifact name, which requires its own fresh
+  authorization. Not an AUTO-005 blocker.
+- AUTO-005 (2026-07-28): the six AgentOS Workflow Automation Agents in `agentos_workflow/agents/`
+  — `PMOAgent`, `ImplementationAgent`, `QAAgent`, `GitAgent`, `MergeAgent`, and `CloseoutAgent`
+  (`AGENT_CONTRACTS.md` §2-7). Each is bounded to the Skills and Provider roles its own contract
+  lists by a capability broker that refuses everything else, and no Agent module imports a Skill
+  family or a Provider implementation at all, so the boundary is structural rather than a
+  convention. No result type in the package carries a workflow state: Agents report, and the
+  Orchestrator decides every transition. The `VALIDATING` gate and the bounded repair loop are
+  Orchestrator-owned sequences, not a seventh Agent — the repair loop re-runs *all* deterministic
+  validation and independent QA in full after every attempt, feeds each attempt the latest failure
+  report rather than a stale one, and stops hard at the configured attempt limit. `MergeAgent`
+  verifies the pull request's head SHA before, not after, enabling the merge, and has no
+  admin-bypass path in its executable code; `CloseoutAgent` cannot be asked to delete a branch
+  without an independently produced merge confirmation, and restores the baseline before any
+  deletion. The eight GitHub-facing Skills AUTO-006 delivers are named but deliberately unbound,
+  so reaching for one fails as `SKILL_UNAVAILABLE` naming AUTO-006 rather than returning a
+  fabricated success. 133 new tests; engine collection provably unchanged at 1,037. No
+  dependencies added and no existing runtime module modified. Approved by the Human Owner on
+  2026-07-28, who accepted the documented limitations and authorized exactly one local commit;
+  push and merge were explicitly withheld. Report:
+  `docs/reports/workflow-automation/AUTO-005-completion-report.md`.
 - AUTO-004 (2026-07-28): the AgentOS Workflow Automation Model Provider layer in
   `agentos_workflow/providers/` — the common `Provider` interface, `ClaudeCLIProvider`
   (implementation and repair) and `CodexCLIProvider` (independent QA) as subprocess adapters over

@@ -68,10 +68,15 @@ plan to 1.0, and `docs/architecture.md` for the pipeline shapes.
 
 ## In progress
 
-No task is in progress. AUTO-004 was approved, committed as `84616d5`, closed to `Done`, and
-merged into `main` on 2026-07-28; AUTO-002, AUTO-003, and GOV-AUTO-01 were closed earlier. Every
-remaining task requires its own explicit Human Owner authorization naming it before work begins —
-closing a stage never authorizes its successor
+**AUTO-005 — PMO, implementation, QA, Git, merge, and closeout agents** is the single active task,
+authorized by the Human Owner on 2026-07-28 and `IN_PROGRESS` on branch `feature/auto-005-agents`,
+created from clean `main` after the AUTO-004 merge. It implements the six Agents of
+`docs/workflow-automation/AGENT_CONTRACTS.md` §2-7 in `agentos_workflow/agents/`, each bounded to
+its contract's Skills and Provider roles, plus the Orchestrator-owned `VALIDATING` sequence (§8)
+and the bounded repair loop (`docs/workflow-automation/FAILURE_RECOVERY.md` §1-2). AUTO-002,
+AUTO-003, AUTO-004, and GOV-AUTO-01 are closed and merged. AUTO-006, AUTO-007, and every other
+remaining task require their own explicit Human Owner authorization naming them — closing or
+authorizing a stage never authorizes its successor
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 16).
 
 ## Planned

@@ -5,7 +5,7 @@
 | **Title** | AgentOS Workflow Automation — Changelog |
 | **Purpose** | Program-level changelog, newest first. |
 | **Status** | Draft |
-| **Version** | 2.11 |
+| **Version** | 2.12 |
 | **Owner** | Documentation & Governance session |
 | **Dependencies** | None |
 | **Related Documents** | `docs/CHANGELOG.md` (repository-level; cross-posted there) |
@@ -13,6 +13,32 @@
 ## [Unreleased]
 
 ### Added
+- AUTO-005 (2026-07-28): implemented the six Agents of `AGENT_CONTRACTS.md` §2-7 in
+  `agentos_workflow/agents/`, together with the two Orchestrator-owned sequences §8 says are not
+  Agents. The capability boundary of §1 is enforced three independent ways: a broker that refuses
+  every out-of-contract Skill name and Provider role, a comparison of the capability tables against
+  `AGENT_CONTRACTS.md`'s own Skill lists so the two cannot drift, and an AST assertion that no
+  Agent module imports a Skill family, names `select_live_provider`/`MockProvider`, or reaches a
+  subprocess. `AgentResult` has no state field, so an Agent deciding its own transition is
+  unrepresentable. The `VALIDATING` gate (`MACHINE_GATES.md` §3) runs all seven checks even after
+  one fails, so a repair attempt sees every problem at once instead of one per round; an unbound or
+  unspawnable check fails the gate rather than being skipped (§1's "no third outcome"). The repair
+  loop (`FAILURE_RECOVERY.md` §1-2) rebuilds the failure report from the round that just ran,
+  re-runs deterministic validation *and* QA in full after every attempt, stops at
+  `repair_attempt_limit` (pinned to 3 by the configuration schema), and ends without re-validating
+  when an attempt produced nothing usable. `QAAgent` cannot read the implementation report — the
+  Skill is absent from its capability set — and reports a QA pass on a failed deterministic gate as
+  contradictory evidence rather than a pass. `MergeAgent` never reaches
+  `enable_automatic_squash_merge` on a head-SHA mismatch, and `CloseoutAgent` refuses every
+  destructive step, before touching anything, without a `MergeConfirmation` bound to its own stage
+  branch. AUTO-006's eight GitHub-facing Skills are named and unbound, failing as
+  `SKILL_UNAVAILABLE`. One integration limitation is recorded rather than worked around silently:
+  `generate_qa_report` allows one report per workflow identifier, so each QA round is written under
+  a per-attempt audit scope; the Human Owner accepted this for AUTO-005 and directed it be tracked
+  as future work, now recorded as GOV-3 in `docs/TASK_QUEUE.md`. 133 new tests (1,465 in
+  `agentos_workflow`, up from 1,332); engine collection unchanged at 1,037. Approved by the Human
+  Owner on 2026-07-28, who accepted every documented limitation and authorized exactly one local
+  commit; no push, merge, or AUTO-006 work was performed.
 - AUTO-004 (2026-07-28): implemented the Model Provider layer in `agentos_workflow/providers/`
   (`MODEL_PROVIDER_CONTRACTS.md`) — the common `Provider` interface (§1), `ClaudeCLIProvider` (§2,
   implementation and repair) and `CodexCLIProvider` (§3, independent QA) as subprocess adapters

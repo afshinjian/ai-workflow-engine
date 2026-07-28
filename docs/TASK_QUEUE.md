@@ -378,10 +378,31 @@ authorized workflow (`MVP_SCOPE.md` §3). Contract:
 
 ## AUTO-005 — PMO, implementation, QA, Git, merge, and closeout agents
 
-Status: Planned
+Status: Current
 
-Requires its own fresh authorization. Contract:
-`docs/workflow-automation/stage-prompts/AUTO-005.md`.
+Authorized by the Human Owner on 2026-07-28 ("After AUTO-004 is successfully merged and all
+closure checks pass, I authorize AUTO-005 — Agents"), as the single `Current` task after AUTO-004
+was approved, closed, and merged into `main` under the same decision. The authorization was
+explicitly conditioned on that integration succeeding first; it did, and the branch
+`feature/auto-005-agents` was created from the resulting clean, synchronized `main`
+(`4721f9a`). Registry state moves `NOT_STARTED → AUTHORIZED → IN_PROGRESS` per
+`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 17(a) under that single authorization act.
+
+Delivers the six Agents of `docs/workflow-automation/AGENT_CONTRACTS.md` §2-7 in
+`agentos_workflow/agents/` — `PMOAgent`, `ImplementationAgent`, `QAAgent`, `GitAgent`,
+`MergeAgent`, `CloseoutAgent` — each restricted to its contract's Skills and Provider roles by a
+capability broker, each returning a structured result, and none deciding its own workflow-state
+transition. The `VALIDATING` step (`MACHINE_GATES.md` §3) and the bounded repair loop
+(`FAILURE_RECOVERY.md` §1-2) are implemented as Orchestrator-owned sequences, not as a seventh
+Agent, per `AGENT_CONTRACTS.md` §8.
+
+Out of scope: real GitHub pull-request and merge integration (AUTO-006), which delivers the eight
+GitHub-facing Skills `GitAgent` and `MergeAgent` call; those are named but deliberately unbound,
+so an attempt to use one fails as `SKILL_UNAVAILABLE` naming AUTO-006 rather than returning a
+fabricated success. Commit, push, merge, and beginning AUTO-006 are explicitly prohibited; the
+stage stops for Human Owner approval. Contract:
+`docs/workflow-automation/stage-prompts/AUTO-005.md`. Report:
+`docs/reports/workflow-automation/AUTO-005-completion-report.md`.
 
 ## AUTO-006 — GitHub pull request, automatic squash merge, and closeout integration
 
@@ -439,6 +460,43 @@ documentation pass. Tests are correctly expected for every new validator per thi
 existing test-coverage discipline (`docs/AGENT_PROTOCOL.md`), to be added alongside the
 implementation, not before it exists. Requires its own fresh authorization, as an ordinary
 (non-AUTO/DASH-family) engine task.
+
+## GOV-3 — Attempt-aware report artifact naming in the Reporting Skills
+
+Status: Planned
+
+**Recorded as explicit future work by Human Owner decision on 2026-07-28, when approving AUTO-005**
+("Record the QA report collision as explicit future work. Do not fix it within AUTO-005 and do not
+expand the current scope."). This is a task record only; no code was written for it.
+
+**The defect.** `generate_qa_report` — and, by the same construction, `generate_stage_report`,
+`generate_failure_report`, and `generate_closeout_report` in `agentos_workflow/skills/reporting.py`
+— writes to a fixed path `<audit_root>/<workflow_id>/reports/<report_kind>.json`, one artifact per
+workflow identifier per kind, and correctly refuses to overwrite an existing artifact whose content
+differs (append-only audit semantics, `AUDIT_MODEL.md`). But a single workflow legitimately
+produces **several** genuinely different reports of the same kind: the bounded repair loop
+(`FAILURE_RECOVERY.md` §1) runs up to four QA rounds and up to four implementation attempts, each
+with its own verdict, findings, and diff. The second round therefore fails on the *artifact* rather
+than on the code under review.
+
+**AUTO-005's in-scope workaround, and why it is not the fix.** `QAAgent` writes each round under a
+per-attempt audit scope derived from the workflow identifier, because `agentos_workflow/skills/**`
+was outside AUTO-005's allowed paths. Every artifact stays inside the audit root and the workflow's
+own audit log keeps the real, undecorated identifier, so the rounds remain joined — but the
+per-attempt reports live in sibling directories rather than inside that workflow's own audit
+directory, which is not what `AUDIT_MODEL.md` intends and is not a shape to build on.
+
+**Recommended shape when authorized:** give the four `_generate_report` callers an optional,
+validated attempt/sequence component so one workflow directory can hold
+`reports/qa.1.json`, `reports/qa.2.json`, … under its own `<workflow_id>`; keep the existing
+content-hash idempotency and differing-content refusal per artifact unchanged; and remove
+`QAAgent._report_scope`'s derived-identifier workaround in the same change, so the two cannot drift.
+Tests belong alongside the implementation per `docs/AGENT_PROTOCOL.md`.
+
+Requires its own fresh authorization, as an ordinary (non-AUTO/DASH-family) engine task. It is
+**not** an AUTO-005 blocker: the Human Owner accepted the documented limitation for that stage.
+Full description: `docs/reports/workflow-automation/AUTO-005-completion-report.md`, "Known
+limitations" item 1.
 
 ## DASH-002 — Repository adapter and read-only snapshot
 
