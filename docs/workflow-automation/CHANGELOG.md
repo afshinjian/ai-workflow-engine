@@ -286,3 +286,8 @@
   DASH-001 closed to `Done` first as a precondition. Documentation-and-architecture-only; no
   engine, test, or dependency change. Full record: `docs/CHANGELOG.md`,
   `docs/DECISION_LOG.md`.
+
+## 2026-07-28 — AUTO-006 authorized
+
+The Human Owner authorized AUTO-006 through the two-confirmation local gate. The stage is
+`AUTHORIZED`; implementation, approval, push, and merge remain separate.

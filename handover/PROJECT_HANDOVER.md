@@ -124,3 +124,10 @@ Approved, committed as `430cbb4`, closed to `Done`/`COMPLETE`, and merged into `
 
 Completing GOV-AUTO-02 did not authorize a successor. AUTO-006 requires its own fresh written
 authorization naming it; do not begin it or GOV-3.
+
+## Authorization update — 2026-07-28
+
+AUTO-006 is the single `Current` task after two exact Human Owner `AUTHORIZE` confirmations.
+The authorization-only commit contains governance and handoff records; implementation has not
+started. No predecessor was closed automatically, and no push, merge, upstream, branch, or stash
+operation was performed.

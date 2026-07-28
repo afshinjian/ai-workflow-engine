@@ -441,7 +441,7 @@ stage stops for Human Owner approval. Contract:
 
 ## AUTO-006 — GitHub pull request, automatic squash merge, and closeout integration
 
-Status: Planned
+Status: Current
 
 Requires its own fresh authorization. Contract:
 `docs/workflow-automation/stage-prompts/AUTO-006.md`.

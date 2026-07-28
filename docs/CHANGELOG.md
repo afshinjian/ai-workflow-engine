@@ -7,6 +7,8 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- AUTO-006 (2026-07-28): explicitly authorized by the Human Owner through the local
+  two-confirmation task gate; authorization commit and implementation remain separate.
 - GOV-AUTO-02 (2026-07-28): `scripts/workflow-authorize.sh <TASK_ID> [claude|codex]`, a local
   two-confirmation Human authorization gate. It validates an explicitly named planned/ready task,
   clean default-branch baseline, single-Current invariant, structured program predecessor and
