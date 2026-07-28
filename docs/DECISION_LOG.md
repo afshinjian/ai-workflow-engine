@@ -13,6 +13,40 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-07-28 — GOV-AUTO-01 closed to `Done`; AUTO-004 authorized as the single `Current` task
+
+**Decision:** An AUTO-004 session's authorization-precondition check found GOV-AUTO-01 still
+recorded `Current` in `docs/TASK_QUEUE.md`, `docs/current_task.md`, and `docs/remaining_tasks.md`
+even though its commit `a302c95` had already been merged into `main` via `a3b5b0a`. Under
+`self-governance.yaml`'s `maximum_current_tasks: 1`, that blocked
+`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 1's "no other `Current` task anywhere in the
+queue" precondition, so AUTO-004 could not be recorded `Current`. Per rule 16 the session stopped,
+made no change, and put the conflict to the Human Owner rather than resolving it on its own
+initiative.
+
+The Human Owner, presented with the conflict, gave one written decision resolving both: close
+GOV-AUTO-01 `Current → Done` — recording that it was implemented, validated, approved, committed
+as `a302c95`, and merged into `main` via `a3b5b0a` — and then authorize and begin AUTO-004 as the
+single `Current` task, with commit, push, merge, and any work on AUTO-005 or another task
+explicitly prohibited.
+
+**Rationale:** This is the third occurrence of the predecessor-still-`Current` pattern rule 16
+describes, after DASH-001→AUTO-001 (2026-07-23) and AUTO-001→AUTO-002 (2026-07-24), and it was
+handled the same way: the session detects and reports, the Human Owner decides. Rule 16 forbids a
+session selecting or authorizing a successor on its own initiative in the same session as a
+closeout; it does not forbid the Human Owner directing both explicitly when shown a genuine
+conflict. Recording the closure as an inference from the merge — "it is on `main`, therefore it
+must be `Done`" — was rejected for exactly that reason: the merge is evidence of the Human Owner's
+approval, not a substitute for the Human Owner's closure act, and a session that promotes itself
+past a `Current` task on inferred approval is the failure mode `maximum_current_tasks: 1` and
+rule 16 exist to prevent.
+
+**What this decision does not do:** it authorizes no successor to AUTO-004 (rule 16), no push or
+merge of the AUTO-004 work, and no reopening of GOV-AUTO-01. The stale
+`handover/PROJECT_HANDOVER.md` — which still described GOV-AUTO-01 as uncommitted and reported
+HEAD as `908be94` on the AUTO-003 branch — is refreshed under the same decision's explicit
+instruction to update the handoff.
+
 ## 2026-07-27 — Human Owner accepts AUTO-002 for closure without another independent review
 
 **Decision:** After reviewing the implementation report and validation results, the Human Owner

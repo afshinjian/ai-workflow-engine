@@ -58,12 +58,16 @@ plan to 1.0, and `docs/architecture.md` for the pipeline shapes.
 
 ## In progress
 
-No task is currently active. AUTO-002 is closed; AUTO-003 and all other remaining tasks require
-their own explicit Human Owner authorization before work begins.
+**AUTO-004 — Claude Code CLI and Codex CLI providers** is the single active task, authorized by
+the Human Owner on 2026-07-28 and `IN_PROGRESS` on branch `feature/auto-004-model-providers`. It
+implements the Model Provider layer (`docs/workflow-automation/MODEL_PROVIDER_CONTRACTS.md`) in
+`agentos_workflow/providers/`. AUTO-002 and AUTO-003 are closed; GOV-AUTO-01 was closed to `Done`
+on 2026-07-28 (committed as `a302c95`, merged into `main` via `a3b5b0a`). AUTO-005 and all other
+remaining tasks require their own explicit Human Owner authorization before work begins.
 
 ## Planned
 
-AUTO-003..AUTO-007 (`docs/TASK_QUEUE.md`; program plan `docs/workflow-automation/README.md`)
+AUTO-005..AUTO-007 (`docs/TASK_QUEUE.md`; program plan `docs/workflow-automation/README.md`)
 and Dashboard stages DASH-002..DASH-010 (program plan
 `docs/agentos-dashboard/MASTER_PLAN.md`), each requiring its own fresh Human Owner
 authorization; DASH-004 onward additionally gated on the OD-D9 dependency decision. Separately,
