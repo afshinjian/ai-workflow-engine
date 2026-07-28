@@ -9,21 +9,35 @@ commands.
 The released `ai-workflow-engine` 1.0.0 roadmap is complete. In the post-1.0 programs:
 
 - DASH-001 is `Done`; DASH-002..DASH-010 remain `Planned`.
-- AUTO-001 through AUTO-005 are `Done` and registry `COMPLETE`. All five are merged into `main`.
+- AUTO-001 through **AUTO-006** are `Done` and registry `COMPLETE`.
 - GOV-AUTO-01 and GOV-AUTO-02 are both `Done` — `a302c95`/`a3b5b0a` and
   `d212e4d2dae2cd0a3510c54d7cd098fdfd5da548` respectively.
-- **AUTO-006 is `Current`** — authorized by the Human Owner on 2026-07-28 through
-  `scripts/workflow-authorize.sh`, registry `IN_PROGRESS`, **implemented and validated but
-  uncommitted**, awaiting Human Owner review. Report:
-  `docs/reports/workflow-automation/AUTO-006-completion-report.md`.
+- **AUTO-006 was approved and closed on 2026-07-28** — implemented, validated, approved by the
+  Human Owner, committed as `d8d356d060076be4ad78afb4d20891004a946204`, and authorized for
+  publication into `main` under the same decision. Report:
+  `docs/reports/workflow-automation/AUTO-006-completion-report.md` (see its Addendum 1).
 - AUTO-007 remains `NOT_STARTED`/`Planned`. GOV-2 and GOV-3 remain `Planned`, each needing its own
-  authorization.
+  authorization. GOV-AUTO-03 has not been authorized.
 
-No task other than AUTO-006 is `Current`. AUTO-006's implementation is complete but its
-authorization does not extend to committing, pushing, merging, or beginning AUTO-007 — those all
-require separate, explicit Human Owner acts.
+No task is `Current` as of this commit. That is a legal state: `maximum_current_tasks: 1` is a
+ceiling, not a quota.
 
-## What AUTO-006 delivered (uncommitted, on `feature/auto-006-pr-merge-closeout`)
+## What this commit is
+
+This is the **AUTO-006 governance closure commit** — records only, no runtime code. It exists
+because the Human Owner's closure-and-publication decision requires `main`, after the merge, to
+carry a consistent record set (task queue, both mirrors, project state, stage registry, both
+changelogs, decision log, this handover, and the checksum) showing AUTO-006 `Done`/`COMPLETE`. The
+implementation itself is `d8d356d060076be4ad78afb4d20891004a946204`, which this commit does not
+touch.
+
+The AUTO-006 completion report was **not** rewritten. Its Confirmation section says no commit was
+performed, which was true when written — `d8d356d` came afterwards. The commit, the approval, and
+the merge are recorded in a new append-only addendum at the end of that report, a new
+`docs/workflow-automation/STAGE_REGISTRY.md` §5 row, and `docs/DECISION_LOG.md`
+(`STAGE_REGISTRY.md` §3 rule 8; the Human Owner's explicit instruction).
+
+## What AUTO-006 delivered (committed as `d8d356d`, on `feature/auto-006-pr-merge-closeout`)
 
 Two new files only: `agentos_workflow/skills/git_github.py` (the eight Git/GitHub Skills of
 `SKILL_CONTRACTS.md` §5 — `create_commit`, `push_stage_branch`, `create_pull_request`,
@@ -66,17 +80,18 @@ on both `agentos_workflow` and `src`; `git diff --check` clean; `workflowctl ver
 
 | Fact | Value |
 |---|---|
-| `main` / `origin/main` | matched at `3336184619bc6464f62a162ee34d869957b08928` ("authorize AUTO-006") before this session |
-| Active branch | `feature/auto-006-pr-merge-closeout`, created from that clean `main`; **not pushed** |
-| Working tree | two new untracked files only (`agentos_workflow/skills/git_github.py`, `agentos_workflow/tests/test_skills_git_github.py`); no commit made |
+| Active branch | `feature/auto-006-pr-merge-closeout` |
+| Implementation commit | `d8d356d060076be4ad78afb4d20891004a946204` — the approved AUTO-006 work |
+| This commit | governance closure records for AUTO-006 |
+| Next step | push this branch, merge into `main`, push `main` (authorized) |
 | AUTO-005 implementation commit | `430cbb4`, merged |
 | GOV-AUTO-02 implementation commit | `d212e4d2dae2cd0a3510c54d7cd098fdfd5da548`, merged |
-| Stage branches | `feature/auto-004-model-providers`, `feature/auto-005-agents` — pushed and **retained**; `feature/auto-006-pr-merge-closeout` — local only, not yet pushed; none may be deleted |
+| Stage branches | `feature/auto-004-model-providers`, `feature/auto-005-agents` — pushed and **retained**; `feature/auto-006-pr-merge-closeout` — about to be pushed under this decision; none may be deleted |
 | Stashes | `stash@{0}`, `stash@{1}` — both untouched since before AUTO-002 |
 
-A stage branch created and not yet pushed produces the pre-existing `upstream_missing` finding on
-`workflowctl check-git` — the tolerance `STAGE_REGISTRY.md` §3 rule 16 and the SSP both name; it
-is expected here and is not a defect.
+Local `main` carries the `docs(governance): authorize AUTO-006` commit
+(`3336184619bc6464f62a162ee34d869957b08928`) one ahead of `origin/main` — a pre-existing,
+already-recorded state, not new divergence introduced by this commit.
 
 ## Known open items
 
@@ -95,11 +110,11 @@ is expected here and is not a defect.
 ## Next session
 
 1. Verify `git status`, recent history, and this handover checksum.
-2. Confirm which task is `Current` — read `docs/TASK_QUEUE.md`, not this file alone. As of this
-   writing it is AUTO-006, implemented but uncommitted.
-3. AUTO-006's implementation requires Human Owner review (report above) before any commit, push,
-   merge, or start of AUTO-007. Starting AUTO-007, GOV-2, GOV-3, or any DASH-00x task requires its
-   own fresh written authorization — none currently authorized.
-4. Never delete any stash, and never delete `feature/auto-004-model-providers` or
-   `feature/auto-005-agents`. `feature/auto-006-pr-merge-closeout` also should not be deleted
-   while AUTO-006 remains `Current`.
+2. Confirm which task, if any, is `Current` — read `docs/TASK_QUEUE.md`, not this file alone. As
+   of this writing no task is `Current`.
+3. AUTO-007, GOV-2, GOV-3, and GOV-AUTO-03 all require their own fresh written authorization
+   naming them — closing AUTO-006 authorized none of them.
+   (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 16).
+4. Never delete either stash, and never delete `feature/auto-004-model-providers`,
+   `feature/auto-005-agents`, or `feature/auto-006-pr-merge-closeout` — the Human Owner's decision
+   explicitly retains all three.

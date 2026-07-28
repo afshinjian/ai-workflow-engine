@@ -5,7 +5,7 @@
 | **Title** | AgentOS Workflow Automation — Changelog |
 | **Purpose** | Program-level changelog, newest first. |
 | **Status** | Draft |
-| **Version** | 2.14 |
+| **Version** | 2.15 |
 | **Owner** | Documentation & Governance session |
 | **Dependencies** | None |
 | **Related Documents** | `docs/CHANGELOG.md` (repository-level; cross-posted there) |
@@ -100,6 +100,19 @@
   no commit, push, merge, or AUTO-004 work was performed.
 
 ### Changed
+- AUTO-006 (2026-07-28): approved, closed, and published. The Human Owner approved the
+  implementation, recorded commit `d8d356d`, moved the stage `IN_PROGRESS → COMPLETE` (task
+  `Current → Done`), and authorized publication: `feature/auto-006-pr-merge-closeout` pushed to
+  `origin`, local `main` updated from `origin/main`, the stage branch merged into `main` by the
+  established safe merge policy, and `main` pushed. `main` now carries
+  `agentos_workflow/skills/git_github.py`. The stage branch was retained (no deletion) and both
+  pre-existing stashes untouched. The two documented limitations — Orchestrator wiring of the
+  Merge Safety Gate / Checks-Wait Gate, and the `allowed_environment_variables` gap on five
+  `gh`-based Skill calls (OD-10, DD-38) — were explicitly accepted rather than fixed in scope. Per
+  `STAGE_REGISTRY.md` §3 rule 8 the completion report was **not** rewritten — the commit
+  post-dates it — and the commit, approval, and merge are recorded in a new append-only addendum,
+  a new §5 row, and `docs/DECISION_LOG.md`. No successor is authorized: AUTO-007 remains
+  `NOT_STARTED`.
 - AUTO-005 (2026-07-28): approved, closed, and published. The Human Owner approved the
   implementation, explicitly accepted all five documented limitations, recorded commit `430cbb4`,
   moved the stage `IN_PROGRESS → COMPLETE` (task `Current → Done`), and authorized publication:

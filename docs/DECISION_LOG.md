@@ -13,6 +13,47 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-07-28 — AUTO-006 approved, closed to `Done`, and merged; no successor authorized
+
+**Decision:** The Human Owner reviewed the AUTO-006 implementation and validation report
+(`docs/reports/workflow-automation/AUTO-006-completion-report.md`) and recorded: *"I approve the
+formal closure and publication of AUTO-006. The approved AUTO-006 implementation commit is
+`d8d356d060076be4ad78afb4d20891004a946204`."* This directed, in order: record AUTO-006 as
+implemented, validated, approved, and committed locally as `d8d356d`; move the task
+`Current → Done` and the registry state `IN_PROGRESS → COMPLETE`; append a closure entry to the
+Authorization Log (`STAGE_REGISTRY.md` §5) and this approval/closure entry to
+`docs/DECISION_LOG.md`; reconcile every governance mirror and the handover checksum in exactly one
+governance-only local commit, with no implementation changes bundled into it; then push the stage
+branch, update local `main` from `origin/main`, merge into `main` by the repository's established
+safe merge policy, and push `main` — retaining the stage branch and leaving both pre-existing
+stashes untouched. The decision explicitly withholds authorization for AUTO-007 and for
+GOV-AUTO-03: neither may begin as a consequence of this closure.
+
+**Rationale — why the completion report is not rewritten:** the AUTO-006 completion report's
+Confirmation section states that no commit, push, pull request, or merge had been performed —
+true at the moment that report's text was finalized, immediately before this stage's own
+implementation commit (`d8d356d`) was created. Rewriting that section to read as though the
+commit already existed at that point would falsify what the delivering session actually recorded,
+which `docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 8 forbids. The commit, the Human
+Owner's approval, the closure, and the publication are instead recorded through a new,
+append-only Addendum 1 section at the end of that report, a new `STAGE_REGISTRY.md` §5 row, and
+this entry — exactly the record-integrity pattern already established for AUTO-004 (commit
+`84616d5`, addendum in its own completion report) and AUTO-005 (commit `430cbb4`, same pattern).
+
+**Rationale — two known limitations remain open, not fixed, by this closure:** the Human Owner's
+approval explicitly accepted AUTO-006 as delivered, including its two self-reported limitations —
+Orchestrator wiring of the Merge Safety Gate / Checks-Wait Gate not performed (outside this
+stage's allowed files), and the `allowed_environment_variables` gap on five of the eight
+`gh`-based Skill calls (OD-10, `DECISIONS.md` DD-38). Neither is fixed by this governance-only
+closure commit, which touches no runtime code; both remain `Open` for a future stage's explicit
+scope decision.
+
+**What this decision does not do:** it authorizes no AUTO-007 work, no GOV-AUTO-03 work, and no
+successor of any kind (`STAGE_REGISTRY.md` §3 rule 16) — every remaining task in
+`docs/TASK_QUEUE.md` stays `Planned` and requires its own fresh, explicit Human Owner
+authorization. Neither pre-existing stash was touched, and no branch other than the ones this
+decision names was created, deleted, or renamed.
+
 ## 2026-07-28 — AUTO-006 implemented, awaiting Human Owner approval
 
 **Decision:** Acting under the standing AUTO-006 authorization below, an engine implementation

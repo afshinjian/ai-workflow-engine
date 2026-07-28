@@ -441,7 +441,22 @@ stage stops for Human Owner approval. Contract:
 
 ## AUTO-006 — GitHub pull request, automatic squash merge, and closeout integration
 
-Status: Current
+Status: Done
+
+Closed `Current → Done` on 2026-07-28 by explicit Human Owner decision ("I approve the formal
+closure and publication of AUTO-006. The approved AUTO-006 implementation commit is
+`d8d356d060076be4ad78afb4d20891004a946204`"), recording that the stage was implemented, validated,
+approved by the Human Owner, and committed locally as
+`d8d356d060076be4ad78afb4d20891004a946204`. The same decision authorized publication — pushing
+`feature/auto-006-pr-merge-closeout` and merging it into `main`. Registry state
+`IN_PROGRESS → COMPLETE` (`docs/workflow-automation/STAGE_REGISTRY.md` §4; §5 closure row,
+2026-07-28).
+
+The commit `d8d356d060076be4ad78afb4d20891004a946204` was created after the stage completion
+report had already been written, so that report's "no commit … was performed" Confirmation
+statement was accurate when written and is **not** rewritten; the commit, the approval, and the
+merge are recorded in a new append-only addendum to that report, per
+`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 8.
 
 Authorized by the Human Owner on 2026-07-28 through the local two-confirmation task gate
 (`scripts/workflow-authorize.sh`). Branch `feature/auto-006-pr-merge-closeout` created from clean
@@ -462,9 +477,8 @@ stage adds it (DD-38, `docs/workflow-automation/OPEN_QUESTIONS.md` OD-10). Repor
 `docs/reports/workflow-automation/AUTO-006-completion-report.md`. Contract:
 `docs/workflow-automation/stage-prompts/AUTO-006.md`.
 
-Implementation is complete and validated but **not committed, approved, or closed** — the diff is
-uncommitted in the working tree, awaiting Human Owner review of the report above (including the
-Orchestrator-wiring scope question and OD-10) before any commit, push, merge, or AUTO-007 work.
+This closure authorizes no successor: AUTO-007, GOV-2, and GOV-3 all remain `Planned` and
+unauthorized.
 
 ## AUTO-007 — End-to-end dry run, recovery tests, and DASH integration
 
