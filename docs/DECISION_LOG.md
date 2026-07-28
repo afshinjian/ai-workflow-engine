@@ -13,6 +13,41 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-07-28 — AUTO-005 approved, closed to `Done`, and merged; the QA report collision deferred to GOV-3
+
+**Decision:** The Human Owner approved the AUTO-005 implementation, explicitly accepted all five
+limitations the stage report documented, authorized exactly one local commit (created as
+`430cbb4`), and then — in a second decision — approved AUTO-005's formal closure and publication:
+task `Current → Done`, registry `IN_PROGRESS → COMPLETE`, push, merge into `main`, push `main`,
+retain the stage branch, touch neither stash, and do not begin AUTO-006.
+
+**Rationale — why the QA report collision was deferred rather than fixed.** AUTO-005 found a real
+integration defect: `agentos_workflow/skills/reporting.py` writes one artifact per workflow
+identifier per report kind and correctly refuses to overwrite differing content, but the bounded
+repair loop (`FAILURE_RECOVERY.md` §1) produces up to four genuinely different QA reports per
+workflow, so the second round failed on the *artifact* rather than on the code under review. The
+stage could not fix it — `agentos_workflow/skills/**` is outside AUTO-005's allowed paths — so it
+shipped a scoped per-attempt audit workaround, disclosed it in the report, and asked. The Human
+Owner accepted the workaround for this stage and directed that the underlying defect be recorded as
+explicit future work, not fixed in scope. It is now **GOV-3 — Attempt-aware report artifact naming
+in the Reporting Skills** (`docs/TASK_QUEUE.md`, `Planned`, requiring its own fresh authorization),
+carrying the defect description, why the workaround is not the fix, and a recommended shape.
+Expanding AUTO-005's allowed paths to fix it in place was rejected: a stage that widens its own
+scope to absorb a defect it discovers is exactly the drift the allowed-path list exists to prevent,
+and the fix touches a module three other stages depend on.
+
+**Rationale — why the completion report was not rewritten.** AUTO-005's report was deliberately
+finished *before* its commit was created, recording the approval and the authorized commit without
+naming a hash — the record-integrity problem AUTO-004 had hit, avoided by construction this time.
+Closure then added a fact the report could not have known (the hash `430cbb4`) plus the merge
+result, so those are recorded in a new append-only addendum, a new `STAGE_REGISTRY.md` §5 row, and
+this entry, leaving the report's own text untouched (rule 8).
+
+**What this decision does not do:** it authorizes no successor (rule 16). AUTO-006, AUTO-007,
+GOV-2, and GOV-3 all remain `Planned` and explicitly unauthorized, and the Human Owner's directive
+said so in terms ("Do not authorize AUTO-006"). Neither stash was touched, and both
+`feature/auto-004-model-providers` and `feature/auto-005-agents` were retained, not deleted.
+
 ## 2026-07-28 — AUTO-004 approved, closed to `Done`, and merged; AUTO-005 authorized separately
 
 **Decision:** An AUTO-005 session's authorization-precondition check found AUTO-004 still
