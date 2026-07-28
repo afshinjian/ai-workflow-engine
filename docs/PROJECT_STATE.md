@@ -132,3 +132,12 @@ providers`, `feature/auto-005-agents`, and `feature/auto-006-pr-merge-closeout` 
 `origin` and retained, not deleted. Stage branches created later and not yet pushed produce the
 pre-existing `upstream_missing` finding from `workflowctl check-git` — the tolerance
 `docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 16 and the SSP both name.
+
+## Authorization update — 2026-07-28
+
+## AUTO-007
+
+Status: Current
+
+The Human Owner explicitly authorized this single task through the local authorization gate.
+Implementation and approval remain separate phases.

@@ -328,3 +328,8 @@
 
 The Human Owner authorized AUTO-006 through the two-confirmation local gate. The stage is
 `AUTHORIZED`; implementation, approval, push, and merge remain separate.
+
+## 2026-07-28 — AUTO-007 authorized
+
+The Human Owner authorized AUTO-007 through the two-confirmation local gate. The stage is
+`AUTHORIZED`; implementation, approval, push, and merge remain separate.

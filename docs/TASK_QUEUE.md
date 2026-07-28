@@ -506,7 +506,7 @@ commit; does not begin AUTO-007.
 
 ## AUTO-007 — End-to-end dry run, recovery tests, and DASH integration
 
-Status: Planned
+Status: Current
 
 Requires its own fresh authorization. Contract:
 `docs/workflow-automation/stage-prompts/AUTO-007.md`.

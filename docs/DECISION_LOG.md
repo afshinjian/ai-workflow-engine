@@ -13,6 +13,15 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-07-28 — Human Owner authorized AUTO-007
+
+**Decision:** The Human Owner typed the two exact `AUTHORIZE` confirmations for
+`AUTO-007`. The task moves `Planned → Current`; implementation remains separate.
+The authorization was recorded from branch `main` at `b4abc0a5b2ba67d38b7c156ee7522aef9d8b52e9`.
+
+**Boundaries:** This decision authorizes only the named task. It authorizes no successor,
+push, merge, implementation approval, stash mutation, or automatic predecessor closure.
+
 ## 2026-07-28 — Human Owner approved and closed GOV-AUTO-03
 
 **Decision:** The Human Owner reviewed the implementation diff for `GOV-AUTO-03` on
