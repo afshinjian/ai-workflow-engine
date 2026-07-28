@@ -339,7 +339,20 @@ AUTO-003. Remote/GitHub reconciliation remains assigned to the later GitHub inte
 
 ## AUTO-004 — Claude Code CLI and Codex CLI providers
 
-Status: Current
+Status: Done
+
+Closed `Current → Done` on 2026-07-28 by explicit Human Owner decision ("I approve the AUTO-004
+implementation and authorize its formal closure and publication"), recording that the stage was
+implemented, validated, approved by the Human Owner, and committed locally as `84616d5`. The same
+decision authorized publication — pushing `feature/auto-004-model-providers` and merging it into
+`main` — and, only after that integration and its closure checks passed, a separate explicit
+authorization of AUTO-005. Registry state `IN_PROGRESS → COMPLETE`
+(`docs/workflow-automation/STAGE_REGISTRY.md` §4; §5 closure row, 2026-07-28).
+
+The commit `84616d5` was created after the stage completion report had already been written, so
+that report's "no commit was performed" statement was accurate when written and is **not**
+rewritten; the commit, the approval, and the merge are recorded in a new append-only addendum to
+that report, per `docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 8.
 
 Authorized by the Human Owner on 2026-07-28 ("I authorize AUTO-004 — Claude Code CLI and Codex
 CLI providers"), directing branch creation from the clean, synchronized `main` (`a3b5b0a`),

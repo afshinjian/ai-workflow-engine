@@ -9,15 +9,15 @@ previously closed to `Done`. AUTO-002 was accepted and closed to `Done` by the H
 Human Owner authorization the same day. AUTO-003 was implemented, approved, committed locally as
 `908be94`, and closed to `Done` on 2026-07-27. GOV-AUTO-01 was closed to `Done` on 2026-07-28 —
 implemented, validated, approved, committed as `a302c95`, and merged into `main` via `a3b5b0a`.
-**AUTO-004 is `Current`**, authorized by the Human Owner on 2026-07-28 as the single active task.
-Remaining work belongs to the DASH program (DASH-002..010, all `Planned`), the rest of the AUTO
-program (AUTO-005..007, all `Planned`), and the ordinary governance/tooling task GOV-2. Each
-requires its own fresh written authorization before it may become `Current`; authorizing AUTO-004
-authorizes none of them, and **AUTO-005 is explicitly not authorized**.
+**AUTO-004 was closed to `Done` on 2026-07-28** — implemented, validated, approved, committed as
+`84616d5`, and published to `main` under the same Human Owner decision — so no task is `Current`
+at this point in the record. Remaining work belongs to the DASH program (DASH-002..010, all
+`Planned`), the rest of the AUTO program (AUTO-005..007, all `Planned`), and the ordinary
+governance/tooling task GOV-2. Each requires its own fresh written authorization before it may
+become `Current`; closing AUTO-004 authorizes none of them.
 
 | Task | Title | Status |
 |---|---|---|
-| AUTO-004 | Claude Code CLI and Codex CLI providers | Current |
 | GOV-2 | Extend `check-governance` to validate stage-registry/lifecycle consistency | Planned |
 | AUTO-005 | PMO, implementation, QA, Git, merge, and closeout agents | Planned |
 | AUTO-006 | GitHub pull request, automatic squash merge, and closeout integration | Planned |

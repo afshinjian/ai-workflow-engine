@@ -5,7 +5,7 @@
 | **Title** | AgentOS Workflow Automation — Changelog |
 | **Purpose** | Program-level changelog, newest first. |
 | **Status** | Draft |
-| **Version** | 2.10 |
+| **Version** | 2.11 |
 | **Owner** | Documentation & Governance session |
 | **Dependencies** | None |
 | **Related Documents** | `docs/CHANGELOG.md` (repository-level; cross-posted there) |
@@ -50,6 +50,16 @@
   no commit, push, merge, or AUTO-004 work was performed.
 
 ### Changed
+- AUTO-004 (2026-07-28): approved, closed, and published. The Human Owner approved the
+  implementation, recorded commit `84616d5`, moved the stage `IN_PROGRESS → COMPLETE` (task
+  `Current → Done`), and authorized publication: `feature/auto-004-model-providers` pushed to
+  `origin`, local `main` fast-forwarded from `origin/main`, the stage branch merged into `main` by
+  the established safe merge policy, and `main` pushed. `main` now carries
+  `agentos_workflow/providers/`, so AUTO-005's Agents have real Providers to be restricted to. The
+  stage branch was retained (no deletion) and both pre-existing stashes untouched. Per
+  `STAGE_REGISTRY.md` §3 rule 8 the stage completion report was **not** rewritten — the commit
+  post-dates it — and the commit, approval, and merge are recorded in a new append-only addendum
+  to that report, a new §5 Authorization Log row, and `docs/DECISION_LOG.md`.
 - AUTO-003 (2026-07-27): **OD-2 resolved** — secret handling is an environment allowlist as the
   primary control plus named, linear-time regex output redaction as defense-in-depth, applied to
   every string leaving a Skill. Entropy-based detection was considered and rejected (DD-33).

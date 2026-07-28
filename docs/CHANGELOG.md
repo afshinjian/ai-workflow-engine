@@ -35,6 +35,14 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
   approval; not committed.
 
 ### Changed
+- AUTO-004 (2026-07-28): approved by the Human Owner, closed `Current → Done` / registry
+  `IN_PROGRESS → COMPLETE`, and published — committed locally as `84616d5`, pushed as
+  `feature/auto-004-model-providers`, and merged into `main`, which now carries
+  `agentos_workflow/providers/`. The stage branch was retained and both pre-existing stashes left
+  untouched. The stage completion report was **not** rewritten: its "no commit was performed"
+  Confirmation was accurate when written, and the later commit, approval, and merge are recorded
+  in a new append-only addendum to it plus `docs/workflow-automation/STAGE_REGISTRY.md` §5 and
+  `docs/DECISION_LOG.md`.
 - GOV-AUTO-01 (2026-07-28): closed `Current → Done` by explicit Human Owner decision, recording
   that it was implemented, validated, approved, committed as `a302c95`, and merged into `main` via
   `a3b5b0a`. The closeout bookkeeping had lagged the merge — `main` already carried the work while

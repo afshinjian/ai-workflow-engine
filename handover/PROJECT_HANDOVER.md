@@ -9,22 +9,31 @@ commands.
 The released `ai-workflow-engine` 1.0.0 roadmap is complete. In the post-1.0 programs:
 
 - DASH-001 is `Done`; DASH-002..DASH-010 remain `Planned`.
-- AUTO-001, AUTO-002, and AUTO-003 are `Done` and registry `COMPLETE`.
-- **GOV-AUTO-01 is `Done`** as of 2026-07-28 — implemented, validated, approved, committed as
-  `a302c95`, and merged into `main` via `a3b5b0a`.
-- **AUTO-004 — Claude Code CLI and Codex CLI providers is `Current`**, registry `IN_PROGRESS`,
-  implemented and validated on `feature/auto-004-model-providers`, **uncommitted**, awaiting Human
-  Owner approval.
-- AUTO-005..AUTO-007 remain `Planned`/`NOT_STARTED`. **AUTO-005 is explicitly not authorized.**
+- AUTO-001, AUTO-002, AUTO-003, and **AUTO-004** are `Done` and registry `COMPLETE`.
+- GOV-AUTO-01 is `Done` — committed as `a302c95`, merged into `main` via `a3b5b0a`.
+- **AUTO-004 was approved and closed on 2026-07-28** — implemented, validated, approved by the
+  Human Owner, committed as `84616d5`, and authorized for publication into `main` under the same
+  decision.
+- AUTO-005..AUTO-007 remain `Planned`/`NOT_STARTED`, each requiring its own fresh written
+  authorization naming it.
 - GOV-2 remains `Planned`.
 
-### Correction to the previous handover
+No task is `Current` as of this commit. That is a legal state: `maximum_current_tasks: 1` is a
+ceiling, not a quota.
 
-The 2026-07-27 edition of this file was stale and should not be trusted if encountered in an old
-context: it reported HEAD as `908be94` on the AUTO-003 branch and described GOV-AUTO-01 as
-uncommitted and awaiting approval. Both AUTO-003's and GOV-AUTO-01's commits were subsequently
-merged into `main`. It also left open the question of whether AUTO-003's closure to `Done` should
-be reverted; the Human Owner's 2026-07-28 decision settles it — AUTO-003 stays `Done`.
+## What this commit is
+
+This is the **AUTO-004 governance closure commit** — records only, no runtime code. It exists
+because the Human Owner's closure-and-publication decision requires `main`, after the merge, to
+carry a consistent record set (task queue, both mirrors, project state, stage registry, both
+changelogs, decision log, this handover, and the checksum) showing AUTO-004 `Done`/`COMPLETE`. The
+implementation itself is `84616d5`, which this commit does not touch.
+
+The AUTO-004 completion report was **not** rewritten. Its Confirmation section says no commit was
+performed, which was true when written — `84616d5` came afterwards. The commit, the approval, and
+the merge are recorded in a new append-only addendum at the end of that report, a new
+`docs/workflow-automation/STAGE_REGISTRY.md` §5 row, and `docs/DECISION_LOG.md`
+(`STAGE_REGISTRY.md` §3 rule 8; the Human Owner's explicit instruction).
 
 ## Current Git state
 
@@ -32,26 +41,14 @@ be reverted; the Human Owner's 2026-07-28 decision settles it — AUTO-003 stays
 |---|---|
 | Branch | `feature/auto-004-model-providers` |
 | Created from | clean `main` at `a3b5b0a` |
-| Upstream | **none** — this branch has never been pushed |
-| Worktree | dirty by design: the complete AUTO-004 diff awaits inspection |
+| Implementation commit | `84616d5` — the approved AUTO-004 work |
+| This commit | governance closure records for AUTO-004 |
+| Next step | push this branch, merge into `main`, push `main` (authorized) |
 | Stashes | `stash@{0}`, `stash@{1}` — both untouched since before AUTO-002 |
 
-`main` is at `a3b5b0a` and matches `origin/main`. That merge brought both `908be94` (AUTO-003) and
-`a302c95` (GOV-AUTO-01) onto the baseline, so neither is outstanding any longer.
+## AUTO-004 — what was delivered
 
-`workflowctl check-git` reports `upstream_missing` on this branch. That is expected and
-pre-existing for a stage branch never intended to be pushed — the tolerance
-`STAGE_REGISTRY.md` §3 rule 16 and the SSP both name. Every other configured check passes.
-
-## AUTO-004 — current state
-
-Authorized by the Human Owner on 2026-07-28 in a decision that first closed GOV-AUTO-01 to `Done`,
-freeing the single `Current` slot under `maximum_current_tasks: 1`. That closure was itself the
-resolution of a rule-16 predecessor conflict this session detected and reported rather than
-resolving on its own initiative (`docs/DECISION_LOG.md`, 2026-07-28;
-`docs/workflow-automation/STAGE_REGISTRY.md` §5).
-
-Delivered the Model Provider layer in `agentos_workflow/providers/`
+The Model Provider layer in `agentos_workflow/providers/`
 (`docs/workflow-automation/MODEL_PROVIDER_CONTRACTS.md`):
 
 - `base.py` — the `Provider` interface (`kind` + `invoke`, nothing else), the shared
@@ -67,32 +64,23 @@ spawn failure is the only proven-pre-side-effect case. Session isolation is a pe
 `0o700` directory with `TMPDIR` pointed into it. Only allowlisted environment variables reach a
 provider process; `HOME` is never forwarded implicitly.
 
-Validation: 106 focused tests, 1,332 engine tests, 1,037 in `tests/` (collection unchanged);
-ruff, black, mypy, and `pre-commit` clean; `git diff --check` clean; `workflowctl verify` green
-except the pre-existing `upstream_missing`. Full detail:
+Validation at implementation time: 106 focused tests, 1,332 engine tests, 1,037 in `tests/`
+(collection unchanged); ruff, black, mypy, and `pre-commit` clean; `git diff --check` clean;
+`workflowctl verify` green except the pre-existing `upstream_missing`. Full detail:
 `docs/reports/workflow-automation/AUTO-004-completion-report.md`.
-
-Two defects were found and fixed during the stage's own self-review rather than merely recorded:
-redacting stdout before JSON parsing destroyed valid reports (notably the credential-related QA
-findings an operator most needs), and the session directory was created but never actually handed
-to the CLI. Both are described in the report's Known limitations section.
-
-**Nothing is committed.** Approval and commit are the Human Owner's next act.
 
 ## Known open risk
 
-The two providers' argv shapes (`--print --output-format json`, `exec --json`) are defined by this
-stage but **not verified against a live CLI** — `MODEL_PROVIDER_CONTRACTS.md` §7 assigns the
-invocation shape to AUTO-004 while the stage contract assigns real end-to-end invocation to
-AUTO-007. If a live CLI rejects a flag, the fix is one line in that provider's `_ARGV_SUFFIX`.
+The two providers' argv shapes (`--print --output-format json`, `exec --json`) are defined by
+AUTO-004 but **not verified against a live CLI** — `MODEL_PROVIDER_CONTRACTS.md` §7 assigns the
+invocation shape to AUTO-004 while real end-to-end invocation is AUTO-007's. If a live CLI rejects
+a flag, the fix is one line in that provider's `_ARGV_SUFFIX`.
 
 ## Next session
 
 1. Verify `git status`, recent history, and this handover checksum.
-2. Confirm AUTO-004 is the only `Current` task.
-3. AUTO-004 awaits **Human Owner approval**. Do not commit it without a fresh instruction.
-4. Publication decisions remain open and unauthorized: pushing or merging anything on this branch,
-   and anything to do with AUTO-005.
-
-Completing a task never authorizes its successor. AUTO-005 requires its own fresh written
-authorization naming it.
+2. Confirm which task, if any, is `Current` — read `docs/TASK_QUEUE.md`, not this file alone.
+3. AUTO-005 requires its own fresh written authorization naming it. Closing AUTO-004 authorized
+   no successor (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 16).
+4. Never delete either stash, and never delete `feature/auto-004-model-providers` — the Human
+   Owner's decision explicitly retained it.

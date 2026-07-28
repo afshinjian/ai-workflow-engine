@@ -329,3 +329,56 @@ act.
 No commit, push, pull request, merge, tag, branch rename, branch deletion, or history alteration
 was performed. Both pre-existing stashes are untouched. No successor stage was begun, selected, or
 prepared: AUTO-005 remains `NOT_STARTED` and unauthorized.
+
+---
+
+## Addendum 1 — Human Owner approval, commit, closure, and merge (2026-07-28)
+
+**This addendum is appended, not merged into the text above.** Nothing earlier in this report has
+been edited. In particular the Confirmation section's statement that no commit, push, pull
+request, or merge was performed was **accurate when written**: every event recorded below happened
+afterwards, under a separate Human Owner decision. Rewriting that section to make it read as
+though the commit already existed would falsify what the delivering session actually did, which
+`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 8 forbids and the Human Owner's decision
+explicitly prohibited.
+
+### What the Human Owner decided
+
+> *"I approve the AUTO-004 implementation and authorize its formal closure and publication. The
+> approved AUTO-004 commit is `84616d5`."*
+
+The decision directed, in order: record AUTO-004 as implemented, validated, approved, and
+committed locally as `84616d5`; move the task `Current → Done` and the registry state
+`IN_PROGRESS → COMPLETE`; append a closure entry to the Authorization Log and a Human Owner
+approval entry to `docs/DECISION_LOG.md`; reconcile every governance mirror and the handover
+checksum; then push, merge into `main`, and push `main` — retaining the stage branch and leaving
+both stashes untouched.
+
+### Events recorded by this addendum
+
+| Event | Value |
+|---|---|
+| Approved implementation commit | `84616d5` — `feat(workflow): add Claude Code CLI and Codex CLI provider adapters (AUTO-004)` |
+| Commit authored | 2026-07-28, after this report was written |
+| Task status | `Current → Done` |
+| Registry state | `IN_PROGRESS → COMPLETE` (§4); closure row appended to §5 |
+| Stage branch | `feature/auto-004-model-providers` — pushed to `origin`, **retained** (not deleted) |
+| Merge into `main` | see the integration table below |
+| Stashes | `stash@{0}`, `stash@{1}` — untouched throughout |
+
+### Integration result
+
+`main` was updated from `origin/main` without rewriting history and the stage branch merged by the
+repository's established policy (the same no-fast-forward merge shape used for AUTO-002's `87a5062`
+and AUTO-003/GOV-AUTO-01's `a3b5b0a`). Post-merge verification confirmed: `main` contains
+`84616d5`; `agentos_workflow/providers/` exists on `main`; local `main` equals `origin/main`; the
+working tree is clean; AUTO-004 is `Done`/`COMPLETE`; and the governance, task-state, and handover
+checks pass. Exact commit identifiers and command output are recorded in the AUTO-005 stage report
+(`AUTO-005-completion-report.md`, "AUTO-004 closure and merge results"), which is the session
+record for the integration itself.
+
+### Status of this stage
+
+**COMPLETE.** No part of the AUTO-004 implementation was changed by this addendum — it is a
+governance record only. The two known limitations recorded above (the providers' argv shapes are
+unverified against a live CLI, deferred to AUTO-007) remain open and unaffected.
