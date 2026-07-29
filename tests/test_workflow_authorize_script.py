@@ -12,6 +12,7 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 AUTHORIZE_SCRIPT = REPO_ROOT / "scripts" / "workflow-authorize.sh"
+BRANCH_PREPARE_LIB = REPO_ROOT / "scripts" / "lib" / "branch_prepare.sh"
 
 GIT_ENV = {
     "GIT_AUTHOR_NAME": "Test",
@@ -44,12 +45,13 @@ def checksum_row(path: Path) -> str:
 @pytest.fixture
 def authorization_repo(tmp_path: Path) -> Path:
     repo = tmp_path / "authorization repo"
-    (repo / "scripts").mkdir(parents=True)
+    (repo / "scripts" / "lib").mkdir(parents=True)
     (repo / "docs" / "workflow-automation").mkdir(parents=True)
     (repo / "docs" / "agentos-dashboard").mkdir(parents=True)
     (repo / "handover").mkdir()
     (repo / "bin").mkdir()
     shutil.copy2(AUTHORIZE_SCRIPT, repo / "scripts" / "workflow-authorize.sh")
+    shutil.copy2(BRANCH_PREPARE_LIB, repo / "scripts" / "lib" / "branch_prepare.sh")
 
     (repo / "scripts" / "workflow-next.sh").write_text(
         "#!/usr/bin/env bash\n"
@@ -358,12 +360,58 @@ def test_governance_transition_and_commit_are_consistent(
     assert "scripts/workflow-authorize.sh" not in committed
     assert "tests/test_workflow_authorize_script.py" not in committed
     assert all(path.startswith(("docs/", "handover/")) for path in committed), committed
-    assert git(authorization_repo, "branch", "--show-current") == before_branch
+    # AUTO-002 is registry-governed with a registered branch different from `main` (GOV-AUTO-04):
+    # the gate creates and switches to it, from the authorization commit, immediately afterwards.
+    assert before_branch == "main"
+    assert git(authorization_repo, "branch", "--show-current") == "feature/auto-002"
+    assert git(authorization_repo, "rev-parse", "main") == git(
+        authorization_repo, "rev-parse", "feature/auto-002"
+    )
     assert (
         git(authorization_repo, "rev-parse", "--abbrev-ref", "@{upstream}", check=False)
         == before_upstream
     )
     assert git(authorization_repo, "stash", "list") == before_stashes
+
+
+def test_authorize_reports_working_branch(authorization_repo: Path) -> None:
+    result = run_authorize(authorization_repo, "AUTO-002", stdin="AUTHORIZE\nAUTHORIZE\n")
+    assert result.returncode == 0, result.stderr
+    assert "Working branch        : feature/auto-002" in result.stdout
+
+
+def test_gov_family_task_stays_on_default_branch(authorization_repo: Path) -> None:
+    # GOV-3 has no stage-registry row in the fixture, so its required branch equals the default
+    # branch (GOV-AUTO-04): the gate must leave the working tree exactly on `main`, unlike a
+    # registry-governed AUTO/DASH stage.
+    result = run_authorize(authorization_repo, "GOV-3", stdin="AUTHORIZE\nAUTHORIZE\n")
+    assert result.returncode == 0, result.stderr
+    assert git(authorization_repo, "branch", "--show-current") == "main"
+    assert "Working branch        : main" in result.stdout
+
+
+def test_branch_preparation_failure_after_commit_is_reported_distinctly(
+    authorization_repo: Path,
+) -> None:
+    # A branch named exactly like the registered one already exists but points somewhere other
+    # than where the authorization commit is about to land (an unrelated, pre-existing branch).
+    # Preparation must refuse rather than guess, while the already-created authorization commit
+    # is not rolled back — only publication/switching failed, not authorization itself.
+    git(authorization_repo, "branch", "feature/auto-002")
+    (authorization_repo / "docs" / "workflow-automation" / "extra.md").write_text(
+        "unrelated\n", encoding="utf-8"
+    )
+    git(authorization_repo, "checkout", "feature/auto-002")
+    git(authorization_repo, "add", "-A")
+    git(authorization_repo, "commit", "-m", "test: unrelated divergent commit")
+    git(authorization_repo, "checkout", "main")
+
+    result = run_authorize(authorization_repo, "AUTO-002", stdin="AUTHORIZE\nAUTHORIZE\n")
+    assert result.returncode == 10
+    assert "could not be prepared automatically" in result.stderr
+    assert commit_count(authorization_repo) == 2, "the authorization commit itself must stand"
+    assert git(authorization_repo, "branch", "--show-current") == "main"
+    assert "Status: Current" in (authorization_repo / "docs" / "TASK_QUEUE.md").read_text()
 
 
 def test_validation_failure_prevents_commit(authorization_repo: Path) -> None:

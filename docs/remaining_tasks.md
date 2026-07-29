@@ -39,17 +39,19 @@ on 2026-07-29** as the single `Current` task — implemented and validated the s
 parsers for the governance mirrors, decision log, orchestration implementation state, and
 handover manifest, plus a consistency engine v1, 157 tests), recurring the same OD-D10 conflict
 on `main`, stopped for Human Owner approval before any commit; report:
-`docs/reports/agentos-dashboard/STAGE-03-completion.md`. **GOV-AUTO-04 — Automatic
-registered-branch preparation and canonical completion-report naming** was proposed by Human
-Owner directive on 2026-07-29 and registered in `docs/TASK_QUEUE.md` as `Planned`, to resolve
-OD-D10 and OD-D11 above by giving `workflow-authorize.sh`/`workflow-next.sh` shared, automatic
-branch preparation and teaching `workflow-approve.sh`'s report discovery the Dashboard program's
-canonical `STAGE-XX-completion.md` name; this is a task record only and requires its own fresh
-written Human Owner authorization before it may become `Current`.
+`docs/reports/agentos-dashboard/STAGE-03-completion.md`. **DASH-003 was approved and closed to
+`Done` on 2026-07-29**, and **GOV-AUTO-04 — Automatic registered-branch preparation and canonical
+completion-report naming** was proposed by Human Owner directive on 2026-07-29, registered as
+`Planned`, and then **authorized by the Human Owner on 2026-07-29** as the single `Current`
+task — implemented and validated the same day: `scripts/lib/branch_prepare.sh` gives
+`workflow-authorize.sh`/`workflow-next.sh` one shared branch-preparation/verification routine
+(resolves OD-D10), and `workflow-approve.sh`'s report discovery now accepts the Dashboard
+program's canonical `STAGE-XX-completion.md` name, resolved from registry data (resolves OD-D11);
+stopped, uncommitted, for Human Owner approval; report:
+`docs/reports/GOV-AUTO-04-completion-report.md`.
 
 | Task | Title | Status |
 |---|---|---|
-| GOV-AUTO-04 | Automatic registered-branch preparation and canonical completion-report naming | Current |
 | DASH-004 | Local backend and dashboard shell (blocked on OD-D9) | Planned |
 | DASH-005 | Workflow board and task detail | Planned |
 | DASH-006 | Git, upstream, handover, and consistency views | Planned |

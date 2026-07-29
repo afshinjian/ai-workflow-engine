@@ -143,9 +143,45 @@ appended, never rewritten; supersessions are explicit.
 - **Reconsider when:** A later stage adds a `self-governance.yaml` parser for another reason,
   at which point this constant should be replaced by a read of the real value.
 
+## DD-08 — Registered-branch creation is automatic, at authorization time, not a runner-prompt exception (OD-D10); canonical report naming is cross-checked against registry data (OD-D11)
+
+- **Status:** Accepted (GOV-AUTO-04 implementation decision, 2026-07-29).
+- **Context:** OD-D10 recorded two instructions that could not both be satisfied by one session:
+  the SSP's execution precondition requires a DASH/AUTO stage to already be on its registered
+  branch, created from clean `main`, while the local runner prompt
+  (`scripts/prompts/implement-next-task.md` §7) forbids that same session from creating or
+  switching branches at all. DASH-002 and DASH-003 both ran on `main` as a result, and
+  `scripts/workflow-approve.sh` refused their closeout until the Human Owner manually ran
+  `git switch -c ...`. OD-D11 separately recorded that the approval gate only ever recognized
+  `<TASK_ID>-completion-report.md`, never this program's own documented
+  `STAGE-XX-completion.md` convention, so DASH-002/DASH-003's reports each needed a manual
+  duplicate copy — which then drifted from the addendum-bearing copy once approved.
+- **Decision (OD-D10):** move branch creation to `scripts/workflow-authorize.sh`, immediately
+  after its own authorization commit, via a new shared library
+  (`scripts/lib/branch_prepare.sh`). The runner prompt's no-branch-creation rule is left
+  completely intact — by the time an implementation session starts, the registered branch
+  already exists and is already checked out, so the session never needs to create or switch
+  anything itself. `scripts/workflow-next.sh` additionally verifies, but never mutates, that the
+  Current task's registered branch matches the working branch before launching an agent, so a
+  session resumed independently of `workflow-authorize.sh` cannot silently run on the wrong
+  branch either.
+- **Decision (OD-D11):** `scripts/workflow-approve.sh`'s report-discovery now also accepts the
+  canonical name for a DASH task, but only after cross-checking the stage number embedded in the
+  registry's own Branch cell against the task ID's own numeric suffix — never from unchecked
+  filename construction on the task ID alone. A disagreeing or malformed registry silently
+  disables the canonical lookup rather than guessing; two present reports with differing content
+  are refused outright; byte-identical duplicates (the shape DASH-002/DASH-003 already left
+  behind) are accepted without preferring one over the other.
+- **Consequences:** every future DASH stage's approval no longer needs a manual `git switch -c`
+  step or a duplicate report copy. DASH-002 and DASH-003's own already-`Done` records, including
+  their duplicate report copies, are historical and untouched (rule 8 of both stage registries) —
+  this decision governs stages authorized from here forward.
+- **Reconsider when:** a future stage registry contract changes the Branch-cell format, or the
+  report-naming convention diverges from `STAGE-<2 digits>-completion.md`.
+
 ## Decision References
 Repository decisions binding this program are recorded in `docs/DECISION_LOG.md` (2026-07-23
-entry for program enrollment).
+entry for program enrollment; 2026-07-29 entry for GOV-AUTO-04's OD-D10/OD-D11 resolution).
 
 ## Open Questions
 None held here; see `OPEN_QUESTIONS.md`.

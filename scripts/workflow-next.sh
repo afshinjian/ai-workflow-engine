@@ -21,6 +21,7 @@ readonly EXIT_DIRTY_WORKTREE=4
 readonly EXIT_MISSING_PROMPT=5
 readonly EXIT_WHITESPACE=6
 readonly EXIT_AGENT_MISSING=7
+readonly EXIT_BRANCH_MISMATCH=8
 
 die() {
     printf 'ERROR: %s\n' "$1" >&2
@@ -83,6 +84,10 @@ repo_root="$(git -C "$script_dir" rev-parse --show-toplevel 2>/dev/null)" ||
     die "not inside a Git repository (script located at $script_dir)" "$EXIT_NOT_A_REPO"
 readonly repo_root
 
+# shellcheck source=lib/branch_prepare.sh
+source "$script_dir/lib/branch_prepare.sh" ||
+    die "missing required library: $script_dir/lib/branch_prepare.sh" "$EXIT_NOT_A_REPO"
+
 # --- Confirm this is the expected repository ---------------------------------------------------
 #
 # "Expected" means the worktree that actually contains this script and the repository's own
@@ -141,6 +146,48 @@ if [ -n "$(git -C "$repo_root" status --porcelain)" ]; then
     die "worktree is not clean — commit or set aside the current work before starting a new task (see scripts/workflow-approve.sh)" "$EXIT_DIRTY_WORKTREE"
 fi
 note "Worktree         : clean"
+
+# --- Branch precondition for the single Current task (GOV-AUTO-04) ------------------------------
+#
+# Resolves OD-D10 (docs/agentos-dashboard/OPEN_QUESTIONS.md): a registry-governed AUTO/DASH stage
+# must run on its registered branch, but this script never creates or switches branches itself —
+# scripts/workflow-authorize.sh's own branch preparation does that immediately after its
+# authorization commit. This check only verifies the precondition holds before launching an
+# agent; it never mutates anything. GOV/plain tasks (no registry row) have no registered branch
+# and are unaffected.
+
+task_queue="$repo_root/docs/TASK_QUEUE.md"
+if [ -f "$task_queue" ]; then
+    current_task_ids="$(
+        awk '
+            /^#{2,6}[[:space:]]/ {
+                heading = $0
+                gsub(/[`*_~]/, "", heading)
+                id = ""
+                if (match(heading, /[A-Z][A-Z0-9-]*-[0-9]+/)) id = substr(heading, RSTART, RLENGTH)
+                next
+            }
+            id != "" && /^[[:space:]]*(Status:|- \*\*Status:\*\*)/ {
+                line = $0
+                gsub(/[`*_~-]/, "", line)
+                if (line ~ /Status:[[:space:]]*Current([[:space:]]|$)/) print id
+                id = ""
+            }
+        ' "$task_queue"
+    )"
+    current_task_count=0
+    [ -z "$current_task_ids" ] ||
+        current_task_count="$(printf '%s\n' "$current_task_ids" | wc -l | tr -d ' ')"
+    if [ "$current_task_count" -eq 1 ]; then
+        current_task_id="$current_task_ids"
+        if workflow_verify_branch "$repo_root" "$current_task_id" "$branch"; then
+            note "Branch precondition for $current_task_id : satisfied"
+        else
+            die "branch precondition not met for $current_task_id" "$EXIT_BRANCH_MISMATCH"
+        fi
+    fi
+fi
+note ""
 
 # --- Prompt file -------------------------------------------------------------------------------
 

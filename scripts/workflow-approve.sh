@@ -37,6 +37,7 @@ readonly EXIT_MISSING_REPORT=14
 readonly EXIT_SCOPE_MISMATCH=15
 readonly EXIT_CLOSEOUT_FAILED=16
 readonly EXIT_GOVERNANCE_MISSING=17
+readonly EXIT_REPORT_CONFLICT=18
 
 die() {
     printf 'ERROR: %s\n' "$1" >&2
@@ -539,8 +540,12 @@ if [ -n "$registry" ]; then
 fi
 
 # --- Locate the task's completion report (must already exist; closeout only appends) ------------
+#
+# AUTO/GOV tasks use the fixed <TASK_ID>-completion-report.md naming, checked first, unchanged
+# from before this task.
 
 report=""
+report_relative=""
 for candidate in \
     "docs/reports/workflow-automation/${task_id}-completion-report.md" \
     "docs/reports/agentos-dashboard/${task_id}-completion-report.md" \
@@ -552,7 +557,47 @@ for candidate in \
         break
     fi
 done
-[ -n "$report" ] || die "no completion report found for $task_id (expected e.g. docs/reports/${task_id}-completion-report.md)" \
+
+# --- Dashboard-program canonical name (GOV-AUTO-04, resolves OD-D11) -----------------------------
+#
+# `docs/agentos-dashboard/STAGE_REGISTRY.md` documents `STAGE-XX-completion.md` as this program's
+# own convention (`STAGE_REGISTRY.md` §3), but the naming above never matched it, so every DASH
+# stage's report needed a manual duplicate copy to satisfy this gate. Accept the canonical name
+# too, but only for a task this session has *already* confirmed, via the registry lookup above, is
+# a DASH stage — and only after deriving its two-digit stage number from the registry's own
+# Branch cell (`required_branch`, e.g. `feature/dash-002-repo-adapter`), not from unchecked
+# filename construction on the task ID alone. If the branch cell's embedded number disagrees with
+# the task ID's own numeric suffix, the registry row is treated as malformed and the canonical
+# name is never attempted — this session refuses to guess. The resulting path never varies beyond
+# `docs/reports/agentos-dashboard/STAGE-<2 digits>-completion.md`: two ASCII digits derived from
+# already-registry-confirmed data can never encode `..` or a path separator, so no path escapes
+# that directory.
+if [[ "$task_id" =~ ^DASH-([0-9]{3})$ ]] &&
+    [ "$registry_relative" = "docs/agentos-dashboard/STAGE_REGISTRY.md" ]; then
+    task_stage_number="${BASH_REMATCH[1]}"
+    if [[ "$required_branch" =~ dash-([0-9]{3})- ]] &&
+        [ "${BASH_REMATCH[1]}" = "$task_stage_number" ]; then
+        canonical_stage="$(printf '%02d' "$((10#$task_stage_number))")"
+        if [[ "$canonical_stage" =~ ^[0-9]{2}$ ]]; then
+            canonical_relative="docs/reports/agentos-dashboard/STAGE-${canonical_stage}-completion.md"
+            canonical_path="$repo_root/$canonical_relative"
+            if [ -f "$canonical_path" ]; then
+                if [ -n "$report" ]; then
+                    if ! diff -q "$report" "$canonical_path" >/dev/null 2>&1; then
+                        die "conflicting completion reports for $task_id: $report_relative and $canonical_relative disagree" \
+                            "$EXIT_REPORT_CONFLICT"
+                    fi
+                    # Identical content under both names: keep the already-found report path.
+                else
+                    report="$canonical_path"
+                    report_relative="$canonical_relative"
+                fi
+            fi
+        fi
+    fi
+fi
+
+[ -n "$report" ] || die "no completion report found for $task_id (expected e.g. docs/reports/${task_id}-completion-report.md, or for a Dashboard stage the canonical docs/reports/agentos-dashboard/STAGE-XX-completion.md)" \
     "$EXIT_MISSING_REPORT"
 readonly report report_relative
 

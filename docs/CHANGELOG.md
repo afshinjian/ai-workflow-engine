@@ -7,6 +7,22 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- GOV-AUTO-04 (2026-07-29): implemented, Human-Owner-approved, and closed
+  `Current -> Done` in one local commit via scripts/workflow-approve.sh's automatic
+  task closeout (GOV-AUTO-03).
+- GOV-AUTO-04 (2026-07-29, implementation): new shared `scripts/lib/branch_prepare.sh` gives
+  `workflow-authorize.sh`/`workflow-next.sh` one tested branch-preparation and
+  branch-verification routine — `workflow-authorize.sh` now creates or safely switches to a
+  registry-governed task's registered branch immediately after its own authorization commit
+  (GOV/plain tasks stay on the default branch), and `workflow-next.sh` refuses to launch an
+  agent when the Current task's registered branch does not match the working branch. Resolves
+  OD-D10. `workflow-approve.sh`'s report discovery now also accepts the Dashboard program's
+  canonical `docs/reports/agentos-dashboard/STAGE-XX-completion.md` name for a DASH task, with
+  the stage number cross-checked against the registry's own Branch cell, refusing on conflicting
+  duplicate reports; existing `<TASK_ID>-completion-report.md` behavior for AUTO/GOV tasks is
+  unchanged. Resolves OD-D11. Decisions: `docs/agentos-dashboard/DECISIONS.md` DD-08. 40 new
+  tests; full suite 2726-green. Report: `docs/reports/GOV-AUTO-04-completion-report.md`.
+  Implemented and validated; stopped for Human Owner approval before any commit.
 - GOV-AUTO-04 (2026-07-29): explicitly authorized by the Human Owner through the local
   two-confirmation task gate; authorization commit and implementation remain separate.
 - GOV-AUTO-04 (2026-07-29): proposed by Human Owner directive and registered in

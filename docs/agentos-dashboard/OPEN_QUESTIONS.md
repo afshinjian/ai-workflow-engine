@@ -33,6 +33,8 @@ Resolved append-only; they are never deleted.
 - **Blocked:** DASH-004..DASH-010 serving-layer work; `ARCHITECTURE.md` §6 rows marked
   "pending OD-D9".
 
+## Resolved
+
 ### OD-D10 — The stage branch versus the local runner's no-branch rule
 
 - **Question:** The SSP's initial-start preflight (`stage-prompts/README.md`;
@@ -43,20 +45,26 @@ Resolved append-only; they are never deleted.
   branches at all, and `scripts/workflow-authorize.sh` (lines 265-266) states that the canonical
   implementation branch "is created later by the implementation session, never by this gate."
   The two instructions cannot both be satisfied by one session. Which governs?
-- **Effect today:** the DASH-002 implementation was performed on `main` in the working tree,
-  uncommitted, because the runner prompt's prohibition is explicit and creating a branch would
-  have violated it. `scripts/workflow-approve.sh` enforces the registry's branch cell
-  (`EXIT_SCOPE_MISMATCH`, exit 15), so the approval gate will refuse the closeout until the
-  working tree is on `feature/dash-002-repo-adapter`.
+- **Effect at the time:** the DASH-002 implementation was performed on `main` in the working
+  tree, uncommitted, because the runner prompt's prohibition is explicit and creating a branch
+  would have violated it. `scripts/workflow-approve.sh` enforced the registry's branch cell
+  (`EXIT_SCOPE_MISMATCH`, exit 15), so the approval gate refused the closeout until the working
+  tree was manually switched.
 - **Recommendation:** either (a) the Human Owner runs `git switch -c feature/dash-002-repo-adapter`
   before `scripts/workflow-approve.sh` — uncommitted changes carry across, and the stage then
   satisfies rules 4/15 exactly; or (b) the runner prompt gains an explicit exception permitting
   a registry-governed stage session to create its own registered branch from clean `main`,
   matching what AUTO-007 did and what `workflow-authorize.sh` already documents.
-- **Disposition:** **Open.** Requires a Human Owner decision. Records only the conflict; it
-  changes no rule.
-- **Blocked:** the DASH-002 approval/closeout path, and every later DASH stage run through the
-  same local runner.
+- **Disposition:** **Resolved 2026-07-29** (GOV-AUTO-04, `DECISIONS.md` DD-08) — neither (a) nor
+  (b) above: `scripts/workflow-authorize.sh` now creates or safely switches to a registry-governed
+  stage's registered branch itself, immediately after its own authorization commit, via the new
+  shared `scripts/lib/branch_prepare.sh`. The runner prompt's no-branch-creation rule is
+  untouched; by the time an implementation session starts, the registered branch already exists
+  and is already checked out. `scripts/workflow-next.sh` additionally verifies (read-only) that
+  the branch precondition holds before launching an agent. Report:
+  `docs/reports/GOV-AUTO-04-completion-report.md`.
+- **Blocked:** formerly the DASH-002 approval/closeout path, and every later DASH stage run
+  through the same local runner; no longer blocked.
 
 ### OD-D11 — Completion-report filename expected by the approval gate
 
@@ -69,12 +77,16 @@ Resolved append-only; they are never deleted.
 - **Recommendation:** teach the approval gate this program's naming convention (a `scripts/`
   change, out of scope for any DASH stage), rather than renaming the report and breaking the
   convention DASH-001 already established.
-- **Disposition:** **Open.** Requires a Human Owner decision. DASH-002 wrote its report under
-  the documented name, `STAGE-02-completion.md`.
-- **Blocked:** the automated closeout half of the DASH-002 approval path (the same path OD-D10
-  already blocks).
-
-## Resolved
+- **Disposition:** **Resolved 2026-07-29** (GOV-AUTO-04, `DECISIONS.md` DD-08) — the
+  recommendation was adopted: `scripts/workflow-approve.sh`'s report-discovery now also accepts
+  `docs/reports/agentos-dashboard/STAGE-XX-completion.md` for a DASH task, with the stage number
+  cross-checked against the registry's own Branch cell rather than derived from unchecked
+  filename construction; a disagreeing or malformed registry silently disables the canonical
+  lookup, and two present reports with differing content are refused outright. Existing
+  `<TASK_ID>-completion-report.md` behavior for AUTO/GOV tasks is unchanged. Report:
+  `docs/reports/GOV-AUTO-04-completion-report.md`.
+- **Blocked:** formerly the automated closeout half of the DASH-002 approval path (the same path
+  OD-D10 blocked); no longer blocked.
 
 ### OD-D1 — DASH task-family authorization
 - **Question:** Authorize DASH-001..010 and enrollment of the DASH task family in
@@ -100,7 +112,7 @@ Resolved append-only; they are never deleted.
 | OD-D8 | Dashboard tests in canonical suite | No for MVP; separate `agentos_dashboard/tests/` invocation; engine `testpaths=["tests"]` untouched |
 
 ## Decision References
-DD-01, DD-02, DD-03.
+DD-01, DD-02, DD-03, DD-08.
 
 ## Future Revisions
 New questions are appended with the next OD-D number.

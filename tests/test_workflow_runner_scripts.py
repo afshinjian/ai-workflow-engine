@@ -25,6 +25,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 NEXT_SCRIPT = REPO_ROOT / "scripts" / "workflow-next.sh"
 APPROVE_SCRIPT = REPO_ROOT / "scripts" / "workflow-approve.sh"
 PROMPT_FILE = REPO_ROOT / "scripts" / "prompts" / "implement-next-task.md"
+BRANCH_PREPARE_LIB = REPO_ROOT / "scripts" / "lib" / "branch_prepare.sh"
 
 GIT_ENV = {
     "GIT_AUTHOR_NAME": "Test",
@@ -51,9 +52,11 @@ def sandbox(tmp_path: Path) -> Path:
     """A disposable repository containing copies of both scripts and the prompt."""
     repo = tmp_path / "sandbox repo"  # deliberate space: paths with spaces must work
     (repo / "scripts" / "prompts").mkdir(parents=True)
+    (repo / "scripts" / "lib").mkdir(parents=True)
     shutil.copy2(NEXT_SCRIPT, repo / "scripts" / "workflow-next.sh")
     shutil.copy2(APPROVE_SCRIPT, repo / "scripts" / "workflow-approve.sh")
     shutil.copy2(PROMPT_FILE, repo / "scripts" / "prompts" / "implement-next-task.md")
+    shutil.copy2(BRANCH_PREPARE_LIB, repo / "scripts" / "lib" / "branch_prepare.sh")
     # The governance marker the runner uses to confirm it is in the expected repository.
     (repo / "self-governance.yaml").write_text("project:\n  id: sandbox\n", encoding="utf-8")
     (repo / "README.md").write_text("sandbox\n", encoding="utf-8")
@@ -286,6 +289,59 @@ def test_preflight_leaves_existing_stashes_untouched(sandbox: Path, tmp_path: Pa
     make_agent_stub(tmp_path / "stub", "claude")
     run_next(sandbox, "claude", stub_dir=tmp_path / "stub")
     assert git(sandbox, "stash", "list") == before
+
+
+def _add_registry_governed_current_task(repo: Path, task_id: str, branch: str) -> None:
+    """Commit a TASK_QUEUE.md + workflow-automation registry row naming `task_id` Current with
+    the given registered `branch`, onto whatever branch the repo is currently on."""
+    (repo / "docs" / "workflow-automation").mkdir(parents=True, exist_ok=True)
+    (repo / "docs" / "TASK_QUEUE.md").write_text(
+        f"# Task Queue\n\n## {task_id} — sandbox stage\n\nStatus: Current\n",
+        encoding="utf-8",
+    )
+    (repo / "docs" / "workflow-automation" / "STAGE_REGISTRY.md").write_text(
+        "# Registry\n\n## 4. Registry\n\n"
+        "| Stage | Title | Role | State | Branch | Prompt |\n"
+        "|---|---|---|---|---|---|\n"
+        f"| {task_id} | sandbox stage | role | IN_PROGRESS | `{branch}` | `p.md` |\n",
+        encoding="utf-8",
+    )
+    git(repo, "add", "-A")
+    git(repo, "commit", "-m", "test: add registry-governed current task")
+
+
+def test_branch_precondition_blocks_launch_on_branch_mismatch(
+    sandbox: Path, tmp_path: Path
+) -> None:
+    _add_registry_governed_current_task(sandbox, "AUTO-002", "feature/auto-002")
+    log = make_agent_stub(tmp_path / "stub", "claude")
+    result = run_next(sandbox, "claude", stub_dir=tmp_path / "stub")
+    assert result.returncode == 8
+    assert "AUTO-002" in result.stderr
+    assert "feature/auto-002" in result.stderr
+    assert not log.exists(), "no agent may be launched when the branch precondition fails"
+
+
+def test_branch_precondition_passes_when_branch_matches(sandbox: Path, tmp_path: Path) -> None:
+    git(sandbox, "checkout", "-b", "feature/auto-002")
+    _add_registry_governed_current_task(sandbox, "AUTO-002", "feature/auto-002")
+    log = make_agent_stub(tmp_path / "stub", "claude")
+    result = run_next(sandbox, "claude", stub_dir=tmp_path / "stub")
+    assert result.returncode == 0, result.stderr
+    assert "Branch precondition for AUTO-002 : satisfied" in result.stdout
+    assert log.exists()
+
+
+def test_branch_precondition_skipped_for_task_without_registry_row(
+    sandbox: Path, tmp_path: Path
+) -> None:
+    _add_registry_governed_current_task(sandbox, "GOV-3", "")
+    # A task with no registered branch (the row above still has an empty Branch cell) must never
+    # block launch on the default branch.
+    log = make_agent_stub(tmp_path / "stub", "claude")
+    result = run_next(sandbox, "claude", stub_dir=tmp_path / "stub")
+    assert result.returncode == 0, result.stderr
+    assert log.exists()
 
 
 def test_script_contains_no_eval(sandbox: Path) -> None:

@@ -16,6 +16,7 @@ readonly EXIT_PRECONDITION=6
 readonly EXIT_DECLINED=7
 readonly EXIT_VALIDATION=8
 readonly EXIT_COMMIT=9
+readonly EXIT_BRANCH_PREP=10
 
 die() {
     printf 'ERROR: %s\n' "$1" >&2
@@ -71,6 +72,10 @@ script_dir="$(cd -P "$(dirname "$script_path")" && pwd)"
 repo_root="$(git -C "$script_dir" rev-parse --show-toplevel 2>/dev/null)" ||
     die "script is not inside a Git repository" "$EXIT_REPOSITORY"
 readonly script_dir repo_root
+
+# shellcheck source=lib/branch_prepare.sh
+source "$script_dir/lib/branch_prepare.sh" ||
+    die "missing required library: $script_dir/lib/branch_prepare.sh" "$EXIT_REPOSITORY"
 
 config="$repo_root/self-governance.yaml"
 queue="$repo_root/docs/TASK_QUEUE.md"
@@ -569,11 +574,32 @@ done
 [ -z "$(git -C "$repo_root" status --porcelain)" ] ||
     die "worktree is not clean after authorization commit" "$EXIT_COMMIT"
 
+# --- Registered-branch preparation (GOV-AUTO-04) -------------------------------------------------
+#
+# Authorization is always recorded on the clean default-branch baseline verified above. Once that
+# commit is safely in place, a registry-governed stage's own registered branch is created (or, on
+# a resumed session, switched to) from it here — resolving OD-D10
+# (docs/agentos-dashboard/OPEN_QUESTIONS.md): the local runner prompt forbids an implementation
+# session from creating or switching branches itself, so this gate does it instead, immediately
+# after the authorization commit and before any agent is launched. GOV/plain tasks (no registry
+# row; required_branch == default_branch) are left exactly on default_branch, unchanged from
+# before this task.
+branch_after="$branch_before"
+if [ -n "$registry" ] && [ "$required_branch" != "$default_branch" ]; then
+    if workflow_prepare_branch "$repo_root" "$default_branch" "$required_branch"; then
+        branch_after="$(git -C "$repo_root" rev-parse --abbrev-ref HEAD)"
+    else
+        die "authorization committed as $commit_hash, but the registered branch $required_branch could not be prepared automatically; resolve manually, then run scripts/workflow-next.sh" \
+            "$EXIT_BRANCH_PREP"
+    fi
+fi
+
 rule
 note "Authorization commit : $commit_hash"
 note "Commit message        : $commit_message"
 note "Task                  : $task_id (single Current task)"
-note "Not pushed. Not merged. Branch/upstream/stashes unchanged."
+note "Working branch        : $branch_after"
+note "Not pushed. Not merged. Upstream/stashes unchanged."
 rule
 
 if [ -z "$agent" ]; then

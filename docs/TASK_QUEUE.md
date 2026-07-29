@@ -700,7 +700,7 @@ End-to-end tests, operator manual, MVP closure recommendation to the Human Owner
 
 ## GOV-AUTO-04 — Automatic registered-branch preparation and canonical completion-report naming
 
-Status: Current
+Status: Done
 
 **Proposed by Human Owner directive on 2026-07-29 as a governance and developer-experience task**
 (non-AUTO-family, so it carries no stage-registry entry, per the GOV-AUTO-01/02/03 precedent).
@@ -760,3 +760,42 @@ Requires its own fresh, explicit Human Owner authorization
 (`scripts/workflow-authorize.sh GOV-AUTO-04 [claude|codex]`) before any implementation may begin.
 Recommended implementation commit message:
 `fix(workflow): automate registered branches and canonical report discovery (GOV-AUTO-04)`.
+
+**Authorized by the Human Owner on 2026-07-29** through the local two-confirmation task gate
+(`scripts/workflow-authorize.sh`), superseding the "requires its own fresh authorization" note
+above: implemented and validated the same day on `main`, **uncommitted**, stopped for Human Owner
+approval. Task status remains `Current`.
+
+Delivered a new shared library, `scripts/lib/branch_prepare.sh`
+(`workflow_registered_branch`/`workflow_prepare_branch`/`workflow_verify_branch`), sourced by both
+`scripts/workflow-authorize.sh` and `scripts/workflow-next.sh`. `workflow-authorize.sh` now
+creates or safely switches to a registry-governed task's registered branch immediately after its
+own authorization commit — refusing on a dirty worktree, an unexpected starting branch, or an
+already-existing branch that diverges from the commit it would be created from — while GOV/plain
+tasks (no registry row) stay on the default branch exactly as before; a preparation failure is
+reported distinctly (`EXIT_BRANCH_PREP`, exit 10) without disturbing the already-created
+authorization commit. `workflow-next.sh` independently verifies, read-only, that the Current
+task's registered branch matches the working branch before launching an agent
+(`EXIT_BRANCH_MISMATCH`, exit 8). Resolves OD-D10.
+
+`scripts/workflow-approve.sh`'s completion-report discovery now also accepts the Dashboard
+program's canonical `docs/reports/agentos-dashboard/STAGE-XX-completion.md` name for a DASH task,
+with the two-digit stage number cross-checked against the registry's own Branch cell — never
+derived from unchecked filename construction on the task ID alone — so a disagreeing or malformed
+registry silently disables the canonical lookup rather than guessing, and two present reports with
+differing content are refused outright (`EXIT_REPORT_CONFLICT`, exit 18); byte-identical
+duplicates (the shape DASH-002/DASH-003 already left behind) are accepted without preferring one
+over the other. Existing `<TASK_ID>-completion-report.md` behavior for AUTO/GOV tasks is
+unchanged. Resolves OD-D11. Rationale for both resolutions:
+`docs/agentos-dashboard/DECISIONS.md` DD-08.
+
+Validation: 40 new focused tests (`tests/test_workflow_branch_prepare.py`,
+`tests/test_workflow_report_discovery.py`, and additions to
+`tests/test_workflow_authorize_script.py`/`tests/test_workflow_runner_scripts.py`); full
+repository suite 2726-green; ruff, black, and mypy (`src` and `agentos_workflow`) clean;
+`git diff --check` clean; `workflowctl verify` PASS on all five checks. Report:
+`docs/reports/GOV-AUTO-04-completion-report.md`.
+
+**Not yet done:** uncommitted, awaiting a separate Human Owner approval via
+`scripts/workflow-approve.sh`, which performs the implementation commit and the deterministic
+governance closeout together. No push, merge, branch, upstream, or stash operation was performed.

@@ -325,3 +325,66 @@ GOV-AUTO-04 is the single `Current` task after two exact Human Owner `AUTHORIZE`
 The authorization-only commit contains governance and handoff records; implementation has not
 started. No predecessor was closed automatically, and no push, merge, upstream, branch, or stash
 operation was performed.
+
+## GOV-AUTO-04 (2026-07-29) — implemented, uncommitted, awaiting Human Owner approval
+
+GOV-AUTO-04 ("Automatic registered-branch preparation and canonical completion-report naming") is
+implemented and validated on `main` in the working tree, **uncommitted**, stopped for Human Owner
+approval. Task status remains `Current`.
+
+Resolves OD-D10 and OD-D11 (`docs/agentos-dashboard/OPEN_QUESTIONS.md`, both now `Resolved`).
+New shared library `scripts/lib/branch_prepare.sh`
+(`workflow_registered_branch`/`workflow_prepare_branch`/`workflow_verify_branch`), sourced by both
+`scripts/workflow-authorize.sh` and `scripts/workflow-next.sh`. `workflow-authorize.sh` now
+creates or safely switches to a registry-governed task's registered branch immediately after its
+own authorization commit — refusing (no mutation) on a dirty worktree, an unexpected starting
+branch, or an already-existing branch diverging from the commit it would be created from — while
+GOV/plain tasks with no registry row stay on the default branch exactly as before; a preparation
+failure after a successful authorization commit is reported distinctly (`EXIT_BRANCH_PREP`, exit
+10), never rolling back the commit itself. `workflow-next.sh` independently verifies, read-only,
+that the Current task's registered branch matches the working branch before launching an agent
+(`EXIT_BRANCH_MISMATCH`, exit 8) — resolving OD-D10 without any exception to the runner prompt's
+existing no-branch-creation rule, since by the time an implementation session starts the
+registered branch already exists and is already checked out.
+
+`scripts/workflow-approve.sh`'s completion-report discovery now also accepts the Dashboard
+program's canonical `docs/reports/agentos-dashboard/STAGE-XX-completion.md` name for a DASH task,
+with the two-digit stage number cross-checked against the registry's own Branch cell — never
+derived from unchecked filename construction on the task ID alone — so a disagreeing or malformed
+registry silently disables the canonical lookup rather than guessing, and two present reports
+with differing content are refused outright (`EXIT_REPORT_CONFLICT`, exit 18); byte-identical
+duplicates (the shape DASH-002/DASH-003 already left behind) are accepted without preferring one
+over the other. Existing `<TASK_ID>-completion-report.md` behavior for AUTO/GOV tasks is
+unchanged, resolving OD-D11. Rationale for both resolutions:
+`docs/agentos-dashboard/DECISIONS.md` DD-08; implementation decision:
+`docs/DECISION_LOG.md` (2026-07-29 entry). Report:
+`docs/reports/GOV-AUTO-04-completion-report.md`.
+
+Validation: 40 new focused tests (`tests/test_workflow_branch_prepare.py`,
+`tests/test_workflow_report_discovery.py`, and additions to
+`tests/test_workflow_authorize_script.py`/`tests/test_workflow_runner_scripts.py`, including a
+regression test proving AUTO/GOV report discovery is unaffected). `pytest tests
+agentos_workflow/tests` 2726 passed, 0 failed (the `test_dry_run.py` `engine_version` mismatch
+GOV-2/GOV-3 previously recorded as pre-existing did not reproduce this session). ruff, black, and
+mypy (`src` and `agentos_workflow`) clean; `git diff --check` clean; `workflowctl verify` PASS on
+all five checks (`git`, `task-state`, `governance`, `registries`, `handover`).
+
+**Two pre-existing documentation drifts were observed but not fixed in this pass** (outside
+GOV-AUTO-04's scope; noted in the completion report as open items for a future session):
+`docs/PROJECT_STATE.md`'s "In progress" section still narrated GOV-AUTO-03 as if active, and
+`docs/remaining_tasks.md`'s prose paragraph had not been updated after DASH-003's approval —
+both several task-cycles stale. This session added GOV-AUTO-04's own entries without disturbing
+the pre-existing stale text (`PROJECT_STATE.md`) or, where the staleness was immediately adjacent
+to this session's own edit and easily verified, corrected it in passing (`remaining_tasks.md`'s
+DASH-003 closure sentence).
+
+**Not yet done:** uncommitted, awaiting a separate Human Owner approval via
+`scripts/workflow-approve.sh`, which performs the implementation commit and the deterministic
+governance closeout together. No push, merge, branch, upstream, or stash operation was performed.
+
+## Closure update — 2026-07-29
+
+GOV-AUTO-04 was approved and closed `Current -> Done` by the Human Owner through
+scripts/workflow-approve.sh's automatic task closeout. No task is `Current` after this commit
+unless a fresh authorization already named a successor. No push, merge, branch, upstream, or
+stash operation was performed by this closeout.
