@@ -108,8 +108,10 @@ references. Until then, all controls are Design status.
 DD-01, DD-03.
 
 ## 9. Open Questions
-OD-D6, OD-D7 (both resolved as deferred); OD-D9 (framework choice affects SC-03/SC-05
-implementation detail, not intent).
+OD-D6, OD-D7 (both resolved as deferred); OD-D9 (resolved 2026-07-29 — FastAPI + Uvicorn +
+Jinja2; the framework choice affects SC-03/SC-05 implementation detail, not intent. Loopback-only
+binding is unchanged; remote exposure, authentication, and TLS remain out of scope and require
+their own decisions).
 
 ## 10. Future Revisions
 Any relaxation of a control is a MAJOR change requiring independent security review and Human

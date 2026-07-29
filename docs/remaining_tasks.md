@@ -48,11 +48,18 @@ task — implemented and validated the same day: `scripts/lib/branch_prepare.sh`
 (resolves OD-D10), and `workflow-approve.sh`'s report discovery now accepts the Dashboard
 program's canonical `STAGE-XX-completion.md` name, resolved from registry data (resolves OD-D11);
 stopped, uncommitted, for Human Owner approval; report:
-`docs/reports/GOV-AUTO-04-completion-report.md`.
+`docs/reports/GOV-AUTO-04-completion-report.md`. **GOV-AUTO-04 was approved and closed to `Done`
+on 2026-07-29** (commit `0ffa591`). **OD-D9 — the serving-stack dependency decision — was
+resolved by the Human Owner on 2026-07-29**: FastAPI (HTTP application framework), Uvicorn (ASGI
+server), and Jinja2 (templates), declared in a new optional `dashboard` dependency group in
+`pyproject.toml`, with the default install left free of them
+(`docs/agentos-dashboard/OPEN_QUESTIONS.md` OD-D9; `DECISIONS.md` DD-09). **DASH-004 is therefore
+no longer blocked on OD-D9**, but remains `Planned` and unauthorized, like every other task
+below — resolving an open question authorizes nothing. No task is `Current`.
 
 | Task | Title | Status |
 |---|---|---|
-| DASH-004 | Local backend and dashboard shell (blocked on OD-D9) | Planned |
+| DASH-004 | Local backend and dashboard shell | Planned |
 | DASH-005 | Workflow board and task detail | Planned |
 | DASH-006 | Git, upstream, handover, and consistency views | Planned |
 | DASH-007 | Stage registry and prompt generation | Planned |

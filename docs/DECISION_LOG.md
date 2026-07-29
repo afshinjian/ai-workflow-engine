@@ -13,6 +13,56 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-07-29 — OD-D9 resolved: the dashboard serving stack is FastAPI + Uvicorn + Jinja2, in an optional `dashboard` dependency group
+
+**Decision:** The Human Owner resolved OD-D9 (`docs/agentos-dashboard/OPEN_QUESTIONS.md`), the
+last open question in the Dashboard register. The AgentOS Dashboard's serving layer is
+**FastAPI** (local HTTP application framework), **Uvicorn** (ASGI server), and **Jinja2**
+(server-rendered HTML templates). These are declared in a **new optional dependency group named
+`dashboard`** in `pyproject.toml` — `fastapi>=0.111,<1`, `jinja2>=3.1,<4`, `uvicorn>=0.30,<1`,
+following this repository's existing lower-bound-plus-next-major convention. The default/core
+`ai-workflow-engine` installation stays free of every dashboard-serving dependency:
+`[project].dependencies` is unchanged, so `pip install ai-workflow-engine` still installs no web
+framework. Stdlib `http.server` is explicitly **not** the primary implementation. DASH-004 and
+later dashboard stages may use only the three distributions in this group unless separately
+authorized. Full rationale: `docs/agentos-dashboard/DECISIONS.md` DD-09.
+
+**Alternatives considered:** (a) Stdlib-only serving on `http.server` — the fallback OD-D9's own
+recommendation named if the Human Owner declined any new dependency. Rejected: it would mean
+hand-rolling routing, request parsing, header/CSRF middleware, and template escaping — the code
+most likely to carry a security defect — to avoid three widely-audited distributions the optional
+group already keeps out of the engine's install. (b) A standalone requirements file outside the
+packaged project, the other placement OD-D9 offered. Rejected: it would put the dashboard's
+dependency set outside the one file `workflowctl check-governance` already cross-checks and
+outside normal `pip install -e '.[extra]'` handling. (c) Adding the stack to
+`[project].dependencies`. Rejected outright: it would give the audited, deliberately lean CLI
+engine a web-framework dependency it never serves anything with.
+
+**Security boundary:** unchanged. The dashboard binds loopback-only by default
+(`docs/agentos-dashboard/SECURITY_MODEL.md` SC-01..SC-05; `ARCHITECTURE.md` §5); this decision
+selects an implementation, it does not widen exposure. Remote exposure, authentication, TLS, and
+any production deployment posture remain out of scope and require their own decisions. The
+framework choice affects how SC-03/SC-05 are implemented, not their intent.
+
+**Effect on DASH-004:** DASH-004's contract
+(`docs/agentos-dashboard/stage-prompts/DASH-004.md`) named "OD-D9 resolved by the Human Owner" as
+a precondition and allowed "exactly the dependency-declaration change OD-D9's disposition names."
+Both are settled here: the precondition is satisfied and the declaration is already performed, so
+DASH-004 needs no `pyproject.toml` edit of its own and gains no license to add further
+dependencies. **DASH-004 is no longer blocked by OD-D9 as of this governance commit.** It remains
+`Planned` and **unauthorized**, still requiring its own fresh written Human Owner authorization
+and its registered branch before any implementation may begin.
+
+**Boundaries:** This is a governance, architecture, and dependency-declaration record only. No
+dashboard server code was written, no runtime source or test was modified, no dependency was
+installed, no task was authorized or moved to `Current`, and no branch, push, merge, rebase,
+reset, or stash operation was performed. No task is `Current` after this commit.
+
+**Note on dates:** the decision was made and this record written on 2026-07-29; the session
+crossed local midnight before committing, so Git timestamps the commit 2026-07-30. Every
+"2026-07-29" in this decision's records refers to the day of the decision and the work, not to
+the commit timestamp. Nothing else is implied by the difference.
+
 ## 2026-07-29 — Human Owner approved and closed GOV-AUTO-04
 
 **Decision:** The Human Owner reviewed the implementation diff for `GOV-AUTO-04` on

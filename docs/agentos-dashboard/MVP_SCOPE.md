@@ -45,7 +45,8 @@ Populated at DASH-010; empty until then.
 DD-01, DD-03.
 
 ## 7. Open Questions
-OD-D6, OD-D7 (deferred features); OD-D9 (dependency decision required before DASH-004).
+OD-D6, OD-D7 (deferred features); OD-D9 (dependency decision — resolved 2026-07-29: FastAPI +
+Uvicorn + Jinja2 in the optional `dashboard` group; DASH-004 is no longer gated on it).
 
 ## 8. Future Revisions
 Scope changes are MAJOR and require Human Owner approval.

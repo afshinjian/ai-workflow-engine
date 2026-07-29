@@ -5,9 +5,9 @@
 | **Title** | AgentOS Dashboard — Architecture |
 | **Purpose** | Normative technical architecture of the dashboard: component model, adapter contracts, technology selections, deployment topology, and rejected alternatives. |
 | **Status** | Draft |
-| **Version** | 1.0 |
+| **Version** | 1.1 |
 | **Owner** | Dashboard implementation session (maintainer) · Human Owner via independent review (approval) |
-| **Dependencies** | `MASTER_PLAN.md` §3; `DECISIONS.md` DD-01, DD-03 |
+| **Dependencies** | `MASTER_PLAN.md` §3; `DECISIONS.md` DD-01, DD-03, DD-09 |
 | **Related Documents** | `SECURITY_MODEL.md`, `SOURCE_OF_TRUTH.md`, `docs/architecture.md` (engine architecture) |
 
 ## Table of Contents
@@ -23,12 +23,17 @@ same repository as the `ai-workflow-engine` engine package. Binding constraints:
 - Local-only, single-user, loopback-bound; conservative, read-only-first, human-controlled.
 - Zero modification of `src/`, `tests/`, `scripts/`, `pyproject.toml`,
   `.pre-commit-config.yaml`, `self-governance.yaml`, `docs/implementation/orchestration/**`,
-  or any engine behavior.
+  or any engine behavior. **One narrow, already-executed exception to the `pyproject.toml` rule:**
+  the optional `dashboard` dependency group added by the OD-D9 governance commit (DD-09). No
+  dashboard *stage* edits `pyproject.toml`; that change is spent.
 - Minimal dependencies: reuse the stack already pinned in `pyproject.toml` (Pydantic, PyYAML;
   pytest from the `dev` extra) inside the `ai-workflow-engine` Conda environment
-  (`self-governance.yaml` `conda_environment`). The repository pins **no web framework**; the
-  HTTP-serving selection is gated on OD-D9 (`OPEN_QUESTIONS.md`) and must be approved by the
-  Human Owner before DASH-004. DASH-002/DASH-003 use only the stdlib and existing dependencies.
+  (`self-governance.yaml` `conda_environment`). The engine's core install still pins **no web
+  framework**. The serving stack is **FastAPI + Uvicorn + Jinja2**, resolved by the Human Owner
+  in OD-D9 (`OPEN_QUESTIONS.md`; DD-09) and declared in the **optional** `dashboard` group
+  (`pip install -e '.[dashboard]'`), so a default `ai-workflow-engine` install carries none of
+  it. DASH-004 and later stages may use only those three distributions unless separately
+  authorized; DASH-002/DASH-003 used only the stdlib and existing dependencies.
 - Authoritative state remains Markdown + YAML + Git (`SOURCE_OF_TRUTH.md`); the dashboard's own
   persistence is non-authoritative.
 - The audited engine test collection (`pytest` with `testpaths=["tests"]`) must remain
@@ -112,8 +117,8 @@ proxy, LAN, or internet exposure is permitted (`SECURITY_MODEL.md`).
 
 | Concern | Selection | Rationale |
 |---|---|---|
-| Frontend | Server-side rendered HTML + minimal vanilla JS | Repo has no Node toolchain; templating engine per OD-D9 |
-| Backend | HTTP framework **pending OD-D9** (Human Owner dependency decision) | `pyproject.toml` pins no web framework; adding one needs approval |
+| Frontend | Server-side rendered HTML + minimal vanilla JS, templated with **Jinja2** | Repo has no Node toolchain; Jinja2 autoescapes by default, matching the escape-first XSS posture (OD-D9/DD-09) |
+| Backend | **FastAPI** application, served by **Uvicorn** (ASGI), loopback-bound | OD-D9/DD-09; typed handlers and Pydantic integration on an already-pinned type system; declared in the optional `dashboard` group, never in the core install |
 | API style | `{ok, data, error}` envelope at `/dash/api/v1` | Mirrors the engine's CLI contract-v2 envelope discipline |
 | Markdown | Stdlib escape-first mini-renderer | OD-D2; no new dependency; smaller XSS surface |
 | YAML | `PyYAML` safe loading, duplicate-key rejecting | Already pinned; mirrors the engine's hardened loader posture |
@@ -142,13 +147,19 @@ the orchestration package.
 - **Option 3 — separate service + independent SPA frontend**: rejected — requires a Node
   toolchain absent from the repository, enlarges the security surface (CORS, second build
   system), exceeds MVP need.
+- **Stdlib-only serving (`http.server`) as the primary implementation**: rejected by the Human
+  Owner in OD-D9 (DD-09) — it would mean hand-rolling routing, request parsing, header/CSRF
+  middleware, and template escaping, which is exactly the code most likely to carry a security
+  defect, to avoid three widely-audited dependencies that the optional `dashboard` group already
+  keeps out of the engine's own install.
 
 ## 9. Decision References
-DD-01 (Option 2); DD-03 (repository adaptation); `docs/DECISION_LOG.md` 2026-07-23 entry.
+DD-01 (Option 2); DD-03 (repository adaptation); DD-09 (serving stack, OD-D9);
+`docs/DECISION_LOG.md` 2026-07-23 and 2026-07-29 (OD-D9) entries.
 
 ## 10. Open Questions
-OD-D2, OD-D3, OD-D4, OD-D5 (dispositions in `OPEN_QUESTIONS.md`); OD-D9 (**open** — web
-framework).
+OD-D2, OD-D3, OD-D4, OD-D5, OD-D9 (all resolved; dispositions in `OPEN_QUESTIONS.md`). None open
+against this document.
 
 ## 11. Future Revisions
 Safe direct agent integration and write-back designs require a new decision (`MASTER_PLAN.md` §12).

@@ -388,3 +388,41 @@ GOV-AUTO-04 was approved and closed `Current -> Done` by the Human Owner through
 scripts/workflow-approve.sh's automatic task closeout. No task is `Current` after this commit
 unless a fresh authorization already named a successor. No push, merge, branch, upstream, or
 stash operation was performed by this closeout.
+
+## Decision update — 2026-07-29 — OD-D9 resolved (dashboard serving stack)
+
+The Human Owner resolved **OD-D9**, the last open question in the Dashboard register
+(`docs/agentos-dashboard/OPEN_QUESTIONS.md` — its Open section is now empty). The AgentOS
+Dashboard's serving stack is **FastAPI** (local HTTP application framework) + **Uvicorn** (ASGI
+server) + **Jinja2** (server-rendered HTML templates), declared in a **new optional dependency
+group `dashboard`** in `pyproject.toml`:
+
+```toml
+dashboard = [
+  "fastapi>=0.111,<1",
+  "jinja2>=3.1,<4",
+  "uvicorn>=0.30,<1",
+]
+```
+
+`[project].dependencies` is untouched, so `pip install ai-workflow-engine` still installs no web
+framework and the audited engine keeps no HTTP surface; the dashboard is installed deliberately
+with `pip install -e '.[dashboard]'` inside the `ai-workflow-engine` Conda environment. **The
+dependencies were not installed by this session**, and there is no lockfile to update. Stdlib
+`http.server` is explicitly rejected as the primary implementation. Binding stays loopback-only by
+default — remote exposure, authentication, TLS, and production deployment remain later-stage
+concerns. DASH-004 and later dashboard stages may use only these three distributions unless
+separately authorized. Rationale: `docs/agentos-dashboard/DECISIONS.md` DD-09; repository record:
+`docs/DECISION_LOG.md` (2026-07-29 entry).
+
+**DASH-004 is no longer blocked by OD-D9** as of this governance commit, and needs no
+`pyproject.toml` change of its own — that declaration is already spent. **DASH-004 nonetheless
+remains `Planned` and unauthorized**: it still requires its own fresh written Human Owner
+authorization (`scripts/workflow-authorize.sh DASH-004 [claude|codex]`), which will also prepare
+its registered branch `feature/dash-004-dashboard-shell` (GOV-AUTO-04). Resolving an open question
+authorizes nothing. **No task is `Current` after this commit.**
+
+This is a governance/architecture/dependency-declaration commit only: no dashboard server code was
+written, no runtime source or test was modified, and no branch, push, merge, rebase, reset, or
+stash operation was performed. (Dates: the decision and this record are 2026-07-29; the session
+crossed local midnight before committing, so Git timestamps the commit 2026-07-30.)

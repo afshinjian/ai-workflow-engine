@@ -5,7 +5,7 @@
 | **Title** | AgentOS Dashboard — Open Questions |
 | **Purpose** | Owner-decision register (OD-D#) with dispositions and the requirement IDs each question blocks. |
 | **Status** | Draft |
-| **Version** | 1.1 |
+| **Version** | 1.2 |
 | **Owner** | Documentation & Governance session · Human Owner (dispositions) |
 | **Dependencies** | `MASTER_PLAN.md` §11 |
 | **Related Documents** | `STAGE_REGISTRY.md` (preconditions cite entries here) |
@@ -17,6 +17,10 @@ Resolved append-only; they are never deleted.
 
 ## Open
 
+None. Every registered question has a disposition below.
+
+## Resolved
+
 ### OD-D9 — Web-framework dependency for the serving layer
 
 - **Question:** `ai-workflow-engine` pins no web framework (`pyproject.toml`: pydantic,
@@ -27,13 +31,39 @@ Resolved append-only; they are never deleted.
 - **Recommendation:** A minimal, pinned optional-dependency group; stdlib-only
   (`http.server`-based) serving is the fallback if the Human Owner declines any new
   dependency.
-- **Disposition:** **Open.** Blocks DASH-004 authorization (and, transitively, every
-  page-serving stage). DASH-002/DASH-003 are deliberately stdlib + existing-dependency only
-  and are not blocked.
-- **Blocked:** DASH-004..DASH-010 serving-layer work; `ARCHITECTURE.md` §6 rows marked
-  "pending OD-D9".
+- **Disposition:** **Resolved 2026-07-29** by Human Owner decision (`DECISIONS.md` DD-09;
+  `docs/DECISION_LOG.md`, 2026-07-29 entry). The recommendation was adopted in its
+  optional-dependency-group form; the stdlib `http.server` fallback was explicitly **not**
+  selected and may not be the primary implementation. The selected stack is exactly:
+  - **FastAPI** — the local HTTP application framework;
+  - **Uvicorn** — the ASGI server;
+  - **Jinja2** — server-rendered HTML templates.
 
-## Resolved
+  Declared in a new optional dependency group named `dashboard` in `pyproject.toml`
+  (`fastapi>=0.111,<1`, `jinja2>=3.1,<4`, `uvicorn>=0.30,<1`), added by this governance commit.
+  The default/core `ai-workflow-engine` installation stays free of every dashboard-serving
+  dependency: `[project].dependencies` is unchanged, so `pip install ai-workflow-engine` still
+  installs no web framework and the engine's own runtime, CLI, lint/type gates, and test
+  collection are untouched. **DASH-004 and every later dashboard stage may use only the three
+  distributions declared in this group** (plus the stdlib and the already-pinned core
+  dependencies); any addition to the group, and any dependency outside it, requires a separate
+  Human Owner authorization.
+- **Security boundary:** the serving layer binds loopback-only by default, unchanged from
+  `SECURITY_MODEL.md` SC-01..SC-05 and `ARCHITECTURE.md` §5 — this decision selects an
+  implementation, it does not widen exposure. Remote exposure, authentication, TLS, and any
+  production deployment posture remain out of scope and are later-stage concerns requiring
+  their own decisions. Framework choice affects how SC-03/SC-05 are implemented, never their
+  intent.
+- **Effect on DASH-004:** the dependency-declaration change DASH-004's Allowed list defers to
+  ("exactly the dependency-declaration change OD-D9's disposition names") is already performed
+  here, so DASH-004 needs no `pyproject.toml` edit of its own and gains no license to add
+  further dependencies. **DASH-004 is no longer blocked by OD-D9 as of this governance commit.**
+  It remains `Planned` and **unauthorized**: it still requires DASH-003 `COMPLETE` (satisfied),
+  its own fresh written Human Owner authorization, and its registered branch before any
+  implementation may begin. Resolving OD-D9 authorizes nothing.
+- **Blocked:** formerly DASH-004..DASH-010 serving-layer work and the `ARCHITECTURE.md` §6 rows
+  marked "pending OD-D9" (now filled in); no longer blocked. DASH-002/DASH-003 were never
+  blocked by this question and remain stdlib + existing-dependency only.
 
 ### OD-D10 — The stage branch versus the local runner's no-branch rule
 
@@ -112,7 +142,7 @@ Resolved append-only; they are never deleted.
 | OD-D8 | Dashboard tests in canonical suite | No for MVP; separate `agentos_dashboard/tests/` invocation; engine `testpaths=["tests"]` untouched |
 
 ## Decision References
-DD-01, DD-02, DD-03, DD-08.
+DD-01, DD-02, DD-03, DD-08, DD-09.
 
 ## Future Revisions
 New questions are appended with the next OD-D number.

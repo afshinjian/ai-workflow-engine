@@ -134,7 +134,9 @@ execution of engine commands stays human-run in a terminal).
 DD-01, DD-03.
 
 ## 6. Open Questions
-OD-D6, OD-D7 gate DR-906/DR-907; OD-D9 gates the serving layer for all page-rendering DRs.
+OD-D6, OD-D7 gate DR-906/DR-907; OD-D9 (which gated the serving layer for all page-rendering
+DRs) is resolved 2026-07-29 — FastAPI + Uvicorn + Jinja2, optional `dashboard` group — and gates
+nothing further.
 
 ## 7. Future Revisions
 Deferred DRs are promoted only via `MASTER_PLAN.md` §8 change management.

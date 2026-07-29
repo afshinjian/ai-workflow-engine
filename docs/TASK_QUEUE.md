@@ -652,9 +652,14 @@ the working tree, uncommitted, awaiting Human Owner approval. Report:
 
 Status: Planned
 
-Loopback-only web shell with security baseline and Overview page. Blocked on OD-D9 (serving
-stack dependency decision, `docs/agentos-dashboard/OPEN_QUESTIONS.md`). Contract:
-`docs/agentos-dashboard/stage-prompts/DASH-004.md`.
+Loopback-only web shell with security baseline and Overview page. **No longer blocked on OD-D9**:
+the serving-stack dependency decision was resolved by the Human Owner on 2026-07-29 — FastAPI +
+Uvicorn + Jinja2, declared in the optional `dashboard` group in `pyproject.toml`
+(`docs/agentos-dashboard/OPEN_QUESTIONS.md` OD-D9; `DECISIONS.md` DD-09). That declaration is
+already made, so this stage needs no `pyproject.toml` change and may use no dependency outside
+that group without separate authorization. The stage remains `Planned` and **unauthorized** — it
+still requires its own fresh written Human Owner authorization before becoming `Current`.
+Contract: `docs/agentos-dashboard/stage-prompts/DASH-004.md`.
 
 ## DASH-005 — Workflow board and task detail
 

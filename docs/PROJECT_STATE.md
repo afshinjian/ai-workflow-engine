@@ -117,7 +117,12 @@ GOV-3 remain explicitly unauthorized.
 AUTO-007 (`docs/TASK_QUEUE.md`; program plan `docs/workflow-automation/README.md`)
 and Dashboard stages DASH-002..DASH-010 (program plan
 `docs/agentos-dashboard/MASTER_PLAN.md`), each requiring its own fresh Human Owner
-authorization; DASH-004 onward additionally gated on the OD-D9 dependency decision. Separately,
+authorization. DASH-004 onward was additionally gated on the OD-D9 dependency decision; **OD-D9
+was resolved by the Human Owner on 2026-07-29** — FastAPI + Uvicorn + Jinja2, declared in a new
+optional `dashboard` dependency group in `pyproject.toml`, with the core install left free of
+dashboard-serving dependencies (`docs/agentos-dashboard/OPEN_QUESTIONS.md`; `DECISIONS.md`
+DD-09) — so that extra gate is lifted and only the ordinary per-task authorization remains.
+DASH-004 stays `Planned` and unauthorized. Separately,
 two ordinary (non-AUTO/DASH-family) governance/tooling tasks. **GOV-3**
 (`docs/TASK_QUEUE.md`) was recorded on 2026-07-28 by Human Owner decision as explicit future work:
 the Reporting Skills write one artifact per workflow identifier per kind, but a bounded repair loop

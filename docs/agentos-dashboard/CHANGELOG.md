@@ -5,7 +5,7 @@
 | **Title** | AgentOS Dashboard — Changelog |
 | **Purpose** | Append-only log of every approved change to the dashboard documentation set; the audit spine of `MASTER_PLAN.md` §8. |
 | **Status** | Draft |
-| **Version** | 1.2 |
+| **Version** | 1.3 |
 | **Owner** | Completing agent per stage · verified at review |
 | **Dependencies** | None |
 | **Related Documents** | `MASTER_PLAN.md` §7–§8 |
@@ -16,6 +16,37 @@ Entry ID `CL-YYYYMMDD-##`, newest first. Each entry: documents touched, versions
 before/after, authorizing task, approver. Entries are appended, never edited.
 
 ## Entries
+
+### CL-20260729-03 — OD-D9 resolved: FastAPI + Uvicorn + Jinja2 in an optional `dashboard` group
+
+- **Documents:** `OPEN_QUESTIONS.md` (OD-D9 moved Open → Resolved with the full disposition;
+  the Open section is now empty), `DECISIONS.md` (new DD-09), `ARCHITECTURE.md` (§1 constraints,
+  §6 Frontend/Backend rows, §8 rejected options, §9, §10), `MASTER_PLAN.md` (§3
+  minimal-dependency posture, §11 register summary), `MVP_SCOPE.md` §7, `PRODUCT_SPEC.md` §6,
+  `API_SPEC.md` §7, `UI_SPEC.md` §6, `SECURITY_MODEL.md` §9, `STAGE_REGISTRY.md` §5 and §7
+  (factual status updates only — no control rule, state, or registry row changed), and this
+  changelog.
+- **Versions:** `OPEN_QUESTIONS.md` 1.1 → **1.2**; `DECISIONS.md` 1.2 → **1.3**;
+  `ARCHITECTURE.md` 1.0 → **1.1**; this changelog 1.2 → **1.3**. `STAGE_REGISTRY.md` 5.0 → 5.0
+  (§8 versions control-rule changes; this was neither).
+- **Change outside this documentation set:** `pyproject.toml` gains one new optional dependency
+  group, `dashboard = ["fastapi>=0.111,<1", "jinja2>=3.1,<4", "uvicorn>=0.30,<1"]`.
+  `[project].dependencies`, the `dev` extra, wheel packaging, `testpaths`, and every lint/type
+  setting are unchanged, so the default `ai-workflow-engine` install still carries no
+  HTTP-serving dependency. Nothing was installed and no lockfile exists to update. Repository
+  records: `docs/TASK_QUEUE.md`, `docs/remaining_tasks.md`, `docs/PROJECT_STATE.md`,
+  `docs/DECISION_LOG.md`, `docs/CHANGELOG.md`, and the handover pair.
+- **Reason for change:** the Human Owner's OD-D9 decision. Stdlib `http.server` is explicitly
+  rejected as the primary implementation; loopback-only binding is unchanged, and remote
+  exposure, authentication, TLS, and production deployment remain later-stage concerns.
+- **Effect on DASH-004:** no longer blocked by OD-D9 as of this commit; the dependency
+  declaration its Allowed list defers to is already performed, so it needs no `pyproject.toml`
+  edit of its own. **DASH-004 remains `Planned` and unauthorized** — this decision authorizes
+  no stage and moves no task to `Current`.
+- **Authorizing task:** none — a Human Owner governance/architecture decision recorded directly,
+  not stage work. No task is `Current`.
+- **Approver:** Human Owner (the OD-D9 decision itself, 2026-07-29).
+- **Date:** 2026-07-29.
 
 ### CL-20260729-02 — DASH-003 implemented: governance and Markdown parsing
 
@@ -191,7 +222,7 @@ before/after, authorizing task, approver. Entries are appended, never edited.
 - **Approver:** pending Human Owner acceptance at DASH-001 completion.
 
 ## Decision References
-DD-01, DD-02, DD-03.
+DD-01, DD-02, DD-03, DD-09.
 
 ## Open Questions
 None.

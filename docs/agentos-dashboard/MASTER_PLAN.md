@@ -90,10 +90,12 @@ Decision **DD-01** (recorded in `DECISIONS.md`) fixes the architecture:
   beside — and fully isolated from — the engine package `src/ai_workflow_engine/` and its
   audited test suite.
 - Minimal-dependency posture: the dashboard reuses the already-pinned stack in `pyproject.toml`
-  (Pydantic, PyYAML, pytest) wherever possible. `ai-workflow-engine` pins **no web framework**,
-  so the HTTP-serving layer requires a Human Owner dependency decision — **OD-D9 in
-  `OPEN_QUESTIONS.md`, open** — before DASH-004. Adapter and parsing stages (DASH-002,
-  DASH-003) are stdlib + existing-dependency only.
+  (Pydantic, PyYAML, pytest) wherever possible. `ai-workflow-engine`'s core install pins **no web
+  framework**, so the HTTP-serving layer required a Human Owner dependency decision — **OD-D9 in
+  `OPEN_QUESTIONS.md`, resolved 2026-07-29** (`DECISIONS.md` DD-09): FastAPI + Uvicorn + Jinja2,
+  declared in the **optional** `dashboard` group in `pyproject.toml`, with the default install
+  left free of them. Adapter and parsing stages (DASH-002, DASH-003) are stdlib +
+  existing-dependency only.
 - Repository access is confined to two read-only adapters (root-confined file adapter; Git
   subprocess adapter with a fixed read-only verb allowlist).
 - Local persistence is a **non-authoritative** SQLite database for run records, drafts, notes,
@@ -242,7 +244,8 @@ cite them.
 Registered and dispositioned in `OPEN_QUESTIONS.md`: OD-D1 (task-family authorization),
 OD-D2 (Markdown rendering approach), OD-D3 (port), OD-D4 (package naming), OD-D5 (local
 database), OD-D6 (handover manifest refresh deferral), OD-D7 (GitHub integration deferral),
-OD-D8 (test-suite separation), OD-D9 (web-framework dependency — **open**, blocks DASH-004).
+OD-D8 (test-suite separation), OD-D9 (web-framework dependency — **resolved 2026-07-29**:
+FastAPI + Uvicorn + Jinja2 in the optional `dashboard` group; no longer blocks DASH-004).
 None may be resolved outside that register.
 
 ## 12. Future Revisions

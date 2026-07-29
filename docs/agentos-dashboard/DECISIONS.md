@@ -5,7 +5,7 @@
 | **Title** | AgentOS Dashboard — Decisions |
 | **Purpose** | Append-only record of dashboard-program decisions (DD-##). Subordinate to `docs/DECISION_LOG.md`; cross-posted there when repository governance requires. |
 | **Status** | Draft |
-| **Version** | 1.2 |
+| **Version** | 1.3 |
 | **Owner** | Documentation & Governance session (append) · Human Owner (approval) |
 | **Dependencies** | `MASTER_PLAN.md` §8 |
 | **Related Documents** | `docs/DECISION_LOG.md` |
@@ -179,9 +179,56 @@ appended, never rewritten; supersessions are explicit.
 - **Reconsider when:** a future stage registry contract changes the Branch-cell format, or the
   report-naming convention diverges from `STAGE-<2 digits>-completion.md`.
 
+## DD-09 — Serving stack: FastAPI + Uvicorn + Jinja2, in an optional `dashboard` dependency group (OD-D9)
+
+- **Status:** Accepted (Human Owner decision, 2026-07-29).
+- **Context:** OD-D9 asked which HTTP-serving and templating stack the dashboard may add and
+  where it is declared. `ai-workflow-engine`'s `[project].dependencies` are pydantic, PyYAML,
+  rich, and typer — no web framework — and DD-01's minimal-dependency posture plus
+  `ARCHITECTURE.md` §1 had, until now, forbidden any `pyproject.toml` change from a dashboard
+  stage. The register's own recommendation offered a pinned optional-dependency group, with
+  stdlib `http.server` as the fallback if the Human Owner declined a new dependency. DASH-004
+  (the first page-serving stage) could not be authorized while the question stayed open, and its
+  Allowed list explicitly defers to "exactly the dependency-declaration change OD-D9's
+  disposition names."
+- **Decision:** adopt **FastAPI** (local HTTP application framework), **Uvicorn** (ASGI server),
+  and **Jinja2** (server-rendered HTML templates), declared in a new **optional** dependency
+  group named **`dashboard`** in `pyproject.toml` — `fastapi>=0.111,<1`, `jinja2>=3.1,<4`,
+  `uvicorn>=0.30,<1`, following this repository's existing lower-bound-plus-next-major
+  convention (`typer>=0.12,<1`, `pydantic>=2.7,<3`). The default/core installation stays free of
+  dashboard-serving dependencies. Stdlib `http.server` is explicitly rejected as the primary
+  implementation. DASH-004 and later stages may use only the three distributions in this group
+  unless separately authorized. Binding stays loopback-only by default; remote exposure,
+  authentication, TLS, and production deployment remain later-stage concerns.
+- **Rationale:** FastAPI/Starlette gives typed handlers, dependency-injected request scope, and
+  first-class Pydantic integration — and Pydantic is already pinned and already chosen for
+  `AWED_`-prefixed settings (`ARCHITECTURE.md` §6), so the `{ok, data, error}` envelope and the
+  API_SPEC endpoint contracts land on types the repository already maintains. Jinja2 is
+  Starlette's own templating integration and gives autoescaping by default, which matters
+  directly for the escape-first XSS posture the Markdown mini-renderer (OD-D2) already commits
+  to. Uvicorn is the reference ASGI server and binds a single loopback socket without a reverse
+  proxy. The stdlib `http.server` fallback was rejected: it would mean hand-rolling routing,
+  request parsing, header/CSRF middleware, and template escaping — exactly the code most likely
+  to carry a security defect — to save three widely-audited dependencies that the optional
+  group already keeps out of the engine's own install.
+- **Consequences:** `ARCHITECTURE.md` §1's "zero modification of `pyproject.toml`" constraint
+  gains one narrow, already-executed carve-out: this governance commit's `dashboard` group. That
+  is the only dependency change the dashboard program has; a dashboard stage still may not edit
+  `pyproject.toml`. The engine's `[project].dependencies`, wheel packaging, `testpaths`, lint,
+  and type gates are untouched, so `pip install ai-workflow-engine` still installs no web
+  framework and the audited engine keeps no HTTP surface. Operators (and DASH-004 onward) install
+  with `pip install -e '.[dashboard]'` inside the `ai-workflow-engine` Conda environment; the
+  dependencies were **not** installed by this governance session. DASH-004's own Allowed-list
+  dependency change is thereby already spent, and OD-D9 no longer blocks it — though DASH-004
+  remains `Planned` and unauthorized, needing its own fresh Human Owner authorization.
+- **Reconsider when:** a stage needs a distribution outside the group (a separate authorization,
+  not an assumption); the loopback-only boundary is ever proposed to widen; or FastAPI/Uvicorn
+  reach 1.0 and the `<1` ceilings must be re-evaluated.
+
 ## Decision References
 Repository decisions binding this program are recorded in `docs/DECISION_LOG.md` (2026-07-23
-entry for program enrollment; 2026-07-29 entry for GOV-AUTO-04's OD-D10/OD-D11 resolution).
+entry for program enrollment; 2026-07-29 entry for GOV-AUTO-04's OD-D10/OD-D11 resolution;
+2026-07-29 entry for the OD-D9 serving-stack decision).
 
 ## Open Questions
 None held here; see `OPEN_QUESTIONS.md`.

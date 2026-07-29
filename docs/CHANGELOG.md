@@ -7,6 +7,21 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- OD-D9 resolved (2026-07-29, Human Owner decision): the AgentOS Dashboard serving stack is
+  **FastAPI** (HTTP application framework) + **Uvicorn** (ASGI server) + **Jinja2** (server-rendered
+  templates), declared in a new **optional** dependency group `dashboard` in `pyproject.toml`
+  (`fastapi>=0.111,<1`, `jinja2>=3.1,<4`, `uvicorn>=0.30,<1`). `[project].dependencies` is
+  unchanged, so a default `pip install ai-workflow-engine` still installs no web framework and the
+  engine keeps no HTTP surface; dashboard use is `pip install -e '.[dashboard]'`. Stdlib
+  `http.server` is explicitly rejected as the primary implementation. Loopback-only binding is
+  unchanged; remote exposure, authentication, TLS, and production deployment remain later-stage
+  concerns. DASH-004 and later dashboard stages may use only the dependencies in this group unless
+  separately authorized, and need no `pyproject.toml` change of their own. **DASH-004 is no longer
+  blocked by OD-D9, and remains `Planned` and unauthorized.** Decisions:
+  `docs/agentos-dashboard/DECISIONS.md` DD-09, `docs/DECISION_LOG.md` (2026-07-29 entry),
+  `docs/agentos-dashboard/OPEN_QUESTIONS.md` (OD-D9 now Resolved; the Open section is empty).
+  Governance/architecture records only — no dashboard code, no runtime or test change, nothing
+  installed, no task authorized or made `Current`.
 - GOV-AUTO-04 (2026-07-29): implemented, Human-Owner-approved, and closed
   `Current -> Done` in one local commit via scripts/workflow-approve.sh's automatic
   task closeout (GOV-AUTO-03).

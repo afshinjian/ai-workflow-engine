@@ -62,7 +62,8 @@ severity: `BLOCKER` / `MAJOR` / `MINOR` / `OBSERVATION`.
 DD-01, DD-03.
 
 ## 6. Open Questions
-OD-D9 (templating engine; page contracts are engine-independent).
+None. OD-D9 (templating engine) is resolved 2026-07-29 — Jinja2; the page contracts here were
+written engine-independent and are unchanged by it.
 
 ## 7. Future Revisions
 New pages require PRODUCT_SPEC DR coverage first.

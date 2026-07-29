@@ -183,7 +183,8 @@ Report paths: `docs/reports/agentos-dashboard/STAGE-XX-completion.md`.
 ## 5. Stage→Requirement Map
 
 DASH-002 → adapters underpinning all DRs · DASH-003 → DR-120..122 foundations · DASH-004 →
-DR-010..013, DR-123 (blocked on OD-D9) · DASH-005 → DR-020..033 · DASH-006 → DR-080..083,
+DR-010..013, DR-123 (formerly blocked on OD-D9; resolved 2026-07-29) · DASH-005 → DR-020..033 ·
+DASH-006 → DR-080..083,
 DR-100..102, DR-120 · DASH-007 → DR-040..043 · DASH-008 → DR-050..071, DR-110..111 ·
 DASH-009 → SC-01..36 verification · DASH-010 → MVP acceptance.
 
@@ -191,8 +192,10 @@ DASH-009 → SC-01..36 verification · DASH-010 → MVP acceptance.
 DD-01, DD-02, DD-03.
 
 ## 7. Open Questions
-OD-D1 is resolved (see `OPEN_QUESTIONS.md`); OD-D9 must be resolved before DASH-004
-authorization; DASH-002 authorization requires DASH-001 `COMPLETE` plus a fresh Human Owner
+OD-D1 is resolved (see `OPEN_QUESTIONS.md`). OD-D9, which had to be resolved before DASH-004
+authorization, is resolved 2026-07-29 (`DECISIONS.md` DD-09) — that precondition is satisfied, and
+DASH-004 authorization now needs only DASH-003 `COMPLETE` (it is) plus a fresh Human Owner record,
+like any other stage. DASH-002 authorization required DASH-001 `COMPLETE` plus a fresh Human Owner
 record.
 
 ## 8. Future Revisions

@@ -70,7 +70,8 @@ endpoint exists (SC-11, SC-29; DR-912). Their absence is asserted by tests.
 DD-01, DD-03.
 
 ## 7. Open Questions
-OD-D9 (serving framework; envelope and endpoint contracts are framework-independent).
+None. OD-D9 (serving framework) is resolved 2026-07-29 — FastAPI, served by Uvicorn; the
+envelope and endpoint contracts here were written framework-independent and are unchanged by it.
 
 ## 8. Future Revisions
 New endpoints require MAJOR version and independent review; mutating endpoints additionally
