@@ -137,31 +137,50 @@ fi
 note "git diff --check : clean"
 note ""
 
-# --- Build the exact implementation file list, and display it in full --------------------------
+# --- Resolve the exact set of individually changed paths from `git status` ----------------------
 #
-# Read with -z so paths containing spaces, quotes, or newlines survive intact. The status short
-# format is "XY <path>"; a rename carries "XY <new>\0<old>" and both halves must be staged.
+# Read with -z --untracked-files=all so: (a) paths containing spaces, quotes, or newlines survive
+# intact — the status short format is "XY <path>", NUL-terminated; (b) a newly created,
+# entirely-untracked directory is expanded to every file it actually contains rather than
+# collapsed into one directory-summary path. Git's *default* untracked mode ("normal") does that
+# collapsing for any untracked directory — e.g. a brand-new `agentos_workflow/tests/e2e/` with
+# several files inside reports as the single path "agentos_workflow/tests/e2e/", not each file —
+# and `--untracked-files=all` is the only mode that recurses fully, so it must be used at every
+# call site that compares against an approved-file list, or a directory marker path gets compared
+# as if it were an independent implementation file (it never is one: `git add` on that same marker
+# path stages the real files underneath it, but the two path strings never string-compare equal).
+# A rename/copy record carries the origin path as its own NUL-terminated field immediately
+# following the destination path; both halves are resolved. Writes into the array named by $1.
+resolve_changed_paths() {
+    local -n __resolve_changed_paths_out="$1"
+    local -a status_records
+    local record path x y index
+    mapfile -d '' -t status_records < <(
+        git -C "$repo_root" status --porcelain=v1 -z --untracked-files=all
+    )
+    __resolve_changed_paths_out=()
+    index=0
+    while [ "$index" -lt "${#status_records[@]}" ]; do
+        record="${status_records[$index]}"
+        index=$((index + 1))
+        [ -n "$record" ] || continue
+        x="${record:0:1}"
+        y="${record:1:1}"
+        path="${record:3}"
+        __resolve_changed_paths_out+=("$path")
+        if [ "$x" = "R" ] || [ "$y" = "R" ] || [ "$x" = "C" ] || [ "$y" = "C" ]; then
+            if [ "$index" -lt "${#status_records[@]}" ]; then
+                __resolve_changed_paths_out+=("${status_records[$index]}")
+                index=$((index + 1))
+            fi
+        fi
+    done
+}
 
-mapfile -d '' -t status_records < <(git -C "$repo_root" status --porcelain=v1 -z --untracked-files=all)
+# --- Build the exact implementation file list, and display it in full --------------------------
 
 impl_files=()
-index=0
-while [ "$index" -lt "${#status_records[@]}" ]; do
-    record="${status_records[$index]}"
-    index=$((index + 1))
-    [ -n "$record" ] || continue
-    x="${record:0:1}"
-    y="${record:1:1}"
-    path="${record:3}"
-    impl_files+=("$path")
-    if [ "$x" = "R" ] || [ "$y" = "R" ] || [ "$x" = "C" ] || [ "$y" = "C" ]; then
-        # The origin path of a rename/copy follows as its own NUL-terminated field.
-        if [ "$index" -lt "${#status_records[@]}" ]; then
-            impl_files+=("${status_records[$index]}")
-            index=$((index + 1))
-        fi
-    fi
-done
+resolve_changed_paths impl_files
 
 [ "${#impl_files[@]}" -gt 0 ] || die "no changed files resolved from git status" "$EXIT_NOTHING_TO_COMMIT"
 
@@ -943,9 +962,15 @@ if ! "${validation_cmd[@]}" check-task-state --config "$config" ||
 fi
 
 # --- Verify exactly the expected files changed: implementation set + closeout set, nothing else -
+#
+# Uses the same `resolve_changed_paths` helper as the implementation file list above, for the same
+# reason: without `--untracked-files=all`, a newly created untracked directory collapses to one
+# directory-summary path that can never string-compare equal to the individual files inside it
+# that `impl_files` actually approved, so every closeout of a stage that added a new untracked
+# directory would be wrongly rejected as "unexpected change outside the approved+closeout set."
 
 all_changed=()
-mapfile -t all_changed < <(git -C "$repo_root" status --porcelain=v1 | sed 's/^...//')
+resolve_changed_paths all_changed
 for changed in "${all_changed[@]}"; do
     allowed=0
     for expected in "${impl_files[@]}" "${closeout_files[@]}"; do

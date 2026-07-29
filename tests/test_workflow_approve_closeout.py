@@ -13,8 +13,12 @@ from __future__ import annotations
 
 import hashlib
 import os
+import select
 import subprocess
+import time
+from collections.abc import Callable
 from pathlib import Path
+from typing import IO
 
 import pytest
 
@@ -253,8 +257,93 @@ def dirty(repo: Path, name: str = "src_change.txt", content: str = "implementati
     (repo / name).write_text(content, encoding="utf-8")
 
 
+def dirty_dir(repo: Path, relative_dir: str, filenames: list[str]) -> list[str]:
+    """Create a brand-new, entirely-untracked nested directory containing the given files.
+
+    Returns the repo-relative path of each created file. Used to reproduce the scope-checker bug:
+    `git status`'s *default* untracked mode collapses a brand-new directory into one
+    directory-summary path (e.g. `agentos_workflow/tests/e2e/`) instead of listing the files
+    inside it — even when that directory holds only a single file.
+    """
+    target = repo / relative_dir
+    target.mkdir(parents=True, exist_ok=True)
+    created = []
+    for name in filenames:
+        (target / name).write_text(f"{name} content\n", encoding="utf-8")
+        created.append(f"{relative_dir}/{name}")
+    return created
+
+
 APPROVE_TWICE = "APPROVE\nAPPROVE\n"
 GOOD_MESSAGE = "feat(sandbox): implement the thing (GOV-TEST-1)"
+
+
+def _read_until(stream: IO[str], marker: str, timeout: float = 15.0) -> str:
+    """Read from `stream` until `marker` appears in the accumulated output, or raise on timeout.
+
+    Necessary because `workflow-approve.sh`'s prompts (`Approval: `, `Confirm commit: `) are
+    printed with no trailing newline, so `readline()` would block forever waiting for one that
+    never comes.
+    """
+    buf = ""
+    fd = stream.fileno()
+    deadline = time.monotonic() + timeout
+    while marker not in buf:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError(f"timed out waiting for {marker!r}; got so far: {buf!r}")
+        ready, _, _ = select.select([fd], [], [], remaining)
+        if not ready:
+            continue
+        chunk = os.read(fd, 4096).decode("utf-8", errors="replace")
+        if not chunk:
+            break
+        buf += chunk
+    return buf
+
+
+def approve_with_injection_before_second_confirmation(
+    sandbox: Path, inject: Callable[[], None]
+) -> subprocess.CompletedProcess[str]:
+    """Drive `workflow-approve.sh` through its first confirmation (the point at which the
+    implementation file list has already been captured from `git status` and displayed to the
+    Human Owner), call `inject()` — simulating a file that was never shown to and never approved
+    by the Human Owner — and then answer the second (commit) confirmation.
+
+    This is the only way to construct a file that is genuinely absent from `impl_files` (captured
+    once, at script start, before any prompt) while still being present in the working tree by the
+    time the post-closeout scope check re-reads `git status`.
+    """
+    proc = subprocess.Popen(
+        [str(sandbox / "scripts" / "workflow-approve.sh"), "-m", GOOD_MESSAGE],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env={**os.environ, **GIT_ENV},
+        cwd=str(Path(os.sep)),
+    )
+    assert proc.stdin is not None
+    assert proc.stdout is not None
+    assert proc.stderr is not None
+    collected_stdout = ""
+    try:
+        collected_stdout += _read_until(proc.stdout, "Approval: ")
+        proc.stdin.write("APPROVE\n")
+        proc.stdin.flush()
+        collected_stdout += _read_until(proc.stdout, "Confirm commit: ")
+        inject()
+        proc.stdin.write("APPROVE\n")
+        proc.stdin.flush()
+        rest_stdout, stderr = proc.communicate(timeout=30)
+        collected_stdout += rest_stdout
+        returncode = proc.returncode
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+            proc.wait()
+    assert returncode is not None
+    return subprocess.CompletedProcess(proc.args, returncode, collected_stdout, stderr)
 
 
 # =============================================================================================
@@ -586,3 +675,104 @@ def test_no_successor_task_is_authorized(sandbox: Path) -> None:
     assert result.returncode == 0, result.stderr
     final_current = (sandbox / "docs" / "current_task.md").read_text(encoding="utf-8")
     assert "GOV-TEST-2" not in final_current
+
+
+# =============================================================================================
+# Untracked directory scope resolution (regression: AUTO-007 commit-attempt false rejection)
+#
+# `git status`'s *default* untracked mode collapses a brand-new, entirely-untracked directory into
+# one directory-summary path (e.g. `agentos_workflow/tests/e2e/`) instead of listing the files
+# inside it. The implementation file list (`impl_files`) has always used `--untracked-files=all` to
+# avoid this, but the final post-closeout scope check re-read `git status` without that flag, so it
+# saw the collapsed directory path while `impl_files` held the individual file paths underneath it
+# — the two could never string-compare equal, and the closeout died with "unexpected change outside
+# the approved+closeout set: <dir>/" even though every file in that directory was, in fact, exactly
+# what had been approved. Fixed by resolving both call sites through one shared helper that always
+# uses `--untracked-files=all`.
+# =============================================================================================
+
+
+def test_one_untracked_nested_directory_is_approved(sandbox: Path) -> None:
+    dirty_dir(sandbox, "src/pkg/sub", ["new_module.py"])
+    before = commit_count(sandbox)
+    result = run_approve(sandbox, "-m", GOOD_MESSAGE, stdin=APPROVE_TWICE)
+    assert result.returncode == 0, result.stderr
+    assert commit_count(sandbox) == before + 1
+    committed = set(git(sandbox, "show", "--name-only", "--format=", "HEAD").splitlines())
+    assert "src/pkg/sub/new_module.py" in committed
+    assert git(sandbox, "status", "--porcelain") == ""
+
+
+def test_multiple_untracked_nested_directories_are_all_approved(sandbox: Path) -> None:
+    e2e_files = dirty_dir(sandbox, "agentos_workflow/tests/e2e", ["__init__.py", "test_dry_run.py"])
+    recovery_files = dirty_dir(
+        sandbox, "agentos_workflow/tests/recovery", ["__init__.py", "test_matrix.py"]
+    )
+    before = commit_count(sandbox)
+    result = run_approve(sandbox, "-m", GOOD_MESSAGE, stdin=APPROVE_TWICE)
+    assert result.returncode == 0, result.stderr
+    assert commit_count(sandbox) == before + 1
+    committed = set(git(sandbox, "show", "--name-only", "--format=", "HEAD").splitlines())
+    for path in e2e_files + recovery_files:
+        assert path in committed
+    assert git(sandbox, "status", "--porcelain") == ""
+
+
+def test_mixed_tracked_and_untracked_changes_are_approved(sandbox: Path) -> None:
+    dirty(sandbox, "README.md", "modified tracked content\n")
+    new_files = dirty_dir(sandbox, "docs/notes/sub", ["note.md"])
+    before = commit_count(sandbox)
+    result = run_approve(sandbox, "-m", GOOD_MESSAGE, stdin=APPROVE_TWICE)
+    assert result.returncode == 0, result.stderr
+    assert commit_count(sandbox) == before + 1
+    committed = set(git(sandbox, "show", "--name-only", "--format=", "HEAD").splitlines())
+    assert "README.md" in committed
+    for path in new_files:
+        assert path in committed
+    assert git(sandbox, "status", "--porcelain") == ""
+
+
+def test_unauthorized_file_appearing_inside_an_approved_directory_is_rejected(
+    sandbox: Path,
+) -> None:
+    """The directory-expansion fix must not create a loophole where approving one file in a
+    directory silently approves every other file that later appears in that same directory. A file
+    written into an otherwise-approved directory *after* the implementation file list was captured
+    and shown to the Human Owner, but before the second (commit) confirmation, must still be caught
+    as an unexpected change."""
+    approved_dir = sandbox / "agentos_workflow" / "tests" / "e2e"
+    approved_dir.mkdir(parents=True)
+    (approved_dir / "test_a.py").write_text("def test_a(): pass\n", encoding="utf-8")
+
+    def inject() -> None:
+        (approved_dir / "unauthorized_extra.py").write_text(
+            "# never shown to the Human Owner\n", encoding="utf-8"
+        )
+
+    before = commit_count(sandbox)
+    result = approve_with_injection_before_second_confirmation(sandbox, inject)
+    combined = result.stdout + result.stderr
+    assert result.returncode == 16, combined  # EXIT_CLOSEOUT_FAILED
+    assert "unexpected change outside the approved+closeout set" in combined
+    assert "unauthorized_extra.py" in combined
+    assert commit_count(sandbox) == before
+    assert (approved_dir / "test_a.py").read_text(encoding="utf-8") == "def test_a(): pass\n"
+
+
+def test_unauthorized_unrelated_top_level_file_is_still_rejected(sandbox: Path) -> None:
+    """Same boundary, unrelated location: a file appearing outside any approved directory at all
+    must also still be rejected — confirms the directory-expansion fix narrows nothing about the
+    pre-existing approved-file boundary; it only stops a directory's own approved files from being
+    falsely rejected."""
+    dirty(sandbox)
+
+    def inject() -> None:
+        (sandbox / "sneaky_unrelated.txt").write_text("never approved\n", encoding="utf-8")
+
+    before = commit_count(sandbox)
+    result = approve_with_injection_before_second_confirmation(sandbox, inject)
+    combined = result.stdout + result.stderr
+    assert result.returncode == 16, combined
+    assert "unexpected change outside the approved+closeout set" in combined
+    assert "sneaky_unrelated.txt" in combined
+    assert commit_count(sandbox) == before
