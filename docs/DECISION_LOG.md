@@ -13,6 +13,34 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-07-29 — GOV-AUTO-04 proposed and registered as `Planned`
+
+**Decision:** The Human Owner directed registration of a new governance and
+developer-experience task, `GOV-AUTO-04 — Automatic registered-branch preparation and canonical
+completion-report naming`, to resolve OD-D10 and OD-D11
+(`docs/agentos-dashboard/OPEN_QUESTIONS.md`) — the registered-branch-vs-no-branch-runner conflict
+and the completion-report filename mismatch both DASH-002 and DASH-003 recorded. This is a
+governance-registration-only decision: it adds the task to `docs/TASK_QUEUE.md` (and its prose
+mirror `docs/remaining_tasks.md`) as `Planned`, non-AUTO-family (no stage-registry lifecycle
+entry, per the GOV-AUTO-01/02/03 precedent). It does **not** authorize, implement, or begin any of
+GOV-AUTO-04's work.
+
+**Scope recorded:** (1) `workflow-authorize.sh`/`workflow-next.sh` gain one shared, tested
+branch-preparation routine that safely creates or switches to a registry-governed task's
+registered branch after the authorization commit, refusing on divergence, unexpected commits, a
+dirty worktree, or ambiguous history; GOV/main-branch tasks remain on `main`. (2)
+`workflow-approve.sh`'s report-discovery is extended to directly accept the Dashboard program's
+canonical `docs/reports/agentos-dashboard/STAGE-XX-completion.md` name (stage number resolved
+from registry data, not unchecked filename construction), rejecting path traversal and refusing on
+conflicting duplicate reports, while existing `<TASK_ID>-completion-report.md` support for
+AUTO/GOV tasks is preserved.
+
+**Boundaries:** This decision registers only `GOV-AUTO-04` as `Planned`. It authorizes no
+implementation, no commit beyond this governance-registration commit, no push, merge, branch
+change, or stash mutation, and no successor task. `GOV-AUTO-04` requires its own fresh, explicit
+Human Owner authorization (`scripts/workflow-authorize.sh GOV-AUTO-04 [claude|codex]`) before any
+implementation session may begin.
+
 ## 2026-07-29 — Human Owner approved and closed DASH-003
 
 **Decision:** The Human Owner reviewed the implementation diff for `DASH-003` on

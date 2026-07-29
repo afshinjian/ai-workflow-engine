@@ -303,3 +303,18 @@ DASH-003 was approved and closed `Current -> Done` by the Human Owner through
 scripts/workflow-approve.sh's automatic task closeout. No task is `Current` after this commit
 unless a fresh authorization already named a successor. No push, merge, branch, upstream, or
 stash operation was performed by this closeout.
+
+## Registration update — 2026-07-29
+
+A new task, `GOV-AUTO-04 — Automatic registered-branch preparation and canonical
+completion-report naming`, was proposed by Human Owner directive and registered in
+`docs/TASK_QUEUE.md` (and its prose mirror `docs/remaining_tasks.md`) as `Planned`. It resolves
+OD-D10 and OD-D11 (`docs/agentos-dashboard/OPEN_QUESTIONS.md`) — the registered-branch-vs-
+no-branch-runner conflict and the completion-report filename mismatch both DASH-002 and DASH-003
+recorded — by giving `workflow-authorize.sh`/`workflow-next.sh` shared, automatic branch
+preparation and teaching `workflow-approve.sh`'s report discovery the Dashboard program's
+canonical `STAGE-XX-completion.md` name. **This is a governance-registration commit only: no
+code was written, no task was authorized, and no task became `Current`.** No task is `Current`
+after this commit. `GOV-AUTO-04` requires its own fresh, explicit Human Owner authorization
+(`scripts/workflow-authorize.sh GOV-AUTO-04 [claude|codex]`) before any implementation may begin.
+No push, merge, branch, upstream, or stash operation was performed by this registration.

@@ -697,3 +697,66 @@ Status: Planned
 
 End-to-end tests, operator manual, MVP closure recommendation to the Human Owner. Contract:
 `docs/agentos-dashboard/stage-prompts/DASH-010.md`.
+
+## GOV-AUTO-04 — Automatic registered-branch preparation and canonical completion-report naming
+
+Status: Planned
+
+**Proposed by Human Owner directive on 2026-07-29 as a governance and developer-experience task**
+(non-AUTO-family, so it carries no stage-registry entry, per the GOV-AUTO-01/02/03 precedent).
+This is a task record only; no code has been written or authorized.
+
+**The defects.** Two recurring integration gaps between `scripts/workflow-authorize.sh`,
+`scripts/workflow-next.sh`, and `scripts/workflow-approve.sh`, both first observed and recorded as
+OD-D10 and OD-D11 in `docs/agentos-dashboard/OPEN_QUESTIONS.md` during DASH-002 and recurring
+identically at DASH-003:
+
+1. **OD-D10 — registered branch vs. no-branch runner rule.** AUTO/DASH stages are contractually
+   required to run on a registered feature branch created from clean `main`
+   (`docs/agentos-dashboard/STAGE_REGISTRY.md` §2 rules 4/15), but `workflow-authorize.sh` runs on
+   `main` and explicitly documents the branch as "created later by the implementation session,
+   never by this gate" (lines 265-266), while the canonical runner prompt
+   (`scripts/prompts/implement-next-task.md` §7) flatly forbids the session from creating or
+   switching branches. No session can satisfy both, so DASH-002 and DASH-003 were both
+   implemented on `main`, and `workflow-approve.sh` (line 535) then refuses the closeout until the
+   Human Owner manually runs `git switch -c feature/...`.
+2. **OD-D11 — completion-report filename mismatch.** The Dashboard program's own naming
+   convention (`docs/agentos-dashboard/STAGE_REGISTRY.md` §3) is
+   `docs/reports/agentos-dashboard/STAGE-XX-completion.md`, but `workflow-approve.sh`'s
+   report-discovery loop (lines 544-556) only accepts `<TASK_ID>-completion-report.md` variants,
+   so it cannot find a report written under the documented convention without a manual rename or
+   duplicate copy.
+
+**Scope.** (1) Give `workflow-authorize.sh`/`workflow-next.sh` one shared, tested
+branch-preparation routine that, after the authorization commit, safely creates or switches to a
+registry-governed task's registered branch (refusing on divergence, unexpected commits, a dirty
+worktree, or ambiguous history; GOV/main-branch tasks stay on `main`); `workflow-next.sh` verifies
+the branch precondition before launching an agent. (2) Extend `workflow-approve.sh`'s
+report-discovery to also accept the canonical `STAGE-XX-completion.md` name for DASH tasks (stage
+number resolved from registry data, not unchecked filename construction), rejecting path
+traversal and refusing on conflicting duplicate reports, while keeping existing
+`<TASK_ID>-completion-report.md` support for AUTO/GOV tasks unchanged.
+
+**Allowed paths:** `scripts/workflow-authorize.sh`, `scripts/workflow-next.sh`,
+`scripts/workflow-approve.sh`, `scripts/lib/**`, `scripts/prompts/implement-next-task.md`,
+`tests/**workflow**`, `docs/automation-workflow.md`, `docs/workflow-automation/**`,
+`docs/agentos-dashboard/**`, `docs/TASK_QUEUE.md`, `docs/current_task.md`,
+`docs/remaining_tasks.md`, `docs/PROJECT_STATE.md`, `docs/DECISION_LOG.md`, `docs/CHANGELOG.md`,
+`docs/reports/**`, `handover/PROJECT_HANDOVER.md`, `handover/PROJECT_CHECKSUM.md`.
+
+**Out of scope:** automatic push, automatic merge, pull-request creation, next-task automatic
+authorization, unrelated AgentOS engine/agent/provider/GitHub code, dashboard runtime code, and
+resolving any open decision other than OD-D10/OD-D11.
+
+**Acceptance criteria:** registered AUTO/DASH branches are prepared automatically and safely with
+no manual `git switch -c` step; canonical DASH `STAGE-XX-completion.md` reports are accepted
+directly with no manual report copy; existing TASK-ID report and branch behavior for AUTO/GOV
+tasks remains backward compatible; dirty trees, divergent branches, malformed registry data, path
+traversal, and conflicting reports are all refused without mutation; regression tests cover both
+success and refusal paths; no push, merge, force, reset, branch deletion, or stash operation is
+introduced; OD-D10 and OD-D11 are resolved with evidence.
+
+Requires its own fresh, explicit Human Owner authorization
+(`scripts/workflow-authorize.sh GOV-AUTO-04 [claude|codex]`) before any implementation may begin.
+Recommended implementation commit message:
+`fix(workflow): automate registered branches and canonical report discovery (GOV-AUTO-04)`.

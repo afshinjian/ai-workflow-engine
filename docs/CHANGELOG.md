@@ -7,6 +7,13 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- GOV-AUTO-04 (2026-07-29): proposed by Human Owner directive and registered in
+  `docs/TASK_QUEUE.md` as `Planned` — "Automatic registered-branch preparation and canonical
+  completion-report naming," resolving OD-D10 and OD-D11
+  (`docs/agentos-dashboard/OPEN_QUESTIONS.md`) by giving `workflow-authorize.sh`/
+  `workflow-next.sh` shared, automatic branch preparation and teaching `workflow-approve.sh`'s
+  report discovery the Dashboard program's canonical `STAGE-XX-completion.md` name. Task record
+  only; not authorized, no code changed.
 - DASH-003 (2026-07-29): implemented, Human-Owner-approved, and closed
   `Current -> Done` in one local commit via scripts/workflow-approve.sh's automatic
   task closeout (GOV-AUTO-03).

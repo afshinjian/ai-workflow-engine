@@ -39,7 +39,13 @@ on 2026-07-29** as the single `Current` task — implemented and validated the s
 parsers for the governance mirrors, decision log, orchestration implementation state, and
 handover manifest, plus a consistency engine v1, 157 tests), recurring the same OD-D10 conflict
 on `main`, stopped for Human Owner approval before any commit; report:
-`docs/reports/agentos-dashboard/STAGE-03-completion.md`.
+`docs/reports/agentos-dashboard/STAGE-03-completion.md`. **GOV-AUTO-04 — Automatic
+registered-branch preparation and canonical completion-report naming** was proposed by Human
+Owner directive on 2026-07-29 and registered in `docs/TASK_QUEUE.md` as `Planned`, to resolve
+OD-D10 and OD-D11 above by giving `workflow-authorize.sh`/`workflow-next.sh` shared, automatic
+branch preparation and teaching `workflow-approve.sh`'s report discovery the Dashboard program's
+canonical `STAGE-XX-completion.md` name; this is a task record only and requires its own fresh
+written Human Owner authorization before it may become `Current`.
 
 | Task | Title | Status |
 |---|---|---|

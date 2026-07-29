@@ -118,7 +118,14 @@ with a per-attempt audit scope, and the fix is an attempt-aware artifact name. *
 extending `workflowctl check-governance` to machine-verify stage-registry/lifecycle consistency,
 assessed but deliberately not implemented during the 2026-07-24 governance recovery (real
 validator code needing its own authorization, out of scope for a documentation-only recovery
-session) — requires its own fresh authorization like any other Planned task. Candidate future
+session) — requires its own fresh authorization like any other Planned task. **GOV-AUTO-04**
+(`docs/TASK_QUEUE.md`) was proposed by Human Owner directive on 2026-07-29 to resolve OD-D10 and
+OD-D11 (`docs/agentos-dashboard/OPEN_QUESTIONS.md`) — the registered-branch-vs-no-branch-runner
+conflict and the completion-report filename mismatch both DASH-002 and DASH-003 recorded — by
+giving `workflow-authorize.sh`/`workflow-next.sh` shared, automatic branch preparation and
+teaching `workflow-approve.sh`'s report discovery the Dashboard program's canonical
+`STAGE-XX-completion.md` name. This is a task record only; requires its own fresh Human Owner
+authorization before any implementation may begin. Candidate future
 engine work (explicitly out of the delivered 1.0.0 scope) remains listed in
 `docs/FINAL_COMPLETION_REPORT.md` under "Future improvements".
 
