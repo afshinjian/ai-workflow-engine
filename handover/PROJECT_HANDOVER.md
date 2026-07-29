@@ -223,3 +223,10 @@ GOV-2 was approved and closed `Current -> Done` by the Human Owner through
 scripts/workflow-approve.sh's automatic task closeout. No task is `Current` after this commit
 unless a fresh authorization already named a successor. No push, merge, branch, upstream, or
 stash operation was performed by this closeout.
+
+## Authorization update — 2026-07-29
+
+GOV-3 is the single `Current` task after two exact Human Owner `AUTHORIZE` confirmations.
+The authorization-only commit contains governance and handoff records; implementation has not
+started. No predecessor was closed automatically, and no push, merge, upstream, branch, or stash
+operation was performed.

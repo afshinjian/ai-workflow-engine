@@ -28,7 +28,7 @@ authorization before it may become `Current`; authorizing GOV-AUTO-03 authorizes
 
 | Task | Title | Status |
 |---|---|---|
-| GOV-3 | Attempt-aware report artifact naming in the Reporting Skills | Planned |
+| GOV-3 | Attempt-aware report artifact naming in the Reporting Skills | Current |
 | DASH-002 | Repository adapter and read-only snapshot | Planned |
 | DASH-003 | Governance and Markdown parsing | Planned |
 | DASH-004 | Local backend and dashboard shell (blocked on OD-D9) | Planned |

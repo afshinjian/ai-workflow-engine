@@ -556,7 +556,7 @@ implementation, not before it exists. Requires its own fresh authorization, as a
 
 ## GOV-3 — Attempt-aware report artifact naming in the Reporting Skills
 
-Status: Planned
+Status: Current
 
 **Recorded as explicit future work by Human Owner decision on 2026-07-28, when approving AUTO-005**
 ("Record the QA report collision as explicit future work. Do not fix it within AUTO-005 and do not
