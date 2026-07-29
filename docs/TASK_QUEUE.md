@@ -634,7 +634,7 @@ convention (and DASH-001's precedent) is `STAGE-02-completion.md`. Registry stat
 
 ## DASH-003 — Governance and Markdown parsing
 
-Status: Planned
+Status: Current
 
 Tolerant parsers for the governance mirrors, decision log, orchestration implementation state,
 and handover manifest; consistency engine v1. Contract:
