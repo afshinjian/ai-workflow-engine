@@ -7,6 +7,23 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- DASH-003 (2026-07-29): implemented, Human-Owner-approved, and closed
+  `Current -> Done` in one local commit via scripts/workflow-approve.sh's automatic
+  task closeout (GOV-AUTO-03).
+- DASH-003 (2026-07-29, implementation): tolerant, confidence-scored parsers for
+  `docs/PROJECT_STATE.md`, the task queue and its two mirrors, `docs/DECISION_LOG.md`,
+  `docs/implementation/orchestration/implementation-state.yaml` (safe YAML with duplicate-key
+  rejection), and `handover/PROJECT_CHECKSUM.md`, plus a consistency engine v1
+  (`agentos_dashboard/services/consistency.py`) cross-checking them against each other and
+  against Git — queue-vs-mirror agreement, the sole-`Current` invariant, the `pyproject.toml`
+  vs. `docs/PROJECT_STATE.md` version fact, a PROJECT_STATE-vs-TASK_QUEUE contradiction rule,
+  doc-named commit resolution, handover checksum recomputation, and orchestration-state schema
+  sanity. No parser raises for malformed input; every degradation becomes a `ConsistencyFinding`
+  instead. 157 new tests including a malformed-document fixture corpus. Stdlib + PyYAML only; no
+  engine file touched and the engine's own collection unchanged at 1,123. Report:
+  `docs/reports/agentos-dashboard/STAGE-03-completion.md`; decisions:
+  `docs/agentos-dashboard/DECISIONS.md` DD-06, DD-07. Implemented and validated; stopped for
+  Human Owner approval before any commit.
 - DASH-003 (2026-07-29): explicitly authorized by the Human Owner through the local
   two-confirmation task gate; authorization commit and implementation remain separate.
 - DASH-002 (2026-07-29): implemented, Human-Owner-approved, and closed

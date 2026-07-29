@@ -1,0 +1,6 @@
+schema_name: orchestration-implementation-state
+feature_id: ORCH
+current_stage: ORCH-001
+feature_id: ORCH-DUPLICATE
+stages:
+  ORCH-001: {title: Example, status: NOT_STARTED, prerequisites: [], blockers: [], evidence: []}

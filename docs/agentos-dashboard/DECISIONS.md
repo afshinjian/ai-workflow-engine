@@ -5,7 +5,7 @@
 | **Title** | AgentOS Dashboard — Decisions |
 | **Purpose** | Append-only record of dashboard-program decisions (DD-##). Subordinate to `docs/DECISION_LOG.md`; cross-posted there when repository governance requires. |
 | **Status** | Draft |
-| **Version** | 1.1 |
+| **Version** | 1.2 |
 | **Owner** | Documentation & Governance session (append) · Human Owner (approval) |
 | **Dependencies** | `MASTER_PLAN.md` §8 |
 | **Related Documents** | `docs/DECISION_LOG.md` |
@@ -96,6 +96,52 @@ appended, never rewritten; supersessions are explicit.
   because a reviewer comparing argv to `ARCHITECTURE.md` §3 will see options the contract does
   not list.
 - **Reconsider when:** A Git version changes the meaning of either option.
+
+## DD-06 — `project_state_task_queue_contradiction` is scoped to `## Completed` bullets only
+
+- **Status:** Accepted (DASH-003 implementation decision, 2026-07-29).
+- **Context:** `DASH-003.md`'s Acceptance section asks the consistency engine to detect "a
+  fixture reproduction of a deliberate PROJECT_STATE-vs-TASK_QUEUE contradiction." The real
+  `docs/PROJECT_STATE.md` has three status-shaped sections — `## Completed`, `## In progress`,
+  `## Planned` — but only `## Completed`'s bullets are structured one-task-per-bullet with the
+  id first (`- <ID> (closed ...): ...`); `## In progress`/`## Planned` are free-form prose that
+  can name a task id mid-sentence while describing an unrelated fact about it (verified against
+  the real document: its `## In progress` section says "AUTO-006 was ... closed to `Done`" while
+  narrating GOV-AUTO-03, which a naive whole-section scan would misread as PROJECT_STATE.md
+  claiming AUTO-006 is still in progress).
+- **Decision:** `agentos_dashboard.parsing.project_state` extracts `SectionTaskRef`s only from
+  `## Completed`'s top-level bullets (a line starting `- `, task id first); `## In progress`/
+  `## Planned` are left as raw prose for a later stage's decision, not scanned by this rule.
+- **Consequences:** The rule is high-precision (verified to produce zero false positives against
+  this repository's real `PROJECT_STATE.md`/`TASK_QUEUE.md` pair,
+  `agentos_dashboard/tests/test_parsing_project_state.py::test_real_repository_project_state_parses_at_high_confidence`)
+  at the cost of not checking the other two sections at all. A later stage that needs that
+  coverage will need either a stricter prose convention in those sections or a different
+  extraction strategy — an explicit decision, not assumed here.
+- **Reconsider when:** `## In progress`/`## Planned` adopt a structured one-bullet-per-task
+  convention, or a later stage's UI needs live status for tasks named only in those sections.
+
+## DD-07 — The sole-`Current` invariant is a documented constant, not a parsed config value
+
+- **Status:** Accepted (DASH-003 implementation decision, 2026-07-29).
+- **Context:** `check-task-state`'s "too many Current tasks" rule reads
+  `workflow.maximum_current_tasks` from `self-governance.yaml`. `DASH-003.md`'s Allowed list
+  names five specific document parsers (`docs/PROJECT_STATE.md`, the task queue and its two
+  mirrors as one family, `docs/DECISION_LOG.md`, `implementation-state.yaml`, the handover
+  manifest) and does not include a general YAML config reader for `self-governance.yaml`, whose
+  schema (`GovernanceSettings`, `WorkflowSettings`, …) belongs to the engine.
+- **Decision:** `agentos_dashboard.services.consistency.DEFAULT_MAXIMUM_CURRENT_TASKS` is a
+  documented `= 1` constant, matching this repository's actual configured value, checked by
+  `test_watched_files_match_the_source_of_truth_document`-style equality only informally (by
+  code comment, not by a runtime read of `self-governance.yaml`).
+- **Consequences:** If a future Human Owner decision changes
+  `self-governance.yaml`'s `workflow.maximum_current_tasks`, this constant must be updated by
+  hand or it will silently drift from the engine's own enforced value — a known, accepted MVP
+  limitation, not a defect DASH-003 is expected to close. A general `self-governance.yaml`
+  reader is DASH-004+'s natural home (`ARCHITECTURE.md` §2's `services:` layer already composes
+  config-derived facts for later stages).
+- **Reconsider when:** A later stage adds a `self-governance.yaml` parser for another reason,
+  at which point this constant should be replaced by a read of the real value.
 
 ## Decision References
 Repository decisions binding this program are recorded in `docs/DECISION_LOG.md` (2026-07-23

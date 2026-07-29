@@ -17,6 +17,28 @@ before/after, authorizing task, approver. Entries are appended, never edited.
 
 ## Entries
 
+### CL-20260729-02 — DASH-003 implemented: governance and Markdown parsing
+
+- **Documents:** `DECISIONS.md` (new DD-06, DD-07), `STAGE_REGISTRY.md` §4 (new append-only
+  preflight row; the §3 state cell is unchanged at `AUTHORIZED`), and the new report
+  `docs/reports/agentos-dashboard/STAGE-03-completion.md`.
+- **Versions:** `DECISIONS.md` 1.1 → **1.2**; `STAGE_REGISTRY.md` 5.0 → 5.0 (append-only log
+  growth, which §8 does not version).
+- **Code delivered (outside this documentation set):** `agentos_dashboard/parsing/**` (tolerant,
+  confidence-scored parsers for `docs/PROJECT_STATE.md`, the task queue and its two mirrors,
+  `docs/DECISION_LOG.md`, `implementation-state.yaml`, and the handover checksum manifest),
+  `agentos_dashboard/services/consistency.py` (the consistency engine v1), and
+  `agentos_dashboard/tests/**` (157 tests including a malformed-document fixture corpus under
+  `tests/fixtures/malformed/`) — exactly the stage contract's Allowed list. Stdlib + PyYAML
+  (already pinned) only; no new dependency.
+- **Reason for change:** DASH-003's implementation, recurring the exact OD-D10 branch-vs-runner
+  conflict DASH-002 already recorded (no new Open Question needed; OD-D10's "Blocked" line
+  already names "every later DASH stage run through the same local runner").
+- **Authorizing task:** DASH-003, authorized by the Human Owner 2026-07-29 through
+  `scripts/workflow-authorize.sh` (`STAGE_REGISTRY.md` §4).
+- **Approver:** pending — the implementation is uncommitted and awaits Human Owner approval.
+- **Date:** 2026-07-29.
+
 ### CL-20260729-01 — DASH-002 implemented: repository adapters and read-only snapshot
 
 - **Documents:** `DECISIONS.md` (new DD-04, DD-05), `OPEN_QUESTIONS.md` (new OD-D10, OD-D11),
@@ -191,3 +213,8 @@ The Human Owner approved and closed DASH-002 through the automatic task-closeout
 
 The Human Owner authorized DASH-003 through the two-confirmation local gate. The stage is
 `AUTHORIZED`; implementation, approval, push, and merge remain separate.
+
+## 2026-07-29 — DASH-003 closed
+
+The Human Owner approved and closed DASH-003 through the automatic task-closeout gate
+(`scripts/workflow-approve.sh`, GOV-AUTO-03). Registry state `COMPLETE`; task status `Done`.

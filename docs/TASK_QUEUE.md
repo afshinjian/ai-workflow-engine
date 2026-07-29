@@ -634,11 +634,19 @@ convention (and DASH-001's precedent) is `STAGE-02-completion.md`. Registry stat
 
 ## DASH-003 — Governance and Markdown parsing
 
-Status: Current
+Status: Done
 
 Tolerant parsers for the governance mirrors, decision log, orchestration implementation state,
 and handover manifest; consistency engine v1. Contract:
 `docs/agentos-dashboard/stage-prompts/DASH-003.md`.
+
+Implemented and validated 2026-07-29: `agentos_dashboard/parsing/` (five tolerant parsers) and
+`agentos_dashboard/services/consistency.py`, plus 157 tests (`agentos_dashboard/tests/`)
+including a malformed-document fixture corpus. No parser raises for malformed input; every
+degradation becomes a `ConsistencyFinding`. Recurred the exact OD-D10 branch-vs-runner conflict
+DASH-002 already recorded (`docs/agentos-dashboard/OPEN_QUESTIONS.md`): implemented on `main` in
+the working tree, uncommitted, awaiting Human Owner approval. Report:
+`docs/reports/agentos-dashboard/STAGE-03-completion.md`.
 
 ## DASH-004 — Local backend and dashboard shell
 

@@ -153,7 +153,7 @@ Report paths: `docs/reports/agentos-dashboard/STAGE-XX-completion.md`.
 |---|---|---|---|---|---|
 | DASH-001 | Planning foundation and dashboard contracts | Documentation & Governance session | COMPLETE | `governance/dash-001-documentation` | `stage-prompts/DASH-001.md` |
 | DASH-002 | Repository adapter and read-only snapshot | Dashboard implementation session | COMPLETE | `feature/dash-002-repo-adapter` | `stage-prompts/DASH-002.md` |
-| DASH-003 | Governance and Markdown parsing | Dashboard implementation session | AUTHORIZED | `feature/dash-003-governance-parsing` | `stage-prompts/DASH-003.md` |
+| DASH-003 | Governance and Markdown parsing | Dashboard implementation session | COMPLETE | `feature/dash-003-governance-parsing` | `stage-prompts/DASH-003.md` |
 | DASH-004 | Local backend and dashboard shell | Dashboard implementation session | NOT_STARTED | `feature/dash-004-dashboard-shell` | `stage-prompts/DASH-004.md` |
 | DASH-005 | Workflow board and task detail | Dashboard implementation session | NOT_STARTED | `feature/dash-005-board-task-detail` | `stage-prompts/DASH-005.md` |
 | DASH-006 | Git, upstream, handover, consistency views | Dashboard implementation session | NOT_STARTED | `feature/dash-006-git-handover-views` | `stage-prompts/DASH-006.md` |
@@ -175,6 +175,10 @@ Report paths: `docs/reports/agentos-dashboard/STAGE-XX-completion.md`.
 | 2026-07-29 | DASH-002 (Human Owner approval and closure) | Human Owner supplied both exact `APPROVE` confirmations through `scripts/workflow-approve.sh`, which performed the deterministic governance closeout on branch `feature/dash-002-repo-adapter` in the same commit as the approved implementation. Registry state moves to `COMPLETE`; task status moves `Current -> Done`. This closure authorizes no successor. | Human Owner |
 
 | 2026-07-29 | DASH-003 | Human Owner supplied both exact `AUTHORIZE` confirmations through `scripts/workflow-authorize.sh`. Preconditions passed on the default-branch baseline at `f80919793cfb7776f094733484c837833995e23a`. Registry moves `NOT_STARTED → AUTHORIZED`; implementation has not started. | Human Owner |
+
+| 2026-07-29 | DASH-003 (initial-start preflight: branch precondition unmet, implemented on `main`) | Dashboard implementation session. Verified: the active stage is exactly DASH-003 with registry state `AUTHORIZED`; DASH-002 is `COMPLETE`; `docs/TASK_QUEUE.md`, `docs/current_task.md`, and `docs/remaining_tasks.md` all agree (`Current`); no other task is `Current`; no OD-D# blocks this stage; `main` clean at `651e53e` (the DASH-003 authorization commit itself), `git status` empty, both stashes untouched (this working copy holds none, per the pre-existing document/reality disagreement DASH-002's report already recorded). **The named-branch precondition (§2 rules 4 and 15) recurred exactly as OD-D10 describes**: the local runner prompt this session was launched with forbids creating or switching branches, so `feature/dash-003-governance-parsing` was not created; the stage was implemented on `main` in the working tree, uncommitted. Registry state is therefore left at `AUTHORIZED` — **not** advanced to `IN_PROGRESS`, which would assert a preflight that did not pass, and not moved to `BLOCKED` (§2 rule 18), which would assert that no work was done. The Human Owner's authorization above stands unchanged. Report: `docs/reports/agentos-dashboard/STAGE-03-completion.md`. | Dashboard implementation session |
+
+| 2026-07-29 | DASH-003 (Human Owner approval and closure) | Human Owner supplied both exact `APPROVE` confirmations through `scripts/workflow-approve.sh`, which performed the deterministic governance closeout on branch `feature/dash-003-governance-parsing` in the same commit as the approved implementation. Registry state moves to `COMPLETE`; task status moves `Current -> Done`. This closure authorizes no successor. | Human Owner |
 
 ## 5. Stage→Requirement Map
 

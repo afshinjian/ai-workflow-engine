@@ -33,11 +33,16 @@ validated the same day (the `agentos_dashboard/core/` adapters and snapshot buil
 stopped for Human Owner approval before any commit; report:
 `docs/reports/agentos-dashboard/STAGE-02-completion.md`. Its registered branch was not created
 and the work sits on `main`; that conflict, and the approval gate's report-name expectation, are
-recorded as OD-D10 and OD-D11 in `docs/agentos-dashboard/OPEN_QUESTIONS.md`.
+recorded as OD-D10 and OD-D11 in `docs/agentos-dashboard/OPEN_QUESTIONS.md`. **DASH-002 was
+approved and closed to `Done` on 2026-07-29**, and **DASH-003 was authorized by the Human Owner
+on 2026-07-29** as the single `Current` task — implemented and validated the same day (tolerant
+parsers for the governance mirrors, decision log, orchestration implementation state, and
+handover manifest, plus a consistency engine v1, 157 tests), recurring the same OD-D10 conflict
+on `main`, stopped for Human Owner approval before any commit; report:
+`docs/reports/agentos-dashboard/STAGE-03-completion.md`.
 
 | Task | Title | Status |
 |---|---|---|
-| DASH-003 | Governance and Markdown parsing | Current |
 | DASH-004 | Local backend and dashboard shell (blocked on OD-D9) | Planned |
 | DASH-005 | Workflow board and task detail | Planned |
 | DASH-006 | Git, upstream, handover, and consistency views | Planned |
