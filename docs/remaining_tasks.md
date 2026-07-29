@@ -49,6 +49,7 @@ written Human Owner authorization before it may become `Current`.
 
 | Task | Title | Status |
 |---|---|---|
+| GOV-AUTO-04 | Automatic registered-branch preparation and canonical completion-report naming | Planned |
 | DASH-004 | Local backend and dashboard shell (blocked on OD-D9) | Planned |
 | DASH-005 | Workflow board and task detail | Planned |
 | DASH-006 | Git, upstream, handover, and consistency views | Planned |
