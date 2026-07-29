@@ -700,7 +700,7 @@ End-to-end tests, operator manual, MVP closure recommendation to the Human Owner
 
 ## GOV-AUTO-04 — Automatic registered-branch preparation and canonical completion-report naming
 
-Status: Planned
+Status: Current
 
 **Proposed by Human Owner directive on 2026-07-29 as a governance and developer-experience task**
 (non-AUTO-family, so it carries no stage-registry entry, per the GOV-AUTO-01/02/03 precedent).

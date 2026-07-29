@@ -7,6 +7,8 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- GOV-AUTO-04 (2026-07-29): explicitly authorized by the Human Owner through the local
+  two-confirmation task gate; authorization commit and implementation remain separate.
 - GOV-AUTO-04 (2026-07-29): proposed by Human Owner directive and registered in
   `docs/TASK_QUEUE.md` as `Planned` — "Automatic registered-branch preparation and canonical
   completion-report naming," resolving OD-D10 and OD-D11

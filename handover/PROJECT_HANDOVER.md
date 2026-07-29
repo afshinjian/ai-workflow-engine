@@ -318,3 +318,10 @@ code was written, no task was authorized, and no task became `Current`.** No tas
 after this commit. `GOV-AUTO-04` requires its own fresh, explicit Human Owner authorization
 (`scripts/workflow-authorize.sh GOV-AUTO-04 [claude|codex]`) before any implementation may begin.
 No push, merge, branch, upstream, or stash operation was performed by this registration.
+
+## Authorization update — 2026-07-29
+
+GOV-AUTO-04 is the single `Current` task after two exact Human Owner `AUTHORIZE` confirmations.
+The authorization-only commit contains governance and handoff records; implementation has not
+started. No predecessor was closed automatically, and no push, merge, upstream, branch, or stash
+operation was performed.
