@@ -363,3 +363,16 @@ The Human Owner authorized AUTO-007 through the two-confirmation local gate. The
 
 The Human Owner approved and closed AUTO-007 through the automatic task-closeout gate
 (`scripts/workflow-approve.sh`, GOV-AUTO-03). Registry state `COMPLETE`; task status `Done`.
+
+## 2026-07-29 — GOV-3 implemented (attempt-aware report artifact names)
+
+Implemented under the ordinary engine task GOV-3 (`docs/TASK_QUEUE.md`), not an AUTO stage, so no
+stage-registry lifecycle state changes. The four report generators in
+`agentos_workflow/skills/reporting.py` take an optional validated `sequence`, naming an artifact
+`<kind>.<sequence>.json` inside the workflow's own audit directory; content-hash idempotency and
+the differing-content refusal are unchanged per artifact. `QAAgent._report_scope`'s AUTO-005
+per-attempt derived-identifier workaround is removed, so each QA round's report now lives beside
+that workflow's own audit log instead of in a sibling directory. `SKILL_CONTRACTS.md` §6 records
+the contract change (Version 1.3); rationale in `DECISIONS.md` DD-40; the remaining caller-side
+round-numbering question is `OPEN_QUESTIONS.md` OD-12. Implemented and validated; stopped for
+Human Owner approval before any commit.

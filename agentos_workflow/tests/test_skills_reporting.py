@@ -90,6 +90,94 @@ def test_differing_content_refuses_to_overwrite(audit_root: Path) -> None:
     assert stored["summary"] == "first"
 
 
+@pytest.mark.parametrize("generator,kind,kwarg", GENERATORS)
+def test_a_sequence_names_the_artifact_inside_the_same_workflow_directory(
+    audit_root: Path, generator: Callable[..., Any], kind: str, kwarg: str
+) -> None:
+    """GOV-3: several genuinely different reports of one kind belong to one workflow."""
+    artifact = generator(
+        audit_root=audit_root, workflow_id=WORKFLOW, sequence=2, **{kwarg: {"summary": "ok"}}
+    ).unwrap()
+    assert artifact.path == audit_root / WORKFLOW / "reports" / f"{kind}.2.json"
+    payload = json.loads(artifact.path.read_text(encoding="utf-8"))
+    assert payload["report_sequence"] == 2
+    assert payload["workflow_id"] == WORKFLOW
+
+
+def test_successive_rounds_do_not_collide(audit_root: Path) -> None:
+    """The defect GOV-3 fixes: round two failed on the artifact, not on the code under review."""
+    written = [
+        generate_qa_report(
+            audit_root=audit_root,
+            workflow_id=WORKFLOW,
+            results={"verdict": "REJECTED", "attempt_number": round_number},
+            sequence=round_number,
+        ).unwrap()
+        for round_number in (1, 2, 3)
+    ]
+    assert [artifact.path.name for artifact in written] == ["qa.1.json", "qa.2.json", "qa.3.json"]
+    assert all(artifact.already_present is False for artifact in written)
+    assert sorted(path.name for path in (audit_root / WORKFLOW / "reports").iterdir()) == [
+        "qa.1.json",
+        "qa.2.json",
+        "qa.3.json",
+    ]
+
+
+def test_an_omitted_sequence_keeps_the_unsequenced_name(audit_root: Path) -> None:
+    """Every existing caller passes no sequence and must be unaffected."""
+    artifact = generate_qa_report(
+        audit_root=audit_root, workflow_id=WORKFLOW, results={"summary": "ok"}
+    ).unwrap()
+    assert artifact.path.name == "qa.json"
+    assert "report_sequence" not in json.loads(artifact.path.read_text(encoding="utf-8"))
+
+
+def test_the_same_sequence_still_refuses_differing_content(audit_root: Path) -> None:
+    """Sequencing distinguishes rounds; it never relaxes the append-only refusal within one."""
+    generate_qa_report(
+        audit_root=audit_root,
+        workflow_id=WORKFLOW,
+        results={"summary": "first", "generated_at": "2026-07-29T00:00:00+00:00"},
+        sequence=1,
+    ).unwrap()
+    result = generate_qa_report(
+        audit_root=audit_root,
+        workflow_id=WORKFLOW,
+        results={"summary": "second", "generated_at": "2026-07-29T00:00:00+00:00"},
+        sequence=1,
+    )
+    assert not result.ok and result.error is not None
+    assert result.error.kind is FailureKind.PRECONDITION
+    assert result.error.retry_classification is RetryClassification.NON_RETRYABLE
+    stored = json.loads((audit_root / WORKFLOW / "reports" / "qa.1.json").read_text())
+    assert stored["summary"] == "first"
+
+
+def test_an_identical_sequenced_regeneration_is_idempotent(audit_root: Path) -> None:
+    results = {"summary": "ok", "generated_at": "2026-07-29T00:00:00+00:00"}
+    first = generate_qa_report(
+        audit_root=audit_root, workflow_id=WORKFLOW, results=results, sequence=1
+    ).unwrap()
+    second = generate_qa_report(
+        audit_root=audit_root, workflow_id=WORKFLOW, results=results, sequence=1
+    ).unwrap()
+    assert first.sha256 == second.sha256
+    assert (first.already_present, second.already_present) == (False, True)
+
+
+@pytest.mark.parametrize("hostile", [0, -1, 10000, "1", 1.0, True, "../escape"])
+def test_unsafe_sequences_are_rejected(audit_root: Path, hostile: Any) -> None:
+    """A sequence is a validated integer, so nothing a caller passes can widen the filename."""
+    result = generate_qa_report(
+        audit_root=audit_root, workflow_id=WORKFLOW, results={"a": 1}, sequence=hostile
+    )
+    assert not result.ok and result.error is not None
+    assert result.error.kind is FailureKind.UNSAFE_INPUT
+    assert result.error.retry_classification is RetryClassification.NON_RETRYABLE
+    assert not (audit_root / WORKFLOW / "reports").exists(), "nothing may be written"
+
+
 def test_report_content_is_redacted(audit_root: Path) -> None:
     secret = "ghp_" + "A" * 36
     artifact = generate_failure_report(

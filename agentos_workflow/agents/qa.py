@@ -67,27 +67,6 @@ class QAAgent(Agent):
     def kind(self) -> AgentKind:
         return AgentKind.QA
 
-    def _report_scope(self, attempt_number: int) -> str:
-        """The audit scope this attempt's QA report artifact is written under.
-
-        **Known limitation, deliberately visible rather than worked around silently.**
-        `generate_qa_report` (AUTO-003) writes exactly one `reports/qa.json` per workflow
-        identifier and refuses to overwrite it with differing content — correct behaviour for an
-        append-only audit model, but it means a workflow cannot hold more than one QA report. A
-        repair loop runs up to four QA rounds (`FAILURE_RECOVERY.md` §1), each producing a
-        genuinely different report, so the second round would fail on the artifact rather than on
-        the code under review.
-
-        AUTO-005 cannot fix the Skill — `agentos_workflow/skills/**` is outside this stage's
-        allowed paths — so each round is written under a per-attempt scope derived from the
-        workflow identifier. Every artifact stays inside the audit root, and the workflow's own
-        audit *log* still uses the real, undecorated workflow identifier, so the rounds remain
-        joined to their workflow. The proper fix is an attempt-aware filename in the reporting
-        Skills, which belongs to whichever stage next owns `skills/reporting.py`; it is recorded in
-        this stage's completion report rather than left as a surprise.
-        """
-        return f"{self._workflow_id}.qa{attempt_number}"
-
     def review(
         self,
         *,
@@ -161,8 +140,12 @@ class QAAgent(Agent):
         written = self._broker.invoke_skill(
             "generate_qa_report",
             audit_root=self._audit_root,
-            workflow_id=self._report_scope(attempt_number),
+            workflow_id=self._workflow_id,
             results=payload,
+            # A repair loop runs several QA rounds, each a genuinely different report
+            # (`FAILURE_RECOVERY.md` §1). The round number names the artifact, so every round
+            # lives in this workflow's own audit directory beside its audit log (GOV-3).
+            sequence=attempt_number,
         )
         if not written.ok or written.value is None:
             return agent_failure(

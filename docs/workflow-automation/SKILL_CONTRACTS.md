@@ -5,7 +5,7 @@
 | **Title** | AgentOS Workflow Automation — Skill Contracts |
 | **Purpose** | Contract (inputs, outputs, side effects, idempotency, failure mode) for every named skill, grouped by family. |
 | **Status** | Draft |
-| **Version** | 1.2 |
+| **Version** | 1.3 |
 | **Owner** | Documentation & Governance session (AUTO-001) · Human Owner (approval) |
 | **Dependencies** | `ARCHITECTURE.md`, `AGENT_CONTRACTS.md` |
 | **Related Documents** | `WORKFLOW_STATES.md` §7, `MACHINE_GATES.md`, `SECURITY_MODEL.md` |
@@ -144,11 +144,21 @@ the proven-pre-effect or possible-side-effect classification.
 
 | Skill | Input | Output | Side effect | Idempotent |
 |---|---|---|---|---|
-| `generate_stage_report` | implementation results | stage report artifact | writes report file | yes — overwrite guarded by content hash |
-| `generate_qa_report` | QA results | QA report artifact | writes report file | yes |
-| `generate_failure_report` | failure context | failure report artifact | writes report file | yes |
-| `generate_closeout_report` | closeout results | closeout report artifact | writes report file | yes |
+| `generate_stage_report` | implementation results, optional sequence | stage report artifact | writes report file | yes — overwrite guarded by content hash |
+| `generate_qa_report` | QA results, optional sequence | QA report artifact | writes report file | yes |
+| `generate_failure_report` | failure context, optional sequence | failure report artifact | writes report file | yes |
+| `generate_closeout_report` | closeout results, optional sequence | closeout report artifact | writes report file | yes |
 | `append_audit_event` | event record | none | appends one line to the append-only audit log | yes — appending the same event twice is detectable via event ID and suppressed |
+
+**Sequenced artifacts (GOV-3).** A workflow legitimately produces several genuinely different
+reports of the same kind: the bounded repair loop (`FAILURE_RECOVERY.md` §1) runs one
+implementation attempt and one QA round per repair. Each generator therefore accepts an optional
+`sequence` — a validated integer, never a caller-supplied string — naming the artifact
+`<kind>.<sequence>.json` inside that workflow's own audit directory (`AUDIT_MODEL.md`) instead of
+the single `<kind>.json` an omitted sequence still produces. Idempotency is unchanged and remains
+**per artifact**: identical content is a no-op, and differing content under the same kind *and*
+sequence is still refused, because that means a caller reused a round number rather than that the
+append-only audit model needs relaxing.
 
 ## 7. Common Failure Mode
 
@@ -158,7 +168,7 @@ containing enough evidence for the Orchestrator to decide the next workflow-stat
 full effect is applied and confirmed, or nothing is applied.
 
 ## 8. Decision References
-DD-01, DD-05, DD-09.
+DD-01, DD-05, DD-09, DD-40 (§6 sequenced report artifacts).
 
 ## 9. Open Questions
 OD-1 (GitHub auto-merge/required-checks mechanism), OD-2 (secret-detection implementation),

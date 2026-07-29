@@ -20,15 +20,17 @@ implemented, validated, approved, committed locally as
 decision. **GOV-AUTO-03 was authorized by the Human Owner on 2026-07-28** as the single `Current`
 task — implemented and validated the same day, stopped for Human Owner approval before any commit;
 report: `docs/reports/GOV-AUTO-03-completion-report.md`. Remaining work otherwise belongs
-to the DASH program (DASH-002..010, all `Planned`), AUTO-007 (`Planned`), and the ordinary
-governance/tooling tasks GOV-2 and GOV-3 — the latter recorded on 2026-07-28 by Human Owner
-decision as explicit future work for the QA report artifact collision AUTO-005 documented and
-worked around, still `Planned` and unauthorized. Each of those requires its own fresh written
-authorization before it may become `Current`; authorizing GOV-AUTO-03 authorizes none of them.
+to the DASH program (DASH-002..010, all `Planned`), AUTO-007, and the ordinary governance/tooling
+tasks GOV-2 and GOV-3 — the latter recorded on 2026-07-28 by Human Owner decision as explicit
+future work for the QA report artifact collision AUTO-005 documented and worked around. Each of
+those requires its own fresh written authorization before it may become `Current`; authorizing
+GOV-AUTO-03 authorized none of them. Since then: **AUTO-007 was closed to `Done` on 2026-07-29**,
+**GOV-2 was closed to `Done` on 2026-07-29**, and **GOV-3 was authorized by the Human Owner on
+2026-07-29** as the single `Current` task — implemented and validated the same day, stopped for
+Human Owner approval before any commit; report: `docs/reports/GOV-3-completion-report.md`.
 
 | Task | Title | Status |
 |---|---|---|
-| GOV-3 | Attempt-aware report artifact naming in the Reporting Skills | Current |
 | DASH-002 | Repository adapter and read-only snapshot | Planned |
 | DASH-003 | Governance and Markdown parsing | Planned |
 | DASH-004 | Local backend and dashboard shell (blocked on OD-D9) | Planned |

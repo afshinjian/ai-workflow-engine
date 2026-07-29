@@ -155,7 +155,7 @@ Implementation and approval remain separate phases.
 
 ## GOV-3
 
-Status: Current
+Status: Done
 
 The Human Owner explicitly authorized this single task through the local authorization gate.
 Implementation and approval remain separate phases.

@@ -5,7 +5,7 @@
 | **Title** | AgentOS Workflow Automation — Open Questions |
 | **Purpose** | Owner-decision register (OD-#) with dispositions and what each question blocks. |
 | **Status** | Draft |
-| **Version** | 1.5 |
+| **Version** | 1.6 |
 | **Owner** | Documentation & Governance session · Human Owner (dispositions) |
 | **Dependencies** | `DECISIONS.md` |
 | **Related Documents** | `STAGE_REGISTRY.md` (preconditions cite entries here) |
@@ -166,6 +166,32 @@ being `Open` at authorization time is expected, not a defect.
   failure once it reaches any state at or after `BRANCH_CREATED` — a correctness defect, not a
   security one, but one that would surface on the very first real (non-dry-run) production use of
   the engine. Full detail: `docs/reports/workflow-automation/AUTO-007-completion-report.md`.
+
+### OD-12 — Who assigns QA round numbers: the pre-loop round and the loop's first round are both attempt 1
+
+- **Question:** A workflow's first QA round is run by the Orchestrator *before* the repair loop
+  starts, with `attempt_number=1`; `run_repair_loop` (`agentos_workflow/agents/__init__.py`) then
+  numbers its own internal rounds from 1 as well, so the loop's first round reuses the number the
+  pre-loop round already consumed. The two rounds are genuinely different reviews with different
+  verdicts, so their artifacts differ in content — and, correctly, the second write is refused
+  (`AUDIT_MODEL.md`; `DECISIONS.md` DD-40). The observable effect is that the loop's attempt 1
+  fails on the artifact rather than on the code under review, and a repair that should complete on
+  the first iteration completes on the second. Should the pre-loop round be numbered 0, should
+  `run_repair_loop` take a starting round number, or should QA round numbers be allocated by the
+  Orchestrator's own counter rather than by each caller independently?
+- **Recommendation:** Give the round number a single owner. The narrowest fix is a
+  `first_attempt_number` (or an explicit round counter) threaded through `run_repair_loop`, so the
+  loop continues the sequence the pre-loop round began instead of restarting it. This is a change
+  to `agentos_workflow/agents/**` (and to whichever Orchestrator sequence drives the pre-loop
+  round), which was outside GOV-3's authorized shape — GOV-3 was scoped to artifact *naming* in
+  `skills/reporting.py` and to removing `QAAgent`'s workaround, not to who allocates the numbers.
+- **Disposition:** Open, first observed 2026-07-28 by AUTO-007's end-to-end dry run (which asserts
+  `repair_attempts_used == 2` and documents why) and confirmed by GOV-3 to be unaffected by the
+  artifact-naming fix: sequencing distinguishes rounds, but two rounds that claim the same number
+  still collide, which is the correct append-only behaviour. Blocks nothing's authorization; it
+  costs one wasted repair attempt out of a budget of three (`FAILURE_RECOVERY.md` §1) on every
+  real workflow that repairs, so a workflow could report `repair_attempts_exhausted` after two
+  genuine attempts rather than three. Full detail: `docs/reports/GOV-3-completion-report.md`.
 
 ## Resolved
 

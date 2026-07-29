@@ -556,7 +556,7 @@ implementation, not before it exists. Requires its own fresh authorization, as a
 
 ## GOV-3 — Attempt-aware report artifact naming in the Reporting Skills
 
-Status: Current
+Status: Done
 
 **Recorded as explicit future work by Human Owner decision on 2026-07-28, when approving AUTO-005**
 ("Record the QA report collision as explicit future work. Do not fix it within AUTO-005 and do not
@@ -590,6 +590,19 @@ Requires its own fresh authorization, as an ordinary (non-AUTO/DASH-family) engi
 **not** an AUTO-005 blocker: the Human Owner accepted the documented limitation for that stage.
 Full description: `docs/reports/workflow-automation/AUTO-005-completion-report.md`, "Known
 limitations" item 1.
+
+**Authorized by the Human Owner on 2026-07-29** through the local two-confirmation task gate
+(`scripts/workflow-authorize.sh`), superseding the "task record only" note above: implemented and
+validated the same day on `main`, stopped for Human Owner approval before any commit. The four
+`_generate_report` callers in `agentos_workflow/skills/reporting.py` now take an optional,
+validated `sequence`, so one workflow's own audit directory holds `reports/qa.1.json`,
+`reports/qa.2.json`, … ; the content-hash idempotency and the differing-content refusal are
+unchanged per artifact; and `QAAgent._report_scope`'s derived-identifier workaround was removed in
+the same change, so the two cannot drift. The distinct caller-side question — the pre-loop QA round
+and the repair loop's first internal round both being numbered attempt 1 — is recorded as OD-12
+(`docs/workflow-automation/OPEN_QUESTIONS.md`) rather than resolved here, because it is a decision
+about who assigns round numbers, not about artifact naming. Report:
+`docs/reports/GOV-3-completion-report.md`.
 
 ## DASH-002 — Repository adapter and read-only snapshot
 

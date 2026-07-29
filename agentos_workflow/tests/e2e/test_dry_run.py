@@ -515,12 +515,13 @@ def test_full_workflow_created_to_done_with_one_repair_and_one_interruption(
         stage_id=STAGE_ID,
     )
     assert repair_outcome.repaired is True
-    # Note (worth folding into GOV-3, `docs/TASK_QUEUE.md`): the pre-loop QA round and the
-    # repair loop's own first internal round both use `attempt_number=1`
-    # (`QAAgent._report_scope`), so they collide on the same `<workflow_id>.qa1` report artifact
-    # even under AUTO-005's existing per-attempt-scope workaround — attempt 1 here fails on that
-    # artifact collision, not on a genuine QA re-rejection, so repair actually completes on the
-    # *second* loop iteration even though only one QA verdict was ever configured to fail.
+    # Note (recorded as OD-12, `docs/workflow-automation/OPEN_QUESTIONS.md`): the pre-loop QA
+    # round and the repair loop's own first internal round both use `attempt_number=1`, so they
+    # collide on the same `reports/qa.1.json` artifact — attempt 1 here fails on that collision,
+    # not on a genuine QA re-rejection, so repair actually completes on the *second* loop
+    # iteration even though only one QA verdict was ever configured to fail. GOV-3 gave the
+    # rounds attempt-aware artifact names inside the workflow's own directory; it did not change
+    # who assigns the round numbers, which is what this collision is really about.
     assert repair_outcome.repair_attempts_used == 2
     session.transition_to(WorkflowState.VALIDATING, actor="orchestrator")
     session.transition_to(WorkflowState.QA_RUNNING, actor="orchestrator")

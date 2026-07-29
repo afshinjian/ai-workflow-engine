@@ -11,6 +11,14 @@ inside a directory an attacker can create symlinks in.
 Report generation is idempotent through a content hash (`SKILL_CONTRACTS.md` §6): writing the
 same content twice is a no-op, and writing *different* content to an existing report is refused
 rather than silently overwriting a record another workflow may already have referenced.
+
+A single workflow legitimately produces several genuinely different reports of the same kind —
+the bounded repair loop (`FAILURE_RECOVERY.md` §1) runs one implementation attempt and one QA
+round per repair, each with its own verdict, findings, and diff. Each generator therefore takes
+an optional `sequence`, which names the artifact `<kind>.<sequence>.json` inside that workflow's
+own directory instead of the single `<kind>.json`. The refusal above is deliberately kept
+per-artifact: two different reports of the same kind and sequence still collide, because that
+means the caller reused a sequence number, not that the audit model needs relaxing.
 """
 
 from __future__ import annotations
@@ -48,6 +56,9 @@ __all__ = [
 
 _COMPONENT_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}")
 _AUDIT_LOG_NAME = "audit.jsonl"
+# Well above any bound the workflow itself imposes (the repair loop stops at 3 attempts,
+# `FAILURE_RECOVERY.md` §1) and low enough that the sequence can never dominate the filename.
+_MAX_REPORT_SEQUENCE = 9999
 
 
 @dataclass(frozen=True)
@@ -78,6 +89,33 @@ def _validate_component(skill: str, field: str, value: str) -> SkillResult[Any] 
             skill,
             FailureKind.UNSAFE_INPUT,
             f"{field}={value!r} is not a safe single path component",
+            retry_classification=RetryClassification.NON_RETRYABLE,
+        )
+    return None
+
+
+def _validate_sequence(skill: str, sequence: int | None) -> SkillResult[Any] | None:
+    """Reject anything that is not a small positive integer.
+
+    The sequence is a validated integer rather than a caller-supplied string precisely so that it
+    cannot widen what may end up in a filename: everything `_validate_component` refuses for an
+    identifier is unreachable here by construction. `bool` is excluded explicitly because it is a
+    subclass of `int` and would otherwise name an artifact `qa.True.json`.
+    """
+    if sequence is None:
+        return None
+    if isinstance(sequence, bool) or not isinstance(sequence, int):
+        return failure(
+            skill,
+            FailureKind.UNSAFE_INPUT,
+            f"sequence={sequence!r} is not an integer",
+            retry_classification=RetryClassification.NON_RETRYABLE,
+        )
+    if not 1 <= sequence <= _MAX_REPORT_SEQUENCE:
+        return failure(
+            skill,
+            FailureKind.UNSAFE_INPUT,
+            f"sequence={sequence!r} is outside 1..{_MAX_REPORT_SEQUENCE}",
             retry_classification=RetryClassification.NON_RETRYABLE,
         )
     return None
@@ -245,10 +283,13 @@ def _generate_report(
     workflow_id: str,
     report_kind: str,
     payload: dict[str, Any],
+    sequence: int | None = None,
 ) -> SkillResult[ReportArtifact]:
     for field, value in (("workflow_id", workflow_id), ("report_kind", report_kind)):
         if problem := _validate_component(skill, field, value):
             return problem
+    if problem := _validate_sequence(skill, sequence):
+        return problem
     if not audit_root.is_absolute():
         return failure(
             skill,
@@ -259,65 +300,101 @@ def _generate_report(
     document = dict(payload)
     document.setdefault("report_kind", report_kind)
     document.setdefault("workflow_id", workflow_id)
+    if sequence is not None:
+        # Recorded in the artifact as well as in its name, so a report read on its own still
+        # says which round of the repair loop produced it.
+        document.setdefault("report_sequence", sequence)
     document.setdefault("generated_at", utc_now().isoformat())
     return _write_confined_file(
         skill,
         audit_root=audit_root,
         components=(workflow_id, "reports"),
-        filename=f"{report_kind}.json",
+        filename=f"{report_kind}.json" if sequence is None else f"{report_kind}.{sequence}.json",
         payload=_serialize(document),
     )
 
 
 def generate_stage_report(
-    *, audit_root: Path, workflow_id: str, results: dict[str, Any]
+    *,
+    audit_root: Path,
+    workflow_id: str,
+    results: dict[str, Any],
+    sequence: int | None = None,
 ) -> SkillResult[ReportArtifact]:
-    """Write the implementation stage report artifact."""
+    """Write the implementation stage report artifact.
+
+    Pass `sequence` — the repair attempt number — when a workflow writes more than one.
+    """
     return _generate_report(
         "generate_stage_report",
         audit_root=audit_root,
         workflow_id=workflow_id,
         report_kind="stage",
         payload=results,
+        sequence=sequence,
     )
 
 
 def generate_qa_report(
-    *, audit_root: Path, workflow_id: str, results: dict[str, Any]
+    *,
+    audit_root: Path,
+    workflow_id: str,
+    results: dict[str, Any],
+    sequence: int | None = None,
 ) -> SkillResult[ReportArtifact]:
-    """Write the independent QA report artifact."""
+    """Write the independent QA report artifact.
+
+    Pass `sequence` — the QA round number — when a workflow writes more than one.
+    """
     return _generate_report(
         "generate_qa_report",
         audit_root=audit_root,
         workflow_id=workflow_id,
         report_kind="qa",
         payload=results,
+        sequence=sequence,
     )
 
 
 def generate_failure_report(
-    *, audit_root: Path, workflow_id: str, context: dict[str, Any]
+    *,
+    audit_root: Path,
+    workflow_id: str,
+    context: dict[str, Any],
+    sequence: int | None = None,
 ) -> SkillResult[ReportArtifact]:
-    """Write the failure report artifact."""
+    """Write the failure report artifact.
+
+    Pass `sequence` when a workflow reports more than one distinct failure.
+    """
     return _generate_report(
         "generate_failure_report",
         audit_root=audit_root,
         workflow_id=workflow_id,
         report_kind="failure",
         payload=context,
+        sequence=sequence,
     )
 
 
 def generate_closeout_report(
-    *, audit_root: Path, workflow_id: str, results: dict[str, Any]
+    *,
+    audit_root: Path,
+    workflow_id: str,
+    results: dict[str, Any],
+    sequence: int | None = None,
 ) -> SkillResult[ReportArtifact]:
-    """Write the closeout report artifact."""
+    """Write the closeout report artifact.
+
+    `sequence` exists for symmetry with the other three generators; a workflow closes out once.
+    """
     return _generate_report(
         "generate_closeout_report",
         audit_root=audit_root,
         workflow_id=workflow_id,
         report_kind="closeout",
         payload=results,
+        sequence=sequence,
     )
 
 

@@ -5,7 +5,7 @@
 | **Title** | AgentOS Workflow Automation — Decisions |
 | **Purpose** | Append-only record of program-level decisions (DD-##). Subordinate to `docs/DECISION_LOG.md`; cross-posted there when repository governance requires. |
 | **Status** | Draft |
-| **Version** | 1.10 |
+| **Version** | 1.11 |
 | **Owner** | Documentation & Governance session (append) · Human Owner (approval) |
 | **Dependencies** | `README.md` |
 | **Related Documents** | `docs/DECISION_LOG.md` |
@@ -965,3 +965,36 @@ decision. Full rationale, authorization, and the companion `STAGE_REGISTRY.md` �
   resume to the same authorization record so the two can never again silently diverge.
 - **Reconsideration trigger:** none — this is not a design choice awaiting new information, it is
   a known defect awaiting authorization to fix.
+
+## DD-40 — Attempt-aware report artifact names, inside the workflow's own audit directory
+
+- **Status:** Accepted. Implemented by GOV-3 (`docs/TASK_QUEUE.md`), the ordinary engine task the
+  Human Owner recorded when approving AUTO-005 rather than fixing that limitation in scope.
+- **Context:** The four `_generate_report` callers in `agentos_workflow/skills/reporting.py`
+  (AUTO-003) wrote to a fixed `<audit_root>/<workflow_id>/reports/<kind>.json` — one artifact per
+  workflow per kind — and correctly refused to overwrite an existing artifact whose content
+  differed (`AUDIT_MODEL.md`'s append-only semantics). But the bounded repair loop
+  (`FAILURE_RECOVERY.md` §1) runs several QA rounds and implementation attempts per workflow, each
+  with its own verdict, findings, and diff, so the second round failed on the *artifact* rather
+  than on the code under review. AUTO-005 could not touch `skills/**` and worked around it by
+  deriving a per-attempt audit scope (`<workflow_id>.qa<N>`) inside `QAAgent`, which kept every
+  artifact within the audit root but placed the rounds in sibling directories rather than in the
+  workflow's own — not what `AUDIT_MODEL.md` intends, and not a shape to build on.
+- **Decision:** Each of the four generators takes an optional `sequence`. When supplied, the
+  artifact is named `<kind>.<sequence>.json` inside that workflow's own `reports/` directory;
+  when omitted, the existing `<kind>.json` name is produced byte-identically, so every existing
+  caller is unaffected. `sequence` is a validated integer (1..9999, `bool` explicitly excluded)
+  rather than a caller-supplied string, so nothing a caller passes can widen what reaches a
+  filename — everything `_validate_component` refuses for an identifier is unreachable here by
+  construction. `QAAgent._report_scope` was deleted in the same change, so the Skill and its only
+  caller cannot drift apart again.
+- **Consequences:** Idempotency and the differing-content refusal stay **per artifact**: two
+  different reports of the same kind *and* sequence still collide, which is the correct reading —
+  that means a caller reused a round number, not that the append-only audit model needs relaxing.
+  One such caller-side reuse is already known and is recorded, not resolved, as OD-12: the
+  pre-loop QA round and the repair loop's own first internal round are both numbered attempt 1.
+  Reports now also carry `report_sequence`, so an artifact read on its own says which round
+  produced it.
+- **Reconsideration trigger:** a workflow needing more than `_MAX_REPORT_SEQUENCE` (9999) reports
+  of one kind, or an audit consumer needing the rounds addressable by something other than a
+  monotonic integer.

@@ -230,3 +230,48 @@ GOV-3 is the single `Current` task after two exact Human Owner `AUTHORIZE` confi
 The authorization-only commit contains governance and handoff records; implementation has not
 started. No predecessor was closed automatically, and no push, merge, upstream, branch, or stash
 operation was performed.
+
+## GOV-3 (2026-07-29) — implemented, uncommitted, awaiting Human Owner approval
+
+GOV-3 ("Attempt-aware report artifact naming in the Reporting Skills") is implemented and
+validated on `main` in the working tree, **uncommitted**, stopped for Human Owner approval. Task
+status remains `Current`.
+
+The four report generators in `agentos_workflow/skills/reporting.py` now take an optional,
+validated `sequence` (`_validate_sequence`: an integer in `1..9999`, `bool` excluded), naming the
+artifact `<kind>.<sequence>.json` inside that workflow's own audit directory beside its
+`audit.jsonl`, instead of the single `<kind>.json` a repair loop's second round could not write.
+An omitted sequence produces the previous artifact byte-identically, so every existing caller is
+unaffected. `QAAgent._report_scope` — AUTO-005's per-attempt *derived workflow identifier*, which
+put the rounds in sibling directories — is deleted in the same change, so the Skill and its only
+caller cannot drift apart again. Contract: `docs/workflow-automation/SKILL_CONTRACTS.md` §6
+(Version 1.3); rationale: `DECISIONS.md` DD-40 (Version 1.11). Report:
+`docs/reports/GOV-3-completion-report.md`.
+
+**Deliberately not fixed, recorded as OD-12** (`docs/workflow-automation/OPEN_QUESTIONS.md`,
+Version 1.6): the Orchestrator's pre-loop QA round and `run_repair_loop`'s own first internal
+round are both numbered attempt 1, so they still collide — correctly, since two different reports
+claiming one round number ought to. Giving the round number a single owner changes
+`agentos_workflow/agents/**` and the Orchestrator sequence, which is a design decision outside the
+artifact-naming shape GOV-3 authorizes. It costs one repair attempt out of three on every workflow
+that repairs.
+
+Validation: `pytest tests agentos_workflow/tests` 2697 passed, 1 failed — the single failure
+(`agentos_workflow/tests/e2e/test_dry_run.py`) is the same pre-existing, environment-dependent
+`engine_version` failure GOV-2 recorded (`running_engine_version()` resolves the installed
+package's `1.0.0` while the test hardcodes `0.1.0`), reproduced identically against a clean `HEAD`
+(`58ed4f6`) tree and failing at `test_dry_run.py:407`, before the repair-loop section this change
+touches. ruff, black, mypy (`src` and `agentos_workflow`), and `git diff --check` all clean;
+`workflowctl verify` PASS on all five checks. 17 new tests; 16 of them fail against clean `HEAD`,
+confirming they exercise the change rather than passing trivially.
+
+**Not yet done:** uncommitted, awaiting a separate Human Owner approval via
+`scripts/workflow-approve.sh`, which performs the implementation commit and the deterministic
+GOV-AUTO-03 closeout together. No push, merge, branch, upstream, or stash operation was performed.
+
+## Closure update — 2026-07-29
+
+GOV-3 was approved and closed `Current -> Done` by the Human Owner through
+scripts/workflow-approve.sh's automatic task closeout. No task is `Current` after this commit
+unless a fresh authorization already named a successor. No push, merge, branch, upstream, or
+stash operation was performed by this closeout.

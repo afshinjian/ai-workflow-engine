@@ -263,6 +263,35 @@ class TestQAIndependence:
         for path in paths:
             assert Path(path).is_file()
 
+    def test_every_qa_round_stays_in_the_workflows_own_audit_directory(
+        self, tmp_path: Path
+    ) -> None:
+        """GOV-3: the rounds are distinguished by an attempt-aware artifact name, not by a
+        derived per-attempt workflow identifier that put them in sibling directories."""
+        qa, _ = build_qa_agent(
+            tmp_path, qa_provider(ProviderVerdict.FAIL, ProviderVerdict.FAIL, ProviderVerdict.PASS)
+        )
+        reports = tmp_path / "audit" / WORKFLOW_ID / "reports"
+        for attempt in (1, 2, 3):
+            result = qa.review(validation=passing_validation(), attempt_number=attempt)
+            assert Path(result.evidence["report_path"]) == reports / f"qa.{attempt}.json"
+
+        assert sorted(path.name for path in reports.iterdir()) == [
+            "qa.1.json",
+            "qa.2.json",
+            "qa.3.json",
+        ]
+        # The audit log the rounds are joined by lives beside them, in the same directory.
+        assert (tmp_path / "audit" / WORKFLOW_ID / "audit.jsonl").is_file()
+        assert [entry.name for entry in (tmp_path / "audit").iterdir()] == [WORKFLOW_ID]
+
+    def test_the_qa_artifact_records_the_round_that_produced_it(self, tmp_path: Path) -> None:
+        qa, _ = build_qa_agent(tmp_path, qa_provider(ProviderVerdict.PASS))
+        result = qa.review(validation=passing_validation(), attempt_number=2)
+        payload = json.loads(Path(result.evidence["report_path"]).read_text(encoding="utf-8"))
+        assert payload["report_sequence"] == 2
+        assert payload["workflow_id"] == WORKFLOW_ID
+
     def test_qa_provider_failure_is_reported_not_raised(self, tmp_path: Path) -> None:
         provider = MockProvider(
             [

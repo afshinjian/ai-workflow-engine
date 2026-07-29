@@ -7,6 +7,19 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- GOV-3 (2026-07-29): implemented, Human-Owner-approved, and closed
+  `Current -> Done` in one local commit via scripts/workflow-approve.sh's automatic
+  task closeout (GOV-AUTO-03).
+- GOV-3 (2026-07-29, implementation): the four report generators in
+  `agentos_workflow/skills/reporting.py` now take an optional validated `sequence`, so one
+  workflow's own audit directory holds `reports/qa.1.json`, `reports/qa.2.json`, … instead of a
+  single `reports/qa.json` a repair loop's second round could not write. Content-hash idempotency
+  and the differing-content refusal are unchanged per artifact. `QAAgent._report_scope`'s AUTO-005
+  workaround (a per-attempt *derived workflow identifier*, which put the rounds in sibling
+  directories) is removed in the same change so the two cannot drift. Contract:
+  `docs/workflow-automation/SKILL_CONTRACTS.md` §6; rationale: `DECISIONS.md` DD-40; the remaining
+  caller-side round-numbering question: `OPEN_QUESTIONS.md` OD-12. Implemented and validated;
+  stopped for Human Owner approval before any commit.
 - GOV-3 (2026-07-29): explicitly authorized by the Human Owner through the local
   two-confirmation task gate; authorization commit and implementation remain separate.
 - GOV-2 (2026-07-29): implemented, Human-Owner-approved, and closed
