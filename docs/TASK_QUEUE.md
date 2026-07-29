@@ -650,7 +650,7 @@ the working tree, uncommitted, awaiting Human Owner approval. Report:
 
 ## DASH-004 — Local backend and dashboard shell
 
-Status: Planned
+Status: Current
 
 Loopback-only web shell with security baseline and Overview page. **No longer blocked on OD-D9**:
 the serving-stack dependency decision was resolved by the Human Owner on 2026-07-29 — FastAPI +

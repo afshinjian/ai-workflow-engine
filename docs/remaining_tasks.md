@@ -59,7 +59,7 @@ below — resolving an open question authorizes nothing. No task is `Current`.
 
 | Task | Title | Status |
 |---|---|---|
-| DASH-004 | Local backend and dashboard shell | Planned |
+| DASH-004 | Local backend and dashboard shell | Current |
 | DASH-005 | Workflow board and task detail | Planned |
 | DASH-006 | Git, upstream, handover, and consistency views | Planned |
 | DASH-007 | Stage registry and prompt generation | Planned |
