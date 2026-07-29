@@ -190,6 +190,14 @@ and requires two exact `AUTHORIZE` confirmations. It then creates exactly one lo
 governance-only commit. With an agent argument it launches `workflow-next.sh` only after that
 commit is verified and the worktree is clean.
 
+Task readiness is parsed structurally. The canonical status is the first non-blank, whole-line
+`Status: ...` field immediately after the task heading (the exact emphasized field form is also
+accepted); literal status examples, quoted text, acceptance criteria, and explanatory prose later
+in the task section are ignored. An explicit canonical `Status: Blocked` refuses authorization.
+For a registry-governed task, only structured unresolved blocker entries under
+`OPEN_QUESTIONS.md`'s `## Open` section can gate authorization; `## Resolved` history, entries
+whose disposition is resolved, and negated or historical blocker wording do not gate it.
+
 `workflow-next.sh` implements the already-authorized task; it does not authorize one.
 
 `workflow-approve.sh` performs the later Human approval gate. In this repository it also closes

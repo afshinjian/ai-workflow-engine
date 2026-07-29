@@ -441,3 +441,34 @@ This registration has no structured AUTO/DASH stage-registry row. The already-pr
 not applied; no implementation, authorization, script, test, branch, push, merge, rebase, reset,
 or stash operation occurred. GOV-AUTO-05 remains `Planned`, no task is `Current`, and fresh
 explicit Human Owner authorization is required before implementation.
+
+## GOV-AUTO-05 exception authorization and implementation — 2026-07-30
+
+The Human Owner explicitly authorized GOV-AUTO-05 through a one-time governance exception because
+the false-positive defect in `scripts/workflow-authorize.sh` prevented the normal gate from
+authorizing its own repair. The task and mirrors record a manual `Planned → Current` transition;
+no authorization-only commit was created. GOV-AUTO-05 is the sole `Current` task.
+
+Implementation is complete and uncommitted for Human Owner approval. The canonical task status is
+now only the first non-blank whole status-field line after the task heading, so quoted examples,
+Markdown emphasis, acceptance criteria, explanatory prose, and fenced examples later in the
+section cannot override it. Explicit canonical `Status: Blocked` still refuses. For a
+registry-governed task, only structured active blocker entries under `OPEN_QUESTIONS.md`'s
+`## Open` section are authoritative; resolved entries and negated or historical wording do not
+refuse. The approval gate's matching whole-section scan was also fixed before approval:
+Current-task discovery and guarded `Current → Done` replacement now use the same canonical-field
+rule, while canonical Blocked refuses before any governance mutation. Existing predecessor,
+registry, branch, report, scope, dirty-tree, Human confirmation, closeout, staging, checksum,
+commit, remote, and stash protections are unchanged.
+
+Focused authorization tests are 40-green, focused approval-closeout tests are 32-green, and the
+broader workflow-specific regression set is 247-green. Full validation and bounded review are recorded in
+`docs/reports/GOV-AUTO-05-completion-report.md`. No commit, push, merge, branch creation or
+switching, rebase, reset, amend, force/history rewrite, or stash operation was performed.
+
+## Closure update — 2026-07-30
+
+GOV-AUTO-05 was approved and closed `Current -> Done` by the Human Owner through
+scripts/workflow-approve.sh's automatic task closeout. No task is `Current` after this commit
+unless a fresh authorization already named a successor. No push, merge, branch, upstream, or
+stash operation was performed by this closeout.

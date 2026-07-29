@@ -7,6 +7,27 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- GOV-AUTO-05 (2026-07-30): implemented, Human-Owner-approved, and closed
+  `Current -> Done` in one local commit via scripts/workflow-approve.sh's automatic
+  task closeout (GOV-AUTO-03).
+- GOV-AUTO-05 (2026-07-30, exception authorization and implementation): the Human Owner issued a
+  one-time governance exception because `workflow-authorize.sh`'s false-positive blocker scan
+  could not authorize its own repair task. The task is the sole `Current` task; no
+  authorization-only commit was created. The parser now treats only the first non-blank,
+  whole-line canonical status field after a task heading as authoritative, so literal
+  `Status: Blocked` examples in quotes, Markdown, acceptance criteria, fenced text, or
+  explanatory prose are ignored while a real canonical blocked status still refuses.
+  Registry-governed open-question gating now considers only structured active entries under
+  `## Open`; resolved entries and negated or historical wording do not block. Existing
+  predecessor, registry, branch, dirty-tree, and Human confirmation checks are unchanged.
+  The approval gate's matching whole-section scan was fixed in the same scope: approval-side
+  Current discovery and guarded `Current → Done` replacement now use the same canonical-field
+  rule, while canonical Blocked still refuses without governance mutation. Existing report,
+  scope, confirmation, closeout, staging, checksum, commit, remote, and stash protections are
+  unchanged. Regression tests cover the exact GOV-AUTO-05 task prose, positive/negative blocker
+  cases, atomic refusal, and the one implementation-plus-closeout commit invariant. Implemented
+  and validated, uncommitted, stopped for Human Owner approval. Report:
+  `docs/reports/GOV-AUTO-05-completion-report.md`.
 - GOV-AUTO-05 (2026-07-30): registered
   `GOV-AUTO-05 — Fix resolved-blocker false positives in authorization` as `Planned`. A later,
   separately authorized implementation will make `workflow-authorize.sh` distinguish explicit

@@ -367,6 +367,32 @@ def test_single_current_task_is_accepted_and_closed(sandbox: Path) -> None:
     assert git(sandbox, "status", "--porcelain") == ""
 
 
+def test_canonical_current_ignores_blocked_examples_and_closes_once(sandbox: Path) -> None:
+    queue_path = sandbox / "docs" / "TASK_QUEUE.md"
+    queue_path.write_text(
+        _write_queue(["GOV-TEST-1"])
+        + "\n"
+        + "The safety requirement says explicit `Status: Blocked` still refuses.\n\n"
+        + "**Acceptance criteria:** `Status: Blocked` refuses.\n\n"
+        + "> Quoted example: Status: Blocked\n\n"
+        + "```text\nStatus: Blocked\n```\n\n"
+        + "Markdown emphasis such as **Status: Blocked** is explanatory prose.\n",
+        encoding="utf-8",
+    )
+    git(sandbox, "commit", "-am", "chore: add literal blocked examples")
+    dirty(sandbox)
+    before = commit_count(sandbox)
+
+    result = run_approve(sandbox, "-m", GOOD_MESSAGE, stdin=APPROVE_TWICE)
+
+    assert result.returncode == 0, result.stderr
+    assert commit_count(sandbox) == before + 1
+    final_queue = queue_path.read_text(encoding="utf-8")
+    assert final_queue.split("## GOV-TEST-1", 1)[1].splitlines()[2] == "Status: Done"
+    assert "**Acceptance criteria:** `Status: Blocked` refuses." in final_queue
+    assert git(sandbox, "status", "--porcelain") == ""
+
+
 def test_zero_current_tasks_is_rejected(sandbox: Path) -> None:
     (sandbox / "docs" / "TASK_QUEUE.md").write_text(
         _write_queue([]) + "\n## GOV-TEST-1 — Sandbox task\n\nStatus: Done\n", encoding="utf-8"
@@ -432,18 +458,35 @@ def test_duplicate_task_heading_is_rejected(sandbox: Path) -> None:
 
 
 def test_blocked_task_is_rejected(sandbox: Path) -> None:
-    (sandbox / "docs" / "TASK_QUEUE.md").write_text(
-        "# Task Queue\n\n## GOV-TEST-1 — Sandbox task\n\nStatus: Current\n\n"
-        "Blocked on an external dependency.\n",
+    queue_path = sandbox / "docs" / "TASK_QUEUE.md"
+    queue_path.write_text(
+        "# Task Queue\n\n## GOV-TEST-1 — Sandbox task\n\nStatus: Blocked\n\n"
+        "This canonical status is authoritative.\n",
         encoding="utf-8",
     )
     git(sandbox, "commit", "-am", "chore: block task")
     dirty(sandbox)
     before = commit_count(sandbox)
+    governance_before = {
+        relative: (sandbox / relative).read_bytes()
+        for relative in (
+            "docs/TASK_QUEUE.md",
+            "docs/current_task.md",
+            "docs/remaining_tasks.md",
+            "docs/PROJECT_STATE.md",
+            "docs/DECISION_LOG.md",
+            "docs/CHANGELOG.md",
+            "handover/PROJECT_HANDOVER.md",
+            "handover/PROJECT_CHECKSUM.md",
+        )
+    }
     result = run_approve(sandbox, "-m", GOOD_MESSAGE, stdin=APPROVE_TWICE)
     assert result.returncode == 13
     assert "not closeable" in result.stderr
     assert commit_count(sandbox) == before
+    assert git(sandbox, "diff", "--cached", "--name-only") == ""
+    for relative, content in governance_before.items():
+        assert (sandbox / relative).read_bytes() == content
 
 
 def test_missing_completion_report_is_rejected(sandbox: Path) -> None:

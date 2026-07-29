@@ -347,10 +347,36 @@ current_ids="$(
             if (match(heading, /[A-Z][A-Z0-9-]*-[0-9]+/)) id=substr(heading,RSTART,RLENGTH)
             next
         }
-        id != "" && /^[[:space:]]*(Status:|- \*\*Status:\*\*)/ {
+        id != "" && /^[[:space:]]*$/ { next }
+        id != "" {
             line=$0
-            gsub(/[`*_~-]/, "", line)
-            if (line ~ /Status:[[:space:]]*Current([[:space:]]|$)/) print id
+            if (line ~ /^[[:space:]]*Status:[[:space:]]*Current[[:space:]]*$/ ||
+                line ~ \
+                /^[[:space:]]*-[[:space:]]+\*\*Status:\*\*[[:space:]]*Current[[:space:]]*$/) {
+                print id
+            }
+            id=""
+        }
+    ' "$queue"
+)"
+
+blocked_ids="$(
+    awk '
+        /^#{2,6}[[:space:]]/ {
+            heading=$0
+            gsub(/[`*_~]/, "", heading)
+            id=""
+            if (match(heading, /[A-Z][A-Z0-9-]*-[0-9]+/)) id=substr(heading,RSTART,RLENGTH)
+            next
+        }
+        id != "" && /^[[:space:]]*$/ { next }
+        id != "" {
+            line=$0
+            if (line ~ /^[[:space:]]*Status:[[:space:]]*Blocked[[:space:]]*$/ ||
+                line ~ \
+                /^[[:space:]]*-[[:space:]]+\*\*Status:\*\*[[:space:]]*Blocked[[:space:]]*$/) {
+                print id
+            }
             id=""
         }
     ' "$queue"
@@ -363,6 +389,10 @@ fi
 
 case "$current_count" in
     0)
+        if [ -n "$blocked_ids" ]; then
+            die "task $(printf '%s' "$blocked_ids" | tr '\n' ' ') is blocked — not closeable" \
+                "$EXIT_NOT_CLOSEABLE"
+        fi
         printf 'NO_CURRENT_TASK\n' >&2
         die "no Current task in $queue — nothing for this gate to close out" "$EXIT_NO_CURRENT_TASK"
         ;;
@@ -405,22 +435,6 @@ task_title="$(
     ' "$queue"
 )"
 
-task_section="$(
-    awk -v wanted="$task_id" '
-        /^#{2,6}[[:space:]]/ {
-            if (inside) exit
-            line=$0
-            gsub(/[`*_~]/, "", line)
-            if (line ~ "(^|[^A-Z0-9-])" wanted "([^A-Z0-9-]|$)") inside=1
-        }
-        inside { print }
-    ' "$queue"
-)"
-if printf '%s\n' "$task_section" |
-    grep -Eiq 'Status:[[:space:]]*Blocked|blocked[[:space:]]+on|authorization[[:space:]]+blocked'; then
-    die "task $task_id is blocked — not closeable" "$EXIT_NOT_CLOSEABLE"
-fi
-
 # --- Mirror agreement: docs/current_task.md must name exactly this task as Current --------------
 
 mirror_current_ids="$(
@@ -432,10 +446,14 @@ mirror_current_ids="$(
             if (match(heading, /[A-Z][A-Z0-9-]*-[0-9]+/)) id=substr(heading,RSTART,RLENGTH)
             next
         }
-        id != "" && /^[[:space:]]*(Status:|- \*\*Status:\*\*)/ {
+        id != "" && /^[[:space:]]*$/ { next }
+        id != "" {
             line=$0
-            gsub(/[`*_~-]/, "", line)
-            if (line ~ /Status:[[:space:]]*Current([[:space:]]|$)/) print id
+            if (line ~ /^[[:space:]]*Status:[[:space:]]*Current[[:space:]]*$/ ||
+                line ~ \
+                /^[[:space:]]*-[[:space:]]+\*\*Status:\*\*[[:space:]]*Current[[:space:]]*$/) {
+                print id
+            }
             id=""
         }
     ' "$current_mirror"
@@ -748,10 +766,17 @@ extract_task_status() {
             if (line ~ "(^|[^A-Z0-9-])" wanted "([^A-Z0-9-]|$)") inside = 1
             next
         }
-        inside && /^[[:space:]]*(Status:|- \*\*Status:\*\*)/ {
+        inside && /^[[:space:]]*$/ { next }
+        inside {
             line = $0
-            gsub(/[`*_~-]/, "", line)
-            sub(/^[[:space:]]*Status:[[:space:]]*/, "", line)
+            if (line ~ /^[[:space:]]*Status:[[:space:]]*[A-Za-z]+[[:space:]]*$/) {
+                sub(/^[[:space:]]*Status:[[:space:]]*/, "", line)
+            } else if (line ~ \
+                /^[[:space:]]*-[[:space:]]+\*\*Status:\*\*[[:space:]]*[A-Za-z]+[[:space:]]*$/) {
+                sub(/^[[:space:]]*-[[:space:]]+\*\*Status:\*\*[[:space:]]*/, "", line)
+            } else {
+                exit
+            }
             split(line, words, /[[:space:]]+/)
             print words[1]
             exit
@@ -768,10 +793,26 @@ replace_task_status() {
             line=$0
             gsub(/[`*_~]/, "", line)
             if (line ~ "(^|[^A-Z0-9-])" wanted "([^A-Z0-9-]|$)") inside=1
+            print
+            next
         }
-        inside && !changed && $0 ~ "Status:[[:space:]]*" old "([[:space:]]|$)" {
-            sub("Status:[[:space:]]*" old, "Status: " new)
-            changed=1
+        inside && !seen_field && /^[[:space:]]*$/ {
+            print
+            next
+        }
+        inside && !seen_field {
+            seen_field=1
+            plain = "^[[:space:]]*Status:[[:space:]]*" old "[[:space:]]*$"
+            emphasized = \
+                "^[[:space:]]*-[[:space:]]+\\*\\*Status:\\*\\*[[:space:]]*" old \
+                "[[:space:]]*$"
+            if ($0 ~ plain) {
+                sub("Status:[[:space:]]*" old, "Status: " new)
+                changed=1
+            } else if ($0 ~ emphasized) {
+                sub("\\*\\*Status:\\*\\*[[:space:]]*" old, "**Status:** " new)
+                changed=1
+            }
         }
         { print }
         END { if (!changed) exit 42 }
@@ -1081,10 +1122,15 @@ next_planned="$(
             if (match(heading, /[A-Z][A-Z0-9-]*-[0-9]+/)) id=substr(heading,RSTART,RLENGTH)
             next
         }
-        id != "" && /^[[:space:]]*(Status:|- \*\*Status:\*\*)/ {
+        id != "" && /^[[:space:]]*$/ { next }
+        id != "" {
             line=$0
-            gsub(/[`*_~-]/, "", line)
-            if (line ~ /Status:[[:space:]]*Planned([[:space:]]|$)/ && found=="") found=id
+            if ((line ~ /^[[:space:]]*Status:[[:space:]]*Planned[[:space:]]*$/ ||
+                line ~ \
+                /^[[:space:]]*-[[:space:]]+\*\*Status:\*\*[[:space:]]*Planned[[:space:]]*$/) &&
+                found=="") {
+                found=id
+            }
             id=""
         }
         END { print found }

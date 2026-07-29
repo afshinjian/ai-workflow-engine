@@ -75,7 +75,18 @@ def authorization_repo(tmp_path: Path) -> Path:
         "## AUTO-003 — later work\n\nStatus: Planned\n\n"
         "## GOV-3 — ordinary work\n\nStatus: Planned\n\n"
         "## GOV-4 — finished work\n\nStatus: Done\n\n"
-        "## GOV-5 — blocked work\n\nStatus: Planned\n\nBlocked on an owner decision.\n",
+        "## GOV-5 — blocked work\n\nStatus: Blocked\n\n"
+        "## GOV-6 — descriptive history\n\nStatus: Planned\n\n"
+        "Authorization was blocked on an owner decision, but that prose is historical.\n"
+        "## GOV-AUTO-05 — parser regression\n\nStatus: Planned\n\n"
+        "The implementation must ensure explicit `Status: Blocked` still refuses.\n\n"
+        "**Acceptance criteria:** `Status: Blocked` refuses.\n\n"
+        "> Quoted example: Status: Blocked\n\n"
+        "```text\nStatus: Blocked\n```\n\n"
+        "Markdown emphasis such as **Status: Blocked** is explanatory prose.\n"
+        "## DASH-003 — dashboard predecessor\n\nStatus: Done\n\n"
+        "## DASH-004 — dashboard shell\n\nStatus: Planned\n\n"
+        "DASH-004 is no longer blocked by OD-D9.\n",
         encoding="utf-8",
     )
     (repo / "docs" / "current_task.md").write_text(
@@ -87,7 +98,10 @@ def authorization_repo(tmp_path: Path) -> Path:
         "| AUTO-002 | planned work | Planned |\n"
         "| AUTO-003 | later work | Planned |\n"
         "| GOV-3 | ordinary work | Planned |\n"
-        "| GOV-5 | blocked work | Planned |\n",
+        "| GOV-5 | blocked work | Blocked |\n"
+        "| GOV-6 | descriptive history | Planned |\n"
+        "| GOV-AUTO-05 | parser regression | Planned |\n"
+        "| DASH-004 | dashboard shell | Planned |\n",
         encoding="utf-8",
     )
     (repo / "docs" / "PROJECT_STATE.md").write_text(
@@ -121,7 +135,24 @@ def authorization_repo(tmp_path: Path) -> Path:
         "# Program changelog\n", encoding="utf-8"
     )
     (repo / "docs" / "agentos-dashboard" / "STAGE_REGISTRY.md").write_text(
-        "# Dashboard registry\n", encoding="utf-8"
+        "# Dashboard registry\n\n"
+        "## 4. Registry\n\n"
+        "| Stage | Title | Role | State | Branch | Prompt |\n"
+        "|---|---|---|---|---|---|\n"
+        "| DASH-003 | predecessor | role | COMPLETE | `feature/dash-003` | `three.md` |\n"
+        "| DASH-004 | dashboard shell | role | NOT_STARTED | `feature/dash-004` | `four.md` |\n\n"
+        "## 5. Authorization Log (append-only)\n\n"
+        "| Date | Stage | Authorization record | Recorded by |\n"
+        "|---|---|---|---|\n\n"
+        "## 6. Decisions\n",
+        encoding="utf-8",
+    )
+    (repo / "docs" / "agentos-dashboard" / "OPEN_QUESTIONS.md").write_text(
+        "# Open Questions\n\n## Open\n\nNone.\n\n## Resolved\n\nNone.\n",
+        encoding="utf-8",
+    )
+    (repo / "docs" / "agentos-dashboard" / "CHANGELOG.md").write_text(
+        "# Dashboard changelog\n", encoding="utf-8"
     )
     (repo / "handover" / "PROJECT_HANDOVER.md").write_text(
         "# Project Handover\n\nNo task is active.\n", encoding="utf-8"
@@ -183,6 +214,17 @@ def run_authorize(
 
 def commit_count(repo: Path) -> int:
     return int(git(repo, "rev-list", "--count", "HEAD"))
+
+
+def commit_document(repo: Path, path: Path, content: str, message: str) -> None:
+    path.write_text(content, encoding="utf-8")
+    git(repo, "add", str(path.relative_to(repo)))
+    git(repo, "commit", "-m", message)
+
+
+def assert_repository_unchanged(repo: Path, head_before: str) -> None:
+    assert git(repo, "rev-parse", "HEAD") == head_before
+    assert git(repo, "status", "--porcelain") == ""
 
 
 @pytest.mark.parametrize(
@@ -270,21 +312,151 @@ def test_invalid_task_state_is_rejected(authorization_repo: Path, task: str, mes
 
 
 def test_unmet_predecessor_is_rejected(authorization_repo: Path) -> None:
+    head_before = git(authorization_repo, "rev-parse", "HEAD")
     result = run_authorize(authorization_repo, "AUTO-003")
     assert result.returncode == 6
     assert "AUTO-002 is not COMPLETE" in result.stderr
+    assert_repository_unchanged(authorization_repo, head_before)
 
 
 def test_unresolved_owner_decision_is_rejected(authorization_repo: Path) -> None:
     questions = authorization_repo / "docs" / "workflow-automation" / "OPEN_QUESTIONS.md"
-    questions.write_text(
-        "# Open Questions\n\nOD-9 must be resolved before AUTO-002 authorization.\n"
+    commit_document(
+        authorization_repo,
+        questions,
+        "# Open Questions\n\n"
+        "## Open\n\n"
+        "### OD-9 — authorization choice\n\n"
+        "- **Disposition:** Open.\n"
+        "- **Blocked:** AUTO-002 authorization.\n\n"
+        "## Resolved\n\nNone.\n",
+        "test: unresolved decision",
     )
-    git(authorization_repo, "add", str(questions.relative_to(authorization_repo)))
-    git(authorization_repo, "commit", "-m", "test: unresolved decision")
+    head_before = git(authorization_repo, "rev-parse", "HEAD")
     result = run_authorize(authorization_repo, "AUTO-002")
     assert result.returncode == 6
     assert "unresolved Human Owner decision" in result.stderr
+    assert_repository_unchanged(authorization_repo, head_before)
+
+
+def test_registry_blocked_state_is_rejected_without_mutation(
+    authorization_repo: Path,
+) -> None:
+    registry = authorization_repo / "docs" / "workflow-automation" / "STAGE_REGISTRY.md"
+    commit_document(
+        authorization_repo,
+        registry,
+        registry.read_text().replace(
+            "| AUTO-002 | planned work | role | NOT_STARTED |",
+            "| AUTO-002 | planned work | role | BLOCKED |",
+        ),
+        "test: blocked registry state",
+    )
+    head_before = git(authorization_repo, "rev-parse", "HEAD")
+    result = run_authorize(authorization_repo, "AUTO-002")
+    assert result.returncode == 6
+    assert "blocked in its stage registry" in result.stderr
+    assert_repository_unchanged(authorization_repo, head_before)
+
+
+def test_descriptive_task_prose_does_not_block(authorization_repo: Path) -> None:
+    head_before = git(authorization_repo, "rev-parse", "HEAD")
+    result = run_authorize(authorization_repo, "GOV-6")
+    assert result.returncode == 7
+    assert "Authorization:" in result.stdout
+    assert_repository_unchanged(authorization_repo, head_before)
+
+
+def test_canonical_planned_status_ignores_literal_blocked_examples(
+    authorization_repo: Path,
+) -> None:
+    head_before = git(authorization_repo, "rev-parse", "HEAD")
+    result = run_authorize(authorization_repo, "GOV-AUTO-05")
+    assert result.returncode == 7, result.stderr
+    assert "Authorization:" in result.stdout
+    assert "task GOV-AUTO-05 is blocked" not in result.stderr
+    assert_repository_unchanged(authorization_repo, head_before)
+
+
+def test_active_open_question_explicitly_blocking_dash_004_is_rejected(
+    authorization_repo: Path,
+) -> None:
+    questions = authorization_repo / "docs" / "agentos-dashboard" / "OPEN_QUESTIONS.md"
+    commit_document(
+        authorization_repo,
+        questions,
+        "# Open Questions\n\n"
+        "## Open\n\n"
+        "### OD-D9 — serving dependency\n\n"
+        "- **Disposition:** Open.\n"
+        "- **Blocked:**\n"
+        "  DASH-004 authorization.\n\n"
+        "## Resolved\n\nNone.\n",
+        "test: active dashboard blocker",
+    )
+    head_before = git(authorization_repo, "rev-parse", "HEAD")
+    result = run_authorize(authorization_repo, "DASH-004")
+    assert result.returncode == 6
+    assert "unresolved Human Owner decision" in result.stderr
+    assert_repository_unchanged(authorization_repo, head_before)
+
+
+@pytest.mark.parametrize(
+    "questions_body",
+    [
+        (
+            "## Open\n\nNone.\n\n"
+            "## Resolved\n\n"
+            "### OD-D9 — historical blocker\n\n"
+            "- **Disposition:** Resolved.\n"
+            "- **Blocked:** DASH-004 authorization was blocked pending OD-D9.\n"
+        ),
+        (
+            "## Open\n\n"
+            "### OD-D9 — resolved wording retained temporarily\n\n"
+            "- **Disposition:** Resolved.\n"
+            "- **Effect:** DASH-004 is no longer blocked by OD-D9.\n\n"
+            "## Resolved\n\nNone.\n"
+        ),
+        (
+            "## Open\n\n"
+            "### OD-D9 — historical range\n\n"
+            "- **Disposition:** Open.\n"
+            "- **Blocked:** formerly DASH-004..DASH-010 serving-layer work; "
+            "no longer blocked.\n\n"
+            "## Resolved\n\nNone.\n"
+        ),
+        (
+            "## Open\n\nNone.\n\n"
+            "## Resolved\n\n"
+            "### OD-D9 — resolved explicit language\n\n"
+            "OD-D9 must be resolved before DASH-004 authorization.\n"
+        ),
+    ],
+    ids=[
+        "resolved-question-with-blocked-word",
+        "no-longer-blocked",
+        "formerly-range-no-longer-blocked",
+        "resolved-section-never-active",
+    ],
+)
+def test_inactive_or_negated_dashboard_questions_reach_authorization_prompt(
+    authorization_repo: Path,
+    questions_body: str,
+) -> None:
+    questions = authorization_repo / "docs" / "agentos-dashboard" / "OPEN_QUESTIONS.md"
+    commit_document(
+        authorization_repo,
+        questions,
+        f"# Open Questions\n\n{questions_body}",
+        "test: inactive dashboard blocker prose",
+    )
+    head_before = git(authorization_repo, "rev-parse", "HEAD")
+    result = run_authorize(authorization_repo, "DASH-004")
+    assert result.returncode == 7, result.stderr
+    assert "Authorization:" in result.stdout
+    assert "unresolved Human Owner decision" not in result.stderr
+    assert_repository_unchanged(authorization_repo, head_before)
 
 
 def test_wrong_branch_baseline_is_rejected(authorization_repo: Path) -> None:

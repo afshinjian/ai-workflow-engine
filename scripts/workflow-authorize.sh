@@ -130,7 +130,9 @@ upstream_before="$(git -C "$repo_root" rev-parse --abbrev-ref '@{upstream}' 2>/d
 stash_before="$(git -C "$repo_root" stash list)"
 readonly branch_before head_before upstream_before stash_before
 
-# Extract the first task heading's explicit Status field. Markdown task IDs are data, not regex.
+# Extract the first task heading's canonical Status field. It must be the first non-blank line
+# after the heading and occupy that entire line. Literal examples or explanatory prose later in
+# the task section are not lifecycle data. Markdown task IDs are data, not regex.
 task_status="$(
     awk -v wanted="$task_id" '
         /^#{2,6}[[:space:]]/ {
@@ -140,10 +142,17 @@ task_status="$(
             if (line ~ "(^|[^A-Z0-9-])" wanted "([^A-Z0-9-]|$)") inside = 1
             next
         }
-        inside && /^[[:space:]]*(Status:|- \*\*Status:\*\*)/ {
+        inside && /^[[:space:]]*$/ { next }
+        inside {
             line = $0
-            gsub(/[`*_~-]/, "", line)
-            sub(/^[[:space:]]*Status:[[:space:]]*/, "", line)
+            if (line ~ /^[[:space:]]*Status:[[:space:]]*[A-Za-z]+[[:space:]]*$/) {
+                sub(/^[[:space:]]*Status:[[:space:]]*/, "", line)
+            } else if (line ~ \
+                /^[[:space:]]*-[[:space:]]+\*\*Status:\*\*[[:space:]]*[A-Za-z]+[[:space:]]*$/) {
+                sub(/^[[:space:]]*-[[:space:]]+\*\*Status:\*\*[[:space:]]*/, "", line)
+            } else {
+                exit
+            }
             split(line, words, /[[:space:]]+/)
             print words[1]
             exit
@@ -154,6 +163,7 @@ task_status="$(
 case "$task_status" in
     Done) die "task $task_id is already Done" "$EXIT_TASK" ;;
     Current) die "task $task_id is already Current" "$EXIT_TASK" ;;
+    Blocked) die "task $task_id is blocked" "$EXIT_PRECONDITION" ;;
     Planned | READY | Ready) ;;
     *) die "task $task_id has unsupported status '$task_status'" "$EXIT_TASK" ;;
 esac
@@ -167,10 +177,14 @@ current_ids="$(
             if (match(heading, /[A-Z][A-Z0-9-]*-[0-9]+/)) id=substr(heading,RSTART,RLENGTH)
             next
         }
-        id != "" && /^[[:space:]]*(Status:|- \*\*Status:\*\*)/ {
+        id != "" && /^[[:space:]]*$/ { next }
+        id != "" {
             line=$0
-            gsub(/[`*_~-]/, "", line)
-            if (line ~ /Status:[[:space:]]*Current([[:space:]]|$)/) print id
+            if (line ~ /^[[:space:]]*Status:[[:space:]]*Current[[:space:]]*$/ ||
+                line ~ \
+                /^[[:space:]]*-[[:space:]]+\*\*Status:\*\*[[:space:]]*Current[[:space:]]*$/) {
+                print id
+            }
             id=""
         }
     ' "$queue"
@@ -178,22 +192,6 @@ current_ids="$(
 if [ -n "$current_ids" ]; then
     printf '%s\n' "ACTIVE_TASK_MUST_BE_CLOSED_FIRST" >&2
     die "existing Current task(s): $(printf '%s' "$current_ids" | tr '\n' ' ')" "$EXIT_PRECONDITION"
-fi
-
-task_section="$(
-    awk -v wanted="$task_id" '
-        /^#{2,6}[[:space:]]/ {
-            if (inside) exit
-            line=$0
-            gsub(/[`*_~]/, "", line)
-            if (line ~ "(^|[^A-Z0-9-])" wanted "([^A-Z0-9-]|$)") inside=1
-        }
-        inside { print }
-    ' "$queue"
-)"
-if printf '%s\n' "$task_section" |
-    grep -Eiq 'Status:[[:space:]]*Blocked|blocked[[:space:]]+on|authorization[[:space:]]+blocked'; then
-    die "task $task_id is blocked" "$EXIT_PRECONDITION"
 fi
 
 registry=""
@@ -260,9 +258,61 @@ if [ -n "$registry" ]; then
     fi
 
     open_questions="${registry%/*}/OPEN_QUESTIONS.md"
-    if [ -f "$open_questions" ] &&
-        grep -Eiq "must be resolved before ${task_id//-/[- ]} authorization|${task_id}[^.]*blocked on" \
-            "$open_questions"; then
+    # Only structured entries under the active Open section can gate authorization. Historical
+    # prose in Resolved is append-only and deliberately ignored. Within an open entry, require
+    # explicit authorization-blocking language (or its Blocked field), not the word "blocked"
+    # in descriptive prose.
+    if [ -f "$open_questions" ] && awk -v wanted="$task_id" '
+        function has_task(line, pattern) {
+            pattern = "(^|[^a-z0-9-])" tolower(wanted) "([^a-z0-9-]|$)"
+            return tolower(line) ~ pattern
+        }
+        function finish_entry() {
+            explicit = (entry_text ~ \
+                ("must be resolved before[[:space:]]+" tolower(wanted) \
+                    "[[:space:]]+authorization") ||
+                entry_text ~ ("blocks([[:space:]]+stage)?[[:space:]]+" tolower(wanted) \
+                    "('\''s)?[[:space:]]+authorization"))
+            blocked_explicit = has_task(blocked_field) &&
+                blocked_field !~ /(no longer|not)[[:space:]]+blocked/ &&
+                blocked_field !~ /formerly/
+            if (in_entry && (explicit || blocked_explicit) && !resolved) found=1
+            in_entry=resolved=in_blocked_field=0
+            entry_text=blocked_field=""
+        }
+        /^##[[:space:]]+Open[[:space:]]*$/ {
+            in_open=1
+            next
+        }
+        in_open && /^##[[:space:]]/ {
+            finish_entry()
+            in_open=0
+            next
+        }
+        !in_open { next }
+        /^###[[:space:]]/ {
+            finish_entry()
+            in_entry=1
+            next
+        }
+        in_entry {
+            line=tolower($0)
+            gsub(/[`*_~]/, "", line)
+            entry_text=entry_text " " line
+            if (line ~ /disposition:[[:space:]]*resolved([[:space:]]|$)/) resolved=1
+
+            if (line ~ /^[[:space:]-]*[a-z][a-z -]*:[[:space:]]*/) {
+                in_blocked_field = line ~ /^[[:space:]-]*blocked:[[:space:]]*/
+                if (in_blocked_field) blocked_field=line
+            } else if (in_blocked_field) {
+                blocked_field=blocked_field " " line
+            }
+        }
+        END {
+            finish_entry()
+            exit(found ? 0 : 1)
+        }
+    ' "$open_questions"; then
         die "task $task_id has an unresolved Human Owner decision" "$EXIT_PRECONDITION"
     fi
 fi

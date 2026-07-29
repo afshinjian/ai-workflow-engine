@@ -13,6 +13,48 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-07-30 — Human Owner approved and closed GOV-AUTO-05
+
+**Decision:** The Human Owner reviewed the implementation diff for `GOV-AUTO-05` on
+branch `main` at base `528449eda944e16a1f6889651402fb426f502336`, typed the two exact `APPROVE` confirmations
+required by `scripts/workflow-approve.sh`, and approved the Conventional Commit
+message `fix(workflow): avoid resolved blocker false positives (GOV-AUTO-05)`. The script then performed the deterministic governance closeout
+(`GOV-AUTO-05` moves `Current -> Done`) and staged the approved implementation
+together with the generated closeout records in one local commit.
+
+**Boundaries:** This decision approves and closes only `GOV-AUTO-05`. It does not
+push, merge, authorize a successor task, change branches, alter upstream, or mutate
+stashes.
+
+## 2026-07-30 — Human Owner exception-authorized GOV-AUTO-05
+
+**Decision:** The Human Owner explicitly authorized implementation of GOV-AUTO-05 despite the
+known false-positive defect in `scripts/workflow-authorize.sh`. This is a one-time governance
+exception because the normal authorization gate could not authorize GOV-AUTO-05 without first
+applying the parser fix GOV-AUTO-05 exists to implement. The authoritative task and mirrors
+record the manual `Planned → Current` transition so the later approval gate can close the task
+normally; no authorization-only commit was created.
+
+**Implementation decision:** The task status is the first non-blank, whole canonical status-field
+line after its exact task heading. Later quoted examples, Markdown emphasis, acceptance criteria,
+fenced examples, or explanatory prose have no lifecycle meaning. Explicit canonical
+`Status: Blocked` remains a refusal. For registry-governed tasks, only structured unresolved
+blocker entries under `OPEN_QUESTIONS.md`'s `## Open` section are authoritative; resolved entries
+and negated or historical wording do not refuse authorization.
+
+**Approval-gate addendum:** Before approval, the Human Owner reproduced the identical broad-scan
+defect in `scripts/workflow-approve.sh`. GOV-AUTO-05 therefore also applies the canonical-field
+rule to approval-side Current-task discovery, mirror reading, guarded `Current → Done`
+replacement, post-closeout status extraction, and next-Planned reporting. Canonical Blocked still
+refuses atomically; status examples later in the task section do not. This is remediation of the
+same authorized defect, not a new task or expanded approval capability.
+
+**Boundaries:** The exception authorizes only GOV-AUTO-05's registered implementation, tests,
+validation, bounded self-review, report, and permitted governance/handover updates. It does not
+authorize another task, push, merge, branch creation or switching, rebase, reset, amend, force or
+history rewriting, or stash operation. The completed work remains uncommitted for separate Human
+Owner approval.
+
 ## 2026-07-30 — GOV-AUTO-05 registered as `Planned`
 
 **Decision:** The Human Owner directed registration of

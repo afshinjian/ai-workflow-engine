@@ -149,6 +149,24 @@ engine work (explicitly out of the delivered 1.0.0 scope) remains listed in
 There is no active task blocker. Every planned successor still requires separate Human Owner
 authorization.
 
+## GOV-AUTO-05 exception authorization and implementation update — 2026-07-30
+
+Status: Done
+
+The Human Owner explicitly authorized GOV-AUTO-05 through a one-time governance exception because
+the false-positive defect in `scripts/workflow-authorize.sh` prevented the normal gate from
+authorizing the task that repairs it. The manual `Planned → Current` mirror transition authorizes
+only GOV-AUTO-05's registered scope.
+
+Implementation is complete and validated, uncommitted, and stopped for Human Owner approval. The
+task-status parser now treats only the first non-blank whole canonical status line after the task
+heading as authoritative, and the open-question parser considers only active structured blockers
+under `## Open`. Explicit blocked status and active unresolved questions still refuse; resolved,
+negated, historical, quoted, emphasized, acceptance-criteria, and explanatory text do not produce
+false positives. The approval gate now uses the same canonical-field rule for Current-task
+discovery and `Current → Done` replacement, fixing its matching false positive without changing
+any approval or Git safety gate. Report: `docs/reports/GOV-AUTO-05-completion-report.md`.
+
 `main` and `origin/main` are identical and carry the AUTO-006 merge; `feature/auto-004-model-
 providers`, `feature/auto-005-agents`, and `feature/auto-006-pr-merge-closeout` were all pushed to
 `origin` and retained, not deleted. Stage branches created later and not yet pushed produce the
