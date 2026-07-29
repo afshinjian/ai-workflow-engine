@@ -13,6 +13,31 @@
 ## [Unreleased]
 
 ### Added
+- AUTO-007 (2026-07-28, implementation): built the stage's own test-authoring deliverables under
+  `agentos_workflow/tests/e2e/**` and `agentos_workflow/tests/recovery/**` — no production code
+  changed. `test_interruption_resume_matrix.py` (16 tests) proves `TEST_STRATEGY.md` §4a's
+  authorization-bound-drift check "at each state" across all eight states
+  `WORKFLOW_STATES.md` §3 names (`BRANCH_CREATED`, `IMPLEMENTING`, `REPAIRING`,
+  `READY_TO_COMMIT`, `COMMITTED`, `PUSHED`, `AUTO_MERGE_ENABLED`, `MERGED`), plus a negative
+  control proving a non-drifted resume still succeeds. `test_retry_reconciliation_matrix.py`
+  (25 tests) builds §4b's (state × outcome) matrix across `IMPLEMENTING`, `READY_TO_COMMIT`,
+  `COMMITTED`, `PUSHED`. `test_security_model.py` (17 tests) gives every numbered
+  `SECURITY_MODEL.md` rule (§1-§7) at least one dedicated test, and records — without fixing — a
+  defense-in-depth observation that `create_commit`/`push_stage_branch` have no independent
+  baseline-branch check of their own (safe today only because `create_stage_branch` never lets
+  the stage branch equal baseline). `test_dry_run.py` (1 test) drives one real `WorkflowSession`
+  through every real Agent and Skill, `CREATED → DONE`, against a real disposable Git repository
+  and a faked `gh`, exercising one repair cycle, one interruption/resume cycle, and the full
+  commit → push → PR → auto-merge → checks-wait → merge → closeout path — `TEST_STRATEGY.md` §5's
+  and `MVP_SCOPE.md` §4's acceptance demonstration. Building that dry run surfaced two genuine,
+  previously undetected production defects, neither fixed here (outside this stage's allowed
+  files): a `stage_contract_hash` format disagreement between `PMOAgent` and the live resume
+  observer (new OD-11, `DECISIONS.md` DD-39), and empirical confirmation of the existing OD-10
+  `allowed_environment_variables` gap. 59 new tests; `agentos_workflow` suite 1,557-green (up
+  from 1,498); engine `tests` collection unchanged at 1,092. This stage's own contract requires a
+  mandatory independent, fresh-session security review before it may reach `COMPLETE`; that
+  review has not been performed, so registry state remains `IN_PROGRESS`, stopped for Human Owner
+  approval; no commit, push, merge, or further work was performed.
 - AUTO-006 (2026-07-28, implementation): implemented the eight Git/GitHub Skills of
   `SKILL_CONTRACTS.md` §5 in the new file `agentos_workflow/skills/git_github.py` —
   `create_commit`, `push_stage_branch`, `create_pull_request`, `read_pull_request_state`,
@@ -333,3 +358,8 @@ The Human Owner authorized AUTO-006 through the two-confirmation local gate. The
 
 The Human Owner authorized AUTO-007 through the two-confirmation local gate. The stage is
 `AUTHORIZED`; implementation, approval, push, and merge remain separate.
+
+## 2026-07-29 — AUTO-007 closed
+
+The Human Owner approved and closed AUTO-007 through the automatic task-closeout gate
+(`scripts/workflow-approve.sh`, GOV-AUTO-03). Registry state `COMPLETE`; task status `Done`.

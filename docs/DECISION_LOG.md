@@ -13,6 +13,19 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-07-29 — Human Owner approved and closed AUTO-007
+
+**Decision:** The Human Owner reviewed the implementation diff for `AUTO-007` on
+branch `fix/auto-007-e2e-dry-run-recovery` at base `fed6e9258d736c90b00343614824a66ba55eacb9`, typed the two exact `APPROVE` confirmations
+required by `scripts/workflow-approve.sh`, and approved the Conventional Commit
+message `feat(workflow): add end-to-end dry-run and recovery validation (AUTO-007)`. The script then performed the deterministic governance closeout
+(`AUTO-007` moves `Current -> Done`) and staged the approved implementation
+together with the generated closeout records in one local commit.
+
+**Boundaries:** This decision approves and closes only `AUTO-007`. It does not
+push, merge, authorize a successor task, change branches, alter upstream, or mutate
+stashes.
+
 ## 2026-07-28 — Human Owner authorized AUTO-007
 
 **Decision:** The Human Owner typed the two exact `AUTHORIZE` confirmations for

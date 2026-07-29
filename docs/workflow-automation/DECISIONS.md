@@ -926,3 +926,42 @@ decision. Full rationale, authorization, and the companion `STAGE_REGISTRY.md` �
   `test_agents_git_merge.py` fakes by asserting the kwarg is now present in the recorded call.
 - **Reconsideration trigger:** none — this is not a design choice awaiting new information, it is
   a known defect awaiting authorization to fix.
+
+## DD-39 (discovered, not resolved by this stage) — `stage_contract_hash` format disagreement between `PMOAgent` and `LocalResumeObserver`
+
+- **Status:** Recorded as a discovered gap; not fixed in this stage. Requires its own Human Owner
+  decision. See `OPEN_QUESTIONS.md` OD-11.
+- **Context:** While building AUTO-007's end-to-end dry run, `PMOAgent.check_preconditions`
+  (`agentos_workflow/agents/pmo.py:201`) was found to compare `calculate_contract_hash`'s bare-hex
+  `ContractHash.sha256` (`agentos_workflow/skills/contract.py`) directly against
+  `authorization.stage_contract_hash`, while `LocalResumeObserver`
+  (`agentos_workflow/observation/local.py:315`) — the live observer the production
+  `resume_workflow`/`WorkflowSession.resume` path uses — computes and compares a
+  `"sha256:<hex>"`-prefixed value for the identical semantic field.
+- **Why this matters:** no single `AuthorizationRecord.stage_contract_hash` value can satisfy
+  both comparisons. A bare-hex value passes `PRECONDITIONS_CHECKED` but any later real resume
+  raises a false-positive `AuthorizationBindingDriftError`, durably failing the workflow and
+  requiring fresh authorization (`HUMAN_AUTHORIZATION_MODEL.md` §4) even though nothing has
+  actually drifted; a `"sha256:"`-prefixed value would instead fail `PRECONDITIONS_CHECKED` on the
+  very first gate. Every real workflow that reaches `PRECONDITIONS_CHECKED` and is later resumed
+  hits this.
+- **Why neither existing test suite caught it:** `test_agents_pmo.py` hand-builds its
+  `Authorization` fixture with a bare-hex hash (matching `PMOAgent`'s own convention);
+  `test_engine_resume.py` hand-builds its `AuthorizationRecord` fixture with a
+  `"sha256:deadbeef"`-prefixed literal (matching the resume path's convention). Each suite tests
+  its own side in isolation and never checks the other's expectation, so the disagreement was
+  invisible until a single session drove both `PMOAgent` and a real resume against the *same*
+  authorization record — precisely what AUTO-007's dry run is for.
+- **Why this stage does not fix it:** correcting either side touches
+  `agentos_workflow/agents/**`, `agentos_workflow/skills/**`, or `agentos_workflow/observation/**`
+  — all outside AUTO-007's allowed files (`stage-prompts/AUTO-007.md`). AUTO-007's own dry run
+  test routes around the inconsistency with a test-only `calculate_contract_hash` wrapper
+  (`agentos_workflow/tests/e2e/test_dry_run.py::_prefixed_contract_hash`) rather than touching
+  production code.
+- **Recommended shape when authorized:** standardize on the `"sha256:<hex>"`-prefixed form
+  (`LocalResumeObserver`'s existing convention) and correct `PMOAgent.check_preconditions`'s
+  comparison — either by updating `calculate_contract_hash` to emit the prefix, or by prefixing
+  its result before comparison inside `pmo.py` — plus a new test that binds `PMOAgent` and a real
+  resume to the same authorization record so the two can never again silently diverge.
+- **Reconsideration trigger:** none — this is not a design choice awaiting new information, it is
+  a known defect awaiting authorization to fix.

@@ -7,6 +7,27 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- AUTO-007 (2026-07-29): implemented, Human-Owner-approved, and closed
+  `Current -> Done` in one local commit via scripts/workflow-approve.sh's automatic
+  task closeout (GOV-AUTO-03).
+- AUTO-007 (2026-07-28, implementation): built the stage's own test-authoring deliverables — no
+  production code changed — under `agentos_workflow/tests/e2e/**` and
+  `agentos_workflow/tests/recovery/**`: the interruption/resume drift matrix "at each state"
+  (`TEST_STRATEGY.md` §4a, all 8 states `WORKFLOW_STATES.md` §3 names), the initial-execution
+  retry/reconciliation matrix (§4b, all 4 applicable states), a dedicated test per
+  `SECURITY_MODEL.md` rule (§4), and the full `CREATED → DONE` end-to-end dry run against a real
+  disposable Git repository with `MockProvider` and a faked `gh` (§5, `MVP_SCOPE.md` §4's
+  acceptance demonstration), exercising one repair cycle, one interruption/resume cycle, and the
+  full commit → push → PR → auto-merge → checks-wait → merge → closeout path. The dry run
+  surfaced two genuine, previously undetected production defects, neither fixed here (outside
+  this stage's allowed files): a `stage_contract_hash` format disagreement between `PMOAgent` and
+  the live resume observer (new OD-11, `docs/workflow-automation/DECISIONS.md` DD-39), and
+  empirical confirmation of the existing OD-10 `allowed_environment_variables` gap. 59 new tests;
+  `agentos_workflow` suite 1,557-green (up from 1,498); engine collection unchanged at 1,092. This
+  stage's own contract requires a mandatory independent, fresh-session security review before it
+  may reach `COMPLETE`; that review has not been performed, so registry state remains
+  `IN_PROGRESS`, stopped for Human Owner approval; no commit, push, merge, or further work was
+  performed. Report: `docs/reports/workflow-automation/AUTO-007-completion-report.md`.
 - AUTO-007 (2026-07-28): explicitly authorized by the Human Owner through the local
   two-confirmation task gate; authorization commit and implementation remain separate.
 - GOV-AUTO-03 (2026-07-28): implemented, Human-Owner-approved, and closed
