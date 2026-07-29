@@ -137,7 +137,7 @@ pre-existing `upstream_missing` finding from `workflowctl check-git` — the tol
 
 ## AUTO-007
 
-Status: Current
+Status: Done
 
 The Human Owner explicitly authorized this single task through the local authorization gate.
 Implementation and approval remain separate phases.

@@ -123,6 +123,49 @@ being `Open` at authorization time is expected, not a defect.
 - **Disposition:** Open. Blocks nothing's *authorization*, but a real (non-fake-`gh`) run of
   `GitAgent`/`MergeAgent` against actual GitHub cannot authenticate until this is fixed — affects
   AUTO-007's end-to-end dry run and any real deployment. Full context: `DECISIONS.md` DD-38.
+  **Addendum, 2026-07-28 (AUTO-007):** empirically confirmed, not merely theoretical — the
+  end-to-end dry run's `CapabilityBroker` skill bindings for `GitAgent`/`MergeAgent` needed a
+  test-only wrapper forwarding the fake `gh`'s environment allowlist for exactly these five call
+  sites before the dry run could complete; without it, every `gh`-based call in the PR/merge
+  phase failed for lack of environment, reproducing precisely the deployment failure this entry
+  already predicted. Full detail: `docs/reports/workflow-automation/AUTO-007-completion-report.md`.
+
+### OD-11 — `stage_contract_hash` format disagreement between `PMOAgent` and `LocalResumeObserver`
+
+- **Question:** `PMOAgent.check_preconditions` (`agentos_workflow/agents/pmo.py`) compares
+  `calculate_contract_hash`'s bare-hex `ContractHash.sha256`
+  (`agentos_workflow/skills/contract.py`) directly against `authorization.stage_contract_hash`
+  with no prefix. `LocalResumeObserver` (`agentos_workflow/observation/local.py`) — the live
+  observer `resume_workflow` uses whenever a real `WorkflowConfig` is supplied, i.e. the
+  production resume path — computes and compares a `"sha256:<hex>"`-*prefixed* value for the same
+  semantic field. No single `AuthorizationRecord.stage_contract_hash` value can satisfy both: a
+  bare-hex value passes `PRECONDITIONS_CHECKED` but any later real resume raises a false-positive
+  `AuthorizationBindingDriftError` (moving the workflow to `FAILED` and requiring re-authorization,
+  `HUMAN_AUTHORIZATION_MODEL.md` §4); a `"sha256:"`-prefixed value would instead fail
+  `PRECONDITIONS_CHECKED`. Which of the two representations should be the one true convention, and
+  in which file should the other be corrected to match?
+- **Recommendation:** Standardize on the `"sha256:<hex>"`-prefixed form (matching
+  `LocalResumeObserver`'s existing convention, which is closer to a self-describing content
+  hash), and correct `PMOAgent.check_preconditions`'s comparison at
+  `agentos_workflow/agents/pmo.py:201` to expect the same prefix `calculate_contract_hash`
+  produces once that Skill is updated to emit it (or, if `calculate_contract_hash`'s bare-hex
+  output must stay stable for another reason, correct `PMOAgent`'s comparison to add the prefix
+  before comparing). Either fix touches `agentos_workflow/agents/**` and/or
+  `agentos_workflow/skills/**` and/or `agentos_workflow/observation/**`, all outside AUTO-007's
+  allowed files, and neither test suite (`test_agents_pmo.py`, hand-built with a bare-hex
+  authorization; `test_engine_resume.py`, hand-built with a `"sha256:deadbeef"`-prefixed one)
+  currently proves either side against the other, so whichever fix lands needs a new test binding
+  the two together (e.g. an authorization built via `calculate_contract_hash`'s real output,
+  checked against both `PMOAgent` and a real resume in the same test).
+- **Disposition:** Open, discovered 2026-07-28 by AUTO-007's end-to-end dry run — the first
+  session to drive `PMOAgent` and a real `resume_workflow`/`WorkflowSession.resume` call against
+  the *same* authorization record end to end; each of `PMOAgent`'s and `resume_workflow`'s own
+  unit test suites had separately assumed its own convention was authoritative and so never
+  caught the mismatch. Blocks nothing's authorization, but every real workflow that reaches
+  `PRECONDITIONS_CHECKED` today and is later resumed would hit a false authorization-binding-drift
+  failure once it reaches any state at or after `BRANCH_CREATED` — a correctness defect, not a
+  security one, but one that would surface on the very first real (non-dry-run) production use of
+  the engine. Full detail: `docs/reports/workflow-automation/AUTO-007-completion-report.md`.
 
 ## Resolved
 

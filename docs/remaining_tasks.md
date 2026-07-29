@@ -30,7 +30,6 @@ authorization before it may become `Current`; authorizing GOV-AUTO-03 authorizes
 |---|---|---|
 | GOV-2 | Extend `check-governance` to validate stage-registry/lifecycle consistency | Planned |
 | GOV-3 | Attempt-aware report artifact naming in the Reporting Skills | Planned |
-| AUTO-007 | End-to-end dry run, recovery tests, and DASH integration | Current |
 | DASH-002 | Repository adapter and read-only snapshot | Planned |
 | DASH-003 | Governance and Markdown parsing | Planned |
 | DASH-004 | Local backend and dashboard shell (blocked on OD-D9) | Planned |
