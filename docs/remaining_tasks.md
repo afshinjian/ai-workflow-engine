@@ -31,7 +31,7 @@ Human Owner approval before any commit; report: `docs/reports/GOV-3-completion-r
 
 | Task | Title | Status |
 |---|---|---|
-| DASH-002 | Repository adapter and read-only snapshot | Planned |
+| DASH-002 | Repository adapter and read-only snapshot | Current |
 | DASH-003 | Governance and Markdown parsing | Planned |
 | DASH-004 | Local backend and dashboard shell (blocked on OD-D9) | Planned |
 | DASH-005 | Workflow board and task detail | Planned |

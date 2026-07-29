@@ -152,7 +152,7 @@ Report paths: `docs/reports/agentos-dashboard/STAGE-XX-completion.md`.
 | Stage | Title | Role | State | Branch | Prompt |
 |---|---|---|---|---|---|
 | DASH-001 | Planning foundation and dashboard contracts | Documentation & Governance session | COMPLETE | `governance/dash-001-documentation` | `stage-prompts/DASH-001.md` |
-| DASH-002 | Repository adapter and read-only snapshot | Dashboard implementation session | NOT_STARTED | `feature/dash-002-repo-adapter` | `stage-prompts/DASH-002.md` |
+| DASH-002 | Repository adapter and read-only snapshot | Dashboard implementation session | AUTHORIZED | `feature/dash-002-repo-adapter` | `stage-prompts/DASH-002.md` |
 | DASH-003 | Governance and Markdown parsing | Dashboard implementation session | NOT_STARTED | `feature/dash-003-governance-parsing` | `stage-prompts/DASH-003.md` |
 | DASH-004 | Local backend and dashboard shell | Dashboard implementation session | NOT_STARTED | `feature/dash-004-dashboard-shell` | `stage-prompts/DASH-004.md` |
 | DASH-005 | Workflow board and task detail | Dashboard implementation session | NOT_STARTED | `feature/dash-005-board-task-detail` | `stage-prompts/DASH-005.md` |
@@ -168,6 +168,8 @@ Report paths: `docs/reports/agentos-dashboard/STAGE-XX-completion.md`.
 |---|---|---|---|
 | 2026-07-23 | DASH-001 | Human Owner: "I authorize DASH-001." Original planning-session authorization. The resulting execution was mistakenly performed in a different repository and is void for `ai-workflow-engine`; superseded by the recovery record below. | Documentation & Governance session |
 | 2026-07-23 | DASH-001 (recovery) | Human Owner: "I authorize recovery and correct execution of DASH-001 in the ai-workflow-engine repository." Preconditions verified (branch `governance/dash-001-documentation`; the copied documentation treated as candidate material only; commit/push/merge prohibited; DASH-002+ not authorized). | Documentation & Governance session |
+
+| 2026-07-29 | DASH-002 | Human Owner supplied both exact `AUTHORIZE` confirmations through `scripts/workflow-authorize.sh`. Preconditions passed on the default-branch baseline at `5a111563a6bcec4c86d32e08efcfd3946f693eb6`. Registry moves `NOT_STARTED → AUTHORIZED`; implementation has not started. | Human Owner |
 
 ## 5. Stage→Requirement Map
 

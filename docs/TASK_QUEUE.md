@@ -606,7 +606,7 @@ about who assigns round numbers, not about artifact naming. Report:
 
 ## DASH-002 — Repository adapter and read-only snapshot
 
-Status: Planned
+Status: Current
 
 Root-confined read-only file adapter, fixed-argv Git read adapter, snapshot builder with
 staleness fingerprint. Contract: `docs/agentos-dashboard/stage-prompts/DASH-002.md`.

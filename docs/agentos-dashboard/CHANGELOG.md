@@ -158,3 +158,8 @@ None.
 
 ## Future Revisions
 Append-only.
+
+## 2026-07-29 — DASH-002 authorized
+
+The Human Owner authorized DASH-002 through the two-confirmation local gate. The stage is
+`AUTHORIZED`; implementation, approval, push, and merge remain separate.
