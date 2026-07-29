@@ -13,6 +13,25 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-07-30 — GOV-AUTO-05 registered as `Planned`
+
+**Decision:** The Human Owner directed registration of
+`GOV-AUTO-05 — Fix resolved-blocker false positives in authorization` so an already-prepared
+patch can later pass through the normal authorization and approval workflow. The task is
+registered as `Planned`, non-AUTO-family, with no structured AUTO/DASH stage-registry row.
+
+**Contract:** A later authorized implementation may change `scripts/workflow-authorize.sh` and
+its workflow-focused tests so explicit `Status: Blocked` and active unresolved open questions
+still refuse, while only the `## Open` section is authoritative and resolved, negated, or
+historical blocker wording does not refuse. Existing predecessor, registry, branch, dirty-tree,
+and Human confirmation checks remain unchanged. The detailed scope, allowed paths, exclusions,
+and acceptance criteria are authoritative in `docs/TASK_QUEUE.md`.
+
+**Boundaries:** This decision registers only GOV-AUTO-05. It does not apply the prepared patch,
+implement or authorize the task, make it `Current`, create or switch a branch, or authorize any
+push, merge, rebase, reset, stash, or other repository operation beyond the single local
+governance-registration commit.
+
 ## 2026-07-29 — OD-D9 resolved: the dashboard serving stack is FastAPI + Uvicorn + Jinja2, in an optional `dashboard` dependency group
 
 **Decision:** The Human Owner resolved OD-D9 (`docs/agentos-dashboard/OPEN_QUESTIONS.md`), the

@@ -114,6 +114,13 @@ GOV-3 remain explicitly unauthorized.
 
 ## Planned
 
+**GOV-AUTO-05** (`docs/TASK_QUEUE.md`) is registered as `Planned` and unauthorized: fix
+`scripts/workflow-authorize.sh` so only explicit blocked task status and active unresolved entries
+in an `OPEN_QUESTIONS.md` `## Open` section refuse authorization, while resolved entries and
+negated or historical wording do not produce false positives. The task preserves all existing
+predecessor, registry, branch, dirty-tree, and Human confirmation checks and carries no structured
+AUTO/DASH stage-registry row.
+
 AUTO-007 (`docs/TASK_QUEUE.md`; program plan `docs/workflow-automation/README.md`)
 and Dashboard stages DASH-002..DASH-010 (program plan
 `docs/agentos-dashboard/MASTER_PLAN.md`), each requiring its own fresh Human Owner

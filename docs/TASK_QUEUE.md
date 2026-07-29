@@ -804,3 +804,44 @@ repository suite 2726-green; ruff, black, and mypy (`src` and `agentos_workflow`
 **Not yet done:** uncommitted, awaiting a separate Human Owner approval via
 `scripts/workflow-approve.sh`, which performs the implementation commit and the deterministic
 governance closeout together. No push, merge, branch, upstream, or stash operation was performed.
+
+## GOV-AUTO-05 — Fix resolved-blocker false positives in authorization
+
+Status: Planned
+
+**Registered by Human Owner directive on 2026-07-30 as a governance task** (non-AUTO-family, so
+it carries no structured stage-registry row, per the GOV-AUTO-01/02/03/04 convention). This is a
+task record only; the already-prepared patch has not been applied, no implementation has been
+authorized, and no task has become `Current`.
+
+**Scope.** Fix `scripts/workflow-authorize.sh` so resolved or negated blocker text does not
+falsely prevent task authorization. The defect includes broad task-section matching on the word
+`blocked`; scanning the entire `OPEN_QUESTIONS.md`, including the `## Resolved` section; and
+false positives from phrases such as `no longer blocked`, `not blocked`, and `formerly blocked`.
+
+**Required behaviour:** explicit `Status: Blocked` still refuses; active unresolved open
+questions still refuse; only the `## Open` section is authoritative; resolved entries do not
+block; negated or historical wording does not block; predecessor, registry, branch, dirty-tree,
+and Human confirmation checks remain unchanged.
+
+**Allowed implementation paths:** `scripts/workflow-authorize.sh`,
+`tests/test_workflow_authorize_script.py`, `tests/**workflow**`,
+`docs/automation-workflow.md`, `docs/TASK_QUEUE.md`, `docs/current_task.md`,
+`docs/remaining_tasks.md`, `docs/PROJECT_STATE.md`, `docs/DECISION_LOG.md`,
+`docs/CHANGELOG.md`, `docs/reports/**`, `handover/PROJECT_HANDOVER.md`, and
+`handover/PROJECT_CHECKSUM.md`.
+
+**Out of scope:** workflow branch preparation; report discovery; push or merge automation;
+dashboard runtime; AgentOS engine; and unrelated governance cleanup.
+
+**Acceptance criteria:** `Status: Blocked` refuses; an active open question explicitly blocking a
+task refuses; resolved questions never block; `no longer blocked`, `not blocked`, and historical
+`formerly blocked` text do not block; DASH-004 reaches normal authorization after OD-D9
+resolution; existing authorization safety checks remain unchanged; regression tests cover
+positive and negative cases; and no push, merge, reset, rebase, force, branch deletion, or stash
+operation is introduced.
+
+Requires its own fresh, explicit Human Owner authorization
+(`scripts/workflow-authorize.sh GOV-AUTO-05 [claude|codex]`) before any implementation may begin.
+Recommended implementation commit message:
+`fix(workflow): avoid resolved blocker false positives (GOV-AUTO-05)`.

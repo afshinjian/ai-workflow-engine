@@ -7,6 +7,14 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- GOV-AUTO-05 (2026-07-30): registered
+  `GOV-AUTO-05 — Fix resolved-blocker false positives in authorization` as `Planned`. A later,
+  separately authorized implementation will make `workflow-authorize.sh` distinguish explicit
+  blocked status and active unresolved `## Open` questions from resolved entries and negated or
+  historical wording, without changing its predecessor, registry, branch, dirty-tree, or Human
+  confirmation checks. Governance records only: the prepared patch was not applied, no script or
+  test changed, no task was authorized or made `Current`, and no structured AUTO/DASH
+  stage-registry row was added.
 - OD-D9 resolved (2026-07-29, Human Owner decision): the AgentOS Dashboard serving stack is
   **FastAPI** (HTTP application framework) + **Uvicorn** (ASGI server) + **Jinja2** (server-rendered
   templates), declared in a new **optional** dependency group `dashboard` in `pyproject.toml`

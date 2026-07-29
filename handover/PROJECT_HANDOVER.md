@@ -426,3 +426,18 @@ This is a governance/architecture/dependency-declaration commit only: no dashboa
 written, no runtime source or test was modified, and no branch, push, merge, rebase, reset, or
 stash operation was performed. (Dates: the decision and this record are 2026-07-29; the session
 crossed local midnight before committing, so Git timestamps the commit 2026-07-30.)
+
+## Registration update — 2026-07-30
+
+`GOV-AUTO-05 — Fix resolved-blocker false positives in authorization` is registered in
+`docs/TASK_QUEUE.md` and its remaining-work mirror as `Planned`. A later, separately authorized
+implementation may fix `scripts/workflow-authorize.sh` so explicit blocked status and active
+unresolved questions in `OPEN_QUESTIONS.md`'s `## Open` section still refuse, while resolved
+entries and negated or historical wording (`no longer blocked`, `not blocked`, `formerly
+blocked`) do not. The full allowed paths, exclusions, safety invariants, and acceptance criteria
+are recorded in the task queue.
+
+This registration has no structured AUTO/DASH stage-registry row. The already-prepared patch was
+not applied; no implementation, authorization, script, test, branch, push, merge, rebase, reset,
+or stash operation occurred. GOV-AUTO-05 remains `Planned`, no task is `Current`, and fresh
+explicit Human Owner authorization is required before implementation.
