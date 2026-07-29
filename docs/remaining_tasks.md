@@ -27,11 +27,16 @@ those requires its own fresh written authorization before it may become `Current
 GOV-AUTO-03 authorized none of them. Since then: **AUTO-007 was closed to `Done` on 2026-07-29**,
 **GOV-2 was closed to `Done` on 2026-07-29**, and **GOV-3 was authorized by the Human Owner on
 2026-07-29** as the single `Current` task — implemented and validated the same day, stopped for
-Human Owner approval before any commit; report: `docs/reports/GOV-3-completion-report.md`.
+Human Owner approval before any commit; report: `docs/reports/GOV-3-completion-report.md`. **DASH-002 was
+authorized by the Human Owner on 2026-07-29** as the single `Current` task — implemented and
+validated the same day (the `agentos_dashboard/core/` adapters and snapshot builder, 115 tests),
+stopped for Human Owner approval before any commit; report:
+`docs/reports/agentos-dashboard/STAGE-02-completion.md`. Its registered branch was not created
+and the work sits on `main`; that conflict, and the approval gate's report-name expectation, are
+recorded as OD-D10 and OD-D11 in `docs/agentos-dashboard/OPEN_QUESTIONS.md`.
 
 | Task | Title | Status |
 |---|---|---|
-| DASH-002 | Repository adapter and read-only snapshot | Current |
 | DASH-003 | Governance and Markdown parsing | Planned |
 | DASH-004 | Local backend and dashboard shell (blocked on OD-D9) | Planned |
 | DASH-005 | Workflow board and task detail | Planned |

@@ -5,7 +5,7 @@
 | **Title** | AgentOS Dashboard — Decisions |
 | **Purpose** | Append-only record of dashboard-program decisions (DD-##). Subordinate to `docs/DECISION_LOG.md`; cross-posted there when repository governance requires. |
 | **Status** | Draft |
-| **Version** | 1.0 |
+| **Version** | 1.1 |
 | **Owner** | Documentation & Governance session (append) · Human Owner (approval) |
 | **Dependencies** | `MASTER_PLAN.md` §8 |
 | **Related Documents** | `docs/DECISION_LOG.md` |
@@ -63,6 +63,39 @@ appended, never rewritten; supersessions are explicit.
   through this entry, the `CHANGELOG.md` CL-20260723-02 entry, and
   `docs/reports/agentos-dashboard/DASH-001-recovery-report.md`.
 - **Reconsider when:** Never — historical record.
+
+## DD-04 — Adapter errors are typed exceptions, not result objects
+
+- **Status:** Accepted (DASH-002 implementation decision, 2026-07-29).
+- **Context:** The engine's `agentos_workflow` Skills return a `SkillResult` union rather than
+  raising, because an Orchestrator has to branch on a failure *kind* to choose a workflow-state
+  transition. The dashboard's adapters have no such caller: a page render either has the data or
+  must show the operator a finding.
+- **Decision:** Every failure in `agentos_dashboard/core/` is a typed exception deriving from
+  one base (`DashboardError`), carrying a `StrEnum` reason (`PathRefusal`, `FileRefusal`,
+  `GitFailure`). Nothing from `subprocess`, `OSError`, or `pathlib` crosses an adapter boundary.
+  The snapshot builder is the layer that converts those exceptions into `SnapshotFinding`s, so
+  SC-34's "degrade, never crash" is implemented once instead of at every call site.
+- **Consequences:** Services (DASH-004+) may let an adapter exception propagate to a page-level
+  handler, or catch it into a finding, without inventing a second error vocabulary. It also
+  keeps the two packages independent: no `agentos_workflow` type is imported.
+- **Reconsider when:** A later stage needs a partial-success shape an exception cannot express.
+
+## DD-05 — `core.quotePath=false` as a fixed Git global option
+
+- **Status:** Accepted (DASH-002 implementation decision, 2026-07-29).
+- **Context:** `ARCHITECTURE.md` §3 fixes the Git *subcommand forms* the adapter may run. With
+  Git's default `core.quotePath=true`, any path containing a non-ASCII byte is returned
+  C-quoted (`"docs/\303\251.md"`), so a caller would have to unescape adapter output — a decoding
+  step in exactly the layer that must not decode.
+- **Decision:** Every invocation carries the fixed global options
+  `--no-optional-locks -c core.quotePath=false -C <root>` ahead of the contracted subcommand
+  form. These are literals in one private helper, never caller-supplied, so the contracted forms
+  and the "no caller-supplied verb" property are both unchanged.
+- **Consequences:** Paths come back verbatim and comparable to filesystem paths. Recorded here
+  because a reviewer comparing argv to `ARCHITECTURE.md` §3 will see options the contract does
+  not list.
+- **Reconsider when:** A Git version changes the meaning of either option.
 
 ## Decision References
 Repository decisions binding this program are recorded in `docs/DECISION_LOG.md` (2026-07-23

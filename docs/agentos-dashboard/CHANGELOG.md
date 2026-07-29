@@ -17,6 +17,24 @@ before/after, authorizing task, approver. Entries are appended, never edited.
 
 ## Entries
 
+### CL-20260729-01 — DASH-002 implemented: repository adapters and read-only snapshot
+
+- **Documents:** `DECISIONS.md` (new DD-04, DD-05), `OPEN_QUESTIONS.md` (new OD-D10, OD-D11),
+  `STAGE_REGISTRY.md` §4 (new append-only preflight row; the §3 state cell is unchanged at
+  `AUTHORIZED`), and the new report
+  `docs/reports/agentos-dashboard/STAGE-02-completion.md`.
+- **Versions:** `DECISIONS.md` 1.0 → **1.1**; `OPEN_QUESTIONS.md` 1.0 → **1.1**;
+  `STAGE_REGISTRY.md` 5.0 → 5.0 (append-only log growth, which §8 does not version).
+- **Code delivered (outside this documentation set):** `agentos_dashboard/{__init__.py,
+  core/__init__.py, core/paths.py, core/files.py, core/gitread.py, core/snapshot.py}` and
+  `agentos_dashboard/tests/**` — exactly the stage contract's Allowed list. Stdlib only.
+- **Reason for change:** DASH-002's implementation, and the two governance conflicts it hit,
+  which are recorded rather than resolved by the session that found them.
+- **Authorizing task:** DASH-002, authorized by the Human Owner 2026-07-29 through
+  `scripts/workflow-authorize.sh` (`STAGE_REGISTRY.md` §4).
+- **Approver:** pending — the implementation is uncommitted and awaits Human Owner approval.
+- **Date:** 2026-07-29.
+
 ### CL-20260724-06 — `SUPERSEDED` task-status policy (OD-8) mirrored from the AUTO program
 
 - **Documents:** `STAGE_REGISTRY.md` §1 (state-mapping sentence) and rule 9 (Superseding).
@@ -163,3 +181,8 @@ Append-only.
 
 The Human Owner authorized DASH-002 through the two-confirmation local gate. The stage is
 `AUTHORIZED`; implementation, approval, push, and merge remain separate.
+
+## 2026-07-29 — DASH-002 closed
+
+The Human Owner approved and closed DASH-002 through the automatic task-closeout gate
+(`scripts/workflow-approve.sh`, GOV-AUTO-03). Registry state `COMPLETE`; task status `Done`.

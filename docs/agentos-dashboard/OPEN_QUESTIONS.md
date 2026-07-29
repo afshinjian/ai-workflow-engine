@@ -5,7 +5,7 @@
 | **Title** | AgentOS Dashboard — Open Questions |
 | **Purpose** | Owner-decision register (OD-D#) with dispositions and the requirement IDs each question blocks. |
 | **Status** | Draft |
-| **Version** | 1.0 |
+| **Version** | 1.1 |
 | **Owner** | Documentation & Governance session · Human Owner (dispositions) |
 | **Dependencies** | `MASTER_PLAN.md` §11 |
 | **Related Documents** | `STAGE_REGISTRY.md` (preconditions cite entries here) |
@@ -32,6 +32,47 @@ Resolved append-only; they are never deleted.
   and are not blocked.
 - **Blocked:** DASH-004..DASH-010 serving-layer work; `ARCHITECTURE.md` §6 rows marked
   "pending OD-D9".
+
+### OD-D10 — The stage branch versus the local runner's no-branch rule
+
+- **Question:** The SSP's initial-start preflight (`stage-prompts/README.md`;
+  `STAGE_REGISTRY.md` §2 rules 4 and 15) requires a DASH stage to run on its registered branch,
+  created from clean `main` — for DASH-002, `feature/dash-002-repo-adapter`. The local runner
+  prompt the Human Owner now launches implementation sessions with
+  (`scripts/prompts/implement-next-task.md` §7) forbids the session from creating or switching
+  branches at all, and `scripts/workflow-authorize.sh` (lines 265-266) states that the canonical
+  implementation branch "is created later by the implementation session, never by this gate."
+  The two instructions cannot both be satisfied by one session. Which governs?
+- **Effect today:** the DASH-002 implementation was performed on `main` in the working tree,
+  uncommitted, because the runner prompt's prohibition is explicit and creating a branch would
+  have violated it. `scripts/workflow-approve.sh` enforces the registry's branch cell
+  (`EXIT_SCOPE_MISMATCH`, exit 15), so the approval gate will refuse the closeout until the
+  working tree is on `feature/dash-002-repo-adapter`.
+- **Recommendation:** either (a) the Human Owner runs `git switch -c feature/dash-002-repo-adapter`
+  before `scripts/workflow-approve.sh` — uncommitted changes carry across, and the stage then
+  satisfies rules 4/15 exactly; or (b) the runner prompt gains an explicit exception permitting
+  a registry-governed stage session to create its own registered branch from clean `main`,
+  matching what AUTO-007 did and what `workflow-authorize.sh` already documents.
+- **Disposition:** **Open.** Requires a Human Owner decision. Records only the conflict; it
+  changes no rule.
+- **Blocked:** the DASH-002 approval/closeout path, and every later DASH stage run through the
+  same local runner.
+
+### OD-D11 — Completion-report filename expected by the approval gate
+
+- **Question:** This program's naming convention (`stage-prompts/README.md` "Naming
+  Conventions"; `STAGE_REGISTRY.md` §3) is
+  `docs/reports/agentos-dashboard/STAGE-XX-completion.md`, and DASH-001's report follows it.
+  `scripts/workflow-approve.sh`'s closeout looks only for
+  `docs/reports/agentos-dashboard/<TASK_ID>-completion-report.md`, so it cannot find a report
+  written under the documented name and exits `EXIT_MISSING_REPORT`.
+- **Recommendation:** teach the approval gate this program's naming convention (a `scripts/`
+  change, out of scope for any DASH stage), rather than renaming the report and breaking the
+  convention DASH-001 already established.
+- **Disposition:** **Open.** Requires a Human Owner decision. DASH-002 wrote its report under
+  the documented name, `STAGE-02-completion.md`.
+- **Blocked:** the automated closeout half of the DASH-002 approval path (the same path OD-D10
+  already blocks).
 
 ## Resolved
 

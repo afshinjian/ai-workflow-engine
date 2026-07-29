@@ -7,6 +7,24 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- DASH-002 (2026-07-29): implemented, Human-Owner-approved, and closed
+  `Current -> Done` in one local commit via scripts/workflow-approve.sh's automatic
+  task closeout (GOV-AUTO-03).
+- DASH-002 (2026-07-29, implementation): new top-level package `agentos_dashboard/` with the
+  stage's three deliverables — `core/paths.py` (root confinement, lexical traversal rejection,
+  symlink-escape refusal, and the SC-08 deny-list applied both to the requested path and to the
+  path the filesystem resolved to), `core/files.py` (byte-capped, replacement-tolerant text
+  reads, head/tail windows for large files, streamed SHA-256, and no write path in the module at
+  all), `core/gitread.py` (seven named read-only Git functions over fixed argv with `LC_ALL=C`, a
+  5 s timeout, a subcommand allowlist, and typed failures), and `core/snapshot.py` (the
+  `SOURCE_OF_TRUTH.md` §3 watched-file + HEAD fingerprint, TR-04 findings for missing or
+  unreadable inputs, and the TR-05 staleness test) — plus 115 tests in
+  `agentos_dashboard/tests/`. Stdlib only; no dependency added; no engine file touched and the
+  engine's own collection unchanged at 1,123. Report:
+  `docs/reports/agentos-dashboard/STAGE-02-completion.md`; decisions: `DECISIONS.md` DD-04,
+  DD-05; conflicts recorded for Human Owner decision: `OPEN_QUESTIONS.md` OD-D10 (stage branch
+  vs. the runner prompt's no-branch rule) and OD-D11 (report filename expected by the approval
+  gate). Implemented and validated; stopped for Human Owner approval before any commit.
 - DASH-002 (2026-07-29): explicitly authorized by the Human Owner through the local
   two-confirmation task gate; authorization commit and implementation remain separate.
 - GOV-3 (2026-07-29): implemented, Human-Owner-approved, and closed

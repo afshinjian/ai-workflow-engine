@@ -606,10 +606,31 @@ about who assigns round numbers, not about artifact naming. Report:
 
 ## DASH-002 — Repository adapter and read-only snapshot
 
-Status: Current
+Status: Done
 
 Root-confined read-only file adapter, fixed-argv Git read adapter, snapshot builder with
 staleness fingerprint. Contract: `docs/agentos-dashboard/stage-prompts/DASH-002.md`.
+
+**Authorized by the Human Owner on 2026-07-29** through the local two-confirmation task gate
+(`scripts/workflow-authorize.sh`); implemented and validated the same day, **uncommitted**,
+stopped for Human Owner approval. Created `agentos_dashboard/` with `core/paths.py` (root
+confinement, lexical traversal rejection, symlink-escape refusal, the SC-08 deny-list checked
+both before and after resolution), `core/files.py` (capped, error-tolerant reads with head/tail
+windows and streamed digests; no write path exists in the module), `core/gitread.py` (seven
+named read-only functions over fixed argv with `LC_ALL=C`, a 5 s timeout, and typed failures),
+and `core/snapshot.py` (the `SOURCE_OF_TRUTH.md` §3 watched-file fingerprint, TR-04 findings, and
+the TR-05 staleness test), plus 115 tests in `agentos_dashboard/tests/`. No file under `src/`,
+`tests/`, `scripts/`, `handover/`, `pyproject.toml`, or any other engine path was touched, and no
+dependency was added. Report: `docs/reports/agentos-dashboard/STAGE-02-completion.md`.
+
+**Two governance conflicts were found and recorded rather than resolved unilaterally**
+(`docs/agentos-dashboard/OPEN_QUESTIONS.md`): OD-D10 — the stage's registered branch
+`feature/dash-002-repo-adapter` was **not** created, because the local runner prompt forbids the
+session from creating or switching branches, so the work sits on `main` and
+`scripts/workflow-approve.sh` will refuse the closeout until the tree is on that branch; and
+OD-D11 — the approval gate looks for `DASH-002-completion-report.md` while this program's
+convention (and DASH-001's precedent) is `STAGE-02-completion.md`. Registry state stays
+`AUTHORIZED` (`docs/agentos-dashboard/STAGE_REGISTRY.md` §4, 2026-07-29 preflight row).
 
 ## DASH-003 — Governance and Markdown parsing
 
