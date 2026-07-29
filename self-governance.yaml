@@ -18,6 +18,9 @@ governance:
       paths: [docs/PROJECT_STATE.md, pyproject.toml]
       pattern: '(?:Current Version[^\n]*?|^version\s*=\s*")[^0-9]*(\d+\.\d+\.\d+)'
       required: true
+  registries:
+    - docs/workflow-automation/STAGE_REGISTRY.md
+    - docs/agentos-dashboard/STAGE_REGISTRY.md
 
 handover:
   manifest: handover/PROJECT_CHECKSUM.md

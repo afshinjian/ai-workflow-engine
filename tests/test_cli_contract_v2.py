@@ -221,7 +221,8 @@ def test_v2_envelope_for_verify_command(repository: Path, config_factory: object
     assert payload["command"] == "verify"
     assert payload["ok"] is True
     assert payload["data"]["status"] == "PASS"
-    assert len(payload["data"]["checks"]) == 4
+    # git, task-state, governance, registries, handover
+    assert len(payload["data"]["checks"]) == 5
 
 
 def test_v2_envelope_for_verify_command_failure(repository: Path, config_factory: object) -> None:

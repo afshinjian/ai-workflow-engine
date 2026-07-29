@@ -182,3 +182,44 @@ GOV-2 is the single `Current` task after two exact Human Owner `AUTHORIZE` confi
 The authorization-only commit contains governance and handoff records; implementation has not
 started. No predecessor was closed automatically, and no push, merge, upstream, branch, or stash
 operation was performed.
+
+## GOV-2 (2026-07-29) — implemented, uncommitted, awaiting Human Owner approval
+
+GOV-2 ("Extend `check-governance` to validate stage-registry/lifecycle consistency") is
+implemented and validated on `main` in the working tree, **uncommitted**, stopped for Human Owner
+approval. Task status remains `Current`.
+
+Delivered a new deterministic governance check, `check-registries`, that cross-checks each
+configured stage registry's per-stage lifecycle `State` against the authoritative
+`docs/TASK_QUEUE.md` status under the state→task-status mapping both program registries document
+identically. New `src/ai_workflow_engine/governance/registry.py` (tolerant `## N. Registry`
+table parser, `RegistryState`, the shared mapping, `classify_state`); `RegistryState`/
+`RegistryRow`/`RegistryParse` in `governance/models.py`; `check_registries` in
+`governance/validators.py`; a `GovernanceSettings.registries` config surface (repo-relative,
+default empty); `self-governance.yaml` now names this repository's two registries; and a
+`workflowctl check-registries` command plus a `registries` entry in `workflowctl verify` (now five
+checks). Only the machine-checkable registry↔queue property was implemented; cross-registry
+rule-equivalence and version-policy classification are documented deferrals per GOV-2's own
+recommended shape. Report: `docs/reports/GOV-2-completion-report.md`.
+
+Validation: `pytest tests agentos_workflow/tests` 2680 passed, 1 failed — the single failure
+(`agentos_workflow/tests/e2e/test_dry_run.py`) is pre-existing and environment-dependent
+(`running_engine_version()` resolves the installed package's `1.0.0` while the test hardcodes
+`0.1.0`), reproduced identically on a clean `HEAD` worktree; my diff touches no `agentos_workflow`
+file. ruff, black, mypy (`src` and `agentos_workflow`), and `git diff --check` all clean;
+`workflowctl verify` PASS (the new `registries` check green: 17 stages across 2 registries).
+
+The `ai-workflow-engine` conda env lacked the `dev` extra at session start;
+`pip install -e ".[dev]"` was run to install the declared dev tooling so the gates could execute.
+No source, dependency declaration, or lockfile changed as a result.
+
+**Not yet done:** uncommitted, awaiting a separate Human Owner approval via
+`scripts/workflow-approve.sh`, which performs the implementation commit and the deterministic
+GOV-AUTO-03 closeout together. No push, merge, branch, upstream, or stash operation was performed.
+
+## Closure update — 2026-07-29
+
+GOV-2 was approved and closed `Current -> Done` by the Human Owner through
+scripts/workflow-approve.sh's automatic task closeout. No task is `Current` after this commit
+unless a fresh authorization already named a successor. No push, merge, branch, upstream, or
+stash operation was performed by this closeout.

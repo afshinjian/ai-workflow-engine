@@ -56,6 +56,10 @@ class GovernanceSettings(StrictModel):
     context: str
     pyproject: str
     facts: list[FactRule] = Field(default_factory=list)
+    # Stage registries (e.g. each program's STAGE_REGISTRY.md) whose per-stage lifecycle State
+    # is cross-checked against the task queue by `check-registries`. Empty by default: a governed
+    # repository with no stage registries simply has nothing for that check to do.
+    registries: list[str] = Field(default_factory=list)
 
     def document_paths(self) -> list[str]:
         return [

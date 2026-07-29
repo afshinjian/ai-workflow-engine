@@ -13,6 +13,19 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-07-29 — Human Owner approved and closed GOV-2
+
+**Decision:** The Human Owner reviewed the implementation diff for `GOV-2` on
+branch `main` at base `919fef2b31e4aefba7d246b87dd1e8fbd5ee9849`, typed the two exact `APPROVE` confirmations
+required by `scripts/workflow-approve.sh`, and approved the Conventional Commit
+message `feat(governance): add check-registries stage-registry/lifecycle consistency check (GOV-2)`. The script then performed the deterministic governance closeout
+(`GOV-2` moves `Current -> Done`) and staged the approved implementation
+together with the generated closeout records in one local commit.
+
+**Boundaries:** This decision approves and closes only `GOV-2`. It does not
+push, merge, authorize a successor task, change branches, alter upstream, or mutate
+stashes.
+
 ## 2026-07-29 — Human Owner authorized GOV-2
 
 **Decision:** The Human Owner typed the two exact `AUTHORIZE` confirmations for

@@ -63,7 +63,15 @@ def test_verify_json_wrapper(repository: Path, config_factory: object) -> None:
     payload = json.loads(result.stdout)
     assert payload["schema_version"] == "1.0"
     assert payload["project_id"] == "test-project"
-    assert len(payload["checks"]) == 4
+    # git, task-state, governance, registries, handover
+    assert len(payload["checks"]) == 5
+    assert {check["check_name"] for check in payload["checks"]} == {
+        "git",
+        "task-state",
+        "governance",
+        "registries",
+        "handover",
+    }
 
 
 def _run_cli(args: list[str], *, force_color: bool) -> subprocess.CompletedProcess[str]:

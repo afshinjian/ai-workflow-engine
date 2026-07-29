@@ -3,6 +3,11 @@ from collections import defaultdict
 from ai_workflow_engine.config import repository_path
 from ai_workflow_engine.governance.models import TaskSnapshot, TaskStatus
 from ai_workflow_engine.governance.parser import extract_fact, parse_tasks
+from ai_workflow_engine.governance.registry import (
+    REGISTRY_STATE_TO_TASK_STATUS,
+    classify_state,
+    parse_registry,
+)
 from ai_workflow_engine.models import EngineConfig
 from ai_workflow_engine.result import CheckResult, Finding, Status
 
@@ -139,6 +144,104 @@ def check_governance(config: EngineConfig) -> CheckResult:
         affected_paths=sorted({finding.path for finding in findings if finding.path}),
         remediation_hint=(
             "Update authoritative governance mirrors to repeat the same facts."
+            if findings
+            else None
+        ),
+    )
+
+
+def check_registries(config: EngineConfig) -> CheckResult:
+    """Cross-check each configured stage registry's per-stage lifecycle State against the
+    authoritative task queue, under the documented state→task-status mapping.
+
+    The task queue (not the mirrors) is authoritative for a task's status; `check-task-state`
+    already proves the mirrors agree with it, so this check reads the queue directly and does not
+    duplicate that work.
+    """
+    repository = config.project.repository
+    queue_text = repository_path(repository, config.governance.task_queue).read_text(
+        encoding="utf-8"
+    )
+    queue_status = {
+        record.task_id: record.status
+        for record in parse_tasks(queue_text, config.governance.task_queue)
+    }
+
+    findings: list[Finding] = []
+    summary_by_registry: dict[str, dict[str, object]] = {}
+    total_stages = 0
+    for relative in config.governance.registries:
+        text = repository_path(repository, relative).read_text(encoding="utf-8")
+        parse = parse_registry(text, relative)
+        total_stages += len(parse.rows)
+        summary_by_registry[relative] = {
+            "table_found": parse.table_found,
+            "stages": len(parse.rows),
+        }
+        if not parse.table_found:
+            findings.append(
+                Finding(
+                    code="registry_table_missing",
+                    message=f"No Registry table found in {relative}",
+                    path=relative,
+                )
+            )
+            continue
+        for row in parse.rows:
+            state = classify_state(row.raw_state)
+            if state is None:
+                findings.append(
+                    Finding(
+                        code="registry_unknown_state",
+                        message=(
+                            f"{row.stage_id} has unrecognized registry state {row.raw_state!r}"
+                        ),
+                        path=relative,
+                    )
+                )
+                continue
+            expected = REGISTRY_STATE_TO_TASK_STATUS[state]
+            actual = queue_status.get(row.stage_id)
+            if actual is None:
+                findings.append(
+                    Finding(
+                        code="registry_stage_missing_from_queue",
+                        message=(
+                            f"{row.stage_id} is in {relative} (state {state}) but is absent from "
+                            f"the task queue"
+                        ),
+                        path=relative,
+                    )
+                )
+            elif actual != expected:
+                findings.append(
+                    Finding(
+                        code="registry_state_mismatch",
+                        message=(
+                            f"{row.stage_id} registry state {state} maps to {expected} but the "
+                            f"task queue says {actual}"
+                        ),
+                        path=relative,
+                    )
+                )
+
+    return CheckResult(
+        check_name="registries",
+        status=Status.FAIL if findings else Status.PASS,
+        summary=(
+            "No stage registries configured"
+            if not config.governance.registries
+            else (
+                f"Checked {total_stages} stage(s) across "
+                f"{len(config.governance.registries)} registry(ies) against the task queue"
+            )
+        ),
+        findings=findings,
+        evidence={"registries": summary_by_registry},
+        affected_paths=sorted({finding.path for finding in findings if finding.path}),
+        remediation_hint=(
+            "Reconcile each registry's per-stage State with the task queue under the documented "
+            "state-to-status mapping."
             if findings
             else None
         ),

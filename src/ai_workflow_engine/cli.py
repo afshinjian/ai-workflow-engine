@@ -25,7 +25,11 @@ from ai_workflow_engine.exceptions import UnsupportedSchemaVersionError
 from ai_workflow_engine.git.approval import load_commit_approval, load_push_approval
 from ai_workflow_engine.git.client import GitClient
 from ai_workflow_engine.git.validators import check_git, matching_paths
-from ai_workflow_engine.governance.validators import check_governance, check_task_state
+from ai_workflow_engine.governance.validators import (
+    check_governance,
+    check_registries,
+    check_task_state,
+)
 from ai_workflow_engine.handover.validators import HandoverSource, check_handover
 from ai_workflow_engine.migration.apply import apply_migration
 from ai_workflow_engine.migration.errors import ApplyNotAuthorizedError
@@ -315,6 +319,14 @@ def check_governance_command(
     _emit(_safe_check("governance", lambda: check_governance(settings)), output)
 
 
+@app.command("check-registries")
+def check_registries_command(
+    config: ConfigOption, output: OutputOption = OutputFormat.HUMAN
+) -> None:
+    settings = _config(config, output=output, command="registries")
+    _emit(_safe_check("registries", lambda: check_registries(settings)), output)
+
+
 @app.command("check-handover")
 def check_handover_command(
     config: ConfigOption,
@@ -331,12 +343,13 @@ def check_handover_command(
 
 @app.command()
 def verify(config: ConfigOption, output: OutputOption = OutputFormat.HUMAN) -> None:
-    """Run all Milestone 1 deterministic checks."""
+    """Run all deterministic governance checks."""
     settings = _config(config, output=output, command="verify")
     checks = [
         _safe_check("git", lambda: check_git(settings)),
         _safe_check("task-state", lambda: check_task_state(settings)),
         _safe_check("governance", lambda: check_governance(settings)),
+        _safe_check("registries", lambda: check_registries(settings)),
         _safe_check("handover", lambda: check_handover(settings)),
     ]
     report = VerificationReport(

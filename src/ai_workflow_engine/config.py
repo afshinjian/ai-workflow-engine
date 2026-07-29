@@ -78,4 +78,6 @@ def load_config(path: Path) -> EngineConfig:
     for rule in config.governance.facts:
         for relative in rule.paths:
             repository_path(repository, relative, must_exist=False)
+    for relative in config.governance.registries:
+        repository_path(repository, relative, must_exist=False)
     return config
