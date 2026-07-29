@@ -28,7 +28,7 @@ authorization before it may become `Current`; authorizing GOV-AUTO-03 authorizes
 
 | Task | Title | Status |
 |---|---|---|
-| GOV-2 | Extend `check-governance` to validate stage-registry/lifecycle consistency | Planned |
+| GOV-2 | Extend `check-governance` to validate stage-registry/lifecycle consistency | Current |
 | GOV-3 | Attempt-aware report artifact naming in the Reporting Skills | Planned |
 | DASH-002 | Repository adapter and read-only snapshot | Planned |
 | DASH-003 | Governance and Markdown parsing | Planned |

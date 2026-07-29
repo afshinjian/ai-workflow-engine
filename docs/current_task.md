@@ -1,17 +1,11 @@
 # Current Task
 
-Mirror of docs/TASK_QUEUE.md's Current set. Must contain exactly the same task ID(s) at
-the same status as the task queue — workflowctl check-task-state fails otherwise.
+Mirror of docs/TASK_QUEUE.md's Current set. This task was selected explicitly by the
+Human Owner through scripts/workflow-authorize.sh; no ordering was inferred.
 
-## No task is currently active
+## GOV-2
 
-AUTO-007 — End-to-end dry run, recovery tests, and DASH integration was closed `Current -> Done` on 2026-07-29 by explicit Human Owner approval
-through scripts/workflow-approve.sh's automatic task closeout (GOV-AUTO-03). The
-approved implementation was committed together with this closeout in one local commit.
+Status: Current
 
-The Current set is therefore empty. Under self-governance.yaml's maximum_current_tasks: 1
-this is a legal state — the maximum is a ceiling, not a quota.
-
-Every remaining task (docs/remaining_tasks.md) is Planned and requires its own fresh
-written Human Owner authorization naming it before it may become Current. Closing AUTO-007
-authorizes no successor.
+Authorized by the Human Owner on 2026-07-29. Implementation remains a separate phase and must stop
+for Human Owner approval before any implementation commit.

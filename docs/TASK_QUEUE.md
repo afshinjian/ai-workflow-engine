@@ -513,7 +513,7 @@ Requires its own fresh authorization. Contract:
 
 ## GOV-2 — Extend `check-governance` to validate stage-registry/lifecycle consistency
 
-Status: Planned
+Status: Current
 
 **Scope, assessed but not implemented during 2026-07-24 governance recovery** (this is a
 documentation-only task record; no code was written). Confirmed by reading
