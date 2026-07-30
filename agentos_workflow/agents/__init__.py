@@ -59,6 +59,7 @@ from agentos_workflow.skills import (
     utc_now,
 )
 from agentos_workflow.skills import contract as contract_skills
+from agentos_workflow.skills import git_github as git_github_skills
 from agentos_workflow.skills import reporting as reporting_skills
 from agentos_workflow.skills import repository as repository_skills
 from agentos_workflow.skills import validation as validation_skills
@@ -211,21 +212,23 @@ class CapabilityViolation(Exception):
 SkillBinding = Callable[..., SkillResult[Any]]
 ProviderGateway = Callable[[ProviderRole], Provider]
 
-# Skills the Agent contracts name that AUTO-003 did not deliver, because they are GitHub-facing
-# and belong to AUTO-006. Named here so an attempt to use one is a precise, actionable failure
-# ("delivered by AUTO-006") rather than indistinguishable from a typo.
-PROVISIONAL_SKILL_NAMES: frozenset[str] = frozenset(
-    {
-        "create_commit",
-        "push_stage_branch",
-        "create_pull_request",
-        "read_pull_request_state",
-        "verify_head_sha",
-        "read_required_checks",
-        "enable_automatic_squash_merge",
-        "verify_merge_completion",
-    }
-)
+# Skills an Agent contract names that no delivered module implements yet.
+#
+# Empty since GOV-AUTO-06. It previously listed the eight GitHub-facing Skills as undelivered,
+# which was true when AUTO-003 wrote it and stopped being true when AUTO-006 landed
+# `skills/git_github.py` — but nothing updated this set or `_DEFAULT_SKILL_BINDINGS`, so
+# `GitAgent` and `MergeAgent` were told their own contracted Skills "will be delivered by
+# AUTO-006" *by the stage that had already delivered them*. Every one of the eight is now bound
+# below.
+#
+# The set itself is kept rather than deleted, and `CapabilityBroker.invoke_skill` still consults
+# it. The mechanism is general and worth preserving: a contract may legitimately name a Skill
+# before its implementing stage lands, and answering that with a typed `PRECONDITION` failure
+# instead of a `CapabilityViolation` is the right distinction — "not built yet" is a deployment
+# state a machine gate can act on, whereas "not permitted" is a programming error. What was stale
+# was the membership, not the concept. An empty set simply means nothing is currently in that
+# state.
+PROVISIONAL_SKILL_NAMES: frozenset[str] = frozenset()
 
 _DEFAULT_SKILL_BINDINGS: Mapping[str, SkillBinding] = MappingProxyType(
     {
@@ -249,6 +252,22 @@ _DEFAULT_SKILL_BINDINGS: Mapping[str, SkillBinding] = MappingProxyType(
         "validate_stage_ordering": contract_skills.validate_stage_ordering,
         "validate_allowed_paths": contract_skills.validate_allowed_paths,
         "detect_future_stage_work": contract_skills.detect_future_stage_work,
+        # Git/GitHub family (§5), delivered by AUTO-006 and bound here by GOV-AUTO-06.
+        #
+        # These are the eight Skills `PROVISIONAL_SKILL_NAMES` used to list as undelivered. Binding
+        # them changes no capability boundary: `AGENT_SKILL_CONTRACTS` already permitted exactly
+        # these names to exactly `GIT` and `MERGE` (and to no other Agent), and the broker checks
+        # that contract before it ever consults this registry. What changes is only that a
+        # permitted call now reaches its real implementation instead of a "not yet implemented"
+        # failure.
+        "create_commit": git_github_skills.create_commit,
+        "push_stage_branch": git_github_skills.push_stage_branch,
+        "create_pull_request": git_github_skills.create_pull_request,
+        "read_pull_request_state": git_github_skills.read_pull_request_state,
+        "verify_head_sha": git_github_skills.verify_head_sha,
+        "read_required_checks": git_github_skills.read_required_checks,
+        "enable_automatic_squash_merge": git_github_skills.enable_automatic_squash_merge,
+        "verify_merge_completion": git_github_skills.verify_merge_completion,
         # Validation family (§4).
         "run_tests": validation_skills.run_tests,
         "run_lint": validation_skills.run_lint,
@@ -270,11 +289,18 @@ _DEFAULT_SKILL_BINDINGS: Mapping[str, SkillBinding] = MappingProxyType(
 
 
 def default_skill_registry() -> Mapping[str, SkillBinding]:
-    """Every Skill AUTO-003 delivered, bound to its implementation.
+    """Every delivered Skill, bound to its implementation — the production registry.
 
-    The eight `PROVISIONAL_SKILL_NAMES` are deliberately absent: an unbound name is honest about
-    AUTO-006 not having landed, where a stub returning success would be a lie a machine gate would
-    happily accept.
+    Complete as of GOV-AUTO-06: every name any Agent contract mentions resolves here, so no Agent
+    is told a Skill is missing that in fact exists. The eight Git/GitHub Skills were absent for as
+    long as AUTO-006 had not landed, which was the honest answer then — a stub returning success
+    would have been a lie a machine gate would happily accept. Once AUTO-006 delivered them, the
+    same absence became the opposite kind of lie, and `GitAgent`/`MergeAgent` could not run against
+    this registry at all. They are bound now.
+
+    This function grants nothing on its own. `AGENT_SKILL_CONTRACTS` decides which Agent may invoke
+    which name, and `CapabilityBroker` enforces that before consulting this mapping — a Skill being
+    present here never widens any Agent's reach.
     """
     return _DEFAULT_SKILL_BINDINGS
 
@@ -443,8 +469,13 @@ class CapabilityBroker:
             )
         binding = self._skills.get(name)
         if binding is None:
+            # GOV-AUTO-06 removed the "delivered by AUTO-006" wording: naming one stage made this
+            # message go stale the moment that stage landed, and it kept asserting AUTO-006 was
+            # pending for the whole period after it had shipped. The distinction being drawn is
+            # between "contract names it, nothing implements it yet" and "this registry happens not
+            # to bind it", which is what an operator needs and is true regardless of stage.
             detail = (
-                f"skill {name!r} is not yet implemented; it is delivered by AUTO-006"
+                f"skill {name!r} is not yet implemented"
                 if name in PROVISIONAL_SKILL_NAMES
                 else f"skill {name!r} is not bound in this registry"
             )

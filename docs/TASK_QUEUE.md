@@ -953,7 +953,7 @@ Report: `docs/reports/GOV-AUTO-05-completion-report.md`.
 
 ## GOV-AUTO-06 — Bind delivered Git/GitHub skills into the default AgentOS skill registry
 
-Status: Current
+Status: Done
 
 Registered and authorized by the Human Owner on 2026-07-30 to resolve the finding AUTO-008 reported
 and deliberately did not fix. AUTO-006 delivered all eight Git/GitHub Skills in
@@ -973,3 +973,16 @@ begin AUTO-009.
 Recorded as a governance/engine follow-up task outside the AUTO family, per the GOV-AUTO-01
 precedent (`docs/workflow-automation/STAGE_REGISTRY.md` §5): no stage-registry row, no stage
 contract, no lifecycle state in that registry.
+
+**Implemented, validated, approved, and closed `Current -> Done` on 2026-07-30.** All eight
+delivered Git/GitHub Skills are bound in `default_skill_registry()` (32 -> 40 entries), each
+identity-verified against `skills/git_github.py`; `PROVISIONAL_SKILL_NAMES` is now empty but
+retained as a public symbol, since the mechanism it drives is general and deleting it would have
+removed a name from `__all__`. `GitAgent` and `MergeAgent` resolve every contracted Skill through
+the production registry — the path no test previously traversed. Capability isolation is unchanged
+and proven by a negative test: `AGENT_SKILL_CONTRACTS` is AST-identical to its prior value, and all
+six Agents still refuse every Git/GitHub Skill their own contract omits. `_is_unbound` was widened
+rather than allowed to decay, preserving the existing `SKILL_UNAVAILABLE` classification for a
+missing binding. 2,978 tests pass; `mypy --strict` clean over 115 source files; `ruff`, `black`, and
+pre-commit clean. F-1 and AUTO-009 remain untouched. Report:
+`docs/reports/GOV-AUTO-06-completion-report.md`.

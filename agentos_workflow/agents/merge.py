@@ -15,8 +15,8 @@ argument, and has exactly one merge-enabling call site. `test_agents_git_merge.p
 absence over this module's own source, so a future edit that added one would fail a test rather
 than merely contradict a docstring.
 
-**Provisional Skills.** All four Skills here are delivered by AUTO-006 and are unbound today; see
-`agents.PROVISIONAL_SKILL_NAMES` and `git.py`'s module docstring.
+**Skill availability.** All four Skills here are delivered (`skills/git_github.py`, AUTO-006) and
+bound in `default_skill_registry()` (GOV-AUTO-06); see `git.py`'s module docstring.
 """
 
 from __future__ import annotations

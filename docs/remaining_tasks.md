@@ -61,7 +61,6 @@ approval; report: `docs/reports/agentos-dashboard/STAGE-04-completion.md`.
 
 | Task | Title | Status |
 |---|---|---|
-| GOV-AUTO-06 | Bind delivered Git/GitHub skills into the default AgentOS skill registry | Current |
 | DASH-005 | Workflow board and task detail | Planned |
 | DASH-006 | Git, upstream, handover, and consistency views | Planned |
 | DASH-007 | Stage registry and prompt generation | Planned |

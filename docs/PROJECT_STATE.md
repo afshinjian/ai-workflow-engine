@@ -269,7 +269,9 @@ passes with no test-only production workarounds. OD-10 and OD-11 resolved.
 
 ## GOV-AUTO-06
 
-Status: Current
+Status: Done
 
-Registered and authorized by the Human Owner to resolve AUTO-008's deferred F-2 finding.
-Implementation and approval remain separate phases.
+Registered and authorized to resolve AUTO-008's deferred F-2 finding, then implemented, validated,
+approved, and closed on 2026-07-30. The eight delivered Git/GitHub Skills are bound in the
+production registry, so `GitAgent` and `MergeAgent` can run against it for the first time.
+Capability isolation is unchanged and proven by a negative test.

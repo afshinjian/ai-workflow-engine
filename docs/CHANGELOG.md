@@ -6,6 +6,12 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 
 ## [Unreleased]
 
+### Fixed
+- GOV-AUTO-06 (2026-07-30): the eight Git/GitHub Skills AUTO-006 delivered are now bound in
+  `default_skill_registry()` (32 -> 40 entries). They had remained classified as undelivered long
+  after AUTO-006 shipped, so `GitAgent` and `MergeAgent` could not invoke any of their own
+  contracted Skills through the production registry. Capability contracts are unchanged.
+
 ### Added
 - GOV-AUTO-06 (2026-07-30): registered and explicitly authorized by the Human Owner to resolve
   AUTO-008's deferred F-2 finding; authorization commit and implementation remain separate.

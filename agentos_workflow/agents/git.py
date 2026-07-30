@@ -10,11 +10,12 @@ would do it without the reconciliation step that makes a retry safe.
 
 `REPAIRING` is unreachable from this phase (§5a item 4), so nothing here produces a repair report.
 
-**Provisional Skills.** All five Git/GitHub Skills this Agent uses are delivered by AUTO-006 and
-are unbound today (`agents.PROVISIONAL_SKILL_NAMES`), so every method returns
-`SKILL_UNAVAILABLE` until they land. The call shapes below are this stage's contract *for* AUTO-006
-and are exercised against fakes in `test_agents_git_merge.py`; AUTO-006 binds real
-implementations and changes no code here.
+**Skill availability.** All five Git/GitHub Skills this Agent uses are delivered
+(`skills/git_github.py`, AUTO-006) and bound in `default_skill_registry()` (GOV-AUTO-06), so this
+Agent runs against the production registry. Between those two stages they were delivered but not
+bound, and every method here returned `SKILL_UNAVAILABLE` against the default registry — the call
+shapes below were written as AUTO-006's contract and never needed changing when it landed, which
+is exactly why the omission went unnoticed.
 """
 
 from __future__ import annotations
@@ -23,7 +24,6 @@ from pathlib import Path
 from typing import Any
 
 from agentos_workflow.agents import (
-    PROVISIONAL_SKILL_NAMES,
     Agent,
     AgentFailureKind,
     AgentKind,
@@ -241,14 +241,26 @@ class GitAgent(Agent):
 def _is_unbound(result: SkillResult[Any], skill: str) -> bool:
     """Whether this failure is the broker's "provisional Skill not bound" answer.
 
-    Distinguishing it from a real Skill failure matters to an operator: "AUTO-006 has not landed"
-    and "the push was rejected" are the same shape of failure but call for entirely different
-    responses.
+    Distinguishing it from a real Skill failure matters to an operator: "the Skill does not exist
+    yet" and "the push was rejected" are the same shape of failure but call for entirely different
+    responses — hence the separate `SKILL_UNAVAILABLE` classification.
+
+    GOV-AUTO-06 widened this from the provisional case to *both* of the broker's no-binding
+    answers. It previously required membership in `PROVISIONAL_SKILL_NAMES` and the literal string
+    `AUTO-006`; with that set now empty, the narrow form would have silently reclassified every
+    missing binding as an ordinary `SKILL_FAILED`, losing the `SKILL_UNAVAILABLE` distinction this
+    Agent has always drawn. That would be a behaviour change well beyond binding the Skills, so the
+    distinction is preserved: from this Agent's side "the Skill is not available to me" is the same
+    situation whether nothing implements it yet or this registry simply does not bind it.
+
+    Both phrasings are matched because the broker chooses between them, and neither is inferable
+    from `SkillFailure` alone without adding a field to it. The coupling is deliberate and guarded:
+    `test_agents_capabilities.py` asserts both exact detail strings, so changing either wording
+    fails there rather than silently degrading this classification.
     """
     error = result.error
-    return (
-        skill in PROVISIONAL_SKILL_NAMES
-        and error is not None
-        and error.skill == skill
-        and "AUTO-006" in error.detail
+    if error is None or error.skill != skill:
+        return False
+    return "is not yet implemented" in error.detail or "is not bound in this registry" in (
+        error.detail
     )

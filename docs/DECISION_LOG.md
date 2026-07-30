@@ -26,6 +26,37 @@ together with the generated closeout records in one local commit.
 push, merge, authorize a successor task, change branches, alter upstream, or mutate
 stashes.
 
+## 2026-07-30 — Human Owner approved and closed GOV-AUTO-06
+
+**Decision:** The Human Owner required a final seven-point scope and integrity verification, and on
+its outcome approved GOV-AUTO-06 and authorized the closeout commit and push. Task status moves
+`Current → Done`.
+
+**Verification outcome.** All seven checks passed: changes strictly within GOV-AUTO-06;
+`AGENT_SKILL_CONTRACTS` AST-identical to its prior value; all eight delivered Git/GitHub Skills
+present in `default_skill_registry()` and identity-verified against `skills/git_github.py`;
+`PROVISIONAL_SKILL_NAMES` empty but retained as a public symbol in `__all__`; no test-only manual
+binding and no unrelated end-to-end cleanup; `orchestrator/` untouched, so F-1 and AUTO-009 are
+unaffected; and no debug code, workaround, TODO, skipped test, or commented-out implementation.
+
+**Two decisions inside the fix worth recording**, because each preserved behaviour that a narrower
+reading would have silently changed:
+
+1. `PROVISIONAL_SKILL_NAMES` was emptied rather than deleted. The stale part was its membership,
+   not the concept — a contract may legitimately name a Skill before its implementing stage lands,
+   and answering that with a typed `PRECONDITION` failure rather than a `CapabilityViolation` is
+   the right distinction. Deleting the name would also have removed a public symbol from `__all__`.
+2. `GitAgent._is_unbound` was widened to match both of the broker's no-binding answers. With the
+   provisional set empty, the previous form — which required membership plus the literal string
+   `AUTO-006` — would have silently reclassified every missing binding from `SKILL_UNAVAILABLE` to
+   `SKILL_FAILED`, a behaviour change well beyond binding the Skills.
+
+**Boundaries:** This closure authorizes no successor. F-1 (the `expected`/`actual` convention
+divergence across the `AuthorizationBindingDriftError` raise sites), AUTO-009, and every later
+roadmap phase remain unauthorized and require their own fresh written authorization. The
+end-to-end dry run's hand-registration of the eight Skills was deliberately left in place: it is
+outside this task's defect and is now provably redundant rather than load-bearing.
+
 ## 2026-07-30 — Human Owner registered and authorized GOV-AUTO-06
 
 **Decision:** The Human Owner registered and authorized `GOV-AUTO-06 — Bind delivered Git/GitHub
