@@ -511,6 +511,25 @@ Status: Done
 Requires its own fresh authorization. Contract:
 `docs/workflow-automation/stage-prompts/AUTO-007.md`.
 
+## AUTO-008 — Engine CI baseline: packaging, type-checking, and verified blocker fixes
+
+Status: Current
+
+Registered and authorized by the Human Owner on 2026-07-30 following an architectural audit which
+established that `agentos_workflow` is substantially complete and heavily unit-tested but has never
+run as a program and is verified by no automated gate: no `cli.py`, no `.agentos/workflow.yaml`,
+absent from `pyproject.toml`'s wheel `packages`, not importable outside the repository root, not
+type-checked, and its 1,575 tests never collected by CI. Its single end-to-end acceptance
+demonstration (`docs/workflow-automation/MVP_SCOPE.md` §4) fails on `main`.
+
+Scope: make the existing engine verifiable, adding no capability. Bring `agentos_workflow` and
+`agentos_dashboard` under `testpaths`, wheel `packages`, and `mypy`; give `agentos_workflow` a
+version independent of the `ai-workflow-engine` distribution version; resolve OD-10 and OD-11;
+correct `AuthorizationBindingDriftError`'s inverted message; decouple the dashboard task-queue test
+from mutable governance content; and remove the test-only production workarounds that OD-10/OD-11
+made unnecessary. No new feature or public interface; no change to `src/ai_workflow_engine/**` or
+`scripts/**`. Contract: `docs/workflow-automation/stage-prompts/AUTO-008.md`.
+
 ## GOV-2 — Extend `check-governance` to validate stage-registry/lifecycle consistency
 
 Status: Done

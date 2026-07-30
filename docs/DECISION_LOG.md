@@ -26,6 +26,34 @@ together with the generated closeout records in one local commit.
 push, merge, authorize a successor task, change branches, alter upstream, or mutate
 stashes.
 
+## 2026-07-30 — Human Owner registered and authorized AUTO-008
+
+**Decision:** Following an architectural audit of this repository, the Human Owner registered and
+authorized `AUTO-008 — Engine CI baseline` in one act. AUTO-008 did not previously exist in the
+task queue or stage registry, so this decision records both its registration and its
+authorization. The task becomes the single `Current` task; implementation remains separate. The
+authorization was recorded from branch `feature/auto-008-engine-ci-baseline`, created from clean
+`main` at `96a6bb4e7534008cf9516829df7db58fb79b1c50`.
+
+**Why this stage exists:** the audit established that `agentos_workflow` — the AUTO-001..007
+orchestrator, ~52k lines with 1,575 tests — has never run as a program and is verified by no
+automated gate. It has no `cli.py`, no `.agentos/workflow.yaml`, is absent from the wheel
+`packages` list, is not importable outside the repository root, is not type-checked, and its tests
+were never collected by CI (1,803 of the repository's 2,963 tests, 61%, ran nowhere). Its single
+end-to-end acceptance demonstration (`MVP_SCOPE.md` §4) fails on `main`. "AUTO-001..007 COMPLETE"
+therefore did not mean "works". AUTO-008 closes that gap before any further capability is built on
+the engine.
+
+**Boundaries:** This decision authorizes only AUTO-008, scoped to making the existing engine
+verifiable. It authorizes no new feature or public interface, no change to
+`src/ai_workflow_engine/**` or `scripts/**`, no real Claude/Codex/GitHub invocation, and no
+successor, push, merge, implementation approval, or stash mutation.
+
+**Related publication:** in the same session, and separately authorized, the Human Owner directed
+that DASH-004's implementation commit `96a6bb4` be published to `main` by fast-forward. DASH-004
+was recorded `Done` while its code sat unmerged on its feature branch, so `main` did not match
+governance; the fast-forward reconciled them.
+
 ## 2026-07-30 — Human Owner authorized DASH-004
 
 **Decision:** The Human Owner typed the two exact `AUTHORIZE` confirmations for

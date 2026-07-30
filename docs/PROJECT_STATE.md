@@ -252,3 +252,12 @@ Status: Current
 DASH-004 is implemented and validated on the registered branch `feature/dash-004-dashboard-shell`,
 uncommitted, stopped for Human Owner approval. Approval and implementation remain separate phases.
 Report: `docs/reports/agentos-dashboard/STAGE-04-completion.md`.
+
+## Authorization update — 2026-07-30 (AUTO-008)
+
+## AUTO-008
+
+Status: Current
+
+Registered and authorized by the Human Owner in one act through the local authorization gate,
+following an architectural audit. Implementation and approval remain separate phases.

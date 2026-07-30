@@ -376,3 +376,10 @@ that workflow's own audit log instead of in a sibling directory. `SKILL_CONTRACT
 the contract change (Version 1.3); rationale in `DECISIONS.md` DD-40; the remaining caller-side
 round-numbering question is `OPEN_QUESTIONS.md` OD-12. Implemented and validated; stopped for
 Human Owner approval before any commit.
+
+## 2026-07-30 — AUTO-008 registered and authorized
+
+The Human Owner registered and authorized AUTO-008 — Engine CI baseline — in one act, following an
+architectural audit which found the AUTO-001..007 engine substantially complete but verified by no
+automated gate and unable to run as a program. Registry state `AUTHORIZED`; implementation,
+approval, push, and merge remain separate.

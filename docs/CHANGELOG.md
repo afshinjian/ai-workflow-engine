@@ -7,6 +7,8 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- AUTO-008 (2026-07-30): registered and explicitly authorized by the Human Owner following an
+  architectural audit; authorization commit and implementation remain separate.
 - DASH-004 (2026-07-30): implemented, Human-Owner-approved, and closed
   `Current -> Done` in one local commit via scripts/workflow-approve.sh's automatic
   task closeout (GOV-AUTO-03).

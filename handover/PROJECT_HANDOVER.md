@@ -486,3 +486,18 @@ DASH-004 was approved and closed `Current -> Done` by the Human Owner through
 scripts/workflow-approve.sh's automatic task closeout. No task is `Current` after this commit
 unless a fresh authorization already named a successor. No push, merge, branch, upstream, or
 stash operation was performed by this closeout.
+
+## Authorization update — 2026-07-30 (AUTO-008)
+
+AUTO-008 — Engine CI baseline — is the single `Current` task, registered and authorized by the
+Human Owner in one act after an architectural audit. The audit's material finding: `agentos_workflow`
+has never run as a program and no automated gate verifies it (no `cli.py`, absent from wheel
+`packages`, not importable outside the repository root, not type-checked, 1,575 tests never
+collected by CI, and its `MVP_SCOPE.md` §4 acceptance demonstration failing on `main`). AUTO-008 is
+scoped to making that engine verifiable and adds no capability.
+
+Separately authorized in the same session: DASH-004's implementation commit `96a6bb4` was published
+to `main` by fast-forward, reconciling `main` with governance, which had already recorded DASH-004
+as `Done` while its code sat unmerged. The authorization-only commit for AUTO-008 contains
+governance and handoff records; implementation has not started. No predecessor was closed
+automatically, and no merge, upstream, or stash operation was performed.
