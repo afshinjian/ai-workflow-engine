@@ -84,13 +84,30 @@ def test_document_with_no_task_records_degrades_to_raw_text() -> None:
     assert parsed.raw_text == text
 
 
-def test_real_task_queue_parses_dash_003_as_current() -> None:
+def test_real_task_queue_remains_parseable() -> None:
+    """The live task queue still parses at full confidence.
+
+    Deliberately asserts *parseability and internal consistency*, never a particular task's
+    status. The previous form of this test pinned `DASH-003` to `Current`; DASH-003 was closed to
+    `Done` on 2026-07-29 and the test began failing on a governance transition it was never meant
+    to police. A parser test whose fixture is a mutable governance document fails every time the
+    project makes normal progress, which trains readers to ignore it.
+
+    Status-specific parsing behaviour is covered exhaustively by the fixture-based tests above,
+    where the input is fixed and the expected output can be stated precisely. What this test adds
+    that a fixture cannot is that the parser still copes with the *real* document's current shape
+    and scale -- so a hand edit to the live queue that broke the format would still be caught.
+    """
     real_path = Path(__file__).resolve().parents[2] / "docs" / "TASK_QUEUE.md"
     text = real_path.read_text(encoding="utf-8")
     parsed = parse_task_records(text, "docs/TASK_QUEUE.md")
     assert parsed.confidence is Confidence.HIGH
     assert parsed.value is not None
+    assert parsed.value, "the live task queue should contain at least one parsed record"
     by_id = {record.task_id: record for record in parsed.value}
-    assert by_id["DASH-003"].status is TaskStatus.CURRENT
+    assert len(by_id) == len(parsed.value), "task IDs in the live queue must be unique"
+    assert all(isinstance(record.status, TaskStatus) for record in parsed.value)
+    # `self-governance.yaml`'s `maximum_current_tasks: 1` is a ceiling, so an empty Current set is
+    # legal; more than one Current task is not, and `workflowctl check-task-state` would refuse it.
     current_ids = [tid for tid, record in by_id.items() if record.status is TaskStatus.CURRENT]
-    assert current_ids == ["DASH-003"]
+    assert len(current_ids) <= 1, f"at most one Current task is permitted, found {current_ids}"

@@ -83,6 +83,7 @@ class GitAgent(Agent):
             branch=self._stage_branch,
             message=message,
             expected_head_sha=expected_head_sha,
+            allowed_environment_variables=self._allowed_environment_variables,
         )
         return self._report(
             action,
@@ -140,6 +141,7 @@ class GitAgent(Agent):
             title=title,
             body=body,
             head_sha=head_sha,
+            allowed_environment_variables=self._allowed_environment_variables,
         )
         return self._report(
             action,
@@ -165,6 +167,7 @@ class GitAgent(Agent):
             "read_pull_request_state",
             repository_path=self._repository_path,
             pull_request_number=pull_request_number,
+            allowed_environment_variables=self._allowed_environment_variables,
         )
         return self._report(
             action,

@@ -26,6 +26,38 @@ together with the generated closeout records in one local commit.
 push, merge, authorize a successor task, change branches, alter upstream, or mutate
 stashes.
 
+## 2026-07-30 — Human Owner approved and closed AUTO-008
+
+**Decision:** The Human Owner reviewed the AUTO-008 implementation report, required an explicit
+scope and cleanliness verification first, and on its outcome approved the implementation and
+authorized governance closure plus the commit and push sequence. Registry state moves
+`AUTHORIZED → COMPLETE`; task status moves `Current → Done`.
+
+**What the closing verification changed.** The pre-approval verification the Human Owner required
+found two defects in the candidate implementation, both self-inflicted and both corrected before
+commit:
+
+1. `live_cli`/`live_gh` pytest markers and a CI `-m "not live_cli and not live_gh"` filter had been
+   added. No test carried either marker, so they were anticipatory infrastructure for AUTO-010 with
+   no current consumer, and the `-m` filter was a behavioural change to CI beyond this stage's
+   objective. Both were removed; the CI test command is byte-unchanged from baseline.
+2. The new engine-version test contained a tautological assertion — given its own first assertion,
+   the compound expression could never fail — plus an unnecessary conditional `pytest.skip`. It was
+   rewritten to parse `observation/local.py`'s AST and assert the module imports no distribution
+   metadata at all, which pins the decoupling structurally rather than comparing two values that
+   may legitimately coincide later.
+
+Recording this because the verification step earned its place: both defects would have shipped.
+
+**Deliberately not fixed, and reported instead:** the eight AUTO-006 Git/GitHub Skills remain
+unbound in `default_skill_registry()` (F-2 — REQUIRED before a first real run, since `GitAgent` and
+`MergeAgent` cannot function with the default registry), and the `expected`/`actual` parameter
+convention still diverges between the two `AuthorizationBindingDriftError` raise sites (F-1 —
+RECOMMENDED). Both change behaviour beyond this stage's scope.
+
+**Boundaries:** This closure authorizes no successor. AUTO-009 and every later roadmap phase
+require their own fresh written authorization.
+
 ## 2026-07-30 — Human Owner registered and authorized AUTO-008
 
 **Decision:** Following an architectural audit of this repository, the Human Owner registered and

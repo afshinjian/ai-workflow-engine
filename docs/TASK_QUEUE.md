@@ -513,7 +513,7 @@ Requires its own fresh authorization. Contract:
 
 ## AUTO-008 — Engine CI baseline: packaging, type-checking, and verified blocker fixes
 
-Status: Current
+Status: Done
 
 Registered and authorized by the Human Owner on 2026-07-30 following an architectural audit which
 established that `agentos_workflow` is substantially complete and heavily unit-tested but has never
@@ -529,6 +529,18 @@ correct `AuthorizationBindingDriftError`'s inverted message; decouple the dashbo
 from mutable governance content; and remove the test-only production workarounds that OD-10/OD-11
 made unnecessary. No new feature or public interface; no change to `src/ai_workflow_engine/**` or
 `scripts/**`. Contract: `docs/workflow-automation/stage-prompts/AUTO-008.md`.
+
+**Implemented, validated, approved, and closed `Current -> Done` on 2026-07-30.** All three suites
+now run under one `pytest` invocation: default collection 1,160 -> 2,967, all passing, including the
+previously-failing end-to-end acceptance demonstration with both test-only production workarounds
+deleted. `mypy --strict` clean across all three packages (115 source files); `ruff` and `black`
+clean; the wheel ships all three packages; all three importable from outside the repository root.
+OD-10 and OD-11 resolved. `agentos_workflow` now carries its own version, so a legacy-engine release
+can no longer invalidate its authorizations. Reported and deliberately not fixed: the eight
+AUTO-006 Git/GitHub Skills are still unbound in `default_skill_registry()` (F-2, REQUIRED before
+AUTO-013), and the `expected`/`actual` parameter convention still diverges between the two drift
+raise sites (F-1, RECOMMENDED). Report:
+`docs/reports/workflow-automation/AUTO-008-completion-report.md`.
 
 ## GOV-2 — Extend `check-governance` to validate stage-registry/lifecycle consistency
 

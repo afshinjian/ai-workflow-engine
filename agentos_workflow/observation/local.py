@@ -7,14 +7,13 @@ import re
 import subprocess
 from dataclasses import dataclass
 from hashlib import sha256
-from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path, PurePosixPath
 from typing import Protocol
 from urllib.parse import urlparse
 
+from agentos_workflow.__about__ import __version__
 from agentos_workflow.config.schema import WorkflowConfig
 
-_DEVELOPMENT_VERSION = "0.1.0"
 _GIT_TIMEOUT_SECONDS = 10
 _SHA_RE = re.compile(r"[0-9a-f]{40}")
 
@@ -87,12 +86,21 @@ class ResumeObserver(Protocol):
 
 
 def running_engine_version() -> str:
-    """Canonical runtime version with one deterministic editable-source fallback."""
+    """This engine's own canonical runtime version (`__about__.__version__`).
 
-    try:
-        return version("ai-workflow-engine")
-    except PackageNotFoundError:
-        return _DEVELOPMENT_VERSION
+    Deliberately not `importlib.metadata.version("ai-workflow-engine")`. That read the
+    *distribution* version shared by the whole repository, so a release of the unrelated legacy
+    `src/ai_workflow_engine/` engine changed this value and — via
+    `HUMAN_AUTHORIZATION_MODEL.md` §4's engine-version invalidator — silently invalidated every
+    in-flight `agentos_workflow` authorization. See `__about__.py` for the full reasoning.
+
+    Reading a module constant rather than installed metadata also removes the need for a
+    "development fallback": the value is identical whether this package is installed, run from an
+    editable checkout, or imported from source, so a resume can never observe a different engine
+    version merely because of how the code was loaded.
+    """
+
+    return __version__
 
 
 def canonical_repository_identity(value: str) -> str:

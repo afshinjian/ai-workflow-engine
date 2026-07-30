@@ -257,7 +257,10 @@ Report: `docs/reports/agentos-dashboard/STAGE-04-completion.md`.
 
 ## AUTO-008
 
-Status: Current
+Status: Done
 
-Registered and authorized by the Human Owner in one act through the local authorization gate,
-following an architectural audit. Implementation and approval remain separate phases.
+Registered and authorized by the Human Owner in one act following an architectural audit, then
+implemented, validated, approved, and closed on 2026-07-30. The engine is now verified by CI:
+one `pytest` invocation collects and passes all three suites (1,160 -> 2,967 tests), `mypy --strict`
+covers all three packages, the wheel ships all three, and the end-to-end acceptance demonstration
+passes with no test-only production workarounds. OD-10 and OD-11 resolved.

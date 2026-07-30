@@ -879,6 +879,48 @@ class TestAuthorizationBindingDrift:
         assert exc_info.value.field == "repository_identity"
         assert not lock.is_held
 
+    def test_drift_message_reports_expected_and_found_in_argument_order(
+        self, tmp_path: Path
+    ) -> None:
+        """The message must not transpose its two values (AUTO-008).
+
+        The old message labelled `actual` as "bound value" and `expected` as "current value". That
+        was backwards *here*: `_detect_authorization_binding_drift` passes the independently
+        supplied current value as `expected` and the persisted record as `actual`, so a reader was
+        told the live identity was the bound one and the tampered record was current — on the
+        primary safety-invalidation path.
+
+        It could not be fixed by simply swapping the words, because
+        `_validate_live_resume_observation` passes those two sides the other way round; a fixed
+        "bound/current" wording is necessarily wrong at one of the two. The message therefore
+        states the reference and the finding in received-argument order, which holds at every raise
+        site. Both attributes were always correct, so only the rendered text can catch this.
+        """
+        store = _store(tmp_path)
+        _tamper_persisted_authorization_record(
+            tmp_path, store, repository_identity="github.com/org/drifted-repo"
+        )
+        lock = _lock(tmp_path)
+        with pytest.raises(AuthorizationBindingDriftError) as exc_info:
+            resume_workflow(
+                _context(), state_store=store, lock=lock, current_binding=_current_binding(tmp_path)
+            )
+        error = exc_info.value
+        message = str(error)
+        # This path compares the live/current value (`expected`) against the persisted record
+        # (`actual`); the tampered record is what was *found*.
+        assert error.actual == "github.com/org/drifted-repo"
+        assert error.expected != error.actual
+        assert f"expected {error.expected!r}" in message
+        assert f"found {error.actual!r}" in message
+        # The decisive check: the two values appear in the order the constructor received them.
+        assert message.index(f"expected {error.expected!r}") < message.index(
+            f"found {error.actual!r}"
+        )
+        # And the message must not re-assert which side is the authorization binding, since the
+        # two raise sites disagree about that.
+        assert "bound value" not in message
+
     def test_repository_path_drift_detected(self, tmp_path: Path) -> None:
         # Simulates the repository having genuinely moved: the caller independently observes
         # the new location and constructs *both* current_binding and the lock from it (matching

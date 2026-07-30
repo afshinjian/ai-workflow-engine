@@ -133,7 +133,19 @@ def registry_file(tmp_path: Path) -> Path:
 
 
 def contract_hash(contract_directory: Path) -> str:
-    return hashlib.sha256((contract_directory / f"{STAGE_ID}.md").read_bytes()).hexdigest()
+    """The contract digest in the canonical `AuthorizationRecord` format.
+
+    Algorithm-prefixed (OD-11, fixed in AUTO-008). This helper previously returned bare hex,
+    which is exactly how this module missed the defect: the Precondition Gate compared bare hex
+    and `LocalResumeObserver` compared the prefixed form, so each side's tests agreed with their
+    own side's convention and no test compared the two. A workflow that passed this gate was then
+    guaranteed a false-positive `AuthorizationBindingDriftError` on its first real resume.
+
+    The cross-module agreement itself is pinned by `test_skills_contract.py`'s
+    `test_authorization_value_matches_the_resume_observer_format`.
+    """
+    digest = hashlib.sha256((contract_directory / f"{STAGE_ID}.md").read_bytes()).hexdigest()
+    return f"sha256:{digest}"
 
 
 def authorization(target: Path, contract_directory: Path, **overrides: object) -> Authorization:
@@ -289,7 +301,9 @@ class TestPreconditionGate:
                 workflow_id="wf-pmo",
                 stage_id=STAGE_ID,
                 repository_identity=IDENTITY,
-                stage_contract_hash="0" * 64,
+                # Well-formed canonical value that is simply wrong, so the gate fails on a hash
+                # *mismatch* rather than incidentally on a malformed (unprefixed) value.
+                stage_contract_hash=f"sha256:{'0' * 64}",
                 baseline_branch=BASELINE,
                 baseline_commit_sha=git(target, "rev-parse", "HEAD"),
                 planned_stage_branch=STAGE_BRANCH,

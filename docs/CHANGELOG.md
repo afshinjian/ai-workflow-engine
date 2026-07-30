@@ -7,6 +7,12 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- AUTO-008 (2026-07-30): implemented, Human-Owner-approved, and closed `Current -> Done` in one
+  local commit. `agentos_workflow` and `agentos_dashboard` are now in `pytest` `testpaths`, the
+  wheel `packages` list, and `mypy --strict`; default test collection rises 1,160 -> 2,967. The
+  engine carries its own version, independent of the distribution version. OD-10 and OD-11
+  resolved; the end-to-end acceptance demonstration passes with no test-only production
+  workarounds.
 - AUTO-008 (2026-07-30): registered and explicitly authorized by the Human Owner following an
   architectural audit; authorization commit and implementation remain separate.
 - DASH-004 (2026-07-30): implemented, Human-Owner-approved, and closed

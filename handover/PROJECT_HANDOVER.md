@@ -501,3 +501,32 @@ to `main` by fast-forward, reconciling `main` with governance, which had already
 as `Done` while its code sat unmerged. The authorization-only commit for AUTO-008 contains
 governance and handoff records; implementation has not started. No predecessor was closed
 automatically, and no merge, upstream, or stash operation was performed.
+
+## Closure update — 2026-07-30 (AUTO-008)
+
+AUTO-008 was approved and closed `Current -> Done` by the Human Owner in the same commit as its
+implementation. No task is `Current` after this commit.
+
+**What changed for anyone resuming work.** The engine is verified now. `pytest` collects all three
+suites by default (1,160 -> 2,967 tests) and CI runs them; `mypy --strict` covers
+`src/ai_workflow_engine`, `agentos_workflow`, and `agentos_dashboard` (115 source files, clean);
+`pip install -e .` installs all three packages, so `agentos_workflow` is importable outside the
+repository root for the first time. `agentos_workflow` has its own version in
+`agentos_workflow/__about__.py`, so bumping the distribution version no longer invalidates
+in-flight authorizations. OD-10 and OD-11 are resolved and the two test-only production workarounds
+in `tests/e2e/test_dry_run.py` are gone.
+
+**Two known open items, both reported rather than fixed, and both worth reading before starting
+AUTO-009+.** F-2: AUTO-006's eight Git/GitHub Skills are delivered in `skills/git_github.py` but
+still listed as undelivered in `agents.PROVISIONAL_SKILL_NAMES` and still unbound in
+`default_skill_registry()`, so `GitAgent`/`MergeAgent` cannot function with the default registry —
+the dry run binds them by hand. This blocks a first real run and is REQUIRED before AUTO-013. F-1:
+the `expected`/`actual` parameter convention diverges between the two
+`AuthorizationBindingDriftError` raise sites; the message was made faithful to both, but the
+divergence itself remains. Full detail in
+`docs/reports/workflow-automation/AUTO-008-completion-report.md` §6.
+
+Still outstanding and unchanged by this stage: no real Claude CLI, Codex CLI, or GitHub call has
+ever been made by this engine, and there is still no production code that sequences the six agents.
+`MVP_SCOPE.md` §4's second acceptance demonstration -- a real target-repository run -- remains
+unmet. No push, merge, upstream, or stash operation was performed by this closeout.
