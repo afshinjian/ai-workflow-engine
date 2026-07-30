@@ -650,16 +650,70 @@ the working tree, uncommitted, awaiting Human Owner approval. Report:
 
 ## DASH-004 — Local backend and dashboard shell
 
-Status: Current
+Status: Done
 
-Loopback-only web shell with security baseline and Overview page. **No longer blocked on OD-D9**:
-the serving-stack dependency decision was resolved by the Human Owner on 2026-07-29 — FastAPI +
-Uvicorn + Jinja2, declared in the optional `dashboard` group in `pyproject.toml`
-(`docs/agentos-dashboard/OPEN_QUESTIONS.md` OD-D9; `DECISIONS.md` DD-09). That declaration is
-already made, so this stage needs no `pyproject.toml` change and may use no dependency outside
-that group without separate authorization. The stage remains `Planned` and **unauthorized** — it
-still requires its own fresh written Human Owner authorization before becoming `Current`.
-Contract: `docs/agentos-dashboard/stage-prompts/DASH-004.md`.
+Loopback-only web shell with security baseline and Overview page. Contract:
+`docs/agentos-dashboard/stage-prompts/DASH-004.md`.
+
+**Authorized by the Human Owner on 2026-07-30** through the local two-confirmation task gate
+(`scripts/workflow-authorize.sh`); implemented and validated the same day on the registered branch
+`feature/dash-004-dashboard-shell` (created automatically by GOV-AUTO-04's branch-preparation
+routine — the first DASH stage this repository has run without recurring OD-D10), **uncommitted**,
+stopped for Human Owner approval. Task status remains `Current`.
+
+Delivered a new top-level package surface, exactly the contract's Allowed list:
+`agentos_dashboard/settings.py` (`AWED_`-prefixed environment settings parsed into a frozen
+Pydantic model; no `.env` file is ever loaded; a non-loopback `AWED_HOST` is refused at
+construction, SC-01/SC-10); `agentos_dashboard/main.py` (the `create_app()` factory — FastAPI app,
+`SecurityMiddleware`, the `/dash/api/v1` router, the web page router, typed exception handlers;
+interactive API docs disabled outright since their default assets are CDN-hosted, which SC-05
+forbids); `agentos_dashboard/__main__.py` (`python -m agentos_dashboard`: refuses a non-loopback
+bind, acquires a single-instance PID lockfile kept outside the repository under the platform temp
+directory — SC-02/SC-24, and deliberately not under `data/agentos_dashboard/`, which stays
+DASH-008's to create — prints the exact URL, and supports `--check` for a bind-free startup smoke
+test); `agentos_dashboard/api/` (`envelope.py`, `errors.py` — the `{ok, data, error}` contract and
+`API_SPEC.md` §5's typed error catalogue; `security.py` — one middleware enforcing the `Host`
+allowlist (SC-36), CSRF double-submit cookie enforcement on every state-changing request (SC-03),
+and the CSP/`X-Content-Type-Options`/`Cache-Control: no-store` response headers (SC-04/SC-05,
+`API_SPEC.md` §1); `lock.py` — the PID lockfile; `snapshot_cache.py` — an in-process cached
+`RepositorySnapshot` (DASH-002) with lazy staleness rebuild and a non-blocking `refresh()` that
+returns `409 SNAPSHOT_BUILDING` under contention rather than queuing; `overview.py` — DR-010..013's
+aggregate, composing the DASH-003 task-queue/project-state parsers and consistency engine with the
+snapshot's own Git status, rendering an explicit healthy-empty state for every field nothing yet
+populates (DR-013; `AuditEvent`s and gate-history do not exist until DASH-008 builds
+`dashboard.db`); `routes.py` — EP-01 (health), EP-02 (snapshot metadata), EP-03 (status/Overview),
+and EP-20 (snapshot refresh), the read surface this stage delivers of `API_SPEC.md`'s full
+register); and `agentos_dashboard/web/` (Jinja2 `base.html`/`overview.html` — PG-01, autoescaped by
+default, English operator UI with the full left-navigation register per `UI_SPEC.md`, only
+Overview linked and every other page marked not-yet-available; self-hosted `static/style.css`
+(dark-mode via `prefers-color-scheme`, color-blind-safe badges) and `static/app.js` (the Refresh
+action's CSRF-aware fetch, with a confirmation dialog)). No repository write path exists anywhere
+in the new code (asserted by a tests source scan). Dependencies: exactly the optional `dashboard`
+group OD-D9 already declared (`fastapi`, `jinja2`, `uvicorn`); no new dependency was added.
+
+71 new tests in `agentos_dashboard/tests/` (settings parsing/validation, the PID lockfile
+including stale-lock reclamation, the snapshot cache including refresh contention, the Overview
+aggregate against fixture and real-repository content, the security middleware's Host/CSRF/header
+behavior, the API routes' envelope shape, the web page's rendering and an XSS escaping proof
+against hostile repository content, and `__main__`'s startup/`--check`/port-in-use/lock-conflict
+paths) plus a small dependency-free ASGI test client
+(`agentos_dashboard/tests/_asgi_client.py`) written because `starlette.testclient.TestClient`
+requires an HTTP client package (`httpx`/`httpx2`) this stage is not authorized to add.
+
+**One pre-existing, environment-dependent test failure was observed and is unrelated to this
+diff**: `agentos_workflow/tests/e2e/test_dry_run.py::test_full_workflow_created_to_done_...`
+fails on an `engine_version` authorization-binding drift — the same class of installed-package-
+version-vs-hardcoded-test-expectation mismatch GOV-2/GOV-3/GOV-AUTO-04 already recorded, now
+recurring in the opposite direction (this session's `pip install -e '.[dashboard]'`, run only to
+install the already-declared optional dependency group, refreshed the installed package's
+reported version). `git status --porcelain -- agentos_workflow/` is empty: no byte under that
+package changed, so the failure cannot be caused by this diff.
+
+**No independent review was performed for this stage**, and none is claimed; this is an ordinary
+implementation stage, and the bounded self-review below is the standard applied. DASH-009 carries
+the program's mandatory independent security review, where every SC control this stage implements
+(SC-01 through SC-05, SC-10, SC-24, SC-25, SC-29, SC-33, SC-34, SC-36) gets its formal
+reconciliation-log entry per `SECURITY_MODEL.md` §7.
 
 ## DASH-005 — Workflow board and task detail
 

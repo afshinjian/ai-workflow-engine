@@ -7,8 +7,19 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- DASH-004 (2026-07-30): implemented, Human-Owner-approved, and closed
+  `Current -> Done` in one local commit via scripts/workflow-approve.sh's automatic
+  task closeout (GOV-AUTO-03).
 - DASH-004 (2026-07-30): explicitly authorized by the Human Owner through the local
   two-confirmation task gate; authorization commit and implementation remain separate.
+- DASH-004 (2026-07-30, implementation): the local backend and dashboard shell —
+  `agentos_dashboard/{settings.py, main.py, __main__.py, api/**, web/**}`. `AWED_`-prefixed
+  settings, a loopback-only FastAPI app behind a `Host`-allowlist/CSRF/CSP security middleware,
+  the `{ok, data, error}` API envelope with EP-01/EP-02/EP-03/EP-20, a single-instance PID
+  lockfile kept outside the repository, and a Jinja2 Overview page (PG-01) rendering DR-010..013
+  with healthy-empty states. 71 new tests. Implemented and validated on branch
+  `feature/dash-004-dashboard-shell`, uncommitted, stopped for Human Owner approval. Report:
+  `docs/reports/agentos-dashboard/STAGE-04-completion.md`.
 - GOV-AUTO-05 (2026-07-30): implemented, Human-Owner-approved, and closed
   `Current -> Done` in one local commit via scripts/workflow-approve.sh's automatic
   task closeout (GOV-AUTO-03).

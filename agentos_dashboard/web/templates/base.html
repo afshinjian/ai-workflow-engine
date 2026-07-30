@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}AgentOS Dashboard{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  <header>
+    <div class="brand">AgentOS Dashboard</div>
+    <div class="status-strip" aria-label="Repository status">
+      {% if snapshot %}
+        <span>branch: {{ snapshot.git_status.branch if snapshot.git_status else "unknown" }}</span>
+        <span>HEAD: {{ (snapshot.head or "unborn")[:12] }}</span>
+        <span>upstream: {{ (snapshot.git_status.upstream if snapshot.git_status else none) or "none" }}</span>
+        {% if overview and overview.stale %}
+          <span class="badge badge-stale" role="status">STALE — refresh to update</span>
+        {% endif %}
+      {% endif %}
+    </div>
+  </header>
+  <div class="layout">
+    <nav aria-label="Primary">
+      <ul>
+        <li><a href="/" aria-current="page">Overview</a></li>
+        <li class="disabled" aria-disabled="true" title="Not yet available">Board</li>
+        <li class="disabled" aria-disabled="true" title="Not yet available">Tasks</li>
+        <li class="disabled" aria-disabled="true" title="Not yet available">Stages &amp; Prompts</li>
+        <li class="disabled" aria-disabled="true" title="Not yet available">Runs</li>
+        <li class="disabled" aria-disabled="true" title="Not yet available">Evidence</li>
+        <li class="disabled" aria-disabled="true" title="Not yet available">Git</li>
+        <li class="disabled" aria-disabled="true" title="Not yet available">Governance</li>
+        <li class="disabled" aria-disabled="true" title="Not yet available">Orchestration</li>
+        <li class="disabled" aria-disabled="true" title="Not yet available">Handover</li>
+        <li class="disabled" aria-disabled="true" title="Not yet available">Audit</li>
+        <li class="disabled" aria-disabled="true" title="Not yet available">Consistency</li>
+        <li class="disabled" aria-disabled="true" title="Not yet available">Settings</li>
+      </ul>
+    </nav>
+    <main id="main-content">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -93,6 +93,15 @@ plan to 1.0, and `docs/architecture.md` for the pipeline shapes.
 
 ## In progress
 
+**DASH-004** (authorized 2026-07-30): the local backend and dashboard shell —
+`agentos_dashboard/{settings.py, main.py, __main__.py, api/**, web/**}`. Loopback-only FastAPI
+app behind a `Host`-allowlist/CSRF/CSP security middleware, the `{ok, data, error}` API envelope
+(EP-01 health, EP-02 snapshot, EP-03 status, EP-20 snapshot refresh), a single-instance PID
+lockfile kept outside the repository, and a Jinja2 Overview page (PG-01) with healthy-empty
+states. Implemented and validated on branch `feature/dash-004-dashboard-shell`; stopped for Human
+Owner approval before any commit. Decisions: `docs/agentos-dashboard/DECISIONS.md` DD-10, DD-11.
+Report: `docs/reports/agentos-dashboard/STAGE-04-completion.md`.
+
 **GOV-AUTO-04** (authorized 2026-07-29): gives `workflow-authorize.sh`/`workflow-next.sh` one
 shared, tested branch-preparation library (`scripts/lib/branch_prepare.sh`) so a registry-governed
 task's registered branch is created or safely switched to automatically, right after the
@@ -231,7 +240,15 @@ Implementation and approval remain separate phases.
 
 ## DASH-004
 
-Status: Current
+Status: Done
 
 The Human Owner explicitly authorized this single task through the local authorization gate.
 Implementation and approval remain separate phases.
+
+## DASH-004 implementation update — 2026-07-30
+
+Status: Current
+
+DASH-004 is implemented and validated on the registered branch `feature/dash-004-dashboard-shell`,
+uncommitted, stopped for Human Owner approval. Approval and implementation remain separate phases.
+Report: `docs/reports/agentos-dashboard/STAGE-04-completion.md`.

@@ -5,7 +5,7 @@
 | **Title** | AgentOS Dashboard — Decisions |
 | **Purpose** | Append-only record of dashboard-program decisions (DD-##). Subordinate to `docs/DECISION_LOG.md`; cross-posted there when repository governance requires. |
 | **Status** | Draft |
-| **Version** | 1.3 |
+| **Version** | 1.4 |
 | **Owner** | Documentation & Governance session (append) · Human Owner (approval) |
 | **Dependencies** | `MASTER_PLAN.md` §8 |
 | **Related Documents** | `docs/DECISION_LOG.md` |
@@ -224,6 +224,56 @@ appended, never rewritten; supersessions are explicit.
 - **Reconsider when:** a stage needs a distribution outside the group (a separate authorization,
   not an assumption); the loopback-only boundary is ever proposed to widen; or FastAPI/Uvicorn
   reach 1.0 and the `<1` ceilings must be re-evaluated.
+
+## DD-10 — The single-instance PID lockfile lives outside the repository, in the platform temp directory
+
+- **Status:** Accepted (DASH-004 implementation decision, 2026-07-30).
+- **Context:** SC-02/SC-24 require a single-instance PID lockfile (EN-27 `ExecutionLock`), and
+  DASH-004 is the first stage to need one. `DATA_MODEL.md` §3 assigns `data/agentos_dashboard/`
+  to DASH-008 and explicitly notes that directory "does not exist in this repository yet"; a
+  lockfile written there would create it prematurely, out of turn, and — being neither gitignored
+  yet nor reviewed as part of that stage's design — would risk becoming a stray untracked file in
+  the repository working copy, which SC-33/`ARCHITECTURE.md` §1's "zero repository writes" posture
+  forbids for anything this package does outside `dashboard.db` itself.
+- **Decision:** `agentos_dashboard/api/lock.py` places the lockfile under
+  `tempfile.gettempdir()`, named `agentos_dashboard-<sha256(repo_root)[:16]>.lock` — keyed by the
+  resolved repository root so two different `ai-workflow-engine` checkouts never collide, and
+  reclaimed automatically (`os.kill(pid, 0)` liveness probe, no real signal sent) when the
+  recorded PID no longer exists, so a crash never permanently wedges the dashboard (SC-26).
+- **Consequences:** The lockfile is never a repository write and never appears in `git status`;
+  DASH-008 creating `data/agentos_dashboard/` for `dashboard.db` is unaffected by, and does not
+  need to migrate, this file. The lock is host-temp-directory-scoped rather than
+  repository-scoped, which is the correct trust boundary for a local, single-machine tool (the
+  temp directory is already trusted at the SECURITY_MODEL.md §1 boundary) but means the lock does
+  not survive a temp-directory cleanup between reboots — acceptable, since the lock's only job is
+  preventing two live processes from serving the same repository concurrently, not durable state.
+- **Reconsider when:** a future stage wants the lock's `acquired_at`/`pid` visible from within the
+  dashboard's own local database (EN-27 lists it as a stored entity) rather than only from
+  `GET /dash/api/v1/health`; that would be an explicit DASH-008 decision, not an assumption
+  carried over from this one.
+
+## DD-11 — Dashboard HTTP tests drive the ASGI app directly; no HTTP client dependency is added
+
+- **Status:** Accepted (DASH-004 implementation decision, 2026-07-30).
+- **Context:** `starlette.testclient.TestClient` (and `fastapi.testclient.TestClient`, which
+  re-exports it) requires an installed HTTP client package — in the Starlette/FastAPI versions
+  this repository's optional `dashboard` group resolves to, that package is `httpx2` — which is
+  not `fastapi`, `jinja2`, or `uvicorn`, the only three distributions DD-09/OD-D9 authorizes a
+  dashboard stage to use. Adding it would be an unauthorized dependency change.
+- **Decision:** `agentos_dashboard/tests/_asgi_client.py` implements a small, dependency-free
+  `AsgiTestClient` that calls the FastAPI application object directly over the ASGI protocol
+  (`scope`/`receive`/`send`, the exact callable Uvicorn itself invokes), with a per-instance cookie
+  jar so a multi-request test (issue a CSRF cookie, then use it) reads like a browser session.
+- **Consequences:** Every DASH-004 HTTP-level test (`test_api_security.py`, `test_api_routes.py`,
+  `test_web_overview.py`, `test_dunder_main.py`) exercises the real `SecurityMiddleware`/routing/
+  exception-handler stack with no socket, no thread, and no new dependency; `test_dunder_main.py`'s
+  startup/port-in-use/lock-conflict tests separately prove the real Uvicorn/socket path still
+  works, using only the stdlib `socket` module. A later stage that needs a fuller browser-like
+  client (redirects, streaming, HTTP/1.1 wire-format edge cases) would need its own decision to
+  add `httpx`/`httpx2` to the `dashboard` (or a new `dashboard-dev`) group — not assumed here.
+- **Reconsider when:** a future stage's test needs behavior this minimal client does not model
+  (e.g. chunked transfer, real TCP timing), or the Human Owner authorizes an HTTP test client
+  dependency directly.
 
 ## Decision References
 Repository decisions binding this program are recorded in `docs/DECISION_LOG.md` (2026-07-23

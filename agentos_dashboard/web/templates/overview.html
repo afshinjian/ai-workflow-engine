@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Overview · AgentOS Dashboard{% endblock %}
+{% block content %}
+<h1>Overview</h1>
+
+<section aria-labelledby="tiles-heading">
+  <h2 id="tiles-heading" class="visually-hidden">Status tiles</h2>
+  <div class="tiles">
+    <div class="tile">
+      <span class="tile-label">Version</span>
+      <span class="tile-value">{{ overview.version or "unknown" }}</span>
+    </div>
+    <div class="tile">
+      <span class="tile-label">Current</span>
+      <span class="tile-value">{{ overview.task_counts.current }}</span>
+    </div>
+    <div class="tile">
+      <span class="tile-label">Planned</span>
+      <span class="tile-value">{{ overview.task_counts.planned }}</span>
+    </div>
+    <div class="tile">
+      <span class="tile-label">Done</span>
+      <span class="tile-value">{{ overview.task_counts.done }}</span>
+    </div>
+  </div>
+</section>
+
+<section aria-labelledby="current-task-heading">
+  <h2 id="current-task-heading">Current task</h2>
+  {% if overview.current_task_id %}
+    <p><strong>{{ overview.current_task_id }}</strong> — {{ overview.current_task_summary }}</p>
+  {% else %}
+    <p class="empty-state">{{ overview.current_task_summary }}</p>
+  {% endif %}
+</section>
+
+<section aria-labelledby="blockers-heading">
+  <h2 id="blockers-heading">Blockers</h2>
+  {% if overview.blockers %}
+    <ul>
+      {% for blocker in overview.blockers %}
+        <li>{{ blocker }}</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="empty-state">No recorded blockers — expected between authorized tasks</p>
+  {% endif %}
+
+  <h3>Orchestration blockers</h3>
+  {% if overview.orch_blockers %}
+    <ul>
+      {% for blocker in overview.orch_blockers %}
+        <li>{{ blocker }}</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="empty-state">No recorded orchestration blockers</p>
+  {% endif %}
+</section>
+
+<section aria-labelledby="gate-health-heading">
+  <h2 id="gate-health-heading">
+    Gate health <span class="badge badge-info">as-recorded, not re-run</span>
+  </h2>
+  {% if overview.consistency_findings %}
+    <ul>
+      {% for finding in overview.consistency_findings %}
+        <li>
+          <span class="badge badge-{{ finding.severity.value }}">{{ finding.severity.value|upper }}</span>
+          {{ finding.rule }}: {{ finding.message }}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="empty-state">No consistency findings — repository mirrors agree</p>
+  {% endif %}
+</section>
+
+<section aria-labelledby="git-heading">
+  <h2 id="git-heading">Git / upstream / handover</h2>
+  {% if overview.git %}
+    <dl>
+      <dt>Branch</dt><dd>{{ overview.git.branch or "detached" }}</dd>
+      <dt>HEAD</dt><dd>{{ overview.git.head or "unborn" }}</dd>
+      <dt>Upstream</dt><dd>{{ overview.git.upstream or "none configured" }}</dd>
+      <dt>Ahead / behind</dt>
+      <dd>
+        {{ overview.git.ahead if overview.git.ahead is not none else "?" }} /
+        {{ overview.git.behind if overview.git.behind is not none else "?" }}
+      </dd>
+      <dt>Working tree</dt>
+      <dd>
+        {% if overview.git.clean %}
+          <span class="badge badge-pass">CLEAN</span>
+        {% else %}
+          <span class="badge badge-warning">DIRTY</span>
+        {% endif %}
+      </dd>
+    </dl>
+  {% else %}
+    <p class="empty-state">Git status unavailable</p>
+  {% endif %}
+</section>
+
+<section aria-labelledby="last-event-heading">
+  <h2 id="last-event-heading">Last event</h2>
+  <p class="empty-state">{{ overview.last_event_summary }}</p>
+</section>
+
+<section aria-labelledby="actions-heading">
+  <h2 id="actions-heading" class="visually-hidden">Actions</h2>
+  <button type="button" data-action="refresh-snapshot">Refresh</button>
+</section>
+{% endblock %}

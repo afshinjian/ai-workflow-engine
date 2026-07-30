@@ -5,7 +5,7 @@
 | **Title** | AgentOS Dashboard — Changelog |
 | **Purpose** | Append-only log of every approved change to the dashboard documentation set; the audit spine of `MASTER_PLAN.md` §8. |
 | **Status** | Draft |
-| **Version** | 1.3 |
+| **Version** | 1.4 |
 | **Owner** | Completing agent per stage · verified at review |
 | **Dependencies** | None |
 | **Related Documents** | `MASTER_PLAN.md` §7–§8 |
@@ -16,6 +16,31 @@ Entry ID `CL-YYYYMMDD-##`, newest first. Each entry: documents touched, versions
 before/after, authorizing task, approver. Entries are appended, never edited.
 
 ## Entries
+
+### CL-20260730-01 — DASH-004 implemented: local backend and dashboard shell
+
+- **Documents:** `DECISIONS.md` (new DD-10, DD-11), `STAGE_REGISTRY.md` §3 (state cell
+  `AUTHORIZED` → `IN_PROGRESS`) and §4 (new append-only preflight row), and the new report
+  `docs/reports/agentos-dashboard/STAGE-04-completion.md`.
+- **Versions:** `DECISIONS.md` 1.3 → **1.4**; `STAGE_REGISTRY.md` 5.0 → 5.0 (append-only log
+  growth and a state-cell update, neither of which §8 versions).
+- **Code delivered (outside this documentation set):** `agentos_dashboard/settings.py`
+  (`AWED_`-prefixed, loopback-only Pydantic settings), `agentos_dashboard/main.py` (the
+  `create_app()` factory), `agentos_dashboard/__main__.py` (the startup entry point, PID
+  lockfile, `--check` smoke mode), `agentos_dashboard/api/**` (envelope, typed error catalogue,
+  the Host-allowlist/CSRF/CSP security middleware, the snapshot cache, the DR-010..013 Overview
+  aggregate, and EP-01/EP-02/EP-03/EP-20), `agentos_dashboard/web/**` (the base layout and PG-01
+  Overview page, self-hosted CSS/JS), and `agentos_dashboard/tests/**` (71 new tests, including a
+  dependency-free ASGI test client, `_asgi_client.py`) — exactly the stage contract's Allowed
+  list. Dependencies: exactly the optional `dashboard` group OD-D9 already declared (`fastapi`,
+  `jinja2`, `uvicorn`); no new dependency was added.
+- **Reason for change:** DASH-004's implementation. This is the first DASH stage run entirely on
+  its registered branch (`feature/dash-004-dashboard-shell`, prepared automatically by
+  GOV-AUTO-04) without recurring OD-D10.
+- **Authorizing task:** DASH-004, authorized by the Human Owner 2026-07-30 through
+  `scripts/workflow-authorize.sh` (`STAGE_REGISTRY.md` §4).
+- **Approver:** pending — the implementation is uncommitted and awaits Human Owner approval.
+- **Date:** 2026-07-30.
 
 ### CL-20260729-03 — OD-D9 resolved: FastAPI + Uvicorn + Jinja2 in an optional `dashboard` group
 
@@ -254,3 +279,14 @@ The Human Owner approved and closed DASH-003 through the automatic task-closeout
 
 The Human Owner authorized DASH-004 through the two-confirmation local gate. The stage is
 `AUTHORIZED`; implementation, approval, push, and merge remain separate.
+
+## 2026-07-30 — DASH-004 implemented
+
+Implemented and validated on the registered branch `feature/dash-004-dashboard-shell`,
+uncommitted, stopped for Human Owner approval. Registry state `AUTHORIZED` → `IN_PROGRESS`. See
+`CL-20260730-01` above and `docs/reports/agentos-dashboard/STAGE-04-completion.md`.
+
+## 2026-07-30 — DASH-004 closed
+
+The Human Owner approved and closed DASH-004 through the automatic task-closeout gate
+(`scripts/workflow-approve.sh`, GOV-AUTO-03). Registry state `COMPLETE`; task status `Done`.

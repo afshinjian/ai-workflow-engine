@@ -53,13 +53,14 @@ on 2026-07-29** (commit `0ffa591`). **OD-D9 — the serving-stack dependency dec
 resolved by the Human Owner on 2026-07-29**: FastAPI (HTTP application framework), Uvicorn (ASGI
 server), and Jinja2 (templates), declared in a new optional `dashboard` dependency group in
 `pyproject.toml`, with the default install left free of them
-(`docs/agentos-dashboard/OPEN_QUESTIONS.md` OD-D9; `DECISIONS.md` DD-09). **DASH-004 is therefore
-no longer blocked on OD-D9**, but remains `Planned` and unauthorized, like every other task
-below — resolving an open question authorizes nothing. No task is `Current`.
+(`docs/agentos-dashboard/OPEN_QUESTIONS.md` OD-D9; `DECISIONS.md` DD-09). **DASH-004 was
+authorized by the Human Owner on 2026-07-30** as the single `Current` task — implemented and
+validated the same day on its registered branch `feature/dash-004-dashboard-shell` (the local
+backend, security middleware, and Overview page shell), stopped, uncommitted, for Human Owner
+approval; report: `docs/reports/agentos-dashboard/STAGE-04-completion.md`.
 
 | Task | Title | Status |
 |---|---|---|
-| DASH-004 | Local backend and dashboard shell | Current |
 | DASH-005 | Workflow board and task detail | Planned |
 | DASH-006 | Git, upstream, handover, and consistency views | Planned |
 | DASH-007 | Stage registry and prompt generation | Planned |

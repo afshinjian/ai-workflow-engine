@@ -13,8 +13,12 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
+from fastapi import FastAPI
 
 from agentos_dashboard.core.paths import RepositoryRoot
+from agentos_dashboard.main import create_app
+from agentos_dashboard.settings import DashboardSettings
+from agentos_dashboard.tests._asgi_client import AsgiTestClient
 
 GIT_FIXTURE_ENV = {
     "PATH": os.environ.get("PATH", ""),
@@ -71,3 +75,16 @@ def git_repo(tmp_path: Path) -> Iterator[Path]:
     git(repo, "add", "README.md")
     git(repo, "commit", "--quiet", "-m", "first commit")
     yield repo
+
+
+@pytest.fixture
+def dashboard_app(workspace: Path) -> FastAPI:
+    """A `create_app()` instance rooted at `workspace`, with no process lock (DASH-004)."""
+    settings = DashboardSettings.from_env({"AWED_REPO_ROOT": str(workspace)})
+    return create_app(settings)
+
+
+@pytest.fixture
+def client(dashboard_app: FastAPI) -> AsgiTestClient:
+    """A stateful ASGI test client (cookies persist across calls) for `dashboard_app`."""
+    return AsgiTestClient(dashboard_app)
