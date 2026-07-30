@@ -950,3 +950,26 @@ ignores resolved entries, and distinguishes active blocking declarations from ne
 historical wording. Existing predecessor, registry, branch, report, scope, dirty-tree, Human
 confirmation, closeout, staging, checksum, commit, remote, and stash protections remain unchanged.
 Report: `docs/reports/GOV-AUTO-05-completion-report.md`.
+
+## GOV-AUTO-06 — Bind delivered Git/GitHub skills into the default AgentOS skill registry
+
+Status: Current
+
+Registered and authorized by the Human Owner on 2026-07-30 to resolve the finding AUTO-008 reported
+and deliberately did not fix. AUTO-006 delivered all eight Git/GitHub Skills in
+`agentos_workflow/skills/git_github.py`, but `agentos_workflow/agents/__init__.py` was never
+updated: `PROVISIONAL_SKILL_NAMES` still classifies all eight as undelivered, and
+`default_skill_registry()` still does not bind them. `GitAgent` and `MergeAgent` therefore cannot
+invoke their own contracted Skills through the production registry — the broker returns a typed
+"not yet implemented; it is delivered by AUTO-006" failure — and the end-to-end dry run has to
+register all eight by hand. This blocks any real run.
+
+Scope: remove the stale provisional classification for the eight genuinely-implemented Skills and
+bind the existing implementations into the production registry. No new GitHub feature, no new
+public interface, no change to agent capability contracts, `CapabilityBroker` enforcement, the
+environment allowlist rules, or workflow state-machine behaviour. Does not address F-1 and does not
+begin AUTO-009.
+
+Recorded as a governance/engine follow-up task outside the AUTO family, per the GOV-AUTO-01
+precedent (`docs/workflow-automation/STAGE_REGISTRY.md` §5): no stage-registry row, no stage
+contract, no lifecycle state in that registry.

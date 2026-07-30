@@ -530,3 +530,18 @@ Still outstanding and unchanged by this stage: no real Claude CLI, Codex CLI, or
 ever been made by this engine, and there is still no production code that sequences the six agents.
 `MVP_SCOPE.md` §4's second acceptance demonstration -- a real target-repository run -- remains
 unmet. No push, merge, upstream, or stash operation was performed by this closeout.
+
+## Authorization update — 2026-07-30 (GOV-AUTO-06)
+
+GOV-AUTO-06 — Bind delivered Git/GitHub skills into the default AgentOS skill registry — is the
+single `Current` task, registered and authorized by the Human Owner to resolve the F-2 finding
+AUTO-008 reported and deliberately did not fix: AUTO-006 delivered all eight Git/GitHub Skills, but
+`PROVISIONAL_SKILL_NAMES` still classifies them as undelivered and `default_skill_registry()` still
+does not bind them, so `GitAgent`/`MergeAgent` cannot invoke their own contracted Skills through the
+production registry.
+
+The Human Owner proposed the ID `AUTO-008-F2`; it was not used, because the governance parser
+resolves it to the existing `Done` task `AUTO-008` and would have produced a duplicate `Current`
+entry. `GOV-AUTO-06` is used instead, following the GOV-AUTO-01 precedent for follow-up tasks
+outside the AUTO family (no stage-registry row, no stage contract). The recommended branch name is
+kept. Implementation has not started; no push, merge, upstream, or stash operation was performed.

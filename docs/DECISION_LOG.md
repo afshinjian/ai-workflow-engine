@@ -26,6 +26,32 @@ together with the generated closeout records in one local commit.
 push, merge, authorize a successor task, change branches, alter upstream, or mutate
 stashes.
 
+## 2026-07-30 — Human Owner registered and authorized GOV-AUTO-06
+
+**Decision:** The Human Owner registered and authorized `GOV-AUTO-06 — Bind delivered Git/GitHub
+skills into the default AgentOS skill registry`, to resolve the F-2 finding AUTO-008 reported and
+deliberately left unfixed. The task becomes the single `Current` task; implementation remains
+separate. Recorded from branch `feature/auto-008-f2-bind-github-skills`, created from clean `main`
+at `2c8844c4e2c3f78271743b41e4f489155169e5d0`.
+
+**Task identifier — deviation from the requested ID, and why.** The Human Owner proposed the ID
+`AUTO-008-F2`. That identifier cannot be used: the governance parser
+(`src/ai_workflow_engine/governance/parser.py`, `TASK_ID = re.compile(r"\b([A-Za-z]+-\d+)\b")`)
+resolves `AUTO-008-F2` to `AUTO-008`, which is an existing `Done` task. A queue heading under that
+ID would register a second, `Current` AUTO-008, breaking `check-task-state` (mirror disagreement)
+and `check-registries` (registry says `COMPLETE`/`Done`, queue would say `Current`). `GOV-AUTO-06`
+was chosen instead: it resolves to `AUTO-06`, which is unused, and it matches the established
+convention for narrowly-scoped follow-up fixes outside the AUTO family (GOV-AUTO-01..05). The
+Human Owner's recommended branch name, `feature/auto-008-f2-bind-github-skills`, is kept unchanged
+— GOV tasks have no registered-branch constraint, so the branch name carries the requested
+`auto-008-f2` label while the governed task ID stays parseable.
+
+**Boundaries:** Authorizes only the F-2 fix — removing the stale provisional classification for the
+eight genuinely-implemented Git/GitHub Skills and binding the existing implementations into the
+production registry. It authorizes no new GitHub feature, no new public interface, no change to
+agent capability contracts, `CapabilityBroker` enforcement, environment allowlist rules, or
+workflow state-machine behaviour. It does not authorize F-1, AUTO-009, or any successor.
+
 ## 2026-07-30 — Human Owner approved and closed AUTO-008
 
 **Decision:** The Human Owner reviewed the AUTO-008 implementation report, required an explicit

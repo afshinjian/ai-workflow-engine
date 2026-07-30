@@ -264,3 +264,12 @@ implemented, validated, approved, and closed on 2026-07-30. The engine is now ve
 one `pytest` invocation collects and passes all three suites (1,160 -> 2,967 tests), `mypy --strict`
 covers all three packages, the wheel ships all three, and the end-to-end acceptance demonstration
 passes with no test-only production workarounds. OD-10 and OD-11 resolved.
+
+## Authorization update — 2026-07-30 (GOV-AUTO-06)
+
+## GOV-AUTO-06
+
+Status: Current
+
+Registered and authorized by the Human Owner to resolve AUTO-008's deferred F-2 finding.
+Implementation and approval remain separate phases.
