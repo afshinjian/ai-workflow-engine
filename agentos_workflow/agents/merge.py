@@ -52,6 +52,7 @@ class MergeAgent(Agent):
         audit_root: Path,
         pull_request_number: int,
         recorded_head_sha: str,
+        allowed_environment_variables: tuple[str, ...] = (),
     ) -> None:
         super().__init__(broker)
         self._workflow_id = workflow_id
@@ -61,6 +62,11 @@ class MergeAgent(Agent):
         self._audit_root = audit_root
         self._pull_request_number = pull_request_number
         self._recorded_head_sha = recorded_head_sha
+        # OD-10: every `gh`-facing Skill this Agent invokes takes an environment allowlist, but
+        # this Agent had no way to supply one, so `gh` ran with an empty environment and could not
+        # see its own credential/config variables. Defaulted to `()` to match `GitAgent`, so an
+        # omitted value is an explicitly empty allowlist rather than an inherited environment.
+        self._allowed_environment_variables = allowed_environment_variables
 
     @property
     def kind(self) -> AgentKind:
@@ -129,6 +135,7 @@ class MergeAgent(Agent):
             repository_path=self._repository_path,
             pull_request_number=self._pull_request_number,
             expected_head_sha=self._recorded_head_sha,
+            allowed_environment_variables=self._allowed_environment_variables,
         )
         if not enabled.ok:
             return agent_failure(
@@ -166,6 +173,7 @@ class MergeAgent(Agent):
             "read_required_checks",
             repository_path=self._repository_path,
             pull_request_number=self._pull_request_number,
+            allowed_environment_variables=self._allowed_environment_variables,
         )
         if not checks.ok or checks.value is None:
             return agent_failure(
@@ -216,6 +224,7 @@ class MergeAgent(Agent):
             repository_path=self._repository_path,
             pull_request_number=self._pull_request_number,
             branch=self._stage_branch,
+            allowed_environment_variables=self._allowed_environment_variables,
         )
         if not confirmed.ok or confirmed.value is None:
             return agent_failure(

@@ -376,3 +376,20 @@ that workflow's own audit log instead of in a sibling directory. `SKILL_CONTRACT
 the contract change (Version 1.3); rationale in `DECISIONS.md` DD-40; the remaining caller-side
 round-numbering question is `OPEN_QUESTIONS.md` OD-12. Implemented and validated; stopped for
 Human Owner approval before any commit.
+
+## 2026-07-30 — AUTO-008 registered and authorized
+
+The Human Owner registered and authorized AUTO-008 — Engine CI baseline — in one act, following an
+architectural audit which found the AUTO-001..007 engine substantially complete but verified by no
+automated gate and unable to run as a program. Registry state `AUTHORIZED`; implementation,
+approval, push, and merge remain separate.
+
+## 2026-07-30 — AUTO-008 approved and closed
+
+The Human Owner approved AUTO-008 after a required scope-and-cleanliness verification (which caught
+two self-inflicted defects, both corrected before commit) and authorized closure. The engine is now
+verified by CI: all three suites run under one `pytest` invocation (1,160 -> 2,967 tests, all
+passing), `mypy --strict` covers all three packages, the wheel ships all three, and the
+`MVP_SCOPE.md` §4 end-to-end dry run passes with no test-only production workarounds. OD-10 and
+OD-11 resolved; `agentos_workflow` carries its own version. Registry state `COMPLETE`; task status
+`Done`. F-1 and F-2 recorded as follow-up work.

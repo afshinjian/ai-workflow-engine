@@ -198,13 +198,20 @@ class PMOAgent(Agent):
                 "calculate_contract_hash", contract_file=contract_file
             )
             if hashed.ok and hashed.value is not None:
-                contract_hash_matches = hashed.value.sha256 == authorization.stage_contract_hash
+                # OD-11: compare the canonical, algorithm-prefixed authorization form, not the
+                # bare digest. This gate and live resume validation
+                # (`_validate_live_resume_observation`) check the same `stage_contract_hash`
+                # field, and resume observes the prefixed form; comparing bare hex here meant no
+                # single authorization value could pass both, so a workflow that satisfied this
+                # gate was guaranteed a false-positive drift failure on its first real resume.
+                observed = hashed.value.authorization_value
+                contract_hash_matches = observed == authorization.stage_contract_hash
                 hash_detail = (
                     ""
                     if contract_hash_matches
                     else (
                         "stage contract changed since authorization: bound "
-                        f"{authorization.stage_contract_hash}, found {hashed.value.sha256}"
+                        f"{authorization.stage_contract_hash}, found {observed}"
                     )
                 )
             else:

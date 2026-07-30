@@ -10,6 +10,7 @@ import pytest
 
 from agentos_workflow.skills import FailureKind, RetryClassification
 from agentos_workflow.skills.contract import (
+    CONTRACT_HASH_ALGORITHM_PREFIX,
     calculate_contract_hash,
     detect_future_stage_work,
     locate_stage_contract,
@@ -463,3 +464,42 @@ def test_detect_future_stage_work_rejects_unsafe_paths() -> None:
         later_stage_paths={},
     )
     assert result.unwrap().passed is False
+
+
+# --- OD-11: one canonical `stage_contract_hash` format ------------------------------------------
+#
+# The Precondition Gate (`PMOAgent.check_preconditions`) and live resume validation
+# (`observation.local.LocalResumeObserver`) both compare the same `AuthorizationRecord` field, but
+# compute it in different modules that cannot import each other -- the AUTO-002 observation
+# component must not depend on the AUTO-003 Skill layer (`ARCHITECTURE.md` §10). They previously
+# disagreed on format, so no authorization value could satisfy both. These tests pin the agreement
+# that replaced that accidental divergence.
+
+
+def test_authorization_value_is_the_algorithm_prefixed_digest(tmp_path: Path) -> None:
+    contract_file = tmp_path / "AUTO-003.md"
+    contract_file.write_text(CONTRACT, encoding="utf-8")
+    hashed = calculate_contract_hash(contract_file).unwrap()
+
+    assert hashed.authorization_value == f"{CONTRACT_HASH_ALGORITHM_PREFIX}{hashed.sha256}"
+    assert hashed.authorization_value.startswith("sha256:")
+    # `sha256` stays the bare digest: callers wanting the raw hash must not have to strip a prefix.
+    assert hashed.sha256 == sha256(CONTRACT.encode("utf-8")).hexdigest()
+    assert not hashed.sha256.startswith("sha256:")
+
+
+def test_authorization_value_matches_the_resume_observer_format(tmp_path: Path) -> None:
+    """The Skill and the resume observer produce byte-identical strings for identical bytes.
+
+    This is the actual OD-11 regression guard. The two implementations are independent by design,
+    so the only thing that can keep them in agreement is a test that computes both and compares
+    them -- which is precisely what was missing when the formats diverged.
+    """
+    contract_file = tmp_path / "AUTO-003.md"
+    contract_file.write_text(CONTRACT, encoding="utf-8")
+
+    skill_value = calculate_contract_hash(contract_file).unwrap().authorization_value
+    # Recomputed exactly as `LocalResumeObserver._observe` does, from the file's raw bytes.
+    observer_value = f"sha256:{sha256(contract_file.read_bytes()).hexdigest()}"
+
+    assert skill_value == observer_value

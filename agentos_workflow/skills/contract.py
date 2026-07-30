@@ -25,6 +25,7 @@ from agentos_workflow.config.schema import canonical_repository_relative_path
 from agentos_workflow.skills import FailureKind, RetryClassification, SkillResult, failure, success
 
 __all__ = [
+    "CONTRACT_HASH_ALGORITHM_PREFIX",
     "ContractHash",
     "PathViolation",
     "ScopeVerdict",
@@ -39,6 +40,14 @@ __all__ = [
 
 _STAGE_ID_RE = re.compile(r"[A-Z][A-Z0-9]{1,15}-[0-9]{1,4}")
 _MAX_CONTRACT_BYTES = 4 * 1024 * 1024
+
+# The algorithm prefix carried by every `stage_contract_hash` value stored in an
+# `AuthorizationRecord` (OD-11). `observation.local.LocalResumeObserver` produces the same format
+# independently -- it cannot import this module, because the AUTO-002 observation component must
+# not depend on the AUTO-003 Skill layer (`ARCHITECTURE.md` §10) -- so the two are kept in
+# agreement by `test_skills_contract.py`'s cross-module equivalence test rather than by a shared
+# import. If this constant changes, that test fails until the observer matches.
+CONTRACT_HASH_ALGORITHM_PREFIX = "sha256:"
 
 
 @dataclass(frozen=True)
@@ -57,6 +66,28 @@ class ContractHash:
     path: str
     sha256: str
     size_bytes: int
+
+    @property
+    def authorization_value(self) -> str:
+        """The canonical form of this digest as it appears in an `AuthorizationRecord`.
+
+        Resolves OD-11. `stage_contract_hash` is compared on two independent code paths — the
+        Precondition Gate (`PMOAgent.check_preconditions`) and live resume validation
+        (`observation.local.LocalResumeObserver`, which emits the algorithm-prefixed form) — and
+        those two paths previously compared *different* string formats for the same semantic
+        field. Bare hex passed the Precondition Gate but made every later real resume raise a
+        false-positive `AuthorizationBindingDriftError`; a prefixed value failed the Precondition
+        Gate instead. No `AuthorizationRecord` value could satisfy both.
+
+        The algorithm-prefixed form wins because it is what the production resume path already
+        observes, and because it keeps the digest self-describing: a stored value states which
+        algorithm produced it, so a future algorithm change is a visible format change rather
+        than a silent reinterpretation of the same-length hex string.
+
+        `sha256` deliberately stays the bare digest — callers that want the raw hash (reporting,
+        equality against a freshly computed digest) should not have to strip a prefix.
+        """
+        return f"{CONTRACT_HASH_ALGORITHM_PREFIX}{self.sha256}"
 
 
 @dataclass(frozen=True)

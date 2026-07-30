@@ -539,3 +539,48 @@ def test_terminal_states_never_resume(tmp_path: Path, terminal: WorkflowState) -
         session.transition_to(WorkflowState.DONE, actor="orchestrator")
     with pytest.raises(WorkflowAlreadyTerminalError):
         _resume(config)
+
+
+def test_running_engine_version_is_independent_of_the_distribution_version() -> None:
+    """This engine's version comes from `__about__`, never from installed distribution metadata.
+
+    AUTO-008. `running_engine_version` previously returned
+    `importlib.metadata.version("ai-workflow-engine")` — the version of the whole repository's
+    distribution, which also covers the entirely separate legacy `src/ai_workflow_engine/` engine
+    that this package neither imports nor depends on.
+
+    Because `HUMAN_AUTHORIZATION_MODEL.md` §2 item 11 binds the engine version into every
+    authorization and §4 makes a later mismatch an authorization invalidator, that coupling meant a
+    release of the legacy engine silently invalidated every in-flight `agentos_workflow`
+    authorization and forced re-authorization from `CREATED`. It is also what made the AUTO-007
+    end-to-end dry run fail once `pyproject.toml` moved to 1.0.0.
+
+    Two independently-versioned subsystems must not share one version number.
+    """
+    import ast
+
+    from agentos_workflow.__about__ import __version__ as declared
+    from agentos_workflow.observation import local
+
+    assert local.running_engine_version() == declared
+
+    # The decisive check, and the reason it is structural rather than a value comparison: asserting
+    # the engine version merely *differs* from the distribution version would pass today (0.1.0 vs
+    # 1.0.0) and then silently start passing for the wrong reason the day the two happen to agree.
+    # Asserting the module never reads distribution metadata at all pins the decoupling itself.
+    #
+    # Parsed rather than string-searched: this module's own docstring quotes the
+    # `importlib.metadata.version(...)` call it no longer makes, so a substring scan would match the
+    # prose explaining the fix and fail for the wrong reason. The AST sees only real imports.
+    tree = ast.parse(Path(local.__file__).read_text(encoding="utf-8"))
+    imported: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            imported.update(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module is not None:
+            imported.add(node.module)
+
+    assert not any(
+        name == "importlib.metadata" or name.startswith("importlib.metadata.") for name in imported
+    ), f"observation.local must not read distribution metadata; imports were {sorted(imported)}"
+    assert "importlib" not in imported

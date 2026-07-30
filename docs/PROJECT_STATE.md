@@ -252,3 +252,15 @@ Status: Current
 DASH-004 is implemented and validated on the registered branch `feature/dash-004-dashboard-shell`,
 uncommitted, stopped for Human Owner approval. Approval and implementation remain separate phases.
 Report: `docs/reports/agentos-dashboard/STAGE-04-completion.md`.
+
+## Authorization update — 2026-07-30 (AUTO-008)
+
+## AUTO-008
+
+Status: Done
+
+Registered and authorized by the Human Owner in one act following an architectural audit, then
+implemented, validated, approved, and closed on 2026-07-30. The engine is now verified by CI:
+one `pytest` invocation collects and passes all three suites (1,160 -> 2,967 tests), `mypy --strict`
+covers all three packages, the wheel ships all three, and the end-to-end acceptance demonstration
+passes with no test-only production workarounds. OD-10 and OD-11 resolved.

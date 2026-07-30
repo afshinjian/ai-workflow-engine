@@ -26,6 +26,66 @@ together with the generated closeout records in one local commit.
 push, merge, authorize a successor task, change branches, alter upstream, or mutate
 stashes.
 
+## 2026-07-30 — Human Owner approved and closed AUTO-008
+
+**Decision:** The Human Owner reviewed the AUTO-008 implementation report, required an explicit
+scope and cleanliness verification first, and on its outcome approved the implementation and
+authorized governance closure plus the commit and push sequence. Registry state moves
+`AUTHORIZED → COMPLETE`; task status moves `Current → Done`.
+
+**What the closing verification changed.** The pre-approval verification the Human Owner required
+found two defects in the candidate implementation, both self-inflicted and both corrected before
+commit:
+
+1. `live_cli`/`live_gh` pytest markers and a CI `-m "not live_cli and not live_gh"` filter had been
+   added. No test carried either marker, so they were anticipatory infrastructure for AUTO-010 with
+   no current consumer, and the `-m` filter was a behavioural change to CI beyond this stage's
+   objective. Both were removed; the CI test command is byte-unchanged from baseline.
+2. The new engine-version test contained a tautological assertion — given its own first assertion,
+   the compound expression could never fail — plus an unnecessary conditional `pytest.skip`. It was
+   rewritten to parse `observation/local.py`'s AST and assert the module imports no distribution
+   metadata at all, which pins the decoupling structurally rather than comparing two values that
+   may legitimately coincide later.
+
+Recording this because the verification step earned its place: both defects would have shipped.
+
+**Deliberately not fixed, and reported instead:** the eight AUTO-006 Git/GitHub Skills remain
+unbound in `default_skill_registry()` (F-2 — REQUIRED before a first real run, since `GitAgent` and
+`MergeAgent` cannot function with the default registry), and the `expected`/`actual` parameter
+convention still diverges between the two `AuthorizationBindingDriftError` raise sites (F-1 —
+RECOMMENDED). Both change behaviour beyond this stage's scope.
+
+**Boundaries:** This closure authorizes no successor. AUTO-009 and every later roadmap phase
+require their own fresh written authorization.
+
+## 2026-07-30 — Human Owner registered and authorized AUTO-008
+
+**Decision:** Following an architectural audit of this repository, the Human Owner registered and
+authorized `AUTO-008 — Engine CI baseline` in one act. AUTO-008 did not previously exist in the
+task queue or stage registry, so this decision records both its registration and its
+authorization. The task becomes the single `Current` task; implementation remains separate. The
+authorization was recorded from branch `feature/auto-008-engine-ci-baseline`, created from clean
+`main` at `96a6bb4e7534008cf9516829df7db58fb79b1c50`.
+
+**Why this stage exists:** the audit established that `agentos_workflow` — the AUTO-001..007
+orchestrator, ~52k lines with 1,575 tests — has never run as a program and is verified by no
+automated gate. It has no `cli.py`, no `.agentos/workflow.yaml`, is absent from the wheel
+`packages` list, is not importable outside the repository root, is not type-checked, and its tests
+were never collected by CI (1,803 of the repository's 2,963 tests, 61%, ran nowhere). Its single
+end-to-end acceptance demonstration (`MVP_SCOPE.md` §4) fails on `main`. "AUTO-001..007 COMPLETE"
+therefore did not mean "works". AUTO-008 closes that gap before any further capability is built on
+the engine.
+
+**Boundaries:** This decision authorizes only AUTO-008, scoped to making the existing engine
+verifiable. It authorizes no new feature or public interface, no change to
+`src/ai_workflow_engine/**` or `scripts/**`, no real Claude/Codex/GitHub invocation, and no
+successor, push, merge, implementation approval, or stash mutation.
+
+**Related publication:** in the same session, and separately authorized, the Human Owner directed
+that DASH-004's implementation commit `96a6bb4` be published to `main` by fast-forward. DASH-004
+was recorded `Done` while its code sat unmerged on its feature branch, so `main` did not match
+governance; the fast-forward reconciled them.
+
 ## 2026-07-30 — Human Owner authorized DASH-004
 
 **Decision:** The Human Owner typed the two exact `AUTHORIZE` confirmations for

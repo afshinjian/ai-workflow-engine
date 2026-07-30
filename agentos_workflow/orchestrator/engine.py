@@ -609,11 +609,24 @@ class AuthorizationBindingDriftError(AuthorizationError):
         self.field = field
         self.expected = expected
         self.actual = actual
+        # AUTO-008: this message previously labelled `actual` as "bound value" and `expected` as
+        # "current value". That labelling is only correct for *some* raise sites. The thirteen
+        # raise sites in this module share one convention -- `expected` is the required/reference
+        # value, `actual` is what was actually found -- but they disagree about which side the
+        # persisted authorization sits on: `_detect_authorization_binding_drift` passes the
+        # independently-supplied current value as `expected` and the persisted record as `actual`,
+        # while `_validate_live_resume_observation` passes the persisted record as `expected` and
+        # the live observation as `actual`. Any fixed "bound value X / current value Y" wording is
+        # therefore guaranteed to be backwards at one of them.
+        #
+        # So the message no longer claims to know which side is the binding. It states the
+        # reference and the finding in the argument order actually received, which is faithful at
+        # every raise site; `field` already tells the reader which binding drifted, and callers
+        # that need the sides distinguished read `.expected`/`.actual` directly.
         super().__init__(
-            f"Authorization binding drift on {field!r}: bound value {actual!r} no longer "
-            f"matches current value {expected!r}. Per HUMAN_AUTHORIZATION_MODEL.md §4, this "
-            "authorization is invalid; the workflow moves to FAILED and must be re-authorized "
-            "from CREATED."
+            f"Authorization binding drift on {field!r}: expected {expected!r}, found {actual!r}. "
+            "Per HUMAN_AUTHORIZATION_MODEL.md §4, this authorization is invalid; the workflow "
+            "moves to FAILED and must be re-authorized from CREATED."
         )
 
 

@@ -40,10 +40,21 @@ dev = [
 workflowctl = "ai_workflow_engine.cli:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/ai_workflow_engine"]
+# AUTO-008: `agentos_workflow` and `agentos_dashboard` were absent here, so neither was installed
+# by `pip install -e .` and neither was importable from outside the repository root. The workflow
+# engine in particular is a program, not a checkout-only script collection, so it must ship.
+packages = [
+  "src/ai_workflow_engine",
+  "agentos_workflow",
+  "agentos_dashboard",
+]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+# AUTO-008: previously `["tests"]` alone, which silently excluded 1,803 of the repository's 2,963
+# tests -- every `agentos_workflow` and `agentos_dashboard` test -- from `pytest` and therefore
+# from CI. The newest and largest subsystem was the least verified. All three suites now run by
+# default; a suite that is not collected is not a safety net.
+testpaths = ["tests", "agentos_workflow/tests", "agentos_dashboard/tests"]
 addopts = "-ra"
 
 # Frozen historical orchestration artifacts. The Python files under these directories are
@@ -74,4 +85,20 @@ select = ["E", "F", "I", "B", "UP", "RUF"]
 [tool.mypy]
 python_version = "3.11"
 strict = true
-packages = ["ai_workflow_engine"]
+# AUTO-008: `agentos_workflow` and `agentos_dashboard` were never type-checked. Both are added
+# under the same `strict = true` setting the legacy engine already meets -- a weaker per-package
+# override would make the shared setting misleading about what has actually been verified.
+#
+# `files` rather than `packages`: `packages` resolves names through the *installed* distribution
+# and refuses a package with no `py.typed` marker, whereas these are checked as source trees --
+# exactly what the previous `mypy src` invocation did. Listing them here instead of on the command
+# line is what lets CI and pre-commit both run a bare `mypy` and check the identical set.
+files = [
+  "src/ai_workflow_engine",
+  "agentos_workflow",
+  "agentos_dashboard",
+]
+# Test suites stay out of scope, matching the pre-existing standard: `mypy src` never checked the
+# top-level `tests/` tree either. Bringing ~2,000 tests under `strict` is a deliberate, separate
+# decision, not a side effect of putting production code under the type checker.
+exclude = "^(agentos_workflow|agentos_dashboard)/tests/"

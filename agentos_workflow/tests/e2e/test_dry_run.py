@@ -10,37 +10,34 @@ stage-contract file shaped exactly like `docs/agentos-dashboard/stage-prompts/` 
 only; never modified) — demonstrating the engine can read an independently-authored stage
 contract without any change to that contract's format.
 
-**A second, previously undiscovered defect this dry run surfaces.** `PMOAgent.check_preconditions`
-(`agentos_workflow/agents/pmo.py:201`) compares `calculate_contract_hash`'s bare-hex
-`ContractHash.sha256` directly against `authorization.stage_contract_hash` with no prefix. But
-`LocalResumeObserver` (`agentos_workflow/observation/local.py:315`, the live observer
-`resume_workflow` uses whenever a real `config` is supplied — the production path) computes and
-compares a `"sha256:<hex>"`-*prefixed* value for the exact same semantic field. No
-`AuthorizationRecord` value can satisfy both: a bare-hex `stage_contract_hash` passes
-`PRECONDITIONS_CHECKED` but any later real resume raises a false-positive
-`AuthorizationBindingDriftError`; a prefixed one would fail `PRECONDITIONS_CHECKED` instead.
-`test_agents_pmo.py` and `test_engine_resume.py` each unit-
-test their own side against a hand-built `AuthorizationRecord` in their own module's convention
-(bare and prefixed respectively) and so never caught this — exactly the gap an end-to-end dry run
-exists to find. `_prefixed_contract_hash` below is a test-only `calculate_contract_hash` wrapper
-that reconciles the two formats for this dry run without touching either production file (both
-outside this stage's allowed paths); this finding is reported in full in this stage's completion
-report and belongs as a new `OPEN_QUESTIONS.md`/bug entry, not a silent fix here.
+**The two defects this dry run found, both fixed in AUTO-008.** This test's original value was
+that it surfaced two defects no unit test could, because each defect lived in the *disagreement*
+between two components that were individually correct. Both were reported rather than fixed at
+AUTO-007 (they lay outside that stage's allowed paths) and both were carried here as test-only
+wrappers. AUTO-008 fixed the production code and removed the wrappers:
 
-**A genuine, already-known gap this dry run must route around rather than paper over.**
-`GitAgent.create_pull_request`/`read_pull_request_state` and every `MergeAgent` method
-(`agentos_workflow/agents/git.py`, `agentos_workflow/agents/merge.py`) invoke their five
-GitHub-facing Skills without ever forwarding `allowed_environment_variables` — the exact
-`agentos_workflow/agents/**` gap AUTO-006 self-reported and recorded as OD-10/DD-38 (also stated
-in `handover/PROJECT_HANDOVER.md`'s "Known open items"). Fixing it means editing
-`agentos_workflow/agents/**`, outside this stage's allowed files
-(`agentos_workflow/tests/e2e/**`, `agentos_workflow/tests/recovery/**` only). `_gh_env_forwarding`
-below is a test-only `CapabilityBroker` skill-binding wrapper — production code is never
-touched — that supplies the fake `gh`'s environment the way a real, fixed `allowed_environment_
-variables` config value eventually will, so this dry run can still exercise the real
-GitHub-facing Skills end to end. This is reported here, not fixed, exactly as the stage contract
-requires ("a genuine gap ... is recorded as a new OPEN_QUESTIONS.md entry rather than silently
-implemented beyond this stage's scope").
+* **OD-11 — `stage_contract_hash` format disagreement (fixed).** `PMOAgent.check_preconditions`
+  compared `calculate_contract_hash`'s bare-hex `ContractHash.sha256` against
+  `authorization.stage_contract_hash`, while `LocalResumeObserver` — the live observer
+  `resume_workflow` uses whenever a real `config` is supplied, i.e. the production path — computed
+  and compared a `"sha256:<hex>"`-*prefixed* value for the same semantic field. No
+  `AuthorizationRecord` value could satisfy both: bare hex passed `PRECONDITIONS_CHECKED` and then
+  guaranteed a false-positive `AuthorizationBindingDriftError` on the first real resume; a prefixed
+  value failed `PRECONDITIONS_CHECKED` instead. `test_agents_pmo.py` and `test_engine_resume.py`
+  each unit-tested their own side against a hand-built record in their own module's convention
+  (bare and prefixed respectively), which is exactly why neither caught it. `PMOAgent` now compares
+  `ContractHash.authorization_value`, the single canonical form.
+
+* **OD-10 — `allowed_environment_variables` never forwarded (fixed).** `GitAgent` and `MergeAgent`
+  invoked their `gh`-facing Skills without forwarding the environment allowlist, so `gh` ran with
+  an empty environment and could not see its own credential or configuration variables. Both
+  Agents now forward it at every call site whose Skill accepts it; `verify_head_sha` is
+  deliberately excluded, being a purely local `git rev-parse` with no environment parameter.
+
+`MVP_SCOPE.md` §4's second acceptance demonstration — "a real target-repository run" against the
+real Claude/Codex CLIs and real GitHub — remains outstanding and is AUTO-010/AUTO-013 scope. This
+test proves orchestration logic against `MockProvider` and a fake `gh`; it is not evidence about
+real CLI or real GitHub behaviour, and must not be read as such.
 """
 
 from __future__ import annotations
@@ -49,10 +46,8 @@ import hashlib
 import json
 import os
 import subprocess
-from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -127,33 +122,17 @@ REGISTRY_TEMPLATE = """# Example — Stage Registry
 """
 
 
-def _gh_env_forwarding(fn: Callable[..., Any]) -> Callable[..., Any]:
-    """Test-only wrapper: injects the fake `gh`'s environment allowlist for the five Skill call
-    sites `agents/git.py`/`agents/merge.py` never forward it from (module docstring, OD-10)."""
-
-    def wrapped(**kwargs: Any) -> Any:
-        kwargs.setdefault("allowed_environment_variables", GH_ENV)
-        return fn(**kwargs)
-
-    return wrapped
-
-
-def _prefixed_contract_hash(**kwargs: Any) -> Any:
-    """Test-only `calculate_contract_hash` wrapper reconciling the bare-hex/`"sha256:"`-prefixed
-    inconsistency this dry run discovered (module docstring, "A second, previously undiscovered
-    defect")."""
-    import dataclasses
-
-    from agentos_workflow.skills.contract import calculate_contract_hash
-
-    result = calculate_contract_hash(**kwargs)
-    if not result.ok or result.value is None:
-        return result
-    return type(result)(
-        ok=True,
-        value=dataclasses.replace(result.value, sha256=f"sha256:{result.value.sha256}"),
-        error=None,
-    )
+# AUTO-008 removed the two test-only production workarounds this module previously needed:
+#
+# * `_gh_env_forwarding` — OD-10. `agents/git.py` and `agents/merge.py` now forward
+#   `allowed_environment_variables` at every Skill call site that accepts it, so the real Agents
+#   supply the fake `gh`'s environment themselves and the registry needs no wrapping.
+# * `_prefixed_contract_hash` — OD-11. `ContractHash.authorization_value` is now the single
+#   canonical authorization format and `PMOAgent` compares it, so the Precondition Gate and live
+#   resume validation agree without a test-side reconciliation.
+#
+# Their removal is the point: this dry run's value was always that it found defects unit tests
+# could not, and a workaround left in place would have quietly re-hidden them.
 
 
 @dataclass(frozen=True)
@@ -267,7 +246,6 @@ def _pmo_broker(audit_root: Path) -> CapabilityBroker:
         "append_audit_event",
     )
     skills = {name: registry[name] for name in pmo_skills if name in registry}
-    skills["calculate_contract_hash"] = _prefixed_contract_hash
     return CapabilityBroker(AgentKind.PMO, skills=skills)
 
 
@@ -277,8 +255,8 @@ def _git_broker() -> CapabilityBroker:
 
     registry["create_commit"] = create_commit
     registry["push_stage_branch"] = push_stage_branch
-    registry["create_pull_request"] = _gh_env_forwarding(create_pull_request)
-    registry["read_pull_request_state"] = _gh_env_forwarding(read_pull_request_state)
+    registry["create_pull_request"] = create_pull_request
+    registry["read_pull_request_state"] = read_pull_request_state
     registry["verify_head_sha"] = verify_head_sha
     return CapabilityBroker(AgentKind.GIT, skills=registry)
 
@@ -286,9 +264,9 @@ def _git_broker() -> CapabilityBroker:
 def _merge_broker() -> CapabilityBroker:
     registry = dict(default_skill_registry())
     registry["verify_head_sha"] = verify_head_sha
-    registry["read_required_checks"] = _gh_env_forwarding(read_required_checks)
-    registry["enable_automatic_squash_merge"] = _gh_env_forwarding(enable_automatic_squash_merge)
-    registry["verify_merge_completion"] = _gh_env_forwarding(verify_merge_completion)
+    registry["read_required_checks"] = read_required_checks
+    registry["enable_automatic_squash_merge"] = enable_automatic_squash_merge
+    registry["verify_merge_completion"] = verify_merge_completion
     return CapabilityBroker(AgentKind.MERGE, skills=registry)
 
 
@@ -335,8 +313,11 @@ def test_full_workflow_created_to_done_with_one_repair_and_one_interruption(
     _git(work, "commit", "-m", "add example stage contract and registry")
     _git(work, "push", REMOTE, BASELINE)
     baseline_sha = _git(work, "rev-parse", "HEAD")
-    # "sha256:"-prefixed to match `LocalResumeObserver`'s format (module docstring); PMOAgent's
-    # own `calculate_contract_hash` binding is wrapped to match via `_prefixed_contract_hash`.
+    # The canonical authorization format (`ContractHash.authorization_value`,
+    # `CONTRACT_HASH_ALGORITHM_PREFIX`), which `PMOAgent`'s Precondition Gate and
+    # `LocalResumeObserver`'s live resume check now both compare against — OD-11, fixed in
+    # AUTO-008. Built here from raw bytes rather than imported so this test still independently
+    # states what the format is.
     contract_hash = f"sha256:{hashlib.sha256(contract_path.read_bytes()).hexdigest()}"
 
     config = _config(
@@ -599,6 +580,9 @@ def test_full_workflow_created_to_done_with_one_repair_and_one_interruption(
         audit_root=audit_root,
         pull_request_number=pr_number,
         recorded_head_sha=commit_sha,
+        # OD-10 fixed: the real Agent now forwards this to every `gh`-facing Skill itself, exactly
+        # as a real configuration's `allowed_environment_variables` will.
+        allowed_environment_variables=GH_ENV,
     )
     set_gh_responses(
         fake_gh,

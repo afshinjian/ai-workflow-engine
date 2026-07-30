@@ -11,8 +11,10 @@ repos:
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.20.2
     hooks:
+      # AUTO-008: no `args`, so mypy uses pyproject.toml's configured `packages` list and checks all
+      # three packages -- the same invocation CI runs. Keeping an `args: [src]` override here would
+      # let a type error land locally and only surface in CI.
       - id: mypy
-        args: [src]
         pass_filenames: false
         additional_dependencies:
           - pydantic>=2.7
@@ -20,3 +22,7 @@ repos:
           - rich>=13.7
           - typer>=0.12
           - types-PyYAML
+          # Required to type-check `agentos_dashboard`, which is now in scope.
+          - fastapi>=0.111
+          - jinja2>=3.1
+          - uvicorn>=0.30
