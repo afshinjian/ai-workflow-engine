@@ -26,6 +26,63 @@ together with the generated closeout records in one local commit.
 push, merge, authorize a successor task, change branches, alter upstream, or mutate
 stashes.
 
+## 2026-07-30 — Human Owner approved and closed GOV-AUTO-06
+
+**Decision:** The Human Owner required a final seven-point scope and integrity verification, and on
+its outcome approved GOV-AUTO-06 and authorized the closeout commit and push. Task status moves
+`Current → Done`.
+
+**Verification outcome.** All seven checks passed: changes strictly within GOV-AUTO-06;
+`AGENT_SKILL_CONTRACTS` AST-identical to its prior value; all eight delivered Git/GitHub Skills
+present in `default_skill_registry()` and identity-verified against `skills/git_github.py`;
+`PROVISIONAL_SKILL_NAMES` empty but retained as a public symbol in `__all__`; no test-only manual
+binding and no unrelated end-to-end cleanup; `orchestrator/` untouched, so F-1 and AUTO-009 are
+unaffected; and no debug code, workaround, TODO, skipped test, or commented-out implementation.
+
+**Two decisions inside the fix worth recording**, because each preserved behaviour that a narrower
+reading would have silently changed:
+
+1. `PROVISIONAL_SKILL_NAMES` was emptied rather than deleted. The stale part was its membership,
+   not the concept — a contract may legitimately name a Skill before its implementing stage lands,
+   and answering that with a typed `PRECONDITION` failure rather than a `CapabilityViolation` is
+   the right distinction. Deleting the name would also have removed a public symbol from `__all__`.
+2. `GitAgent._is_unbound` was widened to match both of the broker's no-binding answers. With the
+   provisional set empty, the previous form — which required membership plus the literal string
+   `AUTO-006` — would have silently reclassified every missing binding from `SKILL_UNAVAILABLE` to
+   `SKILL_FAILED`, a behaviour change well beyond binding the Skills.
+
+**Boundaries:** This closure authorizes no successor. F-1 (the `expected`/`actual` convention
+divergence across the `AuthorizationBindingDriftError` raise sites), AUTO-009, and every later
+roadmap phase remain unauthorized and require their own fresh written authorization. The
+end-to-end dry run's hand-registration of the eight Skills was deliberately left in place: it is
+outside this task's defect and is now provably redundant rather than load-bearing.
+
+## 2026-07-30 — Human Owner registered and authorized GOV-AUTO-06
+
+**Decision:** The Human Owner registered and authorized `GOV-AUTO-06 — Bind delivered Git/GitHub
+skills into the default AgentOS skill registry`, to resolve the F-2 finding AUTO-008 reported and
+deliberately left unfixed. The task becomes the single `Current` task; implementation remains
+separate. Recorded from branch `feature/auto-008-f2-bind-github-skills`, created from clean `main`
+at `2c8844c4e2c3f78271743b41e4f489155169e5d0`.
+
+**Task identifier — deviation from the requested ID, and why.** The Human Owner proposed the ID
+`AUTO-008-F2`. That identifier cannot be used: the governance parser
+(`src/ai_workflow_engine/governance/parser.py`, `TASK_ID = re.compile(r"\b([A-Za-z]+-\d+)\b")`)
+resolves `AUTO-008-F2` to `AUTO-008`, which is an existing `Done` task. A queue heading under that
+ID would register a second, `Current` AUTO-008, breaking `check-task-state` (mirror disagreement)
+and `check-registries` (registry says `COMPLETE`/`Done`, queue would say `Current`). `GOV-AUTO-06`
+was chosen instead: it resolves to `AUTO-06`, which is unused, and it matches the established
+convention for narrowly-scoped follow-up fixes outside the AUTO family (GOV-AUTO-01..05). The
+Human Owner's recommended branch name, `feature/auto-008-f2-bind-github-skills`, is kept unchanged
+— GOV tasks have no registered-branch constraint, so the branch name carries the requested
+`auto-008-f2` label while the governed task ID stays parseable.
+
+**Boundaries:** Authorizes only the F-2 fix — removing the stale provisional classification for the
+eight genuinely-implemented Git/GitHub Skills and binding the existing implementations into the
+production registry. It authorizes no new GitHub feature, no new public interface, no change to
+agent capability contracts, `CapabilityBroker` enforcement, environment allowlist rules, or
+workflow state-machine behaviour. It does not authorize F-1, AUTO-009, or any successor.
+
 ## 2026-07-30 — Human Owner approved and closed AUTO-008
 
 **Decision:** The Human Owner reviewed the AUTO-008 implementation report, required an explicit

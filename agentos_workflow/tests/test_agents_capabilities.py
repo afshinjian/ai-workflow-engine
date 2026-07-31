@@ -38,6 +38,8 @@ from agentos_workflow.agents.merge import MergeAgent
 from agentos_workflow.agents.pmo import PMOAgent
 from agentos_workflow.agents.qa import QAAgent
 from agentos_workflow.providers import ProviderRole
+from agentos_workflow.skills import FailureKind, RetryClassification
+from agentos_workflow.skills import git_github as git_github_skills
 
 AGENT_CLASSES: dict[AgentKind, type[Agent]] = {
     AgentKind.PMO: PMOAgent,
@@ -200,10 +202,29 @@ class TestContractDocumentAgreement:
         assert set(AGENT_CLASSES) == set(AgentKind)
 
     def test_every_non_provisional_contract_skill_is_bound(self) -> None:
-        """Only the eight AUTO-006 Skills are unbound; nothing else is silently missing."""
+        """Nothing a contract names is silently missing from the production registry.
+
+        The invariant is unchanged since AUTO-003 — the unbound set must equal the provisional set
+        — but both sides are now empty (GOV-AUTO-06). Written as an equality rather than
+        `unbound == set()` so the invariant, not today's membership, is what is pinned: if a future
+        contract legitimately names a Skill before its implementing stage lands, this test keeps
+        passing only while that name is *declared* provisional.
+        """
         registry = default_skill_registry()
         unbound = {name for name in ALL_CONTRACT_SKILLS if name not in registry}
         assert unbound == set(PROVISIONAL_SKILL_NAMES)
+
+    def test_no_contract_skill_is_unbound_today(self) -> None:
+        """Every name any Agent contract mentions resolves in the production registry.
+
+        The concrete GOV-AUTO-06 guarantee, stated separately from the invariant above because the
+        invariant would also hold in the broken state it replaced: before this fix, `unbound` and
+        `PROVISIONAL_SKILL_NAMES` were both the same eight Git/GitHub Skills, so the equality
+        passed while `GitAgent` and `MergeAgent` could not run at all.
+        """
+        registry = default_skill_registry()
+        assert {name for name in ALL_CONTRACT_SKILLS if name not in registry} == set()
+        assert PROVISIONAL_SKILL_NAMES == frozenset()
 
 
 class TestStructuralIsolation:
@@ -284,3 +305,146 @@ class TestStructuralIsolation:
         names = [argument.arg for argument in close_out.args.kwonlyargs]
         assert "merge_confirmation" in names
         assert close_out.args.kw_defaults[names.index("merge_confirmation")] is None
+
+
+class TestGitHubSkillsAreBoundInTheProductionRegistry:
+    """GOV-AUTO-06 — the eight delivered Git/GitHub Skills are reachable by default.
+
+    AUTO-006 delivered `skills/git_github.py` but nothing updated `_DEFAULT_SKILL_BINDINGS` or
+    `PROVISIONAL_SKILL_NAMES`, so the production registry kept answering "not yet implemented" for
+    all eight and `GitAgent`/`MergeAgent` could not invoke their own contracted Skills. The
+    end-to-end dry run had to bind all eight by hand, which is what hid the gap: the only test that
+    exercised these Agents supplied its own registry.
+    """
+
+    DELIVERED_GITHUB_SKILLS = frozenset(
+        {
+            "create_commit",
+            "push_stage_branch",
+            "create_pull_request",
+            "read_pull_request_state",
+            "verify_head_sha",
+            "read_required_checks",
+            "enable_automatic_squash_merge",
+            "verify_merge_completion",
+        }
+    )
+
+    def test_all_eight_delivered_skills_are_in_the_default_registry(self) -> None:
+        registry = default_skill_registry()
+        missing = sorted(self.DELIVERED_GITHUB_SKILLS - set(registry))
+        assert missing == [], f"delivered but unbound: {missing}"
+
+    def test_the_bound_implementations_are_the_delivered_ones(self) -> None:
+        """Bound to `skills/git_github.py`, not to a stub or a look-alike.
+
+        A registry entry pointing at something *named* correctly would satisfy presence while still
+        being wrong, so identity is asserted against the delivering module itself.
+        """
+        registry = default_skill_registry()
+        for name in sorted(self.DELIVERED_GITHUB_SKILLS):
+            assert registry[name] is getattr(git_github_skills, name), name
+
+    def test_none_of_the_eight_is_classified_provisional(self) -> None:
+        assert self.DELIVERED_GITHUB_SKILLS & PROVISIONAL_SKILL_NAMES == frozenset()
+        assert PROVISIONAL_SKILL_NAMES == frozenset()
+
+    @pytest.mark.parametrize("agent", [AgentKind.GIT, AgentKind.MERGE])
+    def test_git_and_merge_resolve_every_contracted_skill_via_the_default_registry(
+        self, agent: AgentKind
+    ) -> None:
+        """The capability path that was broken: contract -> broker -> production registry.
+
+        Uses `CapabilityBroker` with `default_skill_registry()` and no test-supplied bindings,
+        which is precisely what no test did before.
+        """
+        broker = CapabilityBroker(agent, skills=default_skill_registry())
+        for name in sorted(AGENT_SKILL_CONTRACTS[agent]):
+            assert broker.permits_skill(name), name
+            assert name in default_skill_registry(), name
+
+    def test_binding_widened_no_agent_reach(self) -> None:
+        """Presence in the registry grants nothing; the contract still decides.
+
+        The real risk in this change is over-granting, so this asserts the negative directly: the
+        four Agents whose contracts name no Git/GitHub Skill must still be refused all eight, and
+        `GIT`/`MERGE` must be refused the ones their own contracts omit.
+        """
+        for agent in AgentKind:
+            permitted = AGENT_SKILL_CONTRACTS[agent]
+            broker = CapabilityBroker(agent, skills=default_skill_registry())
+            for name in sorted(self.DELIVERED_GITHUB_SKILLS):
+                if name in permitted:
+                    continue
+                assert not broker.permits_skill(name), (agent, name)
+                with pytest.raises(CapabilityViolation):
+                    broker.invoke_skill(name)
+
+    def test_github_skills_reach_only_git_and_merge(self) -> None:
+        """No Agent outside GIT/MERGE has any Git/GitHub Skill in its contract."""
+        for agent in AgentKind:
+            if agent in (AgentKind.GIT, AgentKind.MERGE):
+                continue
+            assert AGENT_SKILL_CONTRACTS[agent] & self.DELIVERED_GITHUB_SKILLS == frozenset(), agent
+
+    def test_no_manual_registration_is_required_for_this_capability_path(self) -> None:
+        """A broker built from the unmodified production registry needs no augmentation.
+
+        Expressed as an identity check on the mapping actually used: if any of the eight had to be
+        patched in, the broker's registry would differ from `default_skill_registry()`.
+        """
+        production = dict(default_skill_registry())
+        for agent in (AgentKind.GIT, AgentKind.MERGE):
+            required = AGENT_SKILL_CONTRACTS[agent]
+            assert required <= set(production), sorted(required - set(production))
+        # And the dry run's hand-registration is now redundant rather than load-bearing.
+        assert self.DELIVERED_GITHUB_SKILLS <= set(production)
+
+    @staticmethod
+    def _thinned_broker() -> CapabilityBroker:
+        """A `GIT` broker whose registry omits one Skill the GIT contract permits."""
+        thinned = {
+            name: binding
+            for name, binding in default_skill_registry().items()
+            if name != "create_commit"
+        }
+        return CapabilityBroker(AgentKind.GIT, skills=thinned)
+
+    def test_a_permitted_but_unbound_skill_returns_a_typed_failure_not_a_raise(self) -> None:
+        """A missing binding degrades to typed failure; only an out-of-contract name raises.
+
+        Guards the mechanism GOV-AUTO-06 deliberately kept rather than deleted. "Not built here" is
+        a deployment state a machine gate can branch on; "not permitted" is a programming error.
+        Simulated with a thinned registry, since no real name is unbound any more.
+        """
+        result = self._thinned_broker().invoke_skill(
+            "create_commit", repository_path=Path("/nonexistent")
+        )
+        assert not result.ok
+        assert result.error is not None
+        assert result.error.kind is FailureKind.PRECONDITION
+        assert result.error.retry_classification is RetryClassification.NON_RETRYABLE
+        # With nothing classified provisional, an absent binding is a registry gap, not a
+        # not-yet-built Skill — and the message says so rather than blaming an unshipped stage.
+        assert result.error.detail == "skill 'create_commit' is not bound in this registry"
+
+    def test_the_provisional_message_no_longer_names_a_shipped_stage(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The provisional branch reports "not yet implemented" without naming AUTO-006.
+
+        Reaching that branch requires a name to actually be classified provisional, so this
+        monkeypatches the set — which is also the only way to prove the branch still works now that
+        the set is legitimately empty. Pinning the *absence* of "AUTO-006" is the point: naming one
+        stage is what let this message keep asserting AUTO-006 was pending for the entire period
+        after AUTO-006 had shipped.
+        """
+        monkeypatch.setattr(
+            "agentos_workflow.agents.PROVISIONAL_SKILL_NAMES", frozenset({"create_commit"})
+        )
+        result = self._thinned_broker().invoke_skill(
+            "create_commit", repository_path=Path("/nonexistent")
+        )
+        assert result.error is not None
+        assert result.error.detail == "skill 'create_commit' is not yet implemented"
+        assert "AUTO-006" not in result.error.detail

@@ -393,3 +393,11 @@ passing), `mypy --strict` covers all three packages, the wheel ships all three, 
 `MVP_SCOPE.md` §4 end-to-end dry run passes with no test-only production workarounds. OD-10 and
 OD-11 resolved; `agentos_workflow` carries its own version. Registry state `COMPLETE`; task status
 `Done`. F-1 and F-2 recorded as follow-up work.
+
+## 2026-07-30 — GOV-AUTO-06 approved and closed
+
+The eight Git/GitHub Skills delivered by AUTO-006 are bound in `default_skill_registry()`; they had
+remained classified as undelivered after that stage shipped, leaving `GitAgent` and `MergeAgent`
+unable to invoke their own contracted Skills through the production registry. Capability contracts
+are unchanged and a negative test proves no Agent gained reach. Resolves AUTO-008's F-2 finding.
+F-1 remains open.

@@ -6,6 +6,12 @@ eight. `GitAgent`/`MergeAgent` (`agents/git.py`, `agents/merge.py`) already call
 against fakes with the exact keyword shapes used here — this module changes no Agent code, only
 binds the real implementation those shapes were written against.
 
+Delivering them was not the same as making them reachable: `agents._DEFAULT_SKILL_BINDINGS` was not
+updated when this module landed, so for the whole period afterwards the production registry still
+answered "not yet implemented" for all eight and neither Agent could run against it. GOV-AUTO-06
+bound them. The lesson is recorded here because this docstring's own claim to "deliver all eight"
+read as complete while half the wiring was missing.
+
 Three security properties are structural, not merely reviewed:
 
 - **No admin bypass** (`SECURITY_MODEL.md` §4). `enable_automatic_squash_merge` has exactly one

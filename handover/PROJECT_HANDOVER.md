@@ -530,3 +530,46 @@ Still outstanding and unchanged by this stage: no real Claude CLI, Codex CLI, or
 ever been made by this engine, and there is still no production code that sequences the six agents.
 `MVP_SCOPE.md` §4's second acceptance demonstration -- a real target-repository run -- remains
 unmet. No push, merge, upstream, or stash operation was performed by this closeout.
+
+## Authorization update — 2026-07-30 (GOV-AUTO-06)
+
+GOV-AUTO-06 — Bind delivered Git/GitHub skills into the default AgentOS skill registry — is the
+single `Current` task, registered and authorized by the Human Owner to resolve the F-2 finding
+AUTO-008 reported and deliberately did not fix: AUTO-006 delivered all eight Git/GitHub Skills, but
+`PROVISIONAL_SKILL_NAMES` still classifies them as undelivered and `default_skill_registry()` still
+does not bind them, so `GitAgent`/`MergeAgent` cannot invoke their own contracted Skills through the
+production registry.
+
+The Human Owner proposed the ID `AUTO-008-F2`; it was not used, because the governance parser
+resolves it to the existing `Done` task `AUTO-008` and would have produced a duplicate `Current`
+entry. `GOV-AUTO-06` is used instead, following the GOV-AUTO-01 precedent for follow-up tasks
+outside the AUTO family (no stage-registry row, no stage contract). The recommended branch name is
+kept. Implementation has not started; no push, merge, upstream, or stash operation was performed.
+
+## Closure update — 2026-07-30 (GOV-AUTO-06)
+
+GOV-AUTO-06 was approved and closed `Current -> Done` in the same commit as its implementation. No
+task is `Current` after this commit.
+
+**What changed.** The eight Git/GitHub Skills AUTO-006 delivered are now bound in
+`default_skill_registry()` (32 -> 40 entries). Until now they were still listed in
+`PROVISIONAL_SKILL_NAMES` as undelivered and absent from the bindings, so the broker answered every
+one with "not yet implemented; it is delivered by AUTO-006" — a message emitted by the stage that
+had already delivered them — and neither `GitAgent` nor `MergeAgent` could run against the
+production registry. AUTO-008's F-2 finding is resolved.
+
+`PROVISIONAL_SKILL_NAMES` is now empty but deliberately retained as a public symbol: the mechanism
+is general and still enforced by `CapabilityBroker`. `GitAgent._is_unbound` was widened to match
+both of the broker's no-binding answers so the existing `SKILL_UNAVAILABLE` classification is
+preserved rather than silently decaying to `SKILL_FAILED`.
+
+**Unchanged and worth knowing:** `AGENT_SKILL_CONTRACTS` is AST-identical to its prior value — no
+Agent gained reach, proven by a negative test over all six Agents. The end-to-end dry run still
+hand-binds the eight; that is now redundant rather than load-bearing, and simplifying it is
+optional follow-up work, not a defect.
+
+**Still open.** F-1 — the `expected`/`actual` parameter convention diverges between the two
+`AuthorizationBindingDriftError` raise sites in `orchestrator/engine.py`. Still no real Claude CLI,
+Codex CLI, or GitHub call has ever been made by this engine, and nothing yet sequences the six
+agents; `MVP_SCOPE.md` §4's real-target-repository demonstration remains unmet. No merge was
+performed by this closeout.

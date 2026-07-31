@@ -415,8 +415,15 @@ class TestGitAgent:
         assert result.evidence["merged"] is False
 
 
-class TestProvisionalSkillsAreHonestlyUnavailable:
-    """With no AUTO-006 bindings, every Git/GitHub action fails loudly and specifically."""
+class TestUnboundSkillsAreHonestlyUnavailable:
+    """Given a registry that binds nothing, every Git/GitHub action fails loudly and specifically.
+
+    Unchanged in substance since AUTO-005; only the reason a Skill can be missing has changed.
+    These Agents are constructed with `skills={}`, never the production registry, so the property
+    under test is the Agent's handling of an absent binding — not whether the real registry has
+    one. `test_agents_capabilities.py` covers the production registry, and since GOV-AUTO-06 it
+    proves all eight are bound there.
+    """
 
     @pytest.mark.parametrize(
         ("method", "kwargs"),
@@ -428,7 +435,7 @@ class TestProvisionalSkillsAreHonestlyUnavailable:
             ("verify_head_sha", {"expected_head_sha": HEAD_SHA}),
         ],
     )
-    def test_unbound_skill_reports_auto_006(
+    def test_unbound_skill_reports_unavailable(
         self, tmp_path: Path, method: str, kwargs: dict[str, Any]
     ) -> None:
         agent = GitAgent(
@@ -445,7 +452,13 @@ class TestProvisionalSkillsAreHonestlyUnavailable:
         assert result.ok is False
         assert result.error is not None
         assert result.error.kind is AgentFailureKind.SKILL_UNAVAILABLE
-        assert "AUTO-006" in result.error.detail
+        # GOV-AUTO-06: the detail no longer names AUTO-006. That stage has shipped, so a message
+        # blaming it for the absence would be false; with nothing classified provisional, an absent
+        # binding is a registry gap. The `SKILL_UNAVAILABLE` classification above is deliberately
+        # unchanged — from this Agent's side the situation is identical either way, and letting it
+        # decay to `SKILL_FAILED` would have been a behaviour change beyond binding the Skills.
+        assert "is not bound in this registry" in result.error.detail
+        assert "AUTO-006" not in result.error.detail
 
     def test_an_unbound_skill_never_looks_like_success(self, tmp_path: Path) -> None:
         """The failure mode a stub would have introduced: a machine gate reading a fabricated
