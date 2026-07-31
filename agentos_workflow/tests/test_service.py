@@ -48,7 +48,11 @@ from agentos_workflow.skills.reporting import generate_qa_report, generate_stage
 
 # The complete, closed set of operations AUTO-009 authorizes. A test below asserts the class has
 # exactly these and nothing else, so adding a fifth operation cannot pass unnoticed.
-APPROVED_OPERATIONS = frozenset({"status", "list", "audit", "report"})
+# AUTO-009 approved four read-only operations; AUTO-010 added exactly one that executes,
+# `invoke_provider`, which delegates to the Provider Runtime and still records no transition,
+# acquires no lock, and touches no repository.
+READ_ONLY_OPERATIONS = frozenset({"status", "list", "audit", "report"})
+APPROVED_OPERATIONS = READ_ONLY_OPERATIONS | {"invoke_provider"}
 
 # Everything AUTO-009 is explicitly forbidden to implement, as it would be spelled on a service or
 # a CLI. Checked as a *structural* assertion, not a review convention.
@@ -212,7 +216,7 @@ def _tree_digest(*roots: Path) -> str:
 
 
 class TestApprovedSurface:
-    def test_exposes_exactly_the_four_approved_operations(self) -> None:
+    def test_exposes_exactly_the_approved_operations(self) -> None:
         public = {
             name
             for name in dir(WorkflowService)

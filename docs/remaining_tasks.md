@@ -57,7 +57,20 @@ server), and Jinja2 (templates), declared in a new optional `dashboard` dependen
 authorized by the Human Owner on 2026-07-30** as the single `Current` task — implemented and
 validated the same day on its registered branch `feature/dash-004-dashboard-shell` (the local
 backend, security middleware, and Overview page shell), stopped, uncommitted, for Human Owner
-approval; report: `docs/reports/agentos-dashboard/STAGE-04-completion.md`.
+approval; report: `docs/reports/agentos-dashboard/STAGE-04-completion.md`. **AUTO-008 was closed to
+`Done` on 2026-07-30**, **GOV-AUTO-06 and GOV-AUTO-07 were closed to `Done` on 2026-07-30 and
+2026-07-31** — each resolving one of the two findings AUTO-008 deferred — and **AUTO-009 was closed
+to `Done` on 2026-07-31**, delivering the engine's first public application-service boundary and
+the read-only `workflowctl auto` command group; its six non-blocking defects (D1-D6) remain
+deferred and unauthorized to fix. **AUTO-010 — Real Non-Interactive Provider Runtime — was
+registered and authorized by the Human Owner on 2026-07-31** as the single `Current` task, on its
+registered branch `feature/auto-010-provider-runtime`; contract:
+`docs/workflow-automation/stage-prompts/AUTO-010.md`; report:
+`docs/reports/workflow-automation/AUTO-010-completion-report.md`. **AUTO-010 was approved and
+closed to `Done` on 2026-07-31** after a fourteen-point scope, runtime, and safety verification —
+both providers live-validated against the real installed CLIs on all ten acceptance criteria each
+(25 live tests, zero skipped), 3,241 tests green, three blockers fixed inside the shared provider
+process runner, four non-blocking defects deferred. AUTO-011 remains unauthorized.
 
 | Task | Title | Status |
 |---|---|---|

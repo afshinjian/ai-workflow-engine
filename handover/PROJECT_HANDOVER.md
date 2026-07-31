@@ -684,3 +684,96 @@ This stage deliberately did not move toward it: it built the read half of the bo
 that the write-capable operations, when separately authorized, are added to a boundary whose read
 path is already tested. AUTO-010 and every later roadmap phase remain unauthorized. No merge,
 upstream change to any other branch, or stash operation was performed by this closeout.
+
+## AUTO-010 — Real Non-Interactive Provider Runtime (closed 2026-07-31)
+
+**The engine now really executes Claude Code and Codex without a terminal.** That sentence was the
+outstanding gap the AUTO-009 handover ends on, and it is the one this stage closed:
+
+    WorkflowService.invoke_provider -> ProviderRuntime.invoke -> ClaudeCLIProvider / CodexCLIProvider
+                                                              -> run_provider_process
+
+`WorkflowService` gained exactly one operation, `invoke_provider`, whose whole body is a
+delegation. Its surface is now five names — the four AUTO-009 read operations, unchanged and still
+read-only, plus this one. It still holds no `RepositoryLock`, no `WorkflowSession`, and no path to
+`StateStore`'s append methods, so a provider run cannot transition workflow state by itself; that
+is asserted by booby-trapping both store writers for the duration of a real invocation. `service.py`
+names no CLI flag and imports exactly one provider module (`providers.runtime`), both checked over
+the parsed syntax tree rather than the source text.
+
+**No second provider framework was built.** Everything below `runtime.py` is AUTO-004's, reused:
+`ProviderInvocation`, `ProviderReport`, `ProviderFailure`, `ProviderVerdict`, the environment
+allowlist, the session-directory layout, the retry classification, and secret redaction. The
+runtime owns three things only: the auto-mode prompt contract, the closed `CLAUDE`/`CODEX` target
+mapping, and the terminal-result contract. `select_live_provider` moved verbatim into
+`providers/selection.py` so the runtime can select a provider without importing the package that
+re-exports it — contents, typing, and public names unchanged.
+
+**Never-ask is enforced at three layers, each tested against real child processes.** The prompt
+contract states its four clauses verbatim and cannot be omitted, because `ProviderRunRequest`
+carries a `task` and has no `prompt` field. Mechanically, the child gets its own session with no
+controlling terminal (`open('/dev/tty')` raises), no TTY on any standard stream, exactly one prompt
+on stdin, and EOF thereafter. Structurally, every run ends in `COMPLETED`,
+`COMPLETED_WITH_ASSUMPTIONS`, `BLOCKED`, or `FAILED`; `BLOCKED` requires concrete blockers,
+`COMPLETED_WITH_ASSUMPTIONS` requires recorded assumptions, and a report omitting `status` is
+rejected rather than inferred from the pass/fail verdict.
+
+**Policy is closed by construction, not by validation.** `ClaudePermissionMode` admits
+`plan`/`dontAsk`/`acceptEdits` and `CodexSandboxMode` admits `read-only`/`workspace-write`, both
+defaulting to the least capable value. Because configuration is typed to these enums
+(`agentos_workflow/config/policy.py`, a leaf module importing nothing from this engine), Claude's
+`bypassPermissions` and Codex's `danger-full-access` are not values the engine refuses — they are
+values nothing in it can name.
+
+**Verified argv, checked against the installed binaries and not against documentation:**
+
+    claude --print --output-format json --permission-mode <mode>                        (2.1.220)
+    codex exec --json --sandbox <mode> -c approval_policy="never" \
+          --output-last-message <session>/codex-last-message.txt                 (codex-cli 0.146.0)
+
+**Three blockers were fixed inside the shared process runner**, each minimal and each documented in
+the report: `subprocess.run`'s timeout killed only the direct child and left the parent's
+controlling terminal attached (now `Popen(start_new_session=True)` plus SIGTERM-then-unconditional
+-SIGKILL of the whole process group); output ceilings were unenforced during capture and stderr had
+none (now bounded streaming readers that keep draining past the limit so the child cannot deadlock,
+while reclaiming the group); and AUTO-004's Codex parser took the last JSON object on stdout, which
+in a real run is always a `turn.*` envelope and never the report — so that adapter could never have
+worked against the live CLI, and had never been exercised against one.
+
+**Account selection is an environment variable, never a shell alias.** The host's `codexA`/
+`claudeA` aliases expand to `CODEX_HOME=... codex`; an alias is a shell construct that a
+`shell=False`, fixed-argv spawn cannot expand, so configuring one fails at spawn (pinned by a test).
+Selecting an account is the real `claude`/`codex` binary plus an allowlisted `CLAUDE_CONFIG_DIR`/
+`CODEX_HOME`. No account path is hard-coded in the engine or in the tests.
+
+Evidence: 3,241 tests passing (3,151 + 90, none skipped, none xfail) **plus 25 live acceptance
+tests against the real installed CLIs with zero skips** — Claude 9, Codex 9, suite guards 7, each
+provider validated on all ten of its acceptance criteria. `mypy --strict` clean over 120 source
+files; `ruff`, `black`, and pre-commit clean; the wheel carries every new module and all import
+from outside the repository root; nine existing `workflowctl` invocations are byte-identical to the
+`5d1b6be` baseline. Live tests are opt-in (`-m live_cli`, excluded from the default run by
+`addopts`), always run against disposable git repositories under `tmp_path`, and refuse loudly if a
+working directory ever resolves inside this checkout.
+
+Two process notes worth reusing. **Live provider tests must assert termination, not model
+compliance:** an early version asserted that an ambiguous task always yields `BLOCKED`, and it was
+flaky — the same prompt produced a well-formed `blocked` report on one run and unparseable output
+on another. Both terminated promptly, which is what the stage actually requires. **A skip is not a
+pass, and a precondition is better than a weakened assertion:** when Ubuntu 24.04's
+`apparmor_restrict_unprivileged_userns` blocked bubblewrap and Codex's `workspace-write` sandbox
+could not run, the test was gated on a probed precondition rather than relaxed to accept "no file
+was created" — which would have been unfalsifiable, since a Codex that had genuinely stopped
+writing would look identical. The Human Owner resolved it host-side with a scoped
+`/etc/apparmor.d/bwrap` profile, after which the test passes unchanged.
+
+Four non-blocking defects remain deferred, none fixed: the two overlapping outcome axes on
+`ProviderReport` (`verdict` and `status`, D-3, `RECOMMENDED`, for AUTO-011 to collapse); persisted
+provider artifacts having no reader and no audit linkage (D-4, `FUTURE`); no retry policy when a
+model violates the output contract (D-5, `FUTURE`); and AUTO-009's own six (D-6). All six of
+AUTO-009's are confirmed untouched.
+
+Still outstanding: there is still no production code that sequences the six agents, and
+`MVP_SCOPE.md` §4's second acceptance demonstration — a real target-repository run — remains unmet.
+This stage deliberately built the execution primitive without the lifecycle that would use it.
+AUTO-011 and every later roadmap phase remain unauthorized. No PR, merge, upstream change to any
+other branch, or stash operation was performed by this closeout.

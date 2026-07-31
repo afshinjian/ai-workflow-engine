@@ -158,9 +158,11 @@ class TestSessionIsolation:
             "sys.stdin.read()\n"
             "print(json.dumps({'verdict': 'pass', 'summary': 'IMPLEMENTATION-SECRET-REASONING'}))"
         )
+        # The QA stub answers through Codex's own channel: the file `--output-last-message` names.
         qa_body = (
             "received = sys.stdin.read()\n"
-            "print(json.dumps({'verdict': 'pass', 'summary': received}))"
+            "answer = sys.argv[sys.argv.index('--output-last-message') + 1]\n"
+            "open(answer, 'w').write(json.dumps({'verdict': 'pass', 'summary': received}))"
         )
         implementation = ClaudeCLIProvider(
             executable=stub_cli(workdir.parent, implementation_body, name="impl"),

@@ -38,11 +38,16 @@ from __future__ import annotations
 import json
 import os
 import re
+import signal
 import subprocess
+import threading
 from abc import ABC, abstractmethod
+from collections.abc import Callable
+from contextlib import suppress
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
+from typing import IO, cast
 
 from agentos_workflow.skills import (
     CommandExecution,
@@ -53,6 +58,7 @@ from agentos_workflow.skills import (
 )
 
 __all__ = [
+    "MAX_PROVIDER_STDERR_BYTES",
     "MAX_PROVIDER_STDOUT_BYTES",
     "PROVEN_PRE_SIDE_EFFECT_RETRY_LIMIT",
     "CLIProvider",
@@ -65,11 +71,14 @@ __all__ = [
     "ProviderReport",
     "ProviderResult",
     "ProviderRole",
+    "ProviderRunStatus",
     "ProviderVerdict",
     "build_provider_environment",
     "provider_failure",
     "provider_success",
     "run_provider_process",
+    "strict_json_loads",
+    "unfenced",
 ]
 
 # `MODEL_PROVIDER_CONTRACTS.md` §2: the retry budget for the *proven* pre-side-effect case only,
@@ -82,6 +91,24 @@ PROVEN_PRE_SIDE_EFFECT_RETRY_LIMIT = 3
 # so a runaway process cannot turn a report parse into unbounded memory growth. Matches the
 # report-size ceiling the Validation Skills already apply to target-repository artifacts.
 MAX_PROVIDER_STDOUT_BYTES = 8 * 1024 * 1024
+
+# stderr is bounded for the same reason and separately, because it is a separate stream with a
+# separate failure mode: a CLI that loops printing progress or a stack trace can exhaust memory
+# through stderr while stdout stays empty. The ceiling is lower because nothing parses stderr —
+# it is diagnostic evidence attached to a failure, never a report (AUTO-010).
+MAX_PROVIDER_STDERR_BYTES = 1024 * 1024
+
+# Read size for draining the child's pipes. Small enough that a limit breach is noticed promptly,
+# large enough that an ordinary report costs a couple of reads.
+_OUTPUT_READ_CHUNK_BYTES = 64 * 1024
+
+# How long a process group gets to honour SIGTERM before SIGKILL follows (AUTO-010).
+_TERMINATION_GRACE_SECONDS = 5.0
+
+# How long to wait for the pipe-draining threads to finish once the child is gone. They are
+# daemon threads reading pipes that termination has already closed, so this bounds an
+# interpreter-level hang rather than a realistic wait.
+_STREAM_JOIN_TIMEOUT_SECONDS = 10.0
 
 # An invocation identifier becomes one path segment of the isolated session directory, so it is
 # held to a single unambiguous shape. `.` and `..` are excluded by construction rather than by a
@@ -122,6 +149,28 @@ class ProviderVerdict(StrEnum):
     FAIL = "fail"
 
 
+class ProviderRunStatus(StrEnum):
+    """The terminal status every non-interactive provider execution must reach (AUTO-010).
+
+    This is the auto-mode contract's third layer. Layers one and two — the prompt's explicit
+    never-ask clauses and the mechanical non-interactivity of the process itself — make a question
+    unlikely and unanswerable respectively; this layer makes a question *invalid*. A CLI that
+    replies with conversational text instead of one of these four statuses has not produced a
+    result at all, and the runtime records a provider contract failure rather than treating the
+    text as an outcome.
+
+    It is deliberately a different axis from `ProviderVerdict`, not a replacement for it. The
+    verdict answers "did the work pass or fail"; the status answers "how did this execution
+    terminate". A `BLOCKED` run has no meaningful pass/fail, and a `COMPLETED` run that reports
+    `fail` (a QA provider finding real defects) is a perfectly successful execution.
+    """
+
+    COMPLETED = "completed"
+    COMPLETED_WITH_ASSUMPTIONS = "completed_with_assumptions"
+    BLOCKED = "blocked"
+    FAILED = "failed"
+
+
 class ProviderFailureKind(StrEnum):
     """Why an invocation failed, at a granularity the Orchestrator can branch on."""
 
@@ -132,6 +181,11 @@ class ProviderFailureKind(StrEnum):
     COMMAND_FAILED = "command_failed"
     MALFORMED_OUTPUT = "malformed_output"
     IO_ERROR = "io_error"
+    # AUTO-010: the CLI ran, produced a well-formed report, and that report itself declared the
+    # execution failed. Distinct from `COMMAND_FAILED` (the process exited non-zero) because the
+    # two need different responses: this one carries the provider's own account of what went
+    # wrong, and the process exited cleanly.
+    PROVIDER_REPORTED = "provider_reported"
 
 
 @dataclass(frozen=True)
@@ -158,6 +212,15 @@ class ProviderReport:
     `verdict` and `findings` (§3). Neither is required to fill the other's fields, and no field
     is ever inferred: an absent value stays absent rather than being defaulted into a claim the
     CLI never made.
+
+    **AUTO-010 extension.** `status`, `assumptions`, and `blocking_issues` were added for the
+    non-interactive Provider Runtime, which needs to distinguish "finished", "finished only by
+    assuming something", "could not safely continue", and "failed" — four outcomes the pass/fail
+    `verdict` cannot express, and in particular the difference between a provider that stopped
+    safely and one that stopped because it wanted to ask a question. They are the smallest
+    extension that expresses the auto-mode contract; all three are optional and default to
+    absent/empty, so every report shape AUTO-004 accepted is still accepted unchanged. The full
+    unified agent-result schema is AUTO-011's, not this stage's.
     """
 
     provider: ProviderKind
@@ -169,6 +232,9 @@ class ProviderReport:
     recommended_commit_message: str | None = None
     findings: tuple[str, ...] = ()
     execution: CommandExecution | None = None
+    status: ProviderRunStatus | None = None
+    assumptions: tuple[str, ...] = ()
+    blocking_issues: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -229,10 +295,16 @@ class ProviderExecution:
     findings that mention a credential, which are the ones an operator most needs to see. Parsing
     first and redacting each extracted value preserves both properties at once — the structure
     survives, and nothing unredacted ever leaves this module.
+
+    The two limit flags record that a stream was cut off at its ceiling rather than ending on its
+    own. They are separate from the captured text because the text is still usable evidence: what
+    was read before the ceiling is kept, and only the claim that it is *complete* is withdrawn.
     """
 
     execution: CommandExecution
     raw_stdout: str
+    stdout_limit_exceeded: bool = False
+    stderr_limit_exceeded: bool = False
 
 
 @dataclass(frozen=True)
@@ -308,6 +380,50 @@ def build_provider_environment(
     return environment
 
 
+def _reject_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    """`object_pairs_hook` that refuses an object naming the same key twice (AUTO-010).
+
+    `json.loads` silently keeps the last of a repeated key. For a *report* that is unacceptable:
+    two different values for `verdict` or `blocking_issues` is not a report with a winner, it is
+    an ambiguous document, and quietly choosing one is how a second value hides behind a first.
+    """
+    seen: set[str] = set()
+    for key, _ in pairs:
+        if key in seen:
+            raise ValueError(f"duplicate key {key!r} in provider JSON output")
+        seen.add(key)
+    return dict(pairs)
+
+
+def strict_json_loads(text: str) -> object:
+    """`json.loads` with duplicate object keys rejected.
+
+    The only JSON entry point in this package, so no adapter can parse provider output leniently.
+    """
+    return json.loads(text, object_pairs_hook=_reject_duplicate_keys)
+
+
+def unfenced(text: str) -> str:
+    """Strip a Markdown code fence wrapping a model's whole final answer, if present.
+
+    The prompt contract asks for a bare JSON object and says so explicitly, but a fenced block is
+    the single most common way a language model complies-but-not-quite, and failing an otherwise
+    perfect report over three backticks would reject the run for a formatting habit rather than for
+    anything about the work. Only a fence wrapping the *entire* answer is removed, nothing inside
+    it is rewritten, and text that is not fenced is returned byte-for-byte — so this cannot turn
+    malformed output into something that parses by accident.
+    """
+    stripped = text.strip()
+    if not stripped.startswith("```") or not stripped.endswith("```") or len(stripped) < 6:
+        return text
+    body = stripped[3:-3]
+    newline = body.find("\n")
+    if newline == -1:
+        return text
+    # Drop the info string (```json) on the opening line; keep everything after it verbatim.
+    return body[newline + 1 :]
+
+
 def _decode(raw: bytes | str | None) -> str:
     """Decode CLI output without ever failing on invalid UTF-8.
 
@@ -319,6 +435,110 @@ def _decode(raw: bytes | str | None) -> str:
     if isinstance(raw, str):
         return raw
     return raw.decode("utf-8", errors="replace")
+
+
+class _BoundedStreamReader(threading.Thread):
+    """Drain one of the child's pipes, keeping at most `limit` bytes (AUTO-010).
+
+    Draining has to happen concurrently with the wait: a pipe holds only a page or two, so a CLI
+    that writes more than that while nothing reads blocks forever, and the timeout that was
+    supposed to bound the run would be measuring a deadlock this module created.
+
+    Past the ceiling the thread keeps reading and stops keeping. Stopping the *reads* would
+    reintroduce exactly that deadlock; discarding what was already read would throw away the
+    diagnostic evidence. `on_limit_exceeded` fires once, on the transition, so the caller can
+    reclaim a process that has started producing output without end.
+    """
+
+    def __init__(self, stream: IO[bytes], limit: int, on_limit_exceeded: Callable[[], None]):
+        super().__init__(daemon=True)
+        self._stream = stream
+        self._limit = limit
+        self._on_limit_exceeded = on_limit_exceeded
+        self._chunks: list[bytes] = []
+        self._kept = 0
+        self.limit_exceeded = False
+
+    def run(self) -> None:
+        try:
+            while True:
+                chunk = self._stream.read(_OUTPUT_READ_CHUNK_BYTES)
+                if not chunk:
+                    break
+                if self.limit_exceeded:
+                    continue
+                self._kept += len(chunk)
+                self._chunks.append(chunk)
+                if self._kept > self._limit:
+                    self.limit_exceeded = True
+                    self._on_limit_exceeded()
+        except (OSError, ValueError):
+            # The pipe was closed under us — normally by the process-group termination this
+            # module just performed. Not an error: whatever was captured before the kill is still
+            # the honest record of what the CLI emitted.
+            pass
+        finally:
+            with suppress(OSError, ValueError):
+                self._stream.close()
+
+    @property
+    def data(self) -> bytes:
+        """What was captured, truncated to the ceiling this reader was given."""
+        return b"".join(self._chunks)[: self._limit]
+
+
+def _send_prompt(stdin: IO[bytes], payload: bytes) -> None:
+    """Write the one and only prompt, then close stdin (`AUTO-010` never-ask layer 2).
+
+    Closing is the mechanical half of the never-ask rule: after this, the CLI's stdin is at EOF,
+    so a provider that decides to ask a question receives an immediate end-of-input rather than
+    waiting for an answer that no one is there to give. It happens in a thread because a prompt
+    larger than the pipe buffer would otherwise block the writer before the readers start.
+
+    A `BrokenPipeError` here is an ordinary outcome, not a failure: a CLI is entitled to exit
+    without reading its input, and the exit code already records that it did.
+    """
+    try:
+        stdin.write(payload)
+        stdin.flush()
+    except (OSError, ValueError):
+        pass
+    finally:
+        with suppress(OSError, ValueError):
+            stdin.close()
+
+
+def _terminate_process_group(process: subprocess.Popen[bytes]) -> None:
+    """SIGTERM then SIGKILL the child's whole *process group*, never just the child (AUTO-010).
+
+    Killing only the direct child is what `subprocess.run(timeout=...)` does, and it is not enough
+    here. A model CLI spawns subprocesses — a test run, a language server, a sandbox helper — and
+    those are children of the child. Terminating the CLI alone leaves them running, reparented and
+    unowned, after the timeout whose entire purpose was to reclaim them. `start_new_session=True`
+    at spawn puts the CLI in its own process group precisely so this call can reach all of them
+    with one signal and no PID bookkeeping.
+
+    The SIGKILL is unconditional rather than conditional on the child surviving SIGTERM: the
+    direct child exiting politely says nothing about whether its grandchildren did, and those are
+    exactly what a bounded timeout has to reclaim. Signalling an already-empty group is a no-op.
+
+    POSIX-only, like `start_new_session` itself — the same runtime boundary the rest of this
+    engine already documents.
+    """
+    try:
+        process_group_id = os.getpgid(process.pid)
+    except OSError:
+        # Already reaped, or no permission to ask. Fall back to the child alone: there is no
+        # group id to signal, and leaving the child running would be worse than an imperfect kill.
+        with suppress(OSError):
+            process.kill()
+        return
+    with suppress(OSError):
+        os.killpg(process_group_id, signal.SIGTERM)
+    with suppress(subprocess.TimeoutExpired):
+        process.wait(timeout=_TERMINATION_GRACE_SECONDS)
+    with suppress(OSError):
+        os.killpg(process_group_id, signal.SIGKILL)
 
 
 def run_provider_process(
@@ -342,34 +562,29 @@ def run_provider_process(
     spawn failure are all ordinary outcomes recorded in the returned `CommandExecution`, so the
     audit trail has no gaps. `normalized_command_identity` is a provider/role shape, never raw
     argv, because argv is written to the audit log and a configured path can itself be sensitive.
+
+    **Why `Popen` rather than `subprocess.run` (AUTO-010).** Three of this stage's guarantees are
+    unreachable through `run`: it kills only the direct child on timeout (see
+    `_terminate_process_group`), it buffers both streams without limit (see
+    `_BoundedStreamReader`), and it offers no way to put the child in its own session. That last
+    one matters most for the never-ask rule — `start_new_session=True` detaches the child from
+    this process's controlling terminal, so a CLI that tries to open `/dev/tty` to prompt a human
+    finds no terminal to open rather than finding the operator's.
     """
     start_time = utc_now()
     try:
-        process = subprocess.run(
+        process = subprocess.Popen(
             list(argv),
-            check=False,
-            capture_output=True,
-            timeout=timeout_seconds,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             cwd=str(cwd),
             env=build_provider_environment(
                 allowed_environment_variables, session_directory=session_directory
             ),
-            input=prompt.encode("utf-8"),
-        )
-    except subprocess.TimeoutExpired as exc:
-        raw_stdout = _decode(exc.stdout)
-        return ProviderExecution(
-            execution=CommandExecution(
-                normalized_command_identity=identity,
-                start_time=start_time,
-                completion_time=utc_now(),
-                exit_code=None,
-                timeout_status=True,
-                outcome=CommandOutcome.TIMED_OUT,
-                stdout=redact_secrets(raw_stdout),
-                stderr=redact_secrets(_decode(exc.stderr)),
-            ),
-            raw_stdout=raw_stdout,
+            # No TTY is allocated and the child gets its own session, so it has no controlling
+            # terminal at all: it cannot prompt, and its whole group is killable as one unit.
+            start_new_session=True,
         )
     except OSError as exc:
         # The executable could not be spawned at all — the one case `MODEL_PROVIDER_CONTRACTS.md`
@@ -388,19 +603,60 @@ def run_provider_process(
             ),
             raw_stdout="",
         )
-    raw_stdout = _decode(process.stdout)
+
+    # `stdin`/`stdout`/`stderr` are `PIPE` above, so all three are present. The casts state that
+    # rather than asserting it: an `assert` would be a raise inside a never-raise module, and a
+    # runtime branch would be unreachable code pretending to be a real failure path.
+    stdout_reader = _BoundedStreamReader(
+        cast(IO[bytes], process.stdout),
+        MAX_PROVIDER_STDOUT_BYTES,
+        lambda: _terminate_process_group(process),
+    )
+    stderr_reader = _BoundedStreamReader(
+        cast(IO[bytes], process.stderr),
+        MAX_PROVIDER_STDERR_BYTES,
+        lambda: _terminate_process_group(process),
+    )
+    writer = threading.Thread(
+        target=_send_prompt,
+        args=(cast(IO[bytes], process.stdin), prompt.encode("utf-8")),
+        daemon=True,
+    )
+    stdout_reader.start()
+    stderr_reader.start()
+    writer.start()
+
+    timed_out = False
+    try:
+        process.wait(timeout=timeout_seconds)
+    except subprocess.TimeoutExpired:
+        timed_out = True
+        _terminate_process_group(process)
+        with suppress(subprocess.TimeoutExpired):
+            process.wait(timeout=_TERMINATION_GRACE_SECONDS)
+
+    writer.join(timeout=_STREAM_JOIN_TIMEOUT_SECONDS)
+    stdout_reader.join(timeout=_STREAM_JOIN_TIMEOUT_SECONDS)
+    stderr_reader.join(timeout=_STREAM_JOIN_TIMEOUT_SECONDS)
+
+    raw_stdout = _decode(stdout_reader.data)
     return ProviderExecution(
         execution=CommandExecution(
             normalized_command_identity=identity,
             start_time=start_time,
             completion_time=utc_now(),
-            exit_code=process.returncode,
-            timeout_status=False,
-            outcome=CommandOutcome.COMPLETED,
+            # A timed-out run reports no exit code even though termination produced one: the
+            # signal number this module chose is not the CLI's answer, and recording it as one
+            # would put a fabricated result in the audit trail.
+            exit_code=None if timed_out else process.returncode,
+            timeout_status=timed_out,
+            outcome=CommandOutcome.TIMED_OUT if timed_out else CommandOutcome.COMPLETED,
             stdout=redact_secrets(raw_stdout),
-            stderr=redact_secrets(_decode(process.stderr)),
+            stderr=redact_secrets(_decode(stderr_reader.data)),
         ),
         raw_stdout=raw_stdout,
+        stdout_limit_exceeded=stdout_reader.limit_exceeded,
+        stderr_limit_exceeded=stderr_reader.limit_exceeded,
     )
 
 
@@ -469,7 +725,7 @@ class CLIProvider(Provider):
         if precondition is not None:
             return precondition
 
-        session_directory = self._session_directory(invocation)
+        session_directory = self.session_directory(invocation)
         try:
             # `0o700`: the CLI's scratch (and its `TMPDIR`) lands here, so on a shared host no
             # other local user may read what an implementation or QA session wrote.
@@ -487,7 +743,7 @@ class CLIProvider(Provider):
             return provider_failure(self.kind, ProviderFailureKind.IO_ERROR, str(exc))
 
         execution = run_provider_process(
-            self._argv(),
+            self.argv(session_directory),
             identity=self._identity(invocation),
             prompt=invocation.prompt,
             cwd=invocation.working_directory,
@@ -495,20 +751,36 @@ class CLIProvider(Provider):
             allowed_environment_variables=self._allowed_environment_variables,
             session_directory=session_directory,
         )
-        return self._interpret(invocation, execution)
+        return self._interpret(invocation, execution, session_directory)
 
-    def _argv(self) -> tuple[str, ...]:
-        return (str(self._executable), *self._ARGV_SUFFIX)
+    def argv(self, session_directory: Path) -> tuple[str, ...]:
+        """The exact argument vector this provider will execute.
+
+        Public so that a test — and the completion report's argv evidence — can assert the real
+        vector without reaching into the class or spawning anything. It stays impossible for a
+        *caller* to influence it: every element comes from the configured executable, this
+        provider's own closed constants and enums, and the engine-owned session directory.
+        """
+        return (str(self._executable), *self._argv_suffix(session_directory))
+
+    def _argv_suffix(self, session_directory: Path) -> tuple[str, ...]:
+        """The flags appended to the executable. Overridden by adapters whose flags depend on a
+        configured mode or on this invocation's own session directory (AUTO-010)."""
+        return self._ARGV_SUFFIX
 
     def _identity(self, invocation: ProviderInvocation) -> str:
         """The audit identity: provider and role shape only, never argv and never the prompt."""
         return f"{self.kind.value}:{invocation.role.value}"
 
-    def _session_directory(self, invocation: ProviderInvocation) -> Path:
+    def session_directory(self, invocation: ProviderInvocation) -> Path:
         """This invocation's own scratch directory (`MODEL_PROVIDER_CONTRACTS.md` §5).
 
         Keyed by workflow, then provider, then invocation: two providers in the same workflow can
         never be handed the same directory, and neither can two invocations of the same provider.
+
+        Public since AUTO-010 so the Provider Runtime can persist this invocation's stdout and
+        stderr artifacts into the same isolated directory the process itself was given, without
+        either layer having to re-derive the layout the other owns.
         """
         return (
             invocation.session_root
@@ -551,7 +823,12 @@ class CLIProvider(Provider):
             )
         return None
 
-    def _interpret(self, invocation: ProviderInvocation, ran: ProviderExecution) -> ProviderResult:
+    def _interpret(
+        self,
+        invocation: ProviderInvocation,
+        ran: ProviderExecution,
+        session_directory: Path,
+    ) -> ProviderResult:
         """Turn one command execution into a report or a classified failure.
 
         The retry classification follows `MODEL_PROVIDER_CONTRACTS.md` §2 exactly: the question is
@@ -577,6 +854,25 @@ class CLIProvider(Provider):
                 retry_classification=RetryClassification.POSSIBLE_SIDE_EFFECT,
                 execution=execution,
             )
+        # Checked before the exit code, because exceeding a limit is *why* the process exited the
+        # way it did: this module killed its group. Reporting the resulting signal as a CLI
+        # failure would describe the symptom and hide the cause.
+        if ran.stdout_limit_exceeded:
+            return provider_failure(
+                self.kind,
+                ProviderFailureKind.MALFORMED_OUTPUT,
+                f"stdout exceeds {MAX_PROVIDER_STDOUT_BYTES} bytes",
+                retry_classification=RetryClassification.POSSIBLE_SIDE_EFFECT,
+                execution=execution,
+            )
+        if ran.stderr_limit_exceeded:
+            return provider_failure(
+                self.kind,
+                ProviderFailureKind.MALFORMED_OUTPUT,
+                f"stderr exceeds {MAX_PROVIDER_STDERR_BYTES} bytes",
+                retry_classification=RetryClassification.POSSIBLE_SIDE_EFFECT,
+                execution=execution,
+            )
         if execution.exit_code != 0:
             return provider_failure(
                 self.kind,
@@ -585,10 +881,13 @@ class CLIProvider(Provider):
                 retry_classification=RetryClassification.POSSIBLE_SIDE_EFFECT,
                 execution=execution,
             )
-        return self._parse_report(invocation, ran)
+        return self._parse_report(invocation, ran, session_directory)
 
     def _parse_report(
-        self, invocation: ProviderInvocation, ran: ProviderExecution
+        self,
+        invocation: ProviderInvocation,
+        ran: ProviderExecution,
+        session_directory: Path,
     ) -> ProviderResult:
         """Parse the CLI's stdout into a `ProviderReport`.
 
@@ -608,8 +907,8 @@ class CLIProvider(Provider):
                 execution=execution,
             )
         try:
-            payload = self._extract_report_payload(ran.raw_stdout)
-        except (json.JSONDecodeError, ValueError, TypeError) as exc:
+            payload = self._extract_report_payload(ran.raw_stdout, session_directory)
+        except (json.JSONDecodeError, ValueError, TypeError, OSError) as exc:
             return provider_failure(
                 self.kind,
                 ProviderFailureKind.MALFORMED_OUTPUT,
@@ -629,15 +928,19 @@ class CLIProvider(Provider):
             )
         return provider_success(report)
 
-    def _extract_report_payload(self, stdout: str) -> object:
+    def _extract_report_payload(self, stdout: str, session_directory: Path) -> object:
         """Pull the report object out of this CLI's stdout.
 
         The default is the stdout/stderr protocol this stage defines: stdout is exactly one JSON
         object matching the report schema. A CLI that wraps its answer in an envelope overrides
         this hook rather than the whole parse path, so envelope handling never leaks into the
         shared schema validation below.
+
+        `session_directory` is passed because one real CLI delivers its final message to a file
+        this engine names rather than to stdout (see `codex_cli`); an adapter that does not need
+        it ignores it.
         """
-        return json.loads(stdout)
+        return strict_json_loads(stdout)
 
 
 def _report_from_payload(
@@ -674,6 +977,23 @@ def _report_from_payload(
     if commit_message is not None and not isinstance(commit_message, str):
         raise ValueError("report 'recommended_commit_message' must be a string when present")
 
+    status = _run_status(payload)
+    assumptions = _string_tuple(payload, "assumptions")
+    blocking_issues = _string_tuple(payload, "blocking_issues")
+
+    # AUTO-010 layer 3: the two statuses that make a claim about *why* the run ended must carry
+    # the evidence for that claim. A `blocked` report with no blocking issue is the exact shape a
+    # provider produces when it wanted to ask a question and dressed the question as a status, and
+    # a `completed_with_assumptions` report with no assumption is an unrecorded assumption. Both
+    # are rejected as malformed rather than accepted as outcomes.
+    if status is ProviderRunStatus.BLOCKED and not blocking_issues:
+        raise ValueError("report status 'blocked' requires at least one 'blocking_issues' entry")
+    if status is ProviderRunStatus.COMPLETED_WITH_ASSUMPTIONS and not assumptions:
+        raise ValueError(
+            "report status 'completed_with_assumptions' requires at least one "
+            "'assumptions' entry"
+        )
+
     return ProviderReport(
         provider=provider,
         role=role,
@@ -686,7 +1006,32 @@ def _report_from_payload(
         ),
         findings=_string_tuple(payload, "findings"),
         execution=execution,
+        status=status,
+        assumptions=assumptions,
+        blocking_issues=blocking_issues,
     )
+
+
+def _run_status(payload: dict[str, object]) -> ProviderRunStatus | None:
+    """Read the optional auto-mode terminal status (AUTO-010).
+
+    Optional at *this* layer and required at the runtime's: a report carrying no status is still a
+    valid AUTO-004 report, which is why parsing does not reject it here, but the Provider Runtime
+    demands one because an execution with no terminal status has not satisfied the auto-mode
+    contract. An unrecognized status string is always an error — never coerced, and never treated
+    as absent, since the difference between "said nothing" and "said something this engine does
+    not understand" is exactly the difference a strict parser exists to preserve.
+    """
+    raw = payload.get("status")
+    if raw is None:
+        return None
+    if not isinstance(raw, str):
+        raise ValueError("report 'status' must be a string when present")
+    try:
+        return ProviderRunStatus(raw)
+    except ValueError:
+        permitted = ", ".join(repr(member.value) for member in ProviderRunStatus)
+        raise ValueError(f"report 'status' must be one of {permitted}, got {raw!r}") from None
 
 
 def _string_tuple(payload: dict[str, object], key: str) -> tuple[str, ...]:

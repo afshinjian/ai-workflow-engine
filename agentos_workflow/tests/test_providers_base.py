@@ -5,14 +5,13 @@ each test points the provider at a small stub script that reads the prompt on st
 report on stdout. That makes the environment-allowlist and timeout tests meaningful — they
 observe what a real child process actually received and how the real timeout actually fires —
 while still requiring no Claude or Codex CLI to be installed. Tests that need to assert on argv
-itself patch `subprocess.run` directly, since argv is not observable any other way.
+read the provider's own public `argv()`, which is the exact vector `invoke` executes.
 """
 
 from __future__ import annotations
 
 import json
 import os
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -138,23 +137,16 @@ class TestInterface:
         assert result.unwrap().summary == "the exact prompt"
 
     def test_argv_is_provider_owned_and_excludes_the_prompt(
-        self, workdir: Path, sessions: Path, monkeypatch: pytest.MonkeyPatch
+        self, workdir: Path, sessions: Path
     ) -> None:
-        seen: dict[str, Any] = {}
-
-        def fake_run(argv: list[str], **kwargs: Any) -> subprocess.CompletedProcess[bytes]:
-            seen["argv"] = argv
-            seen["input"] = kwargs["input"]
-            return subprocess.CompletedProcess(argv, 0, json.dumps(REPORT).encode(), b"")
-
-        monkeypatch.setattr(subprocess, "run", fake_run)
+        # Read from the provider's own public `argv()` rather than by patching `subprocess`: it is
+        # the exact vector `invoke` executes, so this asserts the real thing instead of a stand-in.
         executable = workdir.parent / "claude"
         provider = _StubProvider(executable=executable, timeout_seconds=30)
-        provider.invoke(invocation(workdir, sessions, prompt="secret-ish prompt"))
+        argv = provider.argv(sessions / "wf-1" / "claude_cli" / "inv-1")
 
-        assert seen["argv"] == [str(executable), "--stub"]
-        assert "secret-ish prompt" not in " ".join(seen["argv"])
-        assert seen["input"] == b"secret-ish prompt"
+        assert list(argv) == [str(executable), "--stub"]
+        assert "secret-ish prompt" not in " ".join(argv)
 
     def test_working_directory_is_the_target_repository(
         self, workdir: Path, sessions: Path
@@ -387,29 +379,26 @@ class TestReportParsing:
         assert report.findings == ("a", "b")
 
     def test_oversized_stdout_is_refused_rather_than_parsed(
-        self, workdir: Path, sessions: Path, monkeypatch: pytest.MonkeyPatch
+        self, workdir: Path, sessions: Path
     ) -> None:
-        oversized = json.dumps(REPORT).encode() + b" " * (MAX_PROVIDER_STDOUT_BYTES + 1)
-
-        def fake_run(argv: list[str], **kwargs: Any) -> subprocess.CompletedProcess[bytes]:
-            return subprocess.CompletedProcess(argv, 0, oversized, b"")
-
-        monkeypatch.setattr(subprocess, "run", fake_run)
-        provider = _StubProvider(executable=workdir / "cli", timeout_seconds=30)
+        # A real child really writing past the ceiling, so this exercises the streaming cap and
+        # the termination it triggers rather than a stand-in that hands over a large buffer.
+        body = (
+            "sys.stdin.read()\n"
+            "sys.stdout.buffer.write(b'{}')\n"
+            f"sys.stdout.buffer.write(b' ' * ({MAX_PROVIDER_STDOUT_BYTES} + 1))\n"
+            "sys.stdout.buffer.flush()\n"
+        )
+        provider = _StubProvider(executable=stub_cli(workdir.parent, body), timeout_seconds=30)
         result = provider.invoke(invocation(workdir, sessions))
 
         assert result.error is not None
         assert result.error.kind is ProviderFailureKind.MALFORMED_OUTPUT
         assert "exceeds" in result.error.detail
 
-    def test_invalid_utf8_output_does_not_raise(
-        self, workdir: Path, sessions: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        def fake_run(argv: list[str], **kwargs: Any) -> subprocess.CompletedProcess[bytes]:
-            return subprocess.CompletedProcess(argv, 0, b"\xff\xfe not utf-8", b"")
-
-        monkeypatch.setattr(subprocess, "run", fake_run)
-        provider = _StubProvider(executable=workdir / "cli", timeout_seconds=30)
+    def test_invalid_utf8_output_does_not_raise(self, workdir: Path, sessions: Path) -> None:
+        body = "sys.stdin.read()\nsys.stdout.buffer.write(b'\\xff\\xfe not utf-8')"
+        provider = _StubProvider(executable=stub_cli(workdir.parent, body), timeout_seconds=30)
         result = provider.invoke(invocation(workdir, sessions))
         assert result.error is not None
         assert result.error.kind is ProviderFailureKind.MALFORMED_OUTPUT

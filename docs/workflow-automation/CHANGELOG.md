@@ -5,12 +5,34 @@
 | **Title** | AgentOS Workflow Automation — Changelog |
 | **Purpose** | Program-level changelog, newest first. |
 | **Status** | Draft |
-| **Version** | 2.17 |
+| **Version** | 2.18 |
 | **Owner** | Documentation & Governance session |
 | **Dependencies** | None |
 | **Related Documents** | `docs/CHANGELOG.md` (repository-level; cross-posted there) |
 
 ## [Unreleased]
+
+### Added
+- AUTO-010 (2026-07-31, implementation): `agentos_workflow/providers/runtime.py` delivers the
+  public Provider Runtime boundary `WorkflowService.invoke_provider -> ProviderRuntime.invoke ->
+  ClaudeCLIProvider / CodexCLIProvider -> run_provider_process`. It creates no second provider
+  framework: `ProviderInvocation`, `ProviderReport`, `ProviderFailure`, the environment allowlist,
+  the session-directory layout, and the retry classification are all AUTO-004's, reused unchanged.
+  The runtime owns only the auto-mode prompt contract, the closed target-to-provider mapping
+  (`CLAUDE`, `CODEX`), and the terminal-result contract. `ProviderRunResult` carries `provider`,
+  `status`, `summary`, `session_id`, `started_at`, `completed_at`, `exit_code`, both output
+  artifacts, `assumptions`, `blocking_issues`, `failure`, and the parsed report; its invariants are
+  enforced on construction, and the provider-caused forms of the same violation are rejected during
+  report parsing instead. `ProviderReport` gained three optional fields (`status`, `assumptions`,
+  `blocking_issues`) as the smallest extension expressing the auto-mode outcomes — the AUTO-011
+  unified agent result was **not** implemented. `select_live_provider` moved verbatim from the
+  package `__init__` into `providers/selection.py` so the runtime can select a provider without
+  importing the package that re-exports it; the registry's contents and typing are unchanged.
+  Verified argv, checked against the installed binaries rather than documentation:
+  `claude --print --output-format json --permission-mode <mode>` (2.1.220) and
+  `codex exec --json --sandbox <mode> -c approval_policy="never" --output-last-message <file>`
+  (codex-cli 0.146.0). Account selection is the real executable plus an allowlisted
+  `CLAUDE_CONFIG_DIR`/`CODEX_HOME`; shell aliases are structurally unusable under `shell=False`.
 
 ### Added
 - AUTO-009 (2026-07-31, implementation): `agentos_workflow/service.py` and

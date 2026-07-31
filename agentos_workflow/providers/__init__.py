@@ -1,31 +1,28 @@
-"""Model Providers (`MODEL_PROVIDER_CONTRACTS.md`) and the live provider-selection registry.
+"""Model Providers (`MODEL_PROVIDER_CONTRACTS.md`) and the non-interactive Provider Runtime.
 
 A Provider wraps exactly one local CLI executable, is invoked as a subprocess with a bounded
 timeout, and returns a structured report to the calling Agent. It never authorizes a workflow,
 never decides a machine-gate outcome, and never invokes a Skill (§1) — this package imports
 neither the Skill families nor the Orchestrator, so those are unrepresentable rather than merely
 forbidden. The interface, the shared subprocess primitive, and the report schema live in `base`;
-each adapter contributes only its CLI's identity, argv shape, and stdout transport.
+each adapter contributes only its CLI's identity, argv shape, and stdout transport; the closed
+permission and sandbox enums live in `config.policy`, where the configuration schema can reach
+them without importing this package.
 
-**Live selection is the boundary that keeps `MockProvider` out of real workflows**
-(`MVP_SCOPE.md` §3, `MODEL_PROVIDER_CONTRACTS.md` §4). `select_live_provider` maps a *role* to a
-provider and is typed to return a `CLIProvider`; `MockProvider` subclasses `Provider` directly and
-is absent from the registry below, so it is type-impossible to obtain one from this path rather
-than merely unlikely. `mock` is imported nowhere in this module or in `base`/`claude_cli`/
-`codex_cli` — only by tests and dry-run code that construct one explicitly, by hand.
+`runtime` (AUTO-010) is the public boundary above all of it::
 
-The default role assignment (Claude = implementation and repair, Codex = QA) lives in exactly one
-place, the registry below, so `MODEL_PROVIDER_CONTRACTS.md` §8's "adding a provider is additive"
-holds literally: a third CLI is a new `CLIProvider` subclass plus one registry entry.
+    WorkflowService -> ProviderRuntime.invoke(...) -> ClaudeCLIProvider / CodexCLIProvider
+
+`selection` holds the live role-to-provider registry that keeps `MockProvider` structurally out of
+real workflows; both it and the runtime are re-exported here, so the package's public surface is
+unchanged for callers that import from `agentos_workflow.providers` directly.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
-from types import MappingProxyType
-
-from agentos_workflow.config.schema import WorkflowConfig
+from agentos_workflow.config.policy import ClaudePermissionMode, CodexSandboxMode
 from agentos_workflow.providers.base import (
+    MAX_PROVIDER_STDERR_BYTES,
     MAX_PROVIDER_STDOUT_BYTES,
     PROVEN_PRE_SIDE_EFFECT_RETRY_LIMIT,
     CLIProvider,
@@ -38,21 +35,37 @@ from agentos_workflow.providers.base import (
     ProviderReport,
     ProviderResult,
     ProviderRole,
+    ProviderRunStatus,
     ProviderVerdict,
     build_provider_environment,
     provider_failure,
     provider_success,
     run_provider_process,
+    strict_json_loads,
+    unfenced,
 )
 from agentos_workflow.providers.claude_cli import ClaudeCLIProvider
 from agentos_workflow.providers.codex_cli import CodexCLIProvider
+from agentos_workflow.providers.runtime import (
+    AUTO_MODE_PROMPT_CONTRACT,
+    ProviderRunRequest,
+    ProviderRunResult,
+    ProviderRuntime,
+    ProviderRuntimeTarget,
+    build_provider_prompt,
+)
+from agentos_workflow.providers.selection import live_provider_roles, select_live_provider
 
 __all__ = [
+    "AUTO_MODE_PROMPT_CONTRACT",
+    "MAX_PROVIDER_STDERR_BYTES",
     "MAX_PROVIDER_STDOUT_BYTES",
     "PROVEN_PRE_SIDE_EFFECT_RETRY_LIMIT",
     "CLIProvider",
     "ClaudeCLIProvider",
+    "ClaudePermissionMode",
     "CodexCLIProvider",
+    "CodexSandboxMode",
     "Provider",
     "ProviderExecution",
     "ProviderFailure",
@@ -62,45 +75,19 @@ __all__ = [
     "ProviderReport",
     "ProviderResult",
     "ProviderRole",
+    "ProviderRunRequest",
+    "ProviderRunResult",
+    "ProviderRunStatus",
+    "ProviderRuntime",
+    "ProviderRuntimeTarget",
     "ProviderVerdict",
     "build_provider_environment",
+    "build_provider_prompt",
     "live_provider_roles",
     "provider_failure",
     "provider_success",
     "run_provider_process",
     "select_live_provider",
+    "strict_json_loads",
+    "unfenced",
 ]
-
-# The complete set of providers reachable by a real authorized workflow. Typed to `CLIProvider`,
-# which is what makes the `MockProvider` exclusion structural: adding a mock entry here would not
-# type-check.
-_LIVE_PROVIDER_FACTORIES: Mapping[ProviderRole, Callable[[WorkflowConfig], CLIProvider]] = (
-    MappingProxyType(
-        {
-            ProviderRole.IMPLEMENTATION: ClaudeCLIProvider.from_config,
-            ProviderRole.REPAIR: ClaudeCLIProvider.from_config,
-            ProviderRole.QA: CodexCLIProvider.from_config,
-        }
-    )
-)
-
-
-def live_provider_roles() -> tuple[ProviderRole, ...]:
-    """Every role a real authorized workflow can select a provider for."""
-    return tuple(_LIVE_PROVIDER_FACTORIES)
-
-
-def select_live_provider(role: ProviderRole, config: WorkflowConfig) -> CLIProvider:
-    """Return the provider a real authorized workflow uses for `role`.
-
-    A fresh instance per call, never a cached or shared one: two invocations in the same workflow
-    must not share an in-process object (`MODEL_PROVIDER_CONTRACTS.md` §5). The instances are
-    stateless anyway, so this costs nothing and removes the possibility that a future field on a
-    provider quietly becomes cross-invocation state.
-
-    Raises `KeyError` for an unknown role. That is deliberate and is the one place this package
-    raises: an unmapped role is a programming error in the Orchestrator, not a workflow outcome a
-    machine gate could sensibly branch on, and returning a typed failure would let it be logged
-    and stepped over instead of fixed.
-    """
-    return _LIVE_PROVIDER_FACTORIES[role](config)

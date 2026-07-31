@@ -10,7 +10,6 @@ therefore concentrate on exactly those three things, plus the role→provider as
 from __future__ import annotations
 
 import json
-import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -69,33 +68,43 @@ def sessions(tmp_path: Path) -> Path:
     return tmp_path / "sessions"
 
 
-def captured_argv(
-    provider: Any, workdir: Path, sessions: Path, monkeypatch: pytest.MonkeyPatch
-) -> list[str]:
-    seen: list[str] = []
+SESSION_DIRECTORY = Path("/sessions/wf-1/provider/inv-1")
 
-    def fake_run(argv: list[str], **kwargs: Any) -> subprocess.CompletedProcess[bytes]:
-        seen.extend(argv)
-        return subprocess.CompletedProcess(
-            argv, 0, json.dumps({"verdict": "pass", "summary": "s"}).encode(), b""
-        )
 
-    monkeypatch.setattr(subprocess, "run", fake_run)
-    provider.invoke(invocation(workdir, sessions))
-    return seen
+def codex_event_stream(report: dict[str, Any], *, progress: list[str] | None = None) -> list[str]:
+    """A Codex `--json` event stream ending in the agent's final message.
+
+    Shaped after the event grammar a live `codex exec --json` invocation actually emitted
+    (`thread.started`, `turn.started`, ..., recorded in AUTO-010), with the final answer carried
+    by an `item.completed` event whose item is an `agent_message`.
+    """
+    return [
+        json.dumps({"type": "thread.started", "thread_id": "t-1"}),
+        json.dumps({"type": "turn.started"}),
+        *(progress or []),
+        json.dumps(
+            {
+                "type": "item.completed",
+                "item": {"type": "agent_message", "text": json.dumps(report)},
+            }
+        ),
+        json.dumps({"type": "turn.completed"}),
+    ]
 
 
 class TestClaudeCLIProvider:
-    def test_kind_and_fixed_argv(
-        self, workdir: Path, sessions: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_kind_and_fixed_argv(self) -> None:
         provider = ClaudeCLIProvider(executable=Path("/usr/local/bin/claude"), timeout_seconds=60)
         assert provider.kind is ProviderKind.CLAUDE_CLI
-        assert captured_argv(provider, workdir, sessions, monkeypatch) == [
+        # Verified against `claude --help` (2.1.220) in AUTO-010. The permission mode is always
+        # present and always explicit -- never left to the operator's own settings file.
+        assert list(provider.argv(SESSION_DIRECTORY)) == [
             "/usr/local/bin/claude",
             "--print",
             "--output-format",
             "json",
+            "--permission-mode",
+            "plan",
         ]
 
     def test_from_config_binds_the_claude_fields(self, tmp_path: Path) -> None:
@@ -140,15 +149,20 @@ class TestClaudeCLIProvider:
 
 
 class TestCodexCLIProvider:
-    def test_kind_and_fixed_argv(
-        self, workdir: Path, sessions: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_kind_and_fixed_argv(self) -> None:
         provider = CodexCLIProvider(executable=Path("/usr/local/bin/codex"), timeout_seconds=60)
         assert provider.kind is ProviderKind.CODEX_CLI
-        assert captured_argv(provider, workdir, sessions, monkeypatch) == [
+        # Verified against `codex exec --help` (codex-cli 0.146.0) in AUTO-010.
+        assert list(provider.argv(SESSION_DIRECTORY)) == [
             "/usr/local/bin/codex",
             "exec",
             "--json",
+            "--sandbox",
+            "read-only",
+            "-c",
+            'approval_policy="never"',
+            "--output-last-message",
+            str(SESSION_DIRECTORY / "codex-last-message.txt"),
         ]
 
     def test_from_config_binds_the_codex_fields_and_its_own_timeout(self, tmp_path: Path) -> None:
@@ -160,14 +174,46 @@ class TestCodexCLIProvider:
         assert provider.timeout_seconds == 900
         assert provider.timeout_seconds != config.claude_cli_timeout_seconds
 
-    def test_last_json_object_in_an_event_stream_wins(self, workdir: Path, sessions: Path) -> None:
-        # Earlier lines are progress events; treating one as the verdict would report on an
+    def test_the_answer_file_is_the_primary_channel(self, workdir: Path, sessions: Path) -> None:
+        # `--output-last-message` names the file; the adapter reads the answer from there rather
+        # than reconstructing it from the CLI's own event envelope.
+        report = {"verdict": "fail", "summary": "from the answer file", "findings": ["defect"]}
+        body = (
+            "sys.stdin.read()\n"
+            "answer = sys.argv[sys.argv.index('--output-last-message') + 1]\n"
+            f"open(answer, 'w').write({json.dumps(report)!r})\n"
+        )
+        provider = CodexCLIProvider(executable=stub_cli(workdir.parent, body), timeout_seconds=30)
+        parsed = provider.invoke(invocation(workdir, sessions, role=ProviderRole.QA)).unwrap()
+
+        assert parsed.verdict is ProviderVerdict.FAIL
+        assert parsed.summary == "from the answer file"
+        assert parsed.findings == ("defect",)
+
+    def test_the_answer_file_is_written_inside_this_invocations_session_directory(
+        self, workdir: Path, sessions: Path
+    ) -> None:
+        body = (
+            "sys.stdin.read()\n"
+            "answer = sys.argv[sys.argv.index('--output-last-message') + 1]\n"
+            'open(answer, \'w\').write(\'{"verdict": "pass", "summary": "ok"}\')\n'
+        )
+        provider = CodexCLIProvider(executable=stub_cli(workdir.parent, body), timeout_seconds=30)
+        provider.invoke(invocation(workdir, sessions, invocation_id="inv-7")).unwrap()
+
+        expected = sessions / "wf-1" / "codex_cli" / "inv-7" / "codex-last-message.txt"
+        assert expected.is_file()
+
+    def test_final_agent_message_in_the_event_stream_is_the_fallback(
+        self, workdir: Path, sessions: Path
+    ) -> None:
+        # When no answer file was written, the last `agent_message` item -- never a progress
+        # event -- carries the report. Reading a progress event as the verdict would report on an
         # unfinished run.
-        lines = [
-            json.dumps({"type": "started"}),
-            json.dumps({"verdict": "pass", "summary": "intermediate"}),
-            json.dumps({"verdict": "fail", "summary": "final", "findings": ["defect"]}),
-        ]
+        lines = codex_event_stream(
+            {"verdict": "fail", "summary": "final", "findings": ["defect"]},
+            progress=[json.dumps({"type": "item.completed", "item": {"type": "reasoning"}})],
+        )
         body = "sys.stdin.read()\n" + "".join(f"print({line!r})\n" for line in lines)
         provider = CodexCLIProvider(executable=stub_cli(workdir.parent, body), timeout_seconds=30)
         report = provider.invoke(invocation(workdir, sessions, role=ProviderRole.QA)).unwrap()
@@ -176,19 +222,68 @@ class TestCodexCLIProvider:
         assert report.summary == "final"
         assert report.findings == ("defect",)
 
+    def test_the_answer_file_wins_over_the_event_stream(
+        self, workdir: Path, sessions: Path
+    ) -> None:
+        lines = codex_event_stream({"verdict": "pass", "summary": "from the stream"})
+        body = (
+            "sys.stdin.read()\n"
+            + "".join(f"print({line!r})\n" for line in lines)
+            + "answer = sys.argv[sys.argv.index('--output-last-message') + 1]\n"
+            'open(answer, \'w\').write(\'{"verdict": "pass", "summary": "from the file"}\')\n'
+        )
+        provider = CodexCLIProvider(executable=stub_cli(workdir.parent, body), timeout_seconds=30)
+        assert provider.invoke(invocation(workdir, sessions)).unwrap().summary == "from the file"
+
     def test_non_json_progress_lines_are_skipped(self, workdir: Path, sessions: Path) -> None:
+        lines = codex_event_stream({"verdict": "pass", "summary": "done"})
         body = (
             "sys.stdin.read()\n"
             "print('thinking...')\n"
-            "print('still working')\n"
-            f"print({json.dumps({'verdict': 'pass', 'summary': 'done'})!r})\n"
+            "print('still working')\n" + "".join(f"print({line!r})\n" for line in lines)
         )
         provider = CodexCLIProvider(executable=stub_cli(workdir.parent, body), timeout_seconds=30)
         assert provider.invoke(invocation(workdir, sessions)).unwrap().summary == "done"
 
-    def test_stdout_with_no_json_object_is_malformed_never_an_assumed_pass(
+    def test_the_fallback_is_pinned_to_real_captured_codex_output(
         self, workdir: Path, sessions: Path
     ) -> None:
+        """Verbatim event lines from a real authenticated `codex exec --json` run (0.146.0).
+
+        Captured during AUTO-010 live validation and reproduced here byte-for-byte except for the
+        agent message's own text, which carries the report. This is what turns the JSONL fallback
+        from a plausible reading of the CLI's schema into a pinned one.
+
+        It also demonstrates the defect this adapter was rewritten to fix: the **last** JSON object
+        on stdout is `turn.completed`, not the report. AUTO-004's "take the last decodable object"
+        parser would have handed that envelope to the report validator on every real run.
+        """
+        report = {"verdict": "pass", "summary": "captured", "findings": []}
+        captured = [
+            '{"type":"thread.started","thread_id":"019fb95d-453d-7552-81aa-9848affac44e"}',
+            '{"type":"turn.started"}',
+            json.dumps(
+                {
+                    "type": "item.completed",
+                    "item": {"id": "item_0", "type": "agent_message", "text": json.dumps(report)},
+                }
+            ),
+            '{"type":"turn.completed","usage":{"input_tokens":13933,"cached_input_tokens":11008,'
+            '"cache_write_input_tokens":0,"output_tokens":5,"reasoning_output_tokens":0}}',
+        ]
+        assert json.loads(captured[-1])["type"] == "turn.completed"
+
+        body = "sys.stdin.read()\n" + "".join(f"print({line!r})\n" for line in captured)
+        provider = CodexCLIProvider(executable=stub_cli(workdir.parent, body), timeout_seconds=30)
+        parsed = provider.invoke(invocation(workdir, sessions, role=ProviderRole.QA)).unwrap()
+
+        assert parsed.verdict is ProviderVerdict.PASS
+        assert parsed.summary == "captured"
+
+    def test_stdout_with_no_agent_message_is_malformed_never_an_assumed_pass(
+        self, workdir: Path, sessions: Path
+    ) -> None:
+        # Neither an answer file nor a final agent message: an error, never an assumed pass.
         body = "sys.stdin.read()\nprint('no structured output at all')"
         provider = CodexCLIProvider(executable=stub_cli(workdir.parent, body), timeout_seconds=30)
         result = provider.invoke(invocation(workdir, sessions))
