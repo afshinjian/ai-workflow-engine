@@ -293,7 +293,7 @@ message are byte-identical.
 
 ## AUTO-009
 
-Status: Current
+Status: Done
 
 Registered and authorized by the Human Owner as the single `Current` task: the first public
 application-service boundary for the automated workflow engine. `WorkflowService` exposes exactly
@@ -302,3 +302,9 @@ audit, report, and configuration components, and an additive `workflowctl auto` 
 sub-application surfaces the same four. Read-only by construction: no agent execution, no Git or
 GitHub mutation, no write lock, no state transition. Implementation and approval remain separate
 phases; AUTO-010 is not authorized.
+
+**Closed `Current -> Done` on 2026-07-31** after a Human-Owner-required twelve-point scope, API,
+and read-only integrity verification, all of which passed. The four-operation `WorkflowService`
+and the four-command `workflowctl auto` sub-application are delivered and read-only by
+construction; 3,151 tests pass; `mypy --strict` clean over 117 source files. Six non-blocking
+defects remain deferred. AUTO-010 is not authorized.

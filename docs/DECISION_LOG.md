@@ -26,6 +26,48 @@ together with the generated closeout records in one local commit.
 push, merge, authorize a successor task, change branches, alter upstream, or mutate
 stashes.
 
+## 2026-07-31 — Human Owner approved and closed AUTO-009
+
+**Decision:** The Human Owner approved AUTO-009 for finalization and required a final twelve-point
+scope, API, and read-only integrity verification before any commit. All twelve passed, and the
+Human Owner authorized the implementation and closeout commit and the push of
+`feature/auto-009-workflow-service`. Registry state moves `IN_PROGRESS -> COMPLETE`; task status
+moves `Current -> Done`.
+
+**What was verified, and how.** The read-only claim was not accepted on inspection. Every mutation
+channel the service could conceivably reach was replaced with a function that raises —
+`RepositoryLock.acquire`, `__enter__`, and `release`; `subprocess.run` and `Popen`; `os.system`,
+`os.fork`, and `os.posix_spawn`; `StateStore.record_transition` and `record_command_execution`; and
+all six `skills.reporting` writers — and all six operation invocations completed without reaching
+any of them. In the same run, a digest over every path, mode, mtime, and byte under the state
+directory, the audit directory, *and the target repository* was identical before and after each
+operation. AST assertions confirm the service module imports no lock or session symbol and calls no
+write method. Compatibility was proven by byte-comparing fourteen existing command invocations
+against a worktree at the `98acc195` baseline: thirteen identical; the fourteenth, `workflowctl
+--help`, gains the intended `auto` group and nothing else.
+
+**Two design calls the Human Owner accepted rather than deferred.** (A3) `auto audit` returns the
+two record schemas `AUDIT_MODEL.md` sections 2-3 define and deliberately excludes the Skill-level
+`audit.jsonl` event log, whose events are free-form dicts that would have weakened the typed-result
+guarantee; the gap is recorded as deferred defect D4 and becomes real only once the Orchestrator
+emits Skill events in a live run. (A4) `WorkflowNotFoundError` and `ReportNotFoundError` were added
+rather than reusing `MissingPersistedStateError`, because that and its siblings are `ResumeError`
+subclasses whose meaning is bound to resuming a workflow — reusing one would have made a read
+report a resume attempt that never happened. Both new errors inherit only from
+`WorkflowServiceError`, and their CLI mapping is identical to that of a pre-existing operational
+error: exit 2 with `ERROR: ` on stderr and empty stdout under contract v1, exit 1 with a single
+error envelope on stdout and empty stderr under v2.
+
+**Alternatives considered:** committing the registration and the implementation as one commit. Two
+were used instead, following the GOV-AUTO-06 and GOV-AUTO-07 precedent, so that the authorization
+record exists as a commit that contains no implementation and cannot be read as having been written
+after the fact.
+
+**Boundaries:** This decision approves, closes, and publishes only AUTO-009, and publication means
+pushing the stage branch — **no PR was opened and no merge was performed**. It authorizes no
+successor: AUTO-010 and every later roadmap phase remain unauthorized. The six non-blocking defects
+AUTO-009 recorded (D1-D6) remain deferred and explicitly unauthorized to fix; none was touched.
+
 ## 2026-07-31 — Human Owner registered and authorized AUTO-009
 
 **Decision:** The Human Owner registered and authorized `AUTO-009 — WorkflowService boundary and

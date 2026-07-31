@@ -20,6 +20,16 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
   contracted Skills through the production registry. Capability contracts are unchanged.
 
 ### Added
+- AUTO-009 (2026-07-31, implementation): the engine's first public application-service boundary.
+  `agentos_workflow.service.WorkflowService` exposes exactly four read-only operations — `status`,
+  `list`, `audit`, `report` — returning frozen typed results over the existing state, audit,
+  report, and configuration components, and `agentos_workflow.cli_auto` surfaces the same four as
+  an additive `workflowctl auto` sub-application. Read-only by construction: no write lock, no
+  state transition, no subprocess, no agent or provider invocation, no Git or GitHub mutation. Two
+  supporting read-only primitives were added to the modules that already own the corresponding
+  storage layout — `StateStore.list_workflow_ids()` and `skills.reporting.read_reports()` — so the
+  descriptor-relative `O_NOFOLLOW` confinement discipline is not duplicated. `workflowctl --help`
+  gains an `auto` group; every other existing command's output is byte-identical.
 - AUTO-009 (2026-07-31): registered and explicitly authorized by the Human Owner as the first
   public application-service boundary for the automated workflow engine — `WorkflowService` with
   exactly four read-only operations (`status`, `list`, `audit`, `report`) and the additive

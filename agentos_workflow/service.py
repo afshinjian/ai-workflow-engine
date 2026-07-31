@@ -1,0 +1,403 @@
+"""The public application-service boundary for the workflow engine (AUTO-009).
+
+The engine has had a state machine, append-only persistence, Skills, Model Providers, and Agents
+since AUTO-002..AUTO-006, but no boundary at which any of it could be *observed* by something
+outside the package. This module is that boundary's first half; `agentos_workflow.cli_auto` is the
+second::
+
+    workflowctl auto  ->  WorkflowService  ->  agentos_workflow read-only state,
+                                               audit, report, and configuration APIs
+
+`WorkflowService` exposes exactly four operations — `status`, `list`, `audit`, `report` — and all
+four are read-only. That is a structural property, not a convention this module asks callers to
+respect:
+
+* it holds a `StateStore`, never a `RepositoryLock` and never a `WorkflowSession`, so there is no
+  object here through which a write lock could be acquired or a transition recorded;
+* every store call it makes is a documented reader (`read_transitions`, `read_command_executions`,
+  `current_state`, `list_workflow_ids`), each of which opens its file `O_RDONLY` through the
+  descriptor-relative `O_NOFOLLOW` walk `state_store.py` owns;
+* report retrieval goes through `skills.reporting.read_reports`, the read counterpart of the four
+  generators, which creates no directory, creates no file, and never regenerates or rewrites an
+  artifact;
+* nothing here runs an Agent, spawns a subprocess, touches Git or GitHub, prompts, or formats for
+  a terminal.
+
+It also owns no persistence, parsing, validation, or confinement logic of its own. Every rule that
+governs where a record may live, whether a history is replayable, and what a malformed record
+means is enforced by the components below it and surfaces through this façade unchanged: a
+`StateStoreCorruptionError`, `StateStorePathConfinementError`, `ConfigurationNotFoundError`, or
+`ConfigurationRepositoryMismatchError` raised down there is raised out of here, not translated
+into something weaker. The two errors this module adds (`WorkflowNotFoundError`,
+`ReportNotFoundError`) exist only because no pre-existing error means "this read-only lookup found
+nothing" — the closest candidates, `MissingPersistedStateError` and its siblings, are `ResumeError`
+subclasses whose meaning is bound to resuming a workflow, which is not what happened here.
+
+Results are typed models rather than dictionaries so that the CLI's JSON contract is a projection
+of a checked shape instead of a hand-assembled one, and so a caller that is not a CLI gets
+something it can hold onto.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict
+
+from agentos_workflow.config.loader import load_config
+from agentos_workflow.config.schema import WorkflowConfig
+from agentos_workflow.orchestrator.engine import TERMINAL_STATES
+from agentos_workflow.orchestrator.state_store import (
+    CommandExecutionRecord,
+    StateStore,
+    StateTransitionRecord,
+)
+from agentos_workflow.skills import SkillFailure
+from agentos_workflow.skills.reporting import PersistedReport, read_reports
+
+__all__ = [
+    "AuditResult",
+    "ReportArtifactView",
+    "ReportNotFoundError",
+    "ReportResult",
+    "RepositoryContext",
+    "StatusResult",
+    "WorkflowListResult",
+    "WorkflowNotFoundError",
+    "WorkflowService",
+    "WorkflowServiceError",
+    "WorkflowStatus",
+    "WorkflowSummary",
+    "open_workflow_service",
+]
+
+
+class WorkflowServiceError(Exception):
+    """Base error for the read-only service boundary.
+
+    Deliberately not a subclass of `StateStoreError`, `ConfigurationError`, or `ResumeError`: those
+    taxonomies say something about persistence, configuration, or resumption respectively, and a
+    lookup that simply found nothing is none of the three. Errors raised by those components pass
+    through this façade unchanged rather than being rewrapped in this one.
+
+    `skill_failure` is the one exception to that pass-through rule, and it is a shape difference
+    rather than a translation: Skills never raise (`SKILL_CONTRACTS.md` §7), they return a typed
+    `SkillFailure`, so a Skill-level problem reaching a boundary whose contract *is* to raise has
+    to change form. It changes form without losing anything — the original `skill`, `kind`, and
+    `detail` are carried here intact and are still branchable by a caller that wants them.
+    """
+
+    def __init__(self, message: str, *, skill_failure: SkillFailure | None = None) -> None:
+        super().__init__(message)
+        self.skill_failure = skill_failure
+
+
+class WorkflowNotFoundError(WorkflowServiceError):
+    """Raised when a workflow has no persisted transition history under the configured storage.
+
+    Never an empty or invented result: a workflow the engine has not recorded is absent, and
+    reporting it as, say, a workflow in state `CREATED` would fabricate a fact the audit trail does
+    not contain.
+    """
+
+
+class ReportNotFoundError(WorkflowServiceError):
+    """Raised when a specifically requested report kind has no persisted artifact.
+
+    Only raised when the caller named a `report_kind`. Asking for *all* of a workflow's reports and
+    finding none is an empty result, not an error — a workflow that has not reached a reporting
+    stage legitimately has nothing to show.
+    """
+
+
+class _ServiceModel(BaseModel):
+    """`extra="forbid"`, matching every other record model in this package."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+
+class RepositoryContext(_ServiceModel):
+    """The configured target-repository context, as loaded and validated by the strict schema.
+
+    A projection of `WorkflowConfig`, not a re-parse of it: the fields below are the ones that
+    identify *which* repository and *which* storage a read was served from, so a caller can tell
+    two configurations apart. The command/executable/timeout/allowlist fields are deliberately
+    absent — they describe how the engine would *execute*, which no read-only operation does.
+    """
+
+    repository_identity: str
+    repository_path: str
+    baseline_branch: str
+    remote_name: str
+    stage_contract_directory: str
+    state_directory: str
+    audit_directory: str
+
+    @classmethod
+    def from_config(cls, config: WorkflowConfig) -> RepositoryContext:
+        return cls(
+            repository_identity=config.repository_identity,
+            repository_path=str(config.repository_path),
+            baseline_branch=config.baseline_branch,
+            remote_name=config.remote_name,
+            stage_contract_directory=str(config.stage_contract_directory),
+            state_directory=str(config.state_directory),
+            audit_directory=str(config.audit_directory),
+        )
+
+
+class WorkflowStatus(_ServiceModel):
+    """One workflow's current persisted state, derived by replay (never a stored snapshot).
+
+    `current_state` is the last transition's `to_state` exactly as persisted, as a plain string
+    rather than a `WorkflowState`: a state the enum does not know is a fact about the audit trail
+    that must still be reportable, and coercing it would either hide it or fail the whole read.
+    `terminal` answers the enum's question about that string honestly — an unrecognized state is
+    not terminal, because nothing in `WORKFLOW_STATES.md` says it is.
+    """
+
+    workflow_id: str
+    current_state: str
+    terminal: bool
+    stage_id: str
+    target_repository: str
+    repository_path: str
+    transition_count: int
+    first_transition_at: str
+    last_transition_at: str
+
+    @classmethod
+    def from_transitions(
+        cls, workflow_id: str, transitions: list[StateTransitionRecord]
+    ) -> WorkflowStatus:
+        latest = transitions[-1]
+        return cls(
+            workflow_id=workflow_id,
+            current_state=latest.to_state,
+            terminal=latest.to_state in {state.value for state in TERMINAL_STATES},
+            stage_id=latest.stage_id,
+            target_repository=latest.target_repository,
+            repository_path=latest.repository_path,
+            transition_count=len(transitions),
+            first_transition_at=transitions[0].timestamp,
+            last_transition_at=latest.timestamp,
+        )
+
+
+class StatusResult(_ServiceModel):
+    """`status()`'s result: the repository context, plus one workflow's state when one was named.
+
+    Both halves are always present in shape so a JSON consumer never has to branch on which keys
+    exist; `workflow` is `null` when the caller asked only for the target-repository context.
+    """
+
+    repository: RepositoryContext
+    workflow: WorkflowStatus | None
+    workflow_count: int
+
+
+class WorkflowSummary(_ServiceModel):
+    """One row of `list()`. Every field is read from persisted records, never inferred."""
+
+    workflow_id: str
+    current_state: str
+    terminal: bool
+    stage_id: str
+    transition_count: int
+    last_transition_at: str
+
+
+class WorkflowListResult(_ServiceModel):
+    repository: RepositoryContext
+    workflows: list[WorkflowSummary]
+
+
+class AuditResult(_ServiceModel):
+    """`audit()`'s result: both persisted audit histories `AUDIT_MODEL.md` defines, in file order.
+
+    The records are the store's own `StateTransitionRecord`/`CommandExecutionRecord` models, not a
+    projection of them, so every field the schema names — including the `gate_evidence_ref`,
+    `stdout_ref`, and `stderr_ref` evidence references — survives this boundary intact. Ordering is
+    on-disk append order, which the store has already proven non-decreasing in timestamp
+    (`_require_monotonic_order`) as part of the same read; a history that is not is corruption and
+    raises rather than being silently reordered into something presentable.
+    """
+
+    workflow_id: str
+    transitions: list[StateTransitionRecord]
+    command_executions: list[CommandExecutionRecord]
+
+
+class ReportArtifactView(_ServiceModel):
+    """One persisted report artifact and its content, as read.
+
+    `sha256` is computed over the exact bytes read, so a caller can check that what it received is
+    what is on disk without re-reading the file itself.
+    """
+
+    report_kind: str
+    sequence: int | None
+    path: str
+    sha256: str
+    size_bytes: int
+    content: dict[str, Any]
+
+    @classmethod
+    def from_persisted(cls, report: PersistedReport) -> ReportArtifactView:
+        return cls(
+            report_kind=report.report_kind,
+            sequence=report.sequence,
+            path=str(report.path),
+            sha256=report.sha256,
+            size_bytes=report.size_bytes,
+            content=report.content,
+        )
+
+
+class ReportResult(_ServiceModel):
+    workflow_id: str
+    report_kind: str | None
+    reports: list[ReportArtifactView]
+
+
+class WorkflowService:
+    """Read-only access to one target repository's persisted workflow state, audit, and reports.
+
+    Constructed from an already-loaded, already-validated `WorkflowConfig` so that configuration
+    discovery stays in `config.loader` (where the repository-identity mismatch check lives) and is
+    not re-implemented here; `open_workflow_service` below is the convenience that does both.
+
+    The four public methods are the complete surface. There is deliberately no `start`,
+    `authorize`, `approve`, `reject`, `resume`, `cancel`, `prepare`, `review`, `implement`,
+    `commit`, `push`, or `merge`, and no accessor that would hand a caller the `StateStore` (and
+    through it the append path) back out.
+    """
+
+    def __init__(self, config: WorkflowConfig) -> None:
+        self._config = config
+        self._store = StateStore.for_config(config)
+
+    # -- status ---------------------------------------------------------------------------
+
+    def status(self, workflow_id: str | None = None) -> StatusResult:
+        """The persisted state of one workflow, or the configured target-repository context.
+
+        Acquires no lock and records no transition: the current state is derived by replaying the
+        append-only transition history and taking the last record's `to_state`, exactly as
+        `StateStore.current_state` documents, so reading a workflow that another process is
+        actively advancing observes a consistent prefix rather than blocking it.
+
+        With no `workflow_id`, reports the repository context and how many workflows have persisted
+        history. With one, additionally reports that workflow's state, and raises
+        `WorkflowNotFoundError` if it has none.
+        """
+        repository = RepositoryContext.from_config(self._config)
+        workflow_count = len(self._store.list_workflow_ids())
+        if workflow_id is None:
+            return StatusResult(repository=repository, workflow=None, workflow_count=workflow_count)
+        transitions = self._store.read_transitions(workflow_id)
+        if not transitions:
+            raise WorkflowNotFoundError(
+                f"No persisted workflow state for workflow_id {workflow_id!r} under "
+                f"{self._config.state_directory}."
+            )
+        return StatusResult(
+            repository=repository,
+            workflow=WorkflowStatus.from_transitions(workflow_id, transitions),
+            workflow_count=workflow_count,
+        )
+
+    # -- list -----------------------------------------------------------------------------
+
+    def list(self) -> WorkflowListResult:
+        """Every workflow with persisted history under the configured state storage.
+
+        Enumeration and summary come from the same source: a workflow appears here only because
+        `<state_directory>/<workflow_id>/transitions.jsonl` exists and replayed, so no row is
+        inferred and no storage is created for a repository that has never run one.
+        """
+        workflows: list[WorkflowSummary] = []
+        for workflow_id in self._store.list_workflow_ids():
+            transitions = self._store.read_transitions(workflow_id)
+            if not transitions:
+                # A history file that exists but is empty: real, but it names no state. Omitted
+                # rather than reported with an invented one.
+                continue
+            status = WorkflowStatus.from_transitions(workflow_id, transitions)
+            workflows.append(
+                WorkflowSummary(
+                    workflow_id=status.workflow_id,
+                    current_state=status.current_state,
+                    terminal=status.terminal,
+                    stage_id=status.stage_id,
+                    transition_count=status.transition_count,
+                    last_transition_at=status.last_transition_at,
+                )
+            )
+        return WorkflowListResult(
+            repository=RepositoryContext.from_config(self._config), workflows=workflows
+        )
+
+    # -- audit ----------------------------------------------------------------------------
+
+    def audit(self, workflow_id: str) -> AuditResult:
+        """The persisted append-only audit trail for one workflow (`AUDIT_MODEL.md` §2-3).
+
+        Both record types are returned, in on-disk append order, with every evidence reference
+        intact. A workflow with transitions but no recorded command executions returns an empty
+        `command_executions` list — that is a true statement about the trail, not a missing read.
+        """
+        transitions = self._store.read_transitions(workflow_id)
+        commands = self._store.read_command_executions(workflow_id)
+        if not transitions and not commands:
+            raise WorkflowNotFoundError(
+                f"No persisted audit trail for workflow_id {workflow_id!r} under "
+                f"{self._config.state_directory} or {self._config.audit_directory}."
+            )
+        return AuditResult(
+            workflow_id=workflow_id, transitions=transitions, command_executions=commands
+        )
+
+    # -- report ---------------------------------------------------------------------------
+
+    def report(self, workflow_id: str, *, report_kind: str | None = None) -> ReportResult:
+        """The already-persisted report artifacts for one workflow.
+
+        Retrieval only. Nothing on this path generates an implementation, QA, closeout, or
+        remediation report, and nothing rewrites or repairs one: a report that is not valid JSON is
+        surfaced as a failure, not replaced.
+        """
+        result = read_reports(
+            audit_root=self._config.audit_directory,
+            workflow_id=workflow_id,
+            report_kind=report_kind,
+        )
+        if not result.ok or result.value is None:
+            raise WorkflowServiceError(str(result.error), skill_failure=result.error)
+        if report_kind is not None and not result.value:
+            raise ReportNotFoundError(
+                f"No persisted {report_kind!r} report for workflow_id {workflow_id!r} under "
+                f"{self._config.audit_directory}."
+            )
+        return ReportResult(
+            workflow_id=workflow_id,
+            report_kind=report_kind,
+            reports=[ReportArtifactView.from_persisted(report) for report in result.value],
+        )
+
+
+def open_workflow_service(
+    repository_path: Path, config_path_override: Path | None = None
+) -> WorkflowService:
+    """Discover and load a target repository's configuration, then open a read-only service on it.
+
+    A module-level function rather than a `WorkflowService` classmethod so that the class's public
+    surface stays exactly the four read-only operations and nothing else — a structural claim a
+    test can assert, which a constructor hanging off the class would quietly weaken.
+
+    Configuration handling is entirely `config.loader.load_config`'s, including the strict schema
+    and the fail-closed repository-identity check that refuses a configuration declaring a
+    different target repository than the one asked for.
+    """
+    return WorkflowService(load_config(repository_path, config_path_override))

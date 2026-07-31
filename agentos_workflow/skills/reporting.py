@@ -45,12 +45,14 @@ from agentos_workflow.skills import (
 
 __all__ = [
     "AuditAppendResult",
+    "PersistedReport",
     "ReportArtifact",
     "append_audit_event",
     "generate_closeout_report",
     "generate_failure_report",
     "generate_qa_report",
     "generate_stage_report",
+    "read_reports",
     "write_sanitized_output",
 ]
 
@@ -67,6 +69,24 @@ class ReportArtifact:
     sha256: str
     size_bytes: int
     already_present: bool
+
+
+@dataclass(frozen=True)
+class PersistedReport:
+    """One already-written report artifact, read back exactly as it sits on disk (AUTO-009).
+
+    Deliberately not a `ReportArtifact`: that type carries `already_present`, which answers a
+    question only a *write* can ask. Reading is not a degenerate write, and giving a read result a
+    field about idempotent re-generation would invite exactly the confusion this surface exists to
+    prevent — nothing on this path generates, regenerates, or rewrites a report.
+    """
+
+    report_kind: str
+    sequence: int | None
+    path: Path
+    sha256: str
+    size_bytes: int
+    content: dict[str, Any]
 
 
 @dataclass(frozen=True)
@@ -122,16 +142,32 @@ def _validate_sequence(skill: str, sequence: int | None) -> SkillResult[Any] | N
 
 
 def _open_confined_directory(
-    skill: str, audit_root: Path, components: tuple[str, ...], *, create: bool
+    skill: str,
+    audit_root: Path,
+    components: tuple[str, ...],
+    *,
+    create: bool,
+    missing_ok: bool = False,
 ) -> tuple[int | None, SkillResult[Any] | None]:
     """Walk `components` below `audit_root`, one `O_NOFOLLOW` descriptor at a time.
 
     Returns an open directory descriptor the caller must close. Opening each component relative
     to the previous descriptor — rather than resolving a joined path once — is what makes the
     walk resistant to a component being swapped for a symlink *between* the check and the open.
+
+    `missing_ok` (AUTO-009, read paths only) separates "this directory does not exist" from
+    "this directory exists but is unsafe", which the single `IO_ERROR` below otherwise conflates.
+    A writer never needs the distinction because it creates what is missing; a *reader* does,
+    because "no reports have been written yet" is an ordinary empty result while a symlinked
+    component on the same walk is still a hard refusal. It returns `(None, None)` — no descriptor
+    and no failure — for the absent case only, and never suppresses any other error.
     """
     try:
         current_fd = os.open(audit_root, os.O_RDONLY | os.O_DIRECTORY)
+    except FileNotFoundError as exc:
+        if missing_ok:
+            return None, None
+        return None, failure(skill, FailureKind.IO_ERROR, f"audit root unusable: {exc}")
     except OSError as exc:
         return None, failure(skill, FailureKind.IO_ERROR, f"audit root unusable: {exc}")
     for component in components:
@@ -143,6 +179,15 @@ def _open_confined_directory(
                     pass
             next_fd = os.open(
                 component, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=current_fd
+            )
+        except FileNotFoundError as exc:
+            os.close(current_fd)
+            if missing_ok:
+                return None, None
+            return None, failure(
+                skill,
+                FailureKind.IO_ERROR,
+                f"unsafe or missing audit directory component {component!r}: {exc}",
             )
         except OSError as exc:
             os.close(current_fd)
@@ -396,6 +441,139 @@ def generate_closeout_report(
         payload=results,
         sequence=sequence,
     )
+
+
+def _parse_report_filename(filename: str) -> tuple[str, int | None] | None:
+    """Split a stored report's name back into `(report_kind, sequence)`, or `None` if it is not one.
+
+    The inverse of `_generate_report`'s own naming rule, kept beside it so the two cannot drift.
+    `<kind>.json` and `<kind>.<sequence>.json` are ambiguous in general, because `_COMPONENT_RE`
+    permits a `.` inside a kind: `qa.3.json` could be kind `qa` sequence 3, or kind `qa.3`. It is
+    read as the sequenced form whenever the trailing segment is an in-range sequence, which is the
+    only one of the two spellings this module can actually produce for such a name — the sequence
+    argument is a validated integer in `1..9999`, so nothing here ever wrote a kind ending in
+    `.<digits>`.
+    """
+    if not filename.endswith(".json"):
+        return None
+    stem = filename[: -len(".json")]
+    kind, separator, tail = stem.rpartition(".")
+    if separator and tail.isdigit() and not tail.startswith("0"):
+        sequence = int(tail)
+        if 1 <= sequence <= _MAX_REPORT_SEQUENCE and _COMPONENT_RE.fullmatch(kind):
+            return kind, sequence
+    if _COMPONENT_RE.fullmatch(stem):
+        return stem, None
+    return None
+
+
+def _read_confined_report(
+    skill: str, directory_fd: int, filename: str, directory: Path
+) -> tuple[PersistedReport | None, SkillResult[Any] | None]:
+    """Read one report file through an already-confined directory descriptor."""
+    parsed = _parse_report_filename(filename)
+    if parsed is None:
+        return None, None  # not a report artifact this module ever wrote; ignored, not an error
+    report_kind, sequence = parsed
+    try:
+        fd = os.open(filename, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=directory_fd)
+    except OSError as exc:
+        return None, failure(skill, FailureKind.IO_ERROR, f"report {filename!r} is unsafe: {exc}")
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            return None, failure(skill, FailureKind.IO_ERROR, f"{filename!r} is not a regular file")
+        chunks: list[bytes] = []
+        while chunk := os.read(fd, 65536):
+            chunks.append(chunk)
+    except OSError as exc:
+        return None, failure(skill, FailureKind.IO_ERROR, f"could not read {filename!r}: {exc}")
+    finally:
+        os.close(fd)
+    payload = b"".join(chunks)
+    try:
+        content = json.loads(payload.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        return None, failure(
+            skill, FailureKind.MALFORMED_OUTPUT, f"{filename!r} is not valid JSON: {exc}"
+        )
+    if not isinstance(content, dict):
+        return None, failure(
+            skill, FailureKind.MALFORMED_OUTPUT, f"{filename!r} is not a JSON object"
+        )
+    return (
+        PersistedReport(
+            report_kind=report_kind,
+            sequence=sequence,
+            path=directory / filename,
+            sha256=sha256(payload).hexdigest(),
+            size_bytes=len(payload),
+            content=content,
+        ),
+        None,
+    )
+
+
+def read_reports(
+    *, audit_root: Path, workflow_id: str, report_kind: str | None = None
+) -> SkillResult[list[PersistedReport]]:
+    """Read back one workflow's already-persisted report artifacts. Writes nothing (AUTO-009).
+
+    The read counterpart of the four generators above, and deliberately the *only* one: every
+    generator is a write, so a caller that merely wants to look at a report has, until now, had no
+    way to do so that did not go through a function whose contract is to create one. This opens
+    each file `O_RDONLY | O_NOFOLLOW` through the same descriptor-relative walk the writers use,
+    creates no directory and no file, and never regenerates, rewrites, or repairs an artifact —
+    a malformed report is reported as malformed, not fixed.
+
+    A workflow with no reports directory yet is an empty list, not a failure; filtering to a
+    `report_kind` that produced no artifact is likewise an empty list, so the caller decides
+    whether "none" is an error in its context. Results are ordered by `(report_kind, sequence)`
+    with the unsequenced `<kind>.json` first within a kind, so repeated reads are byte-identical.
+    """
+    skill = "read_reports"
+    if problem := _validate_component(skill, "workflow_id", workflow_id):
+        return problem
+    if report_kind is not None and (
+        problem := _validate_component(skill, "report_kind", report_kind)
+    ):
+        return problem
+    if not audit_root.is_absolute():
+        return failure(
+            skill,
+            FailureKind.UNSAFE_INPUT,
+            "audit_root must be an absolute path",
+            retry_classification=RetryClassification.NON_RETRYABLE,
+        )
+    components = (workflow_id, "reports")
+    directory_fd, error = _open_confined_directory(
+        skill, audit_root, components, create=False, missing_ok=True
+    )
+    if error is not None:
+        return error
+    if directory_fd is None:
+        return success([])
+    directory = audit_root.joinpath(*components)
+    reports: list[PersistedReport] = []
+    try:
+        try:
+            filenames = sorted(os.listdir(directory_fd))
+        except OSError as exc:
+            return failure(skill, FailureKind.IO_ERROR, f"could not list {directory}: {exc}")
+        for filename in filenames:
+            report, read_error = _read_confined_report(skill, directory_fd, filename, directory)
+            if read_error is not None:
+                return read_error
+            if report is None or (report_kind is not None and report.report_kind != report_kind):
+                continue
+            reports.append(report)
+    finally:
+        os.close(directory_fd)
+    # `sequence is None` sorts before any real sequence: `<kind>.json` is the artifact a workflow
+    # that never entered the repair loop wrote, so it reads as that kind's first round.
+    reports.sort(
+        key=lambda report: (report.report_kind, report.sequence is not None, report.sequence or 0)
+    )
+    return success(reports)
 
 
 def write_sanitized_output(

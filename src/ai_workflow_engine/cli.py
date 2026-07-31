@@ -1148,5 +1148,19 @@ def migrate_apply_command(
     _emit_migration_payload("migrate-apply", payload, output)
 
 
+# AUTO-009: the additive, read-only `workflowctl auto` sub-application. This is the *only* place
+# the engine CLI reaches into AgentOS, and it reaches exactly one name: `auto_app`. No AgentOS
+# internal module is imported anywhere else in this file, so the dependency direction stays
+# `workflowctl -> agentos_workflow.cli_auto -> agentos_workflow.service -> read-only APIs`.
+#
+# Registered here, at the bottom, rather than beside the other `add_typer` calls: `cli_auto`
+# reuses this module's own `_protected`/`_write_stdout`/`_contract_v2_success` helpers (reached at
+# call time, so the import is not circular), and registering it before those exist would rely on
+# definition order this file has no reason to guarantee. No existing command is moved or changed.
+from agentos_workflow.cli_auto import auto_app  # noqa: E402
+
+app.add_typer(auto_app, name="auto")
+
+
 def main() -> None:
     app()

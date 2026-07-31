@@ -18,6 +18,7 @@ from agentos_workflow.skills.reporting import (
     generate_failure_report,
     generate_qa_report,
     generate_stage_report,
+    read_reports,
     write_sanitized_output,
 )
 
@@ -437,3 +438,139 @@ def test_unsafe_workflow_id_is_rejected_for_audit_append(audit_root: Path) -> No
     result = append_audit_event(audit_root=audit_root, workflow_id="../escape", event={"kind": "a"})
     assert not result.ok and result.error is not None
     assert result.error.kind is FailureKind.UNSAFE_INPUT
+
+
+# ---------------------------------------------------------------------------------------------
+# Reading back persisted reports (AUTO-009)
+# ---------------------------------------------------------------------------------------------
+
+
+def test_read_reports_returns_every_artifact_with_its_content(audit_root: Path) -> None:
+    generate_stage_report(audit_root=audit_root, workflow_id=WORKFLOW, results={"verdict": "PASS"})
+    generate_qa_report(
+        audit_root=audit_root, workflow_id=WORKFLOW, results={"verdict": "PASS"}, sequence=2
+    )
+    reports = read_reports(audit_root=audit_root, workflow_id=WORKFLOW).unwrap()
+    assert [(report.report_kind, report.sequence) for report in reports] == [
+        ("qa", 2),
+        ("stage", None),
+    ]
+    assert reports[1].content["verdict"] == "PASS"
+    assert reports[1].content["workflow_id"] == WORKFLOW
+    assert reports[1].size_bytes == reports[1].path.stat().st_size
+
+
+def test_read_reports_orders_a_kind_unsequenced_first_then_by_sequence(audit_root: Path) -> None:
+    generate_qa_report(audit_root=audit_root, workflow_id=WORKFLOW, results={"round": 0})
+    for sequence in (3, 1, 2):
+        generate_qa_report(
+            audit_root=audit_root,
+            workflow_id=WORKFLOW,
+            results={"round": sequence},
+            sequence=sequence,
+        )
+    reports = read_reports(audit_root=audit_root, workflow_id=WORKFLOW).unwrap()
+    assert [report.sequence for report in reports] == [None, 1, 2, 3]
+
+
+def test_read_reports_filters_by_kind(audit_root: Path) -> None:
+    generate_stage_report(audit_root=audit_root, workflow_id=WORKFLOW, results={})
+    generate_qa_report(audit_root=audit_root, workflow_id=WORKFLOW, results={})
+    reports = read_reports(audit_root=audit_root, workflow_id=WORKFLOW, report_kind="qa").unwrap()
+    assert [report.report_kind for report in reports] == ["qa"]
+
+
+def test_read_reports_on_a_workflow_with_no_reports_is_an_empty_success(audit_root: Path) -> None:
+    result = read_reports(audit_root=audit_root, workflow_id=WORKFLOW)
+    assert result.ok
+    assert result.unwrap() == []
+
+
+def test_read_reports_creates_nothing(audit_root: Path) -> None:
+    """The read counterpart must not bring the directory the writers create into existence."""
+    before = sorted(audit_root.rglob("*"))
+    assert read_reports(audit_root=audit_root, workflow_id=WORKFLOW).ok
+    assert sorted(audit_root.rglob("*")) == before
+
+
+def test_read_reports_does_not_rewrite_what_it_reads(audit_root: Path) -> None:
+    generate_stage_report(audit_root=audit_root, workflow_id=WORKFLOW, results={"verdict": "PASS"})
+    artifact = audit_root / WORKFLOW / "reports" / "stage.json"
+    before = (artifact.read_bytes(), artifact.stat().st_mtime_ns, artifact.stat().st_mode)
+    assert read_reports(audit_root=audit_root, workflow_id=WORKFLOW).ok
+    assert (artifact.read_bytes(), artifact.stat().st_mtime_ns, artifact.stat().st_mode) == before
+
+
+def test_read_reports_reports_the_hash_of_the_bytes_on_disk(audit_root: Path) -> None:
+    written = generate_stage_report(
+        audit_root=audit_root, workflow_id=WORKFLOW, results={"verdict": "PASS"}
+    ).unwrap()
+    read = read_reports(audit_root=audit_root, workflow_id=WORKFLOW).unwrap()[0]
+    assert read.sha256 == written.sha256
+    assert read.size_bytes == written.size_bytes
+
+
+def test_read_reports_ignores_a_file_that_is_not_a_report_artifact(audit_root: Path) -> None:
+    generate_stage_report(audit_root=audit_root, workflow_id=WORKFLOW, results={})
+    (audit_root / WORKFLOW / "reports" / "notes.txt").write_text("scratch", encoding="utf-8")
+    reports = read_reports(audit_root=audit_root, workflow_id=WORKFLOW).unwrap()
+    assert [report.report_kind for report in reports] == ["stage"]
+
+
+def test_read_reports_surfaces_malformed_json_rather_than_repairing_it(audit_root: Path) -> None:
+    generate_stage_report(audit_root=audit_root, workflow_id=WORKFLOW, results={})
+    artifact = audit_root / WORKFLOW / "reports" / "stage.json"
+    artifact.write_text("{ not json", encoding="utf-8")
+    result = read_reports(audit_root=audit_root, workflow_id=WORKFLOW)
+    assert not result.ok
+    assert result.error is not None
+    assert result.error.kind is FailureKind.MALFORMED_OUTPUT
+    assert artifact.read_text(encoding="utf-8") == "{ not json"
+
+
+@pytest.mark.parametrize("hostile", ["../escape", "/absolute", "", "wf/../..", ".hidden"])
+def test_read_reports_rejects_an_unsafe_workflow_id(audit_root: Path, hostile: str) -> None:
+    result = read_reports(audit_root=audit_root, workflow_id=hostile)
+    assert not result.ok
+    assert result.error is not None
+    assert result.error.kind is FailureKind.UNSAFE_INPUT
+    assert result.error.retry_classification is RetryClassification.NON_RETRYABLE
+
+
+@pytest.mark.parametrize("hostile", ["../escape", "/absolute", ""])
+def test_read_reports_rejects_an_unsafe_report_kind(audit_root: Path, hostile: str) -> None:
+    result = read_reports(audit_root=audit_root, workflow_id=WORKFLOW, report_kind=hostile)
+    assert not result.ok
+    assert result.error is not None
+    assert result.error.kind is FailureKind.UNSAFE_INPUT
+
+
+def test_read_reports_rejects_a_relative_audit_root(tmp_path: Path) -> None:
+    result = read_reports(audit_root=Path("relative/audit"), workflow_id=WORKFLOW)
+    assert not result.ok
+    assert result.error is not None
+    assert result.error.kind is FailureKind.UNSAFE_INPUT
+
+
+def test_read_reports_refuses_a_symlinked_workflow_directory(
+    audit_root: Path, tmp_path: Path
+) -> None:
+    outside = tmp_path / "outside" / "reports"
+    outside.mkdir(parents=True)
+    (outside / "stage.json").write_text('{"stolen": true}', encoding="utf-8")
+    os.symlink(outside.parent, audit_root / WORKFLOW)
+    result = read_reports(audit_root=audit_root, workflow_id=WORKFLOW)
+    assert not result.ok
+    assert result.error is not None
+    assert result.error.kind is FailureKind.IO_ERROR
+
+
+def test_read_reports_refuses_a_symlinked_report_file(audit_root: Path, tmp_path: Path) -> None:
+    generate_stage_report(audit_root=audit_root, workflow_id=WORKFLOW, results={})
+    secret = tmp_path / "secret.json"
+    secret.write_text('{"stolen": true}', encoding="utf-8")
+    os.symlink(secret, audit_root / WORKFLOW / "reports" / "qa.json")
+    result = read_reports(audit_root=audit_root, workflow_id=WORKFLOW)
+    assert not result.ok
+    assert result.error is not None
+    assert result.error.kind is FailureKind.IO_ERROR

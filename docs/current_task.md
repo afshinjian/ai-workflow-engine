@@ -1,18 +1,20 @@
 # Current Task
 
-Mirror of docs/TASK_QUEUE.md's Current set. This task was selected explicitly by the
-Human Owner; no ordering was inferred.
+Mirror of docs/TASK_QUEUE.md's Current set. Must contain exactly the same task ID(s) at
+the same status as the task queue — workflowctl check-task-state fails otherwise.
 
-## AUTO-009
+## No task is currently active
 
-Status: Current
+AUTO-009 — WorkflowService boundary and read-only `workflowctl auto` surface was closed
+`Current -> Done` on 2026-07-31 by explicit Human Owner approval, after a required twelve-point
+scope, API, and read-only integrity verification that passed in full. The approved implementation
+was committed together with this closeout in one local commit, which was then pushed. **No PR was
+opened and no merge was performed.**
 
-Registered and authorized by the Human Owner on 2026-07-31 as the single `Current` task:
-AUTO-009 — WorkflowService boundary and read-only `workflowctl auto` surface. The stage creates
-the first public application-service boundary for the automated workflow engine and exposes only
-read-only capabilities: `WorkflowService.status/list/audit/report`, plus the additive
-`workflowctl auto status|list|audit|report` sub-application that forwards to it.
+The Current set is therefore empty. Under self-governance.yaml's maximum_current_tasks: 1
+this is a legal state — the maximum is a ceiling, not a quota.
 
-Implementation remains a separate phase and must stop for Human Owner approval before any
-implementation or closeout commit, push, PR, or merge. Authorizing AUTO-009 authorizes no
-successor; AUTO-010 and every later roadmap phase remain unauthorized.
+Every remaining task (docs/remaining_tasks.md) is Planned and requires its own fresh
+written Human Owner authorization naming it before it may become Current. Closing AUTO-009
+authorizes no successor: AUTO-010, the six non-blocking defects AUTO-009 deferred (D1-D6), and
+every later roadmap phase all remain unauthorized.
