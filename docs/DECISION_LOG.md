@@ -13,6 +13,62 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-07-31 — Human Owner approved and closed AUTO-010
+
+**Decision:** The Human Owner approved AUTO-010 — Real Non-Interactive Provider Runtime — for
+finalization on branch `feature/auto-010-provider-runtime` (base `5d1b6be`), required a final
+fourteen-point scope, runtime, and safety verification before any commit, and authorized the
+implementation/closeout commit and the push of that branch. All fourteen checks passed. **No PR and
+no merge were authorized**, and AUTO-011 was explicitly not authorized.
+
+**Provenance (recorded precisely rather than in the script's stock wording):** the approval was
+given in conversation and the closeout was performed **manually**, not through
+`scripts/workflow-approve.sh`. That script requires the Human Owner to type two exact `APPROVE`
+confirmations interactively; no such confirmations were typed, and the session did not and must not
+supply them on the Human Owner's behalf. The same manual path was used for GOV-AUTO-07's closure on
+2026-07-31 for the same reason.
+
+**What was decided, and why it looks the way it does.** Three choices are worth recording because a
+later session would otherwise be tempted to undo them:
+
+1. **The public request carries a `task`, never a `prompt`.** `CLIProvider.invoke` takes a fully
+   formed prompt, which is right for the layer that runs a process and wrong for a public API: a
+   caller who writes the whole prompt can omit the never-ask clauses, making the strongest of the
+   three enforcement layers optional. The runtime therefore supplies the contract and the caller
+   supplies only the task, so a provider prompt without the contract is unrepresentable.
+2. **The unrestricted CLI modes are absent from the enums rather than rejected by a validator.**
+   `bypassPermissions` and `danger-full-access` are not values the engine refuses and then
+   discusses; they are values no configuration, request, or call site can name, because
+   configuration is typed to `ClaudePermissionMode`/`CodexSandboxMode` and the adapters build argv
+   from them. Those enums live in `agentos_workflow/config/policy.py` — a leaf module importing
+   nothing from this engine — because the configuration schema and the adapters both need them and
+   any home under `providers/` would make the schema import its own importer.
+3. **Account selection is an allowlisted environment variable, never a shell alias.** The host's
+   `codexA`/`claudeA` aliases expand to `CODEX_HOME=... codex`. An alias is a shell construct that a
+   `shell=False`, fixed-argv spawn cannot see or expand, so configuring one as an executable fails
+   at spawn — a fact now pinned by a test. What the alias actually does, setting one environment
+   variable, is exactly what the existing provider environment allowlist already expresses.
+
+**Blockers fixed (three, all inside the shared process runner, each minimal and each documented):**
+`subprocess.run`'s timeout killed only the direct child and left the parent's controlling terminal
+attached; output ceilings were unenforced during capture and stderr had none; and AUTO-004's Codex
+parser took the last JSON object on stdout, which in a real run is always a `turn.*` envelope and
+never the report — so that adapter could not have worked against the live CLI and was never
+exercised against one until now.
+
+**A correction recorded for its own sake.** The first validation pass concluded that the installed
+Codex credential was expired. That was a misdiagnosis: the engine had allowlisted only `HOME`, so
+Codex fell back to the default credential store. The account was never selected. The completion
+report preserves the original failed attempt and its wrong conclusion verbatim, with the correction
+appended (§22), because a report that quietly replaces a wrong diagnosis teaches nothing.
+
+**Evidence:** 3,241 tests passing (3,151 + 90, none skipped, none xfail) plus 25 live acceptance
+tests against the real installed CLIs with zero skips; `mypy --strict` clean over 120 source files;
+`ruff`, `black`, and pre-commit clean; wheel carrying every new module; nine existing `workflowctl`
+invocations byte-identical to the `5d1b6be` baseline. Registry state `IN_PROGRESS -> COMPLETE`;
+task status `Current -> Done`. Report:
+`docs/reports/workflow-automation/AUTO-010-completion-report.md`.
+
 ## 2026-07-30 — Human Owner approved and closed DASH-004
 
 **Decision:** The Human Owner reviewed the implementation diff for `DASH-004` on

@@ -6,6 +6,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from agentos_workflow.config.policy import ClaudePermissionMode, CodexSandboxMode
+
 # A Windows drive prefix (`C:\...` or `C:/...`). Matched before segment analysis because `C:` would
 # otherwise read as an ordinary first segment and the pattern would look canonical.
 _WINDOWS_DRIVE_RE = re.compile(r"^[A-Za-z]:")
@@ -79,8 +81,20 @@ class WorkflowConfig(StrictModel):
     merge_method: Literal["squash"]
     claude_cli_executable: Path
     claude_cli_timeout_seconds: int = Field(ge=1)
+    # AUTO-010: the permission/sandbox policy each provider executes under. Typed to the closed
+    # enums in `config/policy.py`, so `extra="forbid"` plus enum validation means a
+    # configuration naming `bypassPermissions` or `danger-full-access` is rejected at load time
+    # rather than reaching a provider — an unrestricted mode is not expressible, not merely
+    # discouraged.
+    #
+    # Both default to the most restrictive value their CLI offers (`plan`, `read-only`) rather than
+    # being required fields. That is deliberate on two counts: every configuration written before
+    # this stage keeps loading, and the value an operator gets by saying nothing is the one that
+    # can do the least. Write capability is only ever acquired by asking for it in writing.
+    claude_cli_permission_mode: ClaudePermissionMode = ClaudePermissionMode.PLAN
     codex_cli_executable: Path
     codex_cli_timeout_seconds: int = Field(ge=1)
+    codex_cli_sandbox_mode: CodexSandboxMode = CodexSandboxMode.READ_ONLY
     allowed_environment_variables: list[str]
     allowed_changed_paths: list[str]
     forbidden_changed_paths: list[str]

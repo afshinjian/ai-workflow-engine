@@ -6,7 +6,34 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 
 ## [Unreleased]
 
+### Added
+- AUTO-010 (2026-07-31): the real non-interactive Provider Runtime. `WorkflowService` gained one
+  operation, `invoke_provider`, which delegates to `ProviderRuntime.invoke`
+  (`agentos_workflow/providers/runtime.py`) and thence to the existing Claude and Codex adapters,
+  so the engine can now actually execute both CLIs without a terminal. Provider execution is
+  non-interactive by construction: the child gets its own session and no controlling terminal, the
+  prompt arrives on stdin and stdin is closed immediately after, and every run ends in one of four
+  typed statuses (`COMPLETED`, `COMPLETED_WITH_ASSUMPTIONS`, `BLOCKED`, `FAILED`) rather than in
+  conversational text. The auto-mode prompt contract cannot be bypassed: the public request carries
+  a `task`, never a `prompt`. Permission and sandbox policy are closed enums in
+  `agentos_workflow/config/policy.py` (`plan`/`dontAsk`/`acceptEdits`; `read-only`/
+  `workspace-write`), each defaulting to its least capable value, which makes Claude's
+  `bypassPermissions` and Codex's `danger-full-access` inexpressible anywhere in the engine rather
+  than merely discouraged. Both providers are validated against the real installed CLIs by an
+  opt-in `live_cli` suite, excluded from the default run.
+
 ### Fixed
+- AUTO-010 (2026-07-31): three defects in the shared provider process runner that made the
+  documented guarantees untrue. (1) The timeout used `subprocess.run`, which kills only the direct
+  child, so a model CLI's own subprocesses outlived the timeout meant to reclaim them, and the
+  child kept the parent's controlling terminal — now `Popen(start_new_session=True)` with
+  SIGTERM-then-unconditional-SIGKILL of the whole process group. (2) Output ceilings were checked
+  only after both streams were fully buffered, and stderr had no ceiling at all — now bounded
+  streaming readers that keep draining past the limit (so the child cannot deadlock) while
+  reclaiming the process group. (3) `CodexCLIProvider` took the last decodable JSON object on
+  stdout as the report, but a real `codex exec --json` run always ends with a `turn.completed`
+  envelope, so it could never have parsed a genuine report — now the answer file named by
+  `--output-last-message`, with a narrow JSONL fallback pinned to verbatim captured CLI output.
 - GOV-AUTO-07 (2026-07-31): `AuthorizationBindingDriftError` now has one canonical argument
   convention at every raise site — `expected` is the authorization-bound (or otherwise required)
   reference value, `actual` is the current runtime/repository/supplied value found in its place.

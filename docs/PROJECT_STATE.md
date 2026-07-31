@@ -307,4 +307,29 @@ phases; AUTO-010 is not authorized.
 and read-only integrity verification, all of which passed. The four-operation `WorkflowService`
 and the four-command `workflowctl auto` sub-application are delivered and read-only by
 construction; 3,151 tests pass; `mypy --strict` clean over 117 source files. Six non-blocking
-defects remain deferred. AUTO-010 is not authorized.
+defects remain deferred. AUTO-010 was subsequently authorized, implemented, and closed (below).
+
+## AUTO-010 — Real Non-Interactive Provider Runtime
+
+Status: Done
+
+Registered and authorized by the Human Owner on 2026-07-31 as the single `Current` task, then
+implemented, validated, approved, and **closed `Current -> Done` the same day** after a
+fourteen-point scope, runtime, and safety verification that passed in full.
+
+The engine can now really execute Claude Code and Codex without a terminal:
+
+    WorkflowService.invoke_provider -> ProviderRuntime.invoke -> Claude CLI / Codex CLI
+
+Both providers are live-validated against the real installed CLIs (Claude 2.1.220, codex-cli
+0.146.0) on all ten acceptance criteria each — 25 live tests, zero skipped — rather than by mocks,
+which the suite keeps strictly separate and says so. Non-interactivity is structural: the child
+runs in its own session with no controlling terminal, receives exactly one prompt on stdin and then
+EOF, and every run terminates in `COMPLETED`, `COMPLETED_WITH_ASSUMPTIONS`, `BLOCKED`, or `FAILED`.
+Permission and sandbox policy are closed enums defaulting to the least capable value, so
+`bypassPermissions` and `danger-full-access` are inexpressible anywhere in the engine.
+
+Three blockers in the shared provider process runner were fixed: process-group termination with TTY
+detachment, streaming stdout/stderr ceilings with cleanup on breach, and a Codex report channel
+that could never have parsed a real run. 3,241 tests pass; `mypy --strict` clean over 120 source
+files. Four non-blocking defects (D-3 through D-6) remain deferred. AUTO-011 is not authorized.

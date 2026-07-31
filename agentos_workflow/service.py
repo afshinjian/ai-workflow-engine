@@ -8,8 +8,11 @@ second::
     workflowctl auto  ->  WorkflowService  ->  agentos_workflow read-only state,
                                                audit, report, and configuration APIs
 
-`WorkflowService` exposes exactly four operations — `status`, `list`, `audit`, `report` — and all
-four are read-only. That is a structural property, not a convention this module asks callers to
+`WorkflowService` exposes four **read-only** operations — `status`, `list`, `audit`, `report` — and
+since AUTO-010 exactly one operation that executes anything, `invoke_provider`. The read-only four
+are unchanged and remain read-only; the new one is discussed at the end of this docstring.
+
+The read-only property of the four is structural, not a convention this module asks callers to
 respect:
 
 * it holds a `StateStore`, never a `RepositoryLock` and never a `WorkflowSession`, so there is no
@@ -36,6 +39,29 @@ subclasses whose meaning is bound to resuming a workflow, which is not what happ
 Results are typed models rather than dictionaries so that the CLI's JSON contract is a projection
 of a checked shape instead of a hand-assembled one, and so a caller that is not a CLI gets
 something it can hold onto.
+
+**`invoke_provider` (AUTO-010).** The engine gained the ability to actually run Claude and Codex
+non-interactively, and that capability needs a public entry point. It is deliberately one narrow
+operation that delegates::
+
+    WorkflowService.invoke_provider -> ProviderRuntime.invoke -> the CLI adapters
+
+and it is bounded in three ways worth stating explicitly, because a service that can execute a
+model CLI is a much larger thing than one that can only read:
+
+* **It executes; it does not advance anything.** Invoking a provider records no transition,
+  acquires no lock, and touches neither Git nor GitHub. The four reads above are still the only
+  things that can observe workflow state, and nothing here can change it — `WorkflowService` still
+  holds no `RepositoryLock` and no `WorkflowSession`, so a provider run cannot transition workflow
+  state by itself. Deciding what a provider's result *means* for a workflow belongs to the
+  Orchestrator and to stages after this one.
+* **It adds no workflow verb.** There is still no `start`, `authorize`, `approve`, `reject`,
+  `resume`, `cancel`, `prepare`, `review`, `implement`, `commit`, `push`, or `merge`, and this
+  method is none of them in disguise: it names a provider and a task, not a stage lifecycle step.
+* **It knows nothing about CLIs.** No flag, no executable path, no permission or sandbox mode, no
+  subprocess call, and no provider internals appear in this module — it imports exactly three
+  names from `providers.runtime` and calls one of them. A caller cannot reach a CLI through this
+  boundary except in the shape the runtime allows.
 """
 
 from __future__ import annotations
@@ -53,11 +79,18 @@ from agentos_workflow.orchestrator.state_store import (
     StateStore,
     StateTransitionRecord,
 )
+from agentos_workflow.providers.runtime import (
+    ProviderRunRequest,
+    ProviderRunResult,
+    ProviderRuntime,
+)
 from agentos_workflow.skills import SkillFailure
 from agentos_workflow.skills.reporting import PersistedReport, read_reports
 
 __all__ = [
     "AuditResult",
+    "ProviderRunRequest",
+    "ProviderRunResult",
     "ReportArtifactView",
     "ReportNotFoundError",
     "ReportResult",
@@ -262,13 +295,14 @@ class ReportResult(_ServiceModel):
 
 
 class WorkflowService:
-    """Read-only access to one target repository's persisted workflow state, audit, and reports.
+    """One target repository's persisted workflow state and its non-interactive Provider Runtime.
 
     Constructed from an already-loaded, already-validated `WorkflowConfig` so that configuration
     discovery stays in `config.loader` (where the repository-identity mismatch check lives) and is
     not re-implemented here; `open_workflow_service` below is the convenience that does both.
 
-    The four public methods are the complete surface. There is deliberately no `start`,
+    The five public methods are the complete surface: four reads (`status`, `list`, `audit`,
+    `report`) and one execution (`invoke_provider`). There is deliberately no `start`,
     `authorize`, `approve`, `reject`, `resume`, `cancel`, `prepare`, `review`, `implement`,
     `commit`, `push`, or `merge`, and no accessor that would hand a caller the `StateStore` (and
     through it the append path) back out.
@@ -277,6 +311,10 @@ class WorkflowService:
     def __init__(self, config: WorkflowConfig) -> None:
         self._config = config
         self._store = StateStore.for_config(config)
+        # Built once and held, because it is stateless and holding it is what makes the
+        # delegation checkable: there is exactly one object in this service through which a
+        # provider can be reached, and it is not a subprocess API.
+        self._provider_runtime = ProviderRuntime(config)
 
     # -- status ---------------------------------------------------------------------------
 
@@ -385,6 +423,26 @@ class WorkflowService:
             report_kind=report_kind,
             reports=[ReportArtifactView.from_persisted(report) for report in result.value],
         )
+
+    # -- provider runtime -----------------------------------------------------------------
+
+    def invoke_provider(self, request: ProviderRunRequest) -> ProviderRunResult:
+        """Run one provider non-interactively and return its typed terminal result (AUTO-010).
+
+        The entire body is a delegation, and that is the design rather than an accident of a thin
+        first version. Every decision this operation could plausibly make — which executable, which
+        flags, which permission or sandbox mode, what the prompt must say, how long to wait, what
+        counts as a result — belongs to a layer that already owns it, and re-deciding any of them
+        here would create a second answer that could disagree with the first. What this method
+        adds is reach: a caller holding a `WorkflowService` can now execute a provider without
+        being handed provider internals to do it with.
+
+        Never raises for a provider outcome. A spawn failure, a timeout, output that violates the
+        auto-mode contract, and a provider that reported its own failure all come back as a
+        `ProviderRunResult` with status `FAILED` and a typed cause, because a caller has to be able
+        to branch on those rather than catch them.
+        """
+        return self._provider_runtime.invoke(request)
 
 
 def open_workflow_service(

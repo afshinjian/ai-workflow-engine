@@ -55,7 +55,18 @@ packages = [
 # from CI. The newest and largest subsystem was the least verified. All three suites now run by
 # default; a suite that is not collected is not a safety net.
 testpaths = ["tests", "agentos_workflow/tests", "agentos_dashboard/tests"]
-addopts = "-ra"
+# AUTO-010: `-m "not live_cli"` excludes the opt-in live provider acceptance tests from the
+# default run. They spawn the real Claude and Codex CLIs, which costs money, needs credentials
+# this repository does not hold or manage, and reaches the network -- none of which belongs in
+# a default `pytest` or in ordinary CI. `pytest -m live_cli` selects exactly them, because a
+# command-line `-m` replaces the one configured here rather than adding to it.
+#
+# The marker earns its keep only if the exclusion is honest: a mocked test is never presented as
+# evidence that a real CLI works. That distinction is the whole reason these two sets are separate.
+addopts = "-ra -m 'not live_cli'"
+markers = [
+  "live_cli: spawns a real installed provider CLI; opt-in, excluded from the default run",
+]
 
 # Frozen historical orchestration artifacts. The Python files under these directories are
 # evidence: verbatim probe scripts recorded during ORCH-00x execution and review. They are

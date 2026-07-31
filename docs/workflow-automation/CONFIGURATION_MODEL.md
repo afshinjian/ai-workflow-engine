@@ -46,8 +46,10 @@ absent — a missing configuration is a precondition failure, not an assumed-`ma
 | `merge_method` | enum | yes | Fixed to `squash` for this program (`MVP_SCOPE.md`); present so intent is explicit, not implicit. |
 | `claude_cli_executable` | path | yes | Local Claude Code CLI executable. |
 | `claude_cli_timeout_seconds` | integer | yes | Hard timeout for `ClaudeCLIProvider` invocations. |
+| `claude_cli_permission_mode` | enum | no (default `plan`) | Claude's `--permission-mode`, restricted to `plan`, `dontAsk`, `acceptEdits` (AUTO-010). |
 | `codex_cli_executable` | path | yes | Local Codex CLI executable. |
 | `codex_cli_timeout_seconds` | integer | yes | Hard timeout for `CodexCLIProvider` invocations. |
+| `codex_cli_sandbox_mode` | enum | no (default `read-only`) | Codex's `--sandbox`, restricted to `read-only`, `workspace-write` (AUTO-010). |
 | `allowed_environment_variables` | list[string] | yes | Allowlist forwarded to Skill/Provider subprocesses (`SECURITY_MODEL.md` §1). |
 | `allowed_changed_paths` | list[glob] | yes | Paths a stage implementation may touch. |
 | `forbidden_changed_paths` | list[glob] | yes | Paths a stage implementation must never touch, even if not covered by `allowed_changed_paths`. |
@@ -65,6 +67,12 @@ absent — a missing configuration is a precondition failure, not an assumed-`ma
   merge method away from squash-via-PR in this program's MVP (`MVP_SCOPE.md`).
 - `allowed_environment_variables` must never include a wildcard that would forward the entire
   environment.
+- `claude_cli_permission_mode` and `codex_cli_sandbox_mode` are closed enums that deliberately
+  omit each CLI's unrestricted mode — Claude's `bypassPermissions` and Codex's
+  `danger-full-access`. Neither is a value the schema rejects at load time and then discusses; it
+  is a value no configuration, request, or call site can express at all, because the enums are the
+  only types those fields accept (AUTO-010). Both default to the *least* capable mode, so an
+  operator acquires write capability only by asking for it explicitly.
 - `baseline_branch` must be independently verifiable as an existing, real branch at
   precondition-check time; it is never assumed correct from configuration alone.
 
@@ -85,8 +93,10 @@ required_github_checks: ["ci/tests", "ci/lint"]
 merge_method: squash
 claude_cli_executable: /usr/local/bin/claude
 claude_cli_timeout_seconds: 1800
+claude_cli_permission_mode: dontAsk
 codex_cli_executable: /usr/local/bin/codex
 codex_cli_timeout_seconds: 1800
+codex_cli_sandbox_mode: workspace-write
 allowed_environment_variables: ["PATH", "HOME", "LANG"]
 allowed_changed_paths: ["docs/some-program/**"]
 forbidden_changed_paths: ["src/**", "tests/**", ".github/**"]

@@ -1095,3 +1095,87 @@ carries both new modules and both import from outside the repository root.
 Six non-blocking defects (D1-D6) were recorded, classified, and deferred — none fixed. No workflow
 state-machine change was needed. AUTO-010 and every later roadmap phase remain untouched and
 unauthorized. Report: `docs/reports/workflow-automation/AUTO-009-completion-report.md`.
+
+## AUTO-010 — Real Non-Interactive Provider Runtime
+
+Status: Done
+
+Registered and authorized by the Human Owner on 2026-07-31, in one written directive naming the
+stage, its mission, its required architecture, its closed permission and sandbox policies, its
+three-layer never-ask enforcement, its strictly prohibited behaviours, and its stop condition.
+AUTO-010 had never been registered before, so this single entry records both its registration and
+its authorization. It is the single `Current` task; the `Current` set was empty beforehand.
+
+Scope: implement and validate the real non-interactive Provider Runtime for Claude Code and Codex —
+
+    WorkflowService -> Provider Runtime -> Claude CLI / Codex CLI
+
+The stage must prove that both installed provider CLIs run without an interactive terminal, receive
+a complete prompt through stdin, never ask the user questions, execute under an explicit permission
+or sandbox policy, return a structured machine-readable result, enforce timeouts and output limits,
+isolate invocation artifacts, and return `BLOCKED` instead of waiting for clarification. The
+existing AgentOS provider framework (`agentos_workflow/providers/`) is reused, never duplicated:
+`WorkflowService` delegates through a narrow public Provider Runtime boundary and contains no
+provider-specific CLI flag and no subprocess logic of its own.
+
+Claude's permission mode is a strict enum limited to `plan`, `dontAsk`, and `acceptEdits`;
+`bypassPermissions` is not permitted. Codex's sandbox mode is a strict enum limited to `read-only`
+and `workspace-write`; `danger-full-access` is not permitted. Never-ask enforcement is implemented
+and tested at all three layers — prompt contract, mechanical non-interactivity (no TTY, one prompt
+on stdin, stdin closed, non-interactive flags, termination on timeout), and a structured terminal
+result (`COMPLETED`, `COMPLETED_WITH_ASSUMPTIONS`, `BLOCKED`, `FAILED`).
+
+Explicitly out of scope and prohibited in this stage: Preparation/Reviewer/Implementer Mode;
+workflow authorization, approval, or approval timeouts; Telegram; daemon; task scheduling; workflow
+start, resume, or cancel; Codex direct correction workflow; Claude-Codex orchestration; Git commit,
+push, PR creation, CI polling, merge, or branch cleanup; Python governance closeout; shell-script
+retirement; the AUTO-011 unified agent result; the AUTO-012 approval policy; and any successor
+stage. No workflow state-machine change is expected or permitted absent a proven blocker, and
+existing `workflowctl auto status|list|audit|report` behaviour and output are unchanged. Newly
+discovered defects that do not block AUTO-010 are recorded, classified, and deferred in the
+completion report.
+
+Contract: `docs/workflow-automation/stage-prompts/AUTO-010.md`.
+Report: `docs/reports/workflow-automation/AUTO-010-completion-report.md`.
+
+**Implemented, validated, approved, and closed `Current -> Done` on 2026-07-31.** The engine can
+now really run Claude Code and Codex non-interactively, and that claim rests on live acceptance
+tests against the installed CLIs rather than on mocks. `WorkflowService.invoke_provider` delegates
+to `ProviderRuntime.invoke` (`agentos_workflow/providers/runtime.py`), which selects a provider
+through the existing live registry and returns a typed `ProviderRunResult`; the service names no
+CLI flag, imports no provider internals, and holds no lock or store, so a provider run still cannot
+transition workflow state by itself.
+
+All three never-ask layers are enforced and tested. The prompt contract states the four required
+clauses verbatim and cannot be omitted, because the public request carries a `task` and no
+`prompt`. Mechanical non-interactivity is proven against real child processes: no TTY on any
+standard stream, no controlling terminal at all, its own process group, exactly one prompt on
+stdin, and EOF thereafter. Every execution terminates in `COMPLETED`,
+`COMPLETED_WITH_ASSUMPTIONS`, `BLOCKED`, or `FAILED`, with `BLOCKED` requiring concrete blockers,
+`COMPLETED_WITH_ASSUMPTIONS` requiring recorded assumptions, and a report omitting `status`
+rejected rather than inferred.
+
+Permission and sandbox policy is closed by construction: Claude is limited to `plan`/`dontAsk`/
+`acceptEdits` and Codex to `read-only`/`workspace-write`, both defaulting to the least capable
+value. `bypassPermissions` and `danger-full-access` are absent from the enums that configuration
+is typed to, so no configuration, request, or call site can express either. Account selection uses
+the real `claude`/`codex` binaries plus the allowlisted `CLAUDE_CONFIG_DIR`/`CODEX_HOME`; shell
+aliases are structurally unusable under `shell=False` and fixed argv.
+
+Three blockers were found and fixed inside the shared provider process runner, each minimal:
+`subprocess.run`'s timeout killed only the direct child and left the parent's controlling terminal
+attached (now `Popen(start_new_session=True)` with SIGTERM-then-SIGKILL of the whole process
+group); output ceilings were unenforced during capture and stderr had none (now bounded streaming
+readers that reclaim the group on breach); and AUTO-004's Codex parser took the last JSON object on
+stdout, which is always a `turn.*` envelope and never the report, so it could never have worked
+against the real CLI (now the `--output-last-message` answer file, with a narrow JSONL fallback
+pinned to verbatim captured output).
+
+Evidence: 3,241 tests pass (3,151 + 90 new, none skipped, none xfail) plus 25 live acceptance tests
+against the real CLIs with **zero skips** — Claude 9, Codex 9, suite guards 7. `mypy --strict`
+clean over 120 source files; `ruff`, `black`, and pre-commit clean; the wheel carries every new
+module and all import from outside the repository root; nine existing `workflowctl` invocations are
+byte-identical to the `5d1b6be` baseline. Four non-blocking defects (D-3 through D-6) remain
+deferred and none was fixed; D-1 was withdrawn as misdiagnosed, and D-2 and D-7 were resolved. No
+workflow state-machine change was needed. AUTO-011 and every later roadmap phase remain untouched
+and unauthorized. Report: `docs/reports/workflow-automation/AUTO-010-completion-report.md`.
