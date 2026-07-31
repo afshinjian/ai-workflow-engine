@@ -275,3 +275,16 @@ Registered and authorized to resolve AUTO-008's deferred F-2 finding, then imple
 approved, and closed on 2026-07-30. The eight delivered Git/GitHub Skills are bound in the
 production registry, so `GitAgent` and `MergeAgent` can run against it for the first time.
 Capability isolation is unchanged and proven by a negative test.
+
+## Authorization update — 2026-07-31 (GOV-AUTO-07)
+
+## GOV-AUTO-07
+
+Status: Done
+
+Registered and authorized to resolve AUTO-008's deferred F-1 finding, then implemented, validated,
+approved, and closed on 2026-07-31. `AuthorizationBindingDriftError` now carries one documented
+argument convention, enforced at every raise site: `expected` is the authorization-bound or
+otherwise required reference value, `actual` is the current value judged against it. Drift-detection
+behaviour is unchanged — only the diagnostic orientation — and the public attributes and rendered
+message are byte-identical.

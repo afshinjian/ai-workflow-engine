@@ -12,6 +12,21 @@
 
 ## [Unreleased]
 
+### Fixed
+- GOV-AUTO-07 (2026-07-31, implementation): resolved AUTO-008's F-1 finding. Every raise site of
+  `AuthorizationBindingDriftError` in `orchestrator/engine.py` now follows one convention —
+  `expected` is the authorization-bound value where the comparison has one, otherwise the invariant
+  the check requires; `actual` is the current runtime, repository, live-observation, or
+  caller/disk-supplied value judged against it. Three clusters were normalized:
+  `_detect_authorization_binding_drift` (all ten `_BINDING_DRIFT_FIELDS`, which passed the current
+  value as `expected`), two `_live_drift` calls in `_validate_live_resume_observation` that put the
+  bound value in `actual` (including two adjacent `repository_identity` raises that contradicted
+  each other), and the four cross-record checks in `_validate_persisted_authorization_evidence`
+  that reported the persisted `AuthorizationRecord` as `actual`. Comparisons are symmetric, so
+  which drifts are detected, in what order, and with what durable `-> FAILED` consequence is
+  unchanged; only the reported sides moved. Public attributes and the rendered message are
+  byte-unchanged.
+
 ### Added
 - AUTO-007 (2026-07-28, implementation): built the stage's own test-authoring deliverables under
   `agentos_workflow/tests/e2e/**` and `agentos_workflow/tests/recovery/**` — no production code

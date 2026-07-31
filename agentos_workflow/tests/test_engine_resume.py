@@ -882,19 +882,21 @@ class TestAuthorizationBindingDrift:
     def test_drift_message_reports_expected_and_found_in_argument_order(
         self, tmp_path: Path
     ) -> None:
-        """The message must not transpose its two values (AUTO-008).
+        """The message must not transpose its two values (AUTO-008), and the two values must be on
+        the canonical sides (GOV-AUTO-07).
 
-        The old message labelled `actual` as "bound value" and `expected` as "current value". That
-        was backwards *here*: `_detect_authorization_binding_drift` passes the independently
-        supplied current value as `expected` and the persisted record as `actual`, so a reader was
-        told the live identity was the bound one and the tampered record was current — on the
-        primary safety-invalidation path.
+        AUTO-008 fixed the *wording*: the message had labelled `actual` as "bound value" and
+        `expected` as "current value", which was backwards here. It could not fix the *arguments*,
+        because `_detect_authorization_binding_drift` and `_validate_live_resume_observation`
+        passed those two sides the other way round from each other, so a fixed "bound/current"
+        wording was necessarily wrong at one of the two.
 
-        It could not be fixed by simply swapping the words, because
-        `_validate_live_resume_observation` passes those two sides the other way round; a fixed
-        "bound/current" wording is necessarily wrong at one of the two. The message therefore
-        states the reference and the finding in received-argument order, which holds at every raise
-        site. Both attributes were always correct, so only the rendered text can catch this.
+        GOV-AUTO-07 fixed the arguments. `expected` is now the authorization-bound value at every
+        raise site and `actual` is the current value found in its place, so on this path the
+        *tampered persisted record* is `expected` — it is what the (tampered) authorization binds —
+        and the independently-supplied live identity is `actual`. The rendered wording deliberately
+        stays "expected …/found …" rather than re-adopting "bound value", because raise sites like
+        `working_tree_forbidden_paths` have no binding on either side.
         """
         store = _store(tmp_path)
         _tamper_persisted_authorization_record(
@@ -907,9 +909,9 @@ class TestAuthorizationBindingDrift:
             )
         error = exc_info.value
         message = str(error)
-        # This path compares the live/current value (`expected`) against the persisted record
-        # (`actual`); the tampered record is what was *found*.
-        assert error.actual == "github.com/org/drifted-repo"
+        # The bound (here: tampered) record is the reference; the live value is what was found.
+        assert error.expected == "github.com/org/drifted-repo"
+        assert error.actual == _context().repository_identity
         assert error.expected != error.actual
         assert f"expected {error.expected!r}" in message
         assert f"found {error.actual!r}" in message
@@ -917,9 +919,10 @@ class TestAuthorizationBindingDrift:
         assert message.index(f"expected {error.expected!r}") < message.index(
             f"found {error.actual!r}"
         )
-        # And the message must not re-assert which side is the authorization binding, since the
-        # two raise sites disagree about that.
+        # The message still must not re-assert which side is the binding: `expected` is the
+        # binding only where the comparison has one, which is not true at every raise site.
         assert "bound value" not in message
+        assert "current value" not in message
 
     def test_repository_path_drift_detected(self, tmp_path: Path) -> None:
         # Simulates the repository having genuinely moved: the caller independently observes

@@ -986,3 +986,48 @@ rather than allowed to decay, preserving the existing `SKILL_UNAVAILABLE` classi
 missing binding. 2,978 tests pass; `mypy --strict` clean over 115 source files; `ruff`, `black`, and
 pre-commit clean. F-1 and AUTO-009 remain untouched. Report:
 `docs/reports/GOV-AUTO-06-completion-report.md`.
+
+## GOV-AUTO-07 — Normalize the `AuthorizationBindingDriftError` expected/actual convention
+
+Status: Done
+
+Registered and authorized by the Human Owner on 2026-07-31 to resolve F-1, the finding AUTO-008
+reported and deliberately did not fix (`docs/reports/workflow-automation/AUTO-008-completion-report.md`
+§2.4). The `expected`/`actual` argument convention diverges between the two authorization-drift call
+paths in `agentos_workflow/orchestrator/engine.py`: `_detect_authorization_binding_drift` passes the
+independently-supplied **current** value as `expected` and the persisted `AuthorizationRecord` as
+`actual`, while `_validate_live_resume_observation` / `_live_drift` passes the persisted record as
+`expected` and the **live observation** as `actual`. The two are mutually inverted, so no fixed
+"bound value X / current value Y" wording can be correct at both — which is why AUTO-008 could only
+neutralize the rendered message rather than fix it. `.expected` and `.actual` therefore carry
+opposite meanings depending on which safety path raised, on the primary authorization-invalidation
+path.
+
+Scope: define and enforce one canonical convention — `expected` is the authorization-bound or
+otherwise required reference value; `actual` is the current runtime, repository, or supplied value
+judged against it — and normalize every raise site of `AuthorizationBindingDriftError` to it. The
+public attribute names `field`, `expected`, and `actual` are preserved. Regression tests must cover
+every affected drift path. No new feature, no new public interface, no change to workflow
+transitions, Git/GitHub skill registration, the public CLI, or any other exception type. Does not
+begin AUTO-009.
+
+Recorded as a governance/engine follow-up task outside the AUTO family, per the GOV-AUTO-01
+precedent (`docs/workflow-automation/STAGE_REGISTRY.md` §5): no stage-registry row, no stage
+contract, no lifecycle state in that registry.
+
+**Implemented, validated, approved, and closed `Current -> Done` on 2026-07-31.** One canonical
+convention is now documented on `AuthorizationBindingDriftError` itself and enforced at all 43 of
+its raise/helper call sites: `expected` is the authorization-bound value where the comparison has
+one, otherwise the invariant the check requires; `actual` is the current runtime, repository,
+live-observation, or caller/disk-supplied value judged against it. Three clusters were normalized —
+`_detect_authorization_binding_drift` (all ten `_BINDING_DRIFT_FIELDS`), two `_live_drift` calls in
+`_validate_live_resume_observation` (one of which contradicted the raise directly beside it on the
+same field), and the four cross-record checks in `_validate_persisted_authorization_evidence`, which
+reported the persisted `AuthorizationRecord` as `actual` despite it being the root of trust. Every
+comparison is symmetric, so which drifts are detected, in what order, and with what durable
+`-> FAILED` consequence is unchanged; only the reported orientation moved. The public attributes
+`field`/`expected`/`actual` and the rendered message are byte-identical, pinned by a test. 3,005
+tests pass (2,978 + 27 new, none skipped); the new suite fails 17 of 27 against the pre-fix engine,
+and the only pre-existing test that broke was AUTO-008's own message pin. `mypy --strict` clean over
+115 source files; `ruff`, `black`, and pre-commit clean. AUTO-009 remains untouched and
+unauthorized. Report: `docs/reports/GOV-AUTO-07-completion-report.md`.

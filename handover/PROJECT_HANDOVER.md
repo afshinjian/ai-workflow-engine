@@ -573,3 +573,55 @@ optional follow-up work, not a defect.
 Codex CLI, or GitHub call has ever been made by this engine, and nothing yet sequences the six
 agents; `MVP_SCOPE.md` §4's real-target-repository demonstration remains unmet. No merge was
 performed by this closeout.
+
+## Authorization update — 2026-07-31 (GOV-AUTO-07)
+
+GOV-AUTO-07 — Normalize the `AuthorizationBindingDriftError` expected/actual convention — is the
+single `Current` task, registered and authorized by the Human Owner to resolve the F-1 finding
+AUTO-008 reported and deliberately did not fix.
+
+F-1: `AuthorizationBindingDriftError(field, expected, actual)` is raised from two
+authorization-drift call paths that pass those arguments in opposite senses.
+`_detect_authorization_binding_drift` passes the independently-supplied *current* value as
+`expected` and the persisted `AuthorizationRecord` as `actual`; `_validate_live_resume_observation`
+/ `_live_drift` passes the persisted record as `expected` and the *live observation* as `actual`.
+AUTO-008 found this while fixing the error's inverted message and could only neutralize the
+wording, because no fixed "bound value X / current value Y" text is correct at both sites. As a
+result `.expected` and `.actual` carry opposite meanings depending on which safety path raised.
+
+Scope is the convention and its raise sites only: `field`, `expected`, and `actual` remain the
+public attributes; no workflow transition, Git/GitHub skill registration, public CLI, shell script,
+or other exception type changes, and the end-to-end dry run's redundant manual Skill bindings are
+deliberately left alone. Implementation has not started; no push, merge, upstream, or stash
+operation was performed.
+
+## Closure update — 2026-07-31 (GOV-AUTO-07)
+
+GOV-AUTO-07 — Normalize the `AuthorizationBindingDriftError` expected/actual convention — was
+approved by the Human Owner after a required eight-point verification, closed `Current -> Done`, and
+committed together with its implementation in one local commit on
+`feature/gov-auto-07-drift-argument-convention`, which was then pushed. **No PR was opened and no
+merge was performed.** The `Current` set is empty again.
+
+AUTO-008's F-1 is resolved. `AuthorizationBindingDriftError` now documents one argument convention
+and all 43 of its raise/helper call sites obey it: `expected` is the authorization-bound value where
+the comparison has one, otherwise the invariant the check requires; `actual` is the current runtime,
+repository, live-observation, or caller/disk-supplied value judged against it. Three clusters were
+normalized — `_detect_authorization_binding_drift` (all ten `_BINDING_DRIFT_FIELDS`), two
+`_live_drift` calls in `_validate_live_resume_observation`, and the four cross-record checks in
+`_validate_persisted_authorization_evidence`. That third cluster is beyond the two paths F-1
+literally named; it was included deliberately, flagged as a judgement call in the report, and is
+independently reversible.
+
+Every comparison is symmetric, so drift detection, its ordering, and its durable `-> FAILED`
+consequence are unchanged — only the diagnostic orientation moved. The public attributes
+`field`/`expected`/`actual` and the rendered message are byte-identical, so no caller must migrate.
+Evidence: 3,005 tests passing (2,978 + 27 new); the new suite fails 17 of 27 against the pre-fix
+engine while the 10 that pass are exactly the already-conforming sites; `mypy --strict` clean over
+115 source files; `ruff`, `black`, and pre-commit clean.
+
+Still outstanding and unchanged by this stage: no real Claude CLI, Codex CLI, or GitHub API call has
+ever been made by this engine, and there is still no production code that sequences the six agents.
+`MVP_SCOPE.md` §4's second acceptance demonstration — a real target-repository run — remains unmet.
+AUTO-009 and every later roadmap phase remain unauthorized. No merge, upstream change, or stash
+operation was performed by this closeout.
