@@ -7,6 +7,13 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Fixed
+- GOV-AUTO-07 (2026-07-31): `AuthorizationBindingDriftError` now has one canonical argument
+  convention at every raise site — `expected` is the authorization-bound (or otherwise required)
+  reference value, `actual` is the current runtime/repository/supplied value found in its place.
+  Previously `_detect_authorization_binding_drift` and `_validate_live_resume_observation` passed
+  those two arguments in opposite senses, so `.expected` and `.actual` meant opposite things
+  depending on which safety path raised. The public attributes `field`, `expected`, and `actual`
+  and the rendered message shape are unchanged; only which value lands on which side changed.
 - GOV-AUTO-06 (2026-07-30): the eight Git/GitHub Skills AUTO-006 delivered are now bound in
   `default_skill_registry()` (32 -> 40 entries). They had remained classified as undelivered long
   after AUTO-006 shipped, so `GitAgent` and `MergeAgent` could not invoke any of their own

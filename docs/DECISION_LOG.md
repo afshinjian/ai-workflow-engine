@@ -26,6 +26,55 @@ together with the generated closeout records in one local commit.
 push, merge, authorize a successor task, change branches, alter upstream, or mutate
 stashes.
 
+## 2026-07-31 — Human Owner approved and closed GOV-AUTO-07
+
+**Decision:** The Human Owner required a final eight-point verification of the candidate
+implementation — convention consistency, changed-site relevance, behaviour invariance, public-surface
+compatibility, the cross-record checks, regression-test genuineness, untouched prohibited surfaces,
+and residue — all of which passed, then approved GOV-AUTO-07 and authorized its implementation and
+closeout commit and the push of `feature/gov-auto-07-drift-argument-convention`. Registry state has
+no lifecycle entry for this task (see below); task status moves `Current → Done`.
+
+**What the fix establishes.** `AuthorizationBindingDriftError` now documents, and every one of its
+43 raise/helper call sites obeys, a single convention: `expected` is the authorization-bound value
+where the comparison has one, otherwise the invariant the check requires; `actual` is the current
+runtime, repository, live-observation, or caller/disk-supplied value judged against it. Where a
+persisted `AuthorizationRecord` is one side of a comparison it is always `expected` — the human
+authorization is the root of trust and is never reported as the thing that was "found".
+
+**Scope decision worth recording — a third inversion beyond the two F-1 named.** F-1 identified two
+mutually inverted paths (`_detect_authorization_binding_drift` and `_validate_live_resume_observation`).
+Inspection found a third instance in `_validate_persisted_authorization_evidence`, whose four
+cross-record checks reported the persisted `AuthorizationRecord` as `actual`. AUTO-008's audit had
+classified these as conforming under its weaker "required/reference value" framing; they are
+inverted under the stricter convention this stage was directed to establish. They were included,
+because leaving them would have reproduced in a third place exactly the ambiguity F-1 exists to
+remove and would have made the convention unstateable as a rule. This was flagged explicitly in the
+report as a judgement call beyond the finding's literal wording, and remains independently
+reversible — four one-line argument swaps with dedicated tests.
+
+**Deliberately not changed.** The rendered message keeps AUTO-008's "expected …, found …" wording
+rather than re-adopting "bound value / current value": with the convention uniform that labelling
+would finally be correct on the bound-vs-current paths, but not at the sites where neither side is a
+binding, where it would substitute a new falsehood for the old one. `AuthorizationScopeMismatchError`
+was left untouched — a different exception for a different condition, whose message names its own
+sides explicitly and is therefore already unambiguous.
+
+**Evidence:** 3,005 tests passing (2,978 + 27 new, none skipped, deleted, or `xfail`ed); the new
+suite fails 17 of its 27 tests against the stashed pre-fix engine, and the 10 that pass are exactly
+the already-conforming sites — which independently confirms those were not disturbed. The only
+pre-existing test that broke was AUTO-008's own message pin. `mypy --strict` clean over 115 source
+files; `ruff`, `black`, and `pre-commit` clean. Every comparison is symmetric, so drift detection,
+ordering, and the durable `-> FAILED` consequence are unchanged.
+
+**Provenance note:** approval was given directly in session and the closeout was performed manually,
+not through `scripts/workflow-approve.sh` — that script requires the Human Owner to type two exact
+`APPROVE` confirmations interactively, which the implementation agent must not supply on the Human
+Owner's behalf. The document set and commit structure match what the script produces.
+
+**Boundaries:** This closure authorizes no successor. AUTO-009 and every later roadmap phase require
+their own fresh written authorization. No PR was opened and no merge was performed.
+
 ## 2026-07-31 — Human Owner registered and authorized GOV-AUTO-07
 
 **Decision:** The Human Owner registered and authorized `GOV-AUTO-07 — Normalize the

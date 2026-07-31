@@ -280,8 +280,11 @@ Capability isolation is unchanged and proven by a negative test.
 
 ## GOV-AUTO-07
 
-Status: Current
+Status: Done
 
-Registered and authorized by the Human Owner to resolve AUTO-008's deferred F-1 finding: the
-`expected`/`actual` argument convention diverges between the two `AuthorizationBindingDriftError`
-authorization-drift call paths. Implementation and approval remain separate phases.
+Registered and authorized to resolve AUTO-008's deferred F-1 finding, then implemented, validated,
+approved, and closed on 2026-07-31. `AuthorizationBindingDriftError` now carries one documented
+argument convention, enforced at every raise site: `expected` is the authorization-bound or
+otherwise required reference value, `actual` is the current value judged against it. Drift-detection
+behaviour is unchanged — only the diagnostic orientation — and the public attributes and rendered
+message are byte-identical.

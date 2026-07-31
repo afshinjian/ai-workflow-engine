@@ -989,7 +989,7 @@ pre-commit clean. F-1 and AUTO-009 remain untouched. Report:
 
 ## GOV-AUTO-07 — Normalize the `AuthorizationBindingDriftError` expected/actual convention
 
-Status: Current
+Status: Done
 
 Registered and authorized by the Human Owner on 2026-07-31 to resolve F-1, the finding AUTO-008
 reported and deliberately did not fix (`docs/reports/workflow-automation/AUTO-008-completion-report.md`
@@ -1014,3 +1014,20 @@ begin AUTO-009.
 Recorded as a governance/engine follow-up task outside the AUTO family, per the GOV-AUTO-01
 precedent (`docs/workflow-automation/STAGE_REGISTRY.md` §5): no stage-registry row, no stage
 contract, no lifecycle state in that registry.
+
+**Implemented, validated, approved, and closed `Current -> Done` on 2026-07-31.** One canonical
+convention is now documented on `AuthorizationBindingDriftError` itself and enforced at all 43 of
+its raise/helper call sites: `expected` is the authorization-bound value where the comparison has
+one, otherwise the invariant the check requires; `actual` is the current runtime, repository,
+live-observation, or caller/disk-supplied value judged against it. Three clusters were normalized —
+`_detect_authorization_binding_drift` (all ten `_BINDING_DRIFT_FIELDS`), two `_live_drift` calls in
+`_validate_live_resume_observation` (one of which contradicted the raise directly beside it on the
+same field), and the four cross-record checks in `_validate_persisted_authorization_evidence`, which
+reported the persisted `AuthorizationRecord` as `actual` despite it being the root of trust. Every
+comparison is symmetric, so which drifts are detected, in what order, and with what durable
+`-> FAILED` consequence is unchanged; only the reported orientation moved. The public attributes
+`field`/`expected`/`actual` and the rendered message are byte-identical, pinned by a test. 3,005
+tests pass (2,978 + 27 new, none skipped); the new suite fails 17 of 27 against the pre-fix engine,
+and the only pre-existing test that broke was AUTO-008's own message pin. `mypy --strict` clean over
+115 source files; `ruff`, `black`, and pre-commit clean. AUTO-009 remains untouched and
+unauthorized. Report: `docs/reports/GOV-AUTO-07-completion-report.md`.

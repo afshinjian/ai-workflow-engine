@@ -594,3 +594,34 @@ public attributes; no workflow transition, Git/GitHub skill registration, public
 or other exception type changes, and the end-to-end dry run's redundant manual Skill bindings are
 deliberately left alone. Implementation has not started; no push, merge, upstream, or stash
 operation was performed.
+
+## Closure update — 2026-07-31 (GOV-AUTO-07)
+
+GOV-AUTO-07 — Normalize the `AuthorizationBindingDriftError` expected/actual convention — was
+approved by the Human Owner after a required eight-point verification, closed `Current -> Done`, and
+committed together with its implementation in one local commit on
+`feature/gov-auto-07-drift-argument-convention`, which was then pushed. **No PR was opened and no
+merge was performed.** The `Current` set is empty again.
+
+AUTO-008's F-1 is resolved. `AuthorizationBindingDriftError` now documents one argument convention
+and all 43 of its raise/helper call sites obey it: `expected` is the authorization-bound value where
+the comparison has one, otherwise the invariant the check requires; `actual` is the current runtime,
+repository, live-observation, or caller/disk-supplied value judged against it. Three clusters were
+normalized — `_detect_authorization_binding_drift` (all ten `_BINDING_DRIFT_FIELDS`), two
+`_live_drift` calls in `_validate_live_resume_observation`, and the four cross-record checks in
+`_validate_persisted_authorization_evidence`. That third cluster is beyond the two paths F-1
+literally named; it was included deliberately, flagged as a judgement call in the report, and is
+independently reversible.
+
+Every comparison is symmetric, so drift detection, its ordering, and its durable `-> FAILED`
+consequence are unchanged — only the diagnostic orientation moved. The public attributes
+`field`/`expected`/`actual` and the rendered message are byte-identical, so no caller must migrate.
+Evidence: 3,005 tests passing (2,978 + 27 new); the new suite fails 17 of 27 against the pre-fix
+engine while the 10 that pass are exactly the already-conforming sites; `mypy --strict` clean over
+115 source files; `ruff`, `black`, and pre-commit clean.
+
+Still outstanding and unchanged by this stage: no real Claude CLI, Codex CLI, or GitHub API call has
+ever been made by this engine, and there is still no production code that sequences the six agents.
+`MVP_SCOPE.md` §4's second acceptance demonstration — a real target-repository run — remains unmet.
+AUTO-009 and every later roadmap phase remain unauthorized. No merge, upstream change, or stash
+operation was performed by this closeout.

@@ -603,26 +603,45 @@ class AuthorizationBindingDriftError(AuthorizationError):
     in-progress workflow. This error means a workflow that *was* validly authorized has since
     drifted — `resume_workflow` durably records the required `-> FAILED` transition before this
     error propagates, so the failure is never just reported to the caller and then forgotten.
+
+    Argument convention (GOV-AUTO-07, resolving AUTO-008's F-1) — binding at **every** raise site
+    of this error in this module, and on any new one:
+
+    * `expected` is the **reference** the check enforces: the authorization-bound value where the
+      comparison has one, otherwise the invariant/required value the check demands.
+    * `actual` is the **value under judgement**: the current runtime, repository, live observation,
+      or caller/disk-supplied value that was found in the reference's place.
+
+    Where a persisted `AuthorizationRecord` (or a value derived from it) is one side of the
+    comparison, that side is always `expected` — the human authorization is the root of trust, so
+    it is never the side reported as "found". Where no authorization binding is involved at all
+    (e.g. `working_tree_forbidden_paths`, `resume_state_policy`), `expected` carries the required
+    invariant and `actual` carries what violated it. The single exception in spirit, not in rule,
+    is a *containment* check such as `stage_contract_path` "inside <root>": there the reference is
+    the containment requirement and the record-derived path is the value being judged, so the
+    record-derived path is correctly `actual`.
+
+    Before GOV-AUTO-07 the two authorization-drift call paths were mutually inverted:
+    `_detect_authorization_binding_drift` passed the independently-supplied current value as
+    `expected` and the persisted record as `actual`, while `_validate_live_resume_observation` /
+    `_live_drift` passed the persisted record as `expected` and the live observation as `actual`.
+    `.expected` and `.actual` therefore meant opposite things depending on which safety path
+    raised. AUTO-008 could only neutralize the rendered message, because no fixed "bound value X /
+    current value Y" wording is correct at both.
     """
 
     def __init__(self, field: str, expected: str, actual: str) -> None:
         self.field = field
         self.expected = expected
         self.actual = actual
-        # AUTO-008: this message previously labelled `actual` as "bound value" and `expected` as
-        # "current value". That labelling is only correct for *some* raise sites. The thirteen
-        # raise sites in this module share one convention -- `expected` is the required/reference
-        # value, `actual` is what was actually found -- but they disagree about which side the
-        # persisted authorization sits on: `_detect_authorization_binding_drift` passes the
-        # independently-supplied current value as `expected` and the persisted record as `actual`,
-        # while `_validate_live_resume_observation` passes the persisted record as `expected` and
-        # the live observation as `actual`. Any fixed "bound value X / current value Y" wording is
-        # therefore guaranteed to be backwards at one of them.
-        #
-        # So the message no longer claims to know which side is the binding. It states the
-        # reference and the finding in the argument order actually received, which is faithful at
-        # every raise site; `field` already tells the reader which binding drifted, and callers
-        # that need the sides distinguished read `.expected`/`.actual` directly.
+        # The wording stays "expected ... found ..." rather than the "bound value ... current
+        # value ..." labelling AUTO-008 removed. With the convention above now uniform, naming the
+        # binding explicitly would finally be correct on the bound-vs-current paths -- but not at
+        # the raise sites where neither side is a binding ("bound value ()" for
+        # `working_tree_forbidden_paths` would be a new falsehood in place of the old one).
+        # "expected"/"found" is exact at every site: `expected` is the reference, `actual` is what
+        # was found in its place. `field` tells the reader which binding drifted, and callers that
+        # need the sides distinguished read `.expected`/`.actual`, which now carry one meaning.
         super().__init__(
             f"Authorization binding drift on {field!r}: expected {expected!r}, found {actual!r}. "
             "Per HUMAN_AUTHORIZATION_MODEL.md §4, this authorization is invalid; the workflow "
@@ -1461,26 +1480,32 @@ def _validate_persisted_authorization_evidence(
                 else "the supplied authorization transition is not an exact persisted member"
             ),
         )
+    # The four checks below compare the persisted `AuthorizationRecord` against the transition
+    # record being replayed. The authorization is the root of trust here — the whole point of this
+    # step is that a transition history must be bound to what the human actually authorized, not
+    # merely internally consistent — so the authorization record is `expected` and the transition
+    # record is the value under judgement (GOV-AUTO-07). The three checks above have no
+    # authorization record on either side; there the required constant is `expected`.
     if authorization_record.workflow_id != record.workflow_id:
         raise AuthorizationBindingDriftError(
-            "workflow_id", record.workflow_id, authorization_record.workflow_id
+            "workflow_id", authorization_record.workflow_id, record.workflow_id
         )
     if authorization_record.repository_identity != record.target_repository:
         raise AuthorizationBindingDriftError(
             "repository_identity",
-            record.target_repository,
             authorization_record.repository_identity,
+            record.target_repository,
         )
     if (
         Path(authorization_record.repository_path).resolve()
         != Path(record.repository_path).resolve()
     ):
         raise AuthorizationBindingDriftError(
-            "repository_path", record.repository_path, authorization_record.repository_path
+            "repository_path", authorization_record.repository_path, record.repository_path
         )
     if authorization_record.stage_id != record.stage_id:
         raise AuthorizationBindingDriftError(
-            "stage_id", record.stage_id, authorization_record.stage_id
+            "stage_id", authorization_record.stage_id, record.stage_id
         )
 
 
@@ -1685,6 +1710,15 @@ def _detect_authorization_binding_drift(
     uses, since no compatibility/semver-range policy is defined anywhere in this document set. A
     looser policy (e.g. treating a patch-version bump as non-drifting) is undefined and would be
     a new Human Owner-approved policy, not something this fix invents.
+
+    Argument convention (GOV-AUTO-07): the bound value from `record` is reported as `expected` and
+    the independently-supplied current value as `actual`, per
+    `AuthorizationBindingDriftError`'s documented convention. This is the inversion F-1 named: this
+    function previously passed the current value as `expected` and the persisted record as
+    `actual`, the opposite of what `_validate_live_resume_observation` did, so a reader was told
+    the live value was the bound one and the drifted record was what had been found. Only the
+    reported sides changed; the comparison itself is symmetric, so which fields drift and in what
+    order is unaffected.
     """
     current_values: dict[str, str] = {
         "workflow_id": context.workflow_id,
@@ -1699,10 +1733,10 @@ def _detect_authorization_binding_drift(
         "engine_version": current_binding.engine_version,
     }
     for field in _BINDING_DRIFT_FIELDS:
-        expected = current_values[field]
-        actual = getattr(record, field)
-        if expected != actual:
-            raise AuthorizationBindingDriftError(field, expected, actual)
+        bound = str(getattr(record, field))
+        current = current_values[field]
+        if bound != current:
+            raise AuthorizationBindingDriftError(field, bound, current)
 
 
 @dataclass(frozen=True)
@@ -1772,6 +1806,12 @@ def _classify_worktree(
 
 
 def _live_drift(field: str, expected: object, actual: object) -> None:
+    """Raise binding drift from the live-observation path.
+
+    `expected` is the reference (the value `record` binds, or the invariant this check requires)
+    and `actual` is the live/current value judged against it — `AuthorizationBindingDriftError`'s
+    convention, which every call below follows (GOV-AUTO-07).
+    """
     raise AuthorizationBindingDriftError(field, str(expected), str(actual))
 
 
@@ -1792,7 +1832,11 @@ def _validate_live_resume_observation(
             "repository_path", str(expected_repository), observation.canonical_repository_path
         )
     if Path(record.repository_path).resolve() != expected_repository:
-        _live_drift("repository_path", str(expected_repository), record.repository_path)
+        # Bound record vs. the current run's configured repository: the binding is the reference,
+        # so it is `expected` and the configured path is what was found (GOV-AUTO-07). The check
+        # immediately above has no binding on either side, so there the configured path is itself
+        # the reference and the live observation is what was found.
+        _live_drift("repository_path", record.repository_path, str(expected_repository))
     if not observation.repository_exists:
         _live_drift("repository_exists", True, False)
     if not observation.is_git_repository:
@@ -1805,7 +1849,10 @@ def _validate_live_resume_observation(
     configured_identity = canonical_repository_identity(config.repository_identity)
     bound_identity = canonical_repository_identity(record.repository_identity)
     if configured_identity != bound_identity:
-        _live_drift("repository_identity", configured_identity, bound_identity)
+        # Both of these compare against the binding, so the binding is `expected` in both
+        # (GOV-AUTO-07). Before that, these two adjacent raises on the same field put the bound
+        # identity on opposite sides of each other.
+        _live_drift("repository_identity", bound_identity, configured_identity)
     if observed_identity != bound_identity:
         _live_drift("repository_identity", bound_identity, observed_identity)
 
