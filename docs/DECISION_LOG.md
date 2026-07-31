@@ -26,6 +26,87 @@ together with the generated closeout records in one local commit.
 push, merge, authorize a successor task, change branches, alter upstream, or mutate
 stashes.
 
+## 2026-07-31 — Human Owner approved and closed AUTO-009
+
+**Decision:** The Human Owner approved AUTO-009 for finalization and required a final twelve-point
+scope, API, and read-only integrity verification before any commit. All twelve passed, and the
+Human Owner authorized the implementation and closeout commit and the push of
+`feature/auto-009-workflow-service`. Registry state moves `IN_PROGRESS -> COMPLETE`; task status
+moves `Current -> Done`.
+
+**What was verified, and how.** The read-only claim was not accepted on inspection. Every mutation
+channel the service could conceivably reach was replaced with a function that raises —
+`RepositoryLock.acquire`, `__enter__`, and `release`; `subprocess.run` and `Popen`; `os.system`,
+`os.fork`, and `os.posix_spawn`; `StateStore.record_transition` and `record_command_execution`; and
+all six `skills.reporting` writers — and all six operation invocations completed without reaching
+any of them. In the same run, a digest over every path, mode, mtime, and byte under the state
+directory, the audit directory, *and the target repository* was identical before and after each
+operation. AST assertions confirm the service module imports no lock or session symbol and calls no
+write method. Compatibility was proven by byte-comparing fourteen existing command invocations
+against a worktree at the `98acc195` baseline: thirteen identical; the fourteenth, `workflowctl
+--help`, gains the intended `auto` group and nothing else.
+
+**Two design calls the Human Owner accepted rather than deferred.** (A3) `auto audit` returns the
+two record schemas `AUDIT_MODEL.md` sections 2-3 define and deliberately excludes the Skill-level
+`audit.jsonl` event log, whose events are free-form dicts that would have weakened the typed-result
+guarantee; the gap is recorded as deferred defect D4 and becomes real only once the Orchestrator
+emits Skill events in a live run. (A4) `WorkflowNotFoundError` and `ReportNotFoundError` were added
+rather than reusing `MissingPersistedStateError`, because that and its siblings are `ResumeError`
+subclasses whose meaning is bound to resuming a workflow — reusing one would have made a read
+report a resume attempt that never happened. Both new errors inherit only from
+`WorkflowServiceError`, and their CLI mapping is identical to that of a pre-existing operational
+error: exit 2 with `ERROR: ` on stderr and empty stdout under contract v1, exit 1 with a single
+error envelope on stdout and empty stderr under v2.
+
+**Alternatives considered:** committing the registration and the implementation as one commit. Two
+were used instead, following the GOV-AUTO-06 and GOV-AUTO-07 precedent, so that the authorization
+record exists as a commit that contains no implementation and cannot be read as having been written
+after the fact.
+
+**Boundaries:** This decision approves, closes, and publishes only AUTO-009, and publication means
+pushing the stage branch — **no PR was opened and no merge was performed**. It authorizes no
+successor: AUTO-010 and every later roadmap phase remain unauthorized. The six non-blocking defects
+AUTO-009 recorded (D1-D6) remain deferred and explicitly unauthorized to fix; none was touched.
+
+## 2026-07-31 — Human Owner registered and authorized AUTO-009
+
+**Decision:** The Human Owner registered and authorized `AUTO-009 — WorkflowService boundary and
+read-only workflowctl auto surface` as the single `Current` task, in one written directive that
+named the stage, its target architecture, its required public boundary, its required CLI surface,
+its strictly prohibited behaviours, its validation set, and its stop condition. AUTO-009 had never
+been registered before, so the registration and the authorization are the same act, exactly as
+AUTO-008's were.
+
+**What the stage builds:** one application-service façade, `agentos_workflow.service
+.WorkflowService`, with exactly four read-only operations — `status`, `list`, `audit`, `report` —
+returning typed results over the *existing* AgentOS state, audit, report, and configuration
+components; plus `agentos_workflow.cli_auto`, an additive Typer sub-application registered as
+`workflowctl auto`. The dependency direction is fixed: `workflowctl auto -> WorkflowService ->
+agentos_workflow read-only APIs`, and `src/ai_workflow_engine/cli.py` reaches AgentOS through
+exactly one name (`agentos_workflow.cli_auto.auto_app`) rather than importing AgentOS internals
+throughout the legacy CLI.
+
+**Alternatives considered:** (a) exposing the AgentOS orchestrator directly to `workflowctl`,
+rejected because it would make every future CLI change a change to the engine's internals and
+would put a write-capable `WorkflowSession` one attribute access away from a read-only command;
+(b) building the read-only surface as a second, parallel reader over the on-disk JSONL layout,
+rejected because it would duplicate the descriptor-relative `O_NOFOLLOW` path-confinement
+discipline that `state_store.py` and `skills/reporting.py` already own, and two copies of a
+confinement rule are two rules that can drift apart.
+
+**Rationale:** The engine has had a state machine, persistence, skills, providers, and agents since
+AUTO-002..AUTO-006, but no public boundary at which any of it can be *observed*. Starting that
+boundary with a read-only surface means the first thing the façade proves is that it cannot mutate
+anything — no write lock, no state transition, no agent execution, no Git or GitHub mutation — so
+the write-capable operations, when they are separately authorized, are added to a boundary whose
+read path is already tested rather than to a blank file.
+
+**Boundaries:** This decision authorizes only AUTO-009's implementation and validation. It
+explicitly withholds the implementation/closeout commit, the push, the PR, the merge, and
+AUTO-010 or any successor behaviour, and it forbids fixing unrelated defects: a newly discovered
+defect is fixed in this stage only if it provably blocks AUTO-009 and no scope-preserving
+workaround exists; every other one is recorded, classified, and deferred.
+
 ## 2026-07-31 — Human Owner approved and closed GOV-AUTO-07
 
 **Decision:** The Human Owner required a final eight-point verification of the candidate

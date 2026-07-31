@@ -625,3 +625,62 @@ ever been made by this engine, and there is still no production code that sequen
 `MVP_SCOPE.md` §4's second acceptance demonstration — a real target-repository run — remains unmet.
 AUTO-009 and every later roadmap phase remain unauthorized. No merge, upstream change, or stash
 operation was performed by this closeout.
+
+## Closure update — 2026-07-31 (AUTO-009)
+
+AUTO-009 — WorkflowService boundary and read-only `workflowctl auto` surface — was approved by the
+Human Owner after a required twelve-point scope, API, and read-only integrity verification, closed
+`Current -> Done`, and committed together with its implementation in one local commit on
+`feature/auto-009-workflow-service`, which was then pushed. Its authorization was a separate,
+earlier commit on the same branch. **No PR was opened and no merge was performed.** The `Current`
+set is empty again.
+
+The engine now has a public boundary at which its persisted state can be observed from outside the
+package, which it has lacked since AUTO-002:
+
+    workflowctl auto -> WorkflowService -> agentos_workflow read-only state, audit,
+                                           report, and configuration APIs
+
+`agentos_workflow.service.WorkflowService` exposes exactly four operations — `status`, `list`,
+`audit`, `report` — each returning a frozen, `extra="forbid"` pydantic result.
+`agentos_workflow.cli_auto` surfaces the same four as `workflowctl auto`, reusing the engine CLI's
+own `_protected`/`_write_stdout`/`_contract_v2_success` helpers so the error envelopes, exit codes,
+and stdout/stderr discipline are the same code path rather than a second copy.
+`src/ai_workflow_engine/cli.py` changed by +14/-0 lines and reaches AgentOS through exactly one
+name.
+
+Everything the surface does is read-only, and that was demonstrated rather than asserted: with
+`RepositoryLock.acquire`/`__enter__`/`release`, `subprocess.run`/`Popen`, `os.system`/`fork`/
+`posix_spawn`, both `StateStore` append methods, and all six reporting writers replaced by
+functions that raise, all six operation invocations completed without reaching any of them, while a
+path+mode+mtime+bytes digest over the state directory, the audit directory, and the target
+repository stayed identical across each. Path confinement is unchanged: symlinked workflow
+directories, history files, and report files are all still refused, and a malformed report is
+surfaced rather than repaired.
+
+Two supporting primitives were added to the modules that already own the corresponding storage
+layout, deliberately not to the service, so the descriptor-relative `O_NOFOLLOW` discipline is not
+duplicated: `StateStore.list_workflow_ids()` and `skills.reporting.read_reports()`. Neither creates
+missing storage. No workflow state-machine change was needed or made.
+
+Evidence: 3,151 tests passing (3,005 + 146 new, none skipped, none xfail); `mypy --strict` clean
+over 117 source files; `ruff`, `black`, and pre-commit clean; the wheel carries both new modules and
+both import from outside the repository root; thirteen of fourteen byte-compared existing command
+invocations are identical to the `98acc195` baseline, the fourteenth being `workflowctl --help`,
+which gains the intended `auto` group and nothing else.
+
+Six non-blocking defects were recorded, classified, and deferred, none fixed: two stale
+`STAGE_REGISTRY.md` prose lines (D1, D2, `OPTIONAL`); the CLI-helper extraction that would remove
+`cli_auto`'s `OutputFormat` mirror and its deferred imports (D3, `RECOMMENDED` — the fix is a
+refactor of the existing CLI, which AUTO-009 was forbidden to perform, and it should land before a
+second AgentOS sub-app is added); the unreadable Skill-level `audit.jsonl` (D4, `FUTURE`); tests
+shipping inside the wheel (D5, `RECOMMENDED`, pre-existing since AUTO-008); and a package-surface
+inconsistency between `config/__init__.py` and `orchestrator/__init__.py` (D6, `OPTIONAL`).
+
+Still outstanding and unchanged by this stage: no real Claude CLI, Codex CLI, or GitHub API call has
+ever been made by this engine, and there is still no production code that sequences the six agents.
+`MVP_SCOPE.md` §4's second acceptance demonstration — a real target-repository run — remains unmet.
+This stage deliberately did not move toward it: it built the read half of the boundary first, so
+that the write-capable operations, when separately authorized, are added to a boundary whose read
+path is already tested. AUTO-010 and every later roadmap phase remain unauthorized. No merge,
+upstream change to any other branch, or stash operation was performed by this closeout.

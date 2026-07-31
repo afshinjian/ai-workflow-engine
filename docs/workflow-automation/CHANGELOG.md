@@ -5,12 +5,34 @@
 | **Title** | AgentOS Workflow Automation — Changelog |
 | **Purpose** | Program-level changelog, newest first. |
 | **Status** | Draft |
-| **Version** | 2.15 |
+| **Version** | 2.17 |
 | **Owner** | Documentation & Governance session |
 | **Dependencies** | None |
 | **Related Documents** | `docs/CHANGELOG.md` (repository-level; cross-posted there) |
 
 ## [Unreleased]
+
+### Added
+- AUTO-009 (2026-07-31, implementation): `agentos_workflow/service.py` and
+  `agentos_workflow/cli_auto.py` deliver the boundary
+  `workflowctl auto -> WorkflowService -> agentos_workflow read-only APIs`. `WorkflowService`
+  exposes exactly `status`, `list`, `audit`, `report`, each returning a frozen `extra="forbid"`
+  model; `AuditResult` carries the store's own `StateTransitionRecord`/`CommandExecutionRecord`
+  models so every `AUDIT_MODEL.md` section 2-3 field, including `gate_evidence_ref`, `stdout_ref`,
+  and `stderr_ref`, survives the boundary intact. Two new errors, `WorkflowNotFoundError` and
+  `ReportNotFoundError`, express read-only lookup absence without inheriting resume semantics;
+  every pre-existing configuration, corruption, and confinement error passes through unchanged.
+  `StateStore.list_workflow_ids()` and `skills.reporting.read_reports()` were added to their
+  owning modules; `_open_confined_directory` gained a `missing_ok` keyword whose default preserves
+  behaviour for all four existing call sites. `src/ai_workflow_engine/cli.py` changed by +14/-0.
+  Registry state `IN_PROGRESS -> COMPLETE`; 146 new tests (3,005 -> 3,151).
+- AUTO-009 (2026-07-31, registration and authorization): registered and authorized by the Human
+  Owner as the first public application-service boundary for the engine. `WorkflowService`
+  (`agentos_workflow/service.py`) exposes exactly four read-only operations — `status`, `list`,
+  `audit`, `report` — over the existing state, audit, report, and configuration components, and
+  `agentos_workflow/cli_auto.py` surfaces the same four as an additive `workflowctl auto` Typer
+  sub-application. Registry state `NOT_STARTED -> AUTHORIZED -> IN_PROGRESS`; registry stage count
+  rises 18 -> 19. No stage contract file was issued; the written directive is the contract.
 
 ### Fixed
 - GOV-AUTO-07 (2026-07-31, implementation): resolved AUTO-008's F-1 finding. Every raise site of

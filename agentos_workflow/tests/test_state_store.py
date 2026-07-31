@@ -11,6 +11,7 @@ from pydantic import ValidationError
 
 from agentos_workflow.config.schema import WorkflowConfig
 from agentos_workflow.orchestrator.state_store import (
+    _TRANSITIONS_FILENAME,
     CommandExecutionRecord,
     StateStore,
     StateStoreCorruptionError,
@@ -1319,3 +1320,62 @@ class TestAUTO002IR05DuplicateJSONKeysRejected:
         assert store.read_transitions("wf-1") == [first, second]
         assert store.read_command_executions("wf-1") == [_command()]
         assert store.current_state("wf-1") == "AUTHORIZED"
+
+
+class TestAUTO009ReadOnlyWorkflowEnumeration:
+    """`list_workflow_ids` is the store's only enumeration primitive, and it never writes."""
+
+    def test_absent_state_directory_is_empty_and_stays_absent(self, tmp_path: Path) -> None:
+        store = _make_store(tmp_path)
+        assert store.list_workflow_ids() == []
+        assert not (tmp_path / "state").exists()
+
+    def test_lists_only_workflows_with_a_transition_history(self, tmp_path: Path) -> None:
+        store = _make_store(tmp_path)
+        store.record_transition(_transition(workflow_id="wf-b"))
+        store.record_transition(_transition(workflow_id="wf-a"))
+        (tmp_path / "state" / "wf-empty-dir").mkdir()
+        assert store.list_workflow_ids() == ["wf-a", "wf-b"]
+
+    def test_result_is_sorted_and_repeatable(self, tmp_path: Path) -> None:
+        store = _make_store(tmp_path)
+        for workflow_id in ("wf-3", "wf-1", "wf-2"):
+            store.record_transition(_transition(workflow_id=workflow_id))
+        assert store.list_workflow_ids() == store.list_workflow_ids() == ["wf-1", "wf-2", "wf-3"]
+
+    def test_enumeration_creates_nothing(self, tmp_path: Path) -> None:
+        store = _make_store(tmp_path)
+        store.record_transition(_transition(workflow_id="wf-1"))
+        before = sorted(path.relative_to(tmp_path) for path in (tmp_path / "state").rglob("*"))
+        store.list_workflow_ids()
+        after = sorted(path.relative_to(tmp_path) for path in (tmp_path / "state").rglob("*"))
+        assert after == before
+
+    def test_a_name_that_is_not_a_legal_workflow_id_is_skipped(self, tmp_path: Path) -> None:
+        store = _make_store(tmp_path)
+        store.record_transition(_transition(workflow_id="wf-1"))
+        illegal = tmp_path / "state" / ".hidden"
+        illegal.mkdir()
+        (illegal / _TRANSITIONS_FILENAME).write_text("", encoding="utf-8")
+        assert store.list_workflow_ids() == ["wf-1"]
+
+    def test_a_symlinked_workflow_directory_fails_the_whole_listing(self, tmp_path: Path) -> None:
+        """Omitting a tampered entry would present a short list as a complete one."""
+        store = _make_store(tmp_path)
+        store.record_transition(_transition(workflow_id="wf-1"))
+        outside = tmp_path / "outside" / "wf-evil"
+        outside.mkdir(parents=True)
+        (outside / _TRANSITIONS_FILENAME).write_text("", encoding="utf-8")
+        os.symlink(outside, tmp_path / "state" / "wf-evil")
+        with pytest.raises(StateStorePathConfinementError):
+            store.list_workflow_ids()
+
+    def test_a_symlinked_history_file_fails_the_whole_listing(self, tmp_path: Path) -> None:
+        store = _make_store(tmp_path)
+        store.record_transition(_transition(workflow_id="wf-1"))
+        elsewhere = tmp_path / "elsewhere.jsonl"
+        elsewhere.write_text("", encoding="utf-8")
+        (tmp_path / "state" / "wf-evil").mkdir()
+        os.symlink(elsewhere, tmp_path / "state" / "wf-evil" / _TRANSITIONS_FILENAME)
+        with pytest.raises(StateStorePathConfinementError):
+            store.list_workflow_ids()

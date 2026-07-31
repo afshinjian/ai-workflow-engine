@@ -1031,3 +1031,67 @@ tests pass (2,978 + 27 new, none skipped); the new suite fails 17 of 27 against 
 and the only pre-existing test that broke was AUTO-008's own message pin. `mypy --strict` clean over
 115 source files; `ruff`, `black`, and pre-commit clean. AUTO-009 remains untouched and
 unauthorized. Report: `docs/reports/GOV-AUTO-07-completion-report.md`.
+
+## AUTO-009 — WorkflowService boundary and read-only `workflowctl auto` surface
+
+Status: Done
+
+Registered and authorized by the Human Owner on 2026-07-31, in one written directive, as the
+single `Current` task. This is the first stage of the AUTO family since AUTO-008 closed; the two
+intervening tasks (GOV-AUTO-06, GOV-AUTO-07) were governance follow-ups outside the family that
+resolved AUTO-008's two deferred findings, and both explicitly left AUTO-009 unauthorized.
+
+Scope: create the first public application-service boundary for the automated workflow engine —
+
+    workflowctl auto -> WorkflowService -> agentos_workflow read-only state, audit,
+    report, and configuration APIs
+
+`WorkflowService` (`agentos_workflow/service.py`) exposes exactly four read-only operations —
+`status`, `list`, `audit`, `report` — returning typed results and containing no CLI formatting, no
+Telegram logic, no shell interaction, no interactive prompts, no agent execution, and no Git or
+GitHub mutation. A new additive Typer sub-application (`agentos_workflow/cli_auto.py`) surfaces the
+same four operations as `workflowctl auto status|list|audit|report`, following the repository's
+existing human/JSON output, exit-code, error-envelope, debug, and stdout/stderr conventions.
+Registration into `src/ai_workflow_engine/cli.py` is the smallest possible additive change; no
+existing command is moved, refactored, or changed in behaviour or output.
+
+Explicitly out of scope and prohibited in this stage: workflow start, authorization, approval,
+rejection, resume, cancellation; Preparation/Reviewer/Implementer Mode; Claude or Codex execution;
+result-contract redesign; configurable approval; timeout behaviour; daemon; Telegram; Git commit,
+push, or branch deletion; GitHub PR; CI polling; merge; Python governance closeout; shell-script
+retirement; and AUTO-010 or any successor behaviour. No workflow state-machine change is expected
+or permitted absent a proven blocker. Newly discovered defects that do not block AUTO-009 are
+recorded and classified in the completion report and deferred to a future governed stage.
+
+Report: `docs/reports/workflow-automation/AUTO-009-completion-report.md`.
+
+**Implemented, validated, approved, and closed `Current -> Done` on 2026-07-31.** The engine's
+first public application-service boundary exists. `WorkflowService` (`agentos_workflow/service.py`)
+exposes exactly four read-only operations — `status`, `list`, `audit`, `report` — returning frozen,
+`extra="forbid"` typed results, and `agentos_workflow/cli_auto.py` surfaces the same four as
+`workflowctl auto`. `src/ai_workflow_engine/cli.py` changed by +14/-0 lines and reaches AgentOS
+through exactly one name, `agentos_workflow.cli_auto.auto_app`.
+
+Read-only-ness is demonstrated, not asserted. Every mutation channel was booby-trapped —
+`RepositoryLock.acquire`/`__enter__`/`release`, `subprocess.run`/`Popen`, `os.system`/`fork`/
+`posix_spawn`, both `StateStore` append methods, and all six reporting writers — and none was
+reached by any of the six operation invocations, while a path+mode+mtime+bytes digest over the
+state directory, the audit directory, and the target repository stayed identical across each. AST
+assertions confirm the service imports no lock or session symbol and calls no write method.
+Symlinked workflow directories, history files, and report files are still refused; a malformed
+report is surfaced, never repaired.
+
+Two new primitives were added to the modules that already own the corresponding storage layout,
+not to the service, so the `O_NOFOLLOW` confinement discipline is not duplicated:
+`StateStore.list_workflow_ids()` (+33) and `skills.reporting.read_reports()` (+180). Neither
+creates missing storage.
+
+Compatibility: thirteen of fourteen byte-compared existing command invocations are identical to
+the `98acc195` baseline; the fourteenth is `workflowctl --help`, which gains the intended `auto`
+group and nothing else. 3,151 tests pass (3,005 + 146 new, none skipped, none xfail);
+`mypy --strict` clean over 117 source files; `ruff`, `black`, and pre-commit clean; the wheel
+carries both new modules and both import from outside the repository root.
+
+Six non-blocking defects (D1-D6) were recorded, classified, and deferred — none fixed. No workflow
+state-machine change was needed. AUTO-010 and every later roadmap phase remain untouched and
+unauthorized. Report: `docs/reports/workflow-automation/AUTO-009-completion-report.md`.

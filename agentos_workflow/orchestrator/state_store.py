@@ -702,6 +702,39 @@ class StateStore:
             new_timestamp=record.completion_time,
         )
 
+    def list_workflow_ids(self) -> list[str]:
+        """Every workflow that actually has a persisted transition history, sorted.
+
+        Read-only and creation-free by construction (AUTO-009): a missing `state_directory` is an
+        empty result, never a directory this call brings into existence, so listing a repository
+        that has never run a workflow cannot manufacture the storage that makes it look as though
+        it had. Membership is decided by opening `<workflow_id>/transitions.jsonl` through the same
+        `_confined_record_fd` walk every other read uses (`write=False`, so nothing is created):
+        a directory with no history file is not a workflow, which is what keeps this from inventing
+        entries out of stray directories.
+
+        A name that is not a legal `workflow_id` is skipped rather than reported — it was never
+        writable through this API, so it is not a workflow this store owns. A *symlinked* workflow
+        directory or history file is deliberately not skipped: `_confined_record_fd` raises
+        `StateStorePathConfinementError` and fails the whole listing, because a symlink where a
+        record path belongs is evidence of tampering (module docstring), and quietly omitting the
+        affected workflow would present a short list as a complete one.
+        """
+        try:
+            names = os.listdir(self._state_directory.resolve())
+        except FileNotFoundError:
+            return []
+        found: list[str] = []
+        for name in sorted(names):
+            if not _WORKFLOW_ID_RE.fullmatch(name):
+                continue
+            with _confined_record_fd(
+                self._state_directory, name, _TRANSITIONS_FILENAME, write=False
+            ) as (fd, _):
+                if fd is not None:
+                    found.append(name)
+        return found
+
     def read_transitions(self, workflow_id: str) -> list[StateTransitionRecord]:
         path = self._transitions_path(workflow_id)
         records = _read_jsonl(
