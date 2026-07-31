@@ -288,3 +288,17 @@ argument convention, enforced at every raise site: `expected` is the authorizati
 otherwise required reference value, `actual` is the current value judged against it. Drift-detection
 behaviour is unchanged — only the diagnostic orientation — and the public attributes and rendered
 message are byte-identical.
+
+## Authorization update — 2026-07-31 (AUTO-009)
+
+## AUTO-009
+
+Status: Current
+
+Registered and authorized by the Human Owner as the single `Current` task: the first public
+application-service boundary for the automated workflow engine. `WorkflowService` exposes exactly
+four read-only operations (`status`, `list`, `audit`, `report`) over the existing AgentOS state,
+audit, report, and configuration components, and an additive `workflowctl auto` Typer
+sub-application surfaces the same four. Read-only by construction: no agent execution, no Git or
+GitHub mutation, no write lock, no state transition. Implementation and approval remain separate
+phases; AUTO-010 is not authorized.

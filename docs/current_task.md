@@ -1,17 +1,18 @@
 # Current Task
 
-Mirror of docs/TASK_QUEUE.md's Current set. Must contain exactly the same task ID(s) at
-the same status as the task queue — workflowctl check-task-state fails otherwise.
+Mirror of docs/TASK_QUEUE.md's Current set. This task was selected explicitly by the
+Human Owner; no ordering was inferred.
 
-## No task is currently active
+## AUTO-009
 
-GOV-AUTO-07 — Normalize the `AuthorizationBindingDriftError` expected/actual convention was closed
-`Current -> Done` on 2026-07-31 by explicit Human Owner approval of the implementation report. The
-approved implementation was committed together with this closeout in one local commit.
+Status: Current
 
-The Current set is therefore empty. Under self-governance.yaml's maximum_current_tasks: 1
-this is a legal state — the maximum is a ceiling, not a quota.
+Registered and authorized by the Human Owner on 2026-07-31 as the single `Current` task:
+AUTO-009 — WorkflowService boundary and read-only `workflowctl auto` surface. The stage creates
+the first public application-service boundary for the automated workflow engine and exposes only
+read-only capabilities: `WorkflowService.status/list/audit/report`, plus the additive
+`workflowctl auto status|list|audit|report` sub-application that forwards to it.
 
-Every remaining task (docs/remaining_tasks.md) is Planned and requires its own fresh
-written Human Owner authorization naming it before it may become Current. Closing GOV-AUTO-07
-authorizes no successor: AUTO-009 and every later roadmap phase remain unauthorized.
+Implementation remains a separate phase and must stop for Human Owner approval before any
+implementation or closeout commit, push, PR, or merge. Authorizing AUTO-009 authorizes no
+successor; AUTO-010 and every later roadmap phase remain unauthorized.

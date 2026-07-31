@@ -20,6 +20,11 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
   contracted Skills through the production registry. Capability contracts are unchanged.
 
 ### Added
+- AUTO-009 (2026-07-31): registered and explicitly authorized by the Human Owner as the first
+  public application-service boundary for the automated workflow engine — `WorkflowService` with
+  exactly four read-only operations (`status`, `list`, `audit`, `report`) and the additive
+  `workflowctl auto` sub-application that forwards to them. Authorization commit, implementation,
+  and approval remain separate.
 - GOV-AUTO-07 (2026-07-31): registered and explicitly authorized by the Human Owner to resolve
   AUTO-008's deferred F-1 finding; authorization commit and implementation remain separate.
 - GOV-AUTO-06 (2026-07-30): registered and explicitly authorized by the Human Owner to resolve

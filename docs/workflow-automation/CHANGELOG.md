@@ -5,12 +5,21 @@
 | **Title** | AgentOS Workflow Automation — Changelog |
 | **Purpose** | Program-level changelog, newest first. |
 | **Status** | Draft |
-| **Version** | 2.15 |
+| **Version** | 2.16 |
 | **Owner** | Documentation & Governance session |
 | **Dependencies** | None |
 | **Related Documents** | `docs/CHANGELOG.md` (repository-level; cross-posted there) |
 
 ## [Unreleased]
+
+### Added
+- AUTO-009 (2026-07-31, registration and authorization): registered and authorized by the Human
+  Owner as the first public application-service boundary for the engine. `WorkflowService`
+  (`agentos_workflow/service.py`) exposes exactly four read-only operations — `status`, `list`,
+  `audit`, `report` — over the existing state, audit, report, and configuration components, and
+  `agentos_workflow/cli_auto.py` surfaces the same four as an additive `workflowctl auto` Typer
+  sub-application. Registry state `NOT_STARTED -> AUTHORIZED -> IN_PROGRESS`; registry stage count
+  rises 18 -> 19. No stage contract file was issued; the written directive is the contract.
 
 ### Fixed
 - GOV-AUTO-07 (2026-07-31, implementation): resolved AUTO-008's F-1 finding. Every raise site of
