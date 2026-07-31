@@ -275,3 +275,13 @@ Registered and authorized to resolve AUTO-008's deferred F-2 finding, then imple
 approved, and closed on 2026-07-30. The eight delivered Git/GitHub Skills are bound in the
 production registry, so `GitAgent` and `MergeAgent` can run against it for the first time.
 Capability isolation is unchanged and proven by a negative test.
+
+## Authorization update — 2026-07-31 (GOV-AUTO-07)
+
+## GOV-AUTO-07
+
+Status: Current
+
+Registered and authorized by the Human Owner to resolve AUTO-008's deferred F-1 finding: the
+`expected`/`actual` argument convention diverges between the two `AuthorizationBindingDriftError`
+authorization-drift call paths. Implementation and approval remain separate phases.

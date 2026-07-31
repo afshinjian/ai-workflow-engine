@@ -13,6 +13,8 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
   contracted Skills through the production registry. Capability contracts are unchanged.
 
 ### Added
+- GOV-AUTO-07 (2026-07-31): registered and explicitly authorized by the Human Owner to resolve
+  AUTO-008's deferred F-1 finding; authorization commit and implementation remain separate.
 - GOV-AUTO-06 (2026-07-30): registered and explicitly authorized by the Human Owner to resolve
   AUTO-008's deferred F-2 finding; authorization commit and implementation remain separate.
 - AUTO-008 (2026-07-30): implemented, Human-Owner-approved, and closed `Current -> Done` in one

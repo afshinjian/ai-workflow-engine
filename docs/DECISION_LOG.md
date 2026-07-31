@@ -26,6 +26,39 @@ together with the generated closeout records in one local commit.
 push, merge, authorize a successor task, change branches, alter upstream, or mutate
 stashes.
 
+## 2026-07-31 — Human Owner registered and authorized GOV-AUTO-07
+
+**Decision:** The Human Owner registered and authorized `GOV-AUTO-07 — Normalize the
+AuthorizationBindingDriftError expected/actual convention`, to resolve the F-1 finding AUTO-008
+reported and deliberately left unfixed. The task becomes the single `Current` task; implementation
+remains separate. Recorded from branch `feature/gov-auto-07-drift-argument-convention`, created
+from clean `main` at `d8d10ec54c38571f6a4453a11d0e99c53d151743`.
+
+**Why this stage exists (F-1).** `AuthorizationBindingDriftError(field, expected, actual)` is
+raised from two authorization-drift call paths that pass those two arguments in opposite senses:
+`_detect_authorization_binding_drift` passes the independently-supplied *current* value as
+`expected` and the persisted `AuthorizationRecord` as `actual`;
+`_validate_live_resume_observation` / `_live_drift` passes the persisted record as `expected` and
+the *live observation* as `actual`. AUTO-008 discovered this while fixing the error's inverted
+message and could only neutralize the wording — no fixed "bound value X / current value Y" text is
+correct at both sites. The consequence is that `.expected` and `.actual` mean opposite things
+depending on which safety path raised, on the primary authorization-invalidation path.
+
+**Task identifier.** `GOV-AUTO-07` resolves under the governance parser
+(`src/ai_workflow_engine/governance/parser.py`, `TASK_ID = re.compile(r"\b([A-Za-z]+-\d+)\b")`) to
+`AUTO-07`, which is unused; it continues the GOV-AUTO-01..06 convention for narrowly-scoped
+follow-up fixes outside the AUTO family. An `AUTO-008-F1`-style identifier is unusable for the same
+reason recorded for GOV-AUTO-06: the parser would resolve it to the existing `Done` task
+`AUTO-008`.
+
+**Boundaries:** Authorizes only the F-1 fix — defining one canonical `expected`/`actual`
+convention, normalizing the raise sites to it, and adding regression tests for every affected drift
+path. The public attribute names `field`, `expected`, and `actual` are preserved. It authorizes no
+new feature, no new public interface, no change to workflow transitions, Git/GitHub skill
+registration, the public CLI, shell scripts, or any other exception type; and it does not authorize
+the cleanup of the end-to-end dry run's redundant manual Skill bindings. It does not authorize
+AUTO-009 or any successor.
+
 ## 2026-07-30 — Human Owner approved and closed GOV-AUTO-06
 
 **Decision:** The Human Owner required a final seven-point scope and integrity verification, and on
