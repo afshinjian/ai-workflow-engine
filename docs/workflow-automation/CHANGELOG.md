@@ -5,7 +5,7 @@
 | **Title** | AgentOS Workflow Automation — Changelog |
 | **Purpose** | Program-level changelog, newest first. |
 | **Status** | Draft |
-| **Version** | 2.18 |
+| **Version** | 2.19 |
 | **Owner** | Documentation & Governance session |
 | **Dependencies** | None |
 | **Related Documents** | `docs/CHANGELOG.md` (repository-level; cross-posted there) |
@@ -13,6 +13,32 @@
 ## [Unreleased]
 
 ### Added
+- AUTO-011 (2026-08-01, implementation): `agentos_workflow/results.py` delivers the canonical
+  result contract `WorkflowService -> Provider Runtime -> AgentRunResult`. Three frozen,
+  `extra="forbid"` models — `AgentRunResult`, `RunFailure`, `ArtifactReference` — plus two enums
+  nothing in the repository already had, `ExecutionMode` and `ArtifactKind`; a test parses the
+  module and asserts those are the *only* enums it declares, so a second status or verdict
+  vocabulary cannot be introduced without failing. Everything else is reused: `ProviderRunStatus`
+  (exported as the alias `RunStatus`, asserted by identity), `ProviderVerdict`,
+  `ProviderFailureKind`, `RetryClassification`, `ProviderKind`, `AgentKind`, `WorkflowState`.
+  `RunFailure` is a projection of `ProviderFailure`, not a duplicate: it preserves the typed kind,
+  the redacted detail, the retry classification (which answers retryability and side-effect
+  certainty as one question, per `SKILL_CONTRACTS.md` §5), and two booleans recovering timeout and
+  output-limit facts the kind alone cannot express — but drops the embedded `CommandExecution`,
+  because a canonical result must reference evidence rather than embed captured output.
+  `agent_run_result_from_provider_run` is total for every `ProviderRunResult` the runtime can
+  construct and a pure field copy for all but one shape: a provider reporting `COMPLETED` while
+  naming blocking issues has violated the auto-mode output contract, and is recorded as `FAILED`
+  with a `MALFORMED_OUTPUT` failure naming the contradiction, preserving both the summary and the
+  blockers. Nothing is inferred — `final_verdict`, `changed_files`, and `tests_run` stay absent when
+  there was no report, and `recommended_next_state` is always `None` from this adapter, because
+  deciding a workflow's next step is the Orchestrator's. No AUTO-010 file was modified: every
+  provider, orchestrator, agent, skill, config, CLI, `src/`, `scripts/`, and packaging path is
+  byte-identical to `fd0b34f`, and six `workflowctl` invocations match a clean baseline worktree
+  exactly. Three defects were recorded and deferred, none fixed (D-8, D-9, D-10); AUTO-010's D-3
+  was deliberately **not** collapsed, because `status` and `final_verdict` answer different
+  questions.
+
 - AUTO-010 (2026-07-31, implementation): `agentos_workflow/providers/runtime.py` delivers the
   public Provider Runtime boundary `WorkflowService.invoke_provider -> ProviderRuntime.invoke ->
   ClaudeCLIProvider / CodexCLIProvider -> run_provider_process`. It creates no second provider

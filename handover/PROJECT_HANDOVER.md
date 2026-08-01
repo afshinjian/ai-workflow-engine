@@ -777,3 +777,63 @@ Still outstanding: there is still no production code that sequences the six agen
 This stage deliberately built the execution primitive without the lifecycle that would use it.
 AUTO-011 and every later roadmap phase remain unauthorized. No PR, merge, upstream change to any
 other branch, or stash operation was performed by this closeout.
+
+## AUTO-011 — Unified Provider and Agent Result Contract (closed 2026-08-01)
+
+The engine now has one canonical result type for every execution it performs, present and future:
+
+    WorkflowService -> Provider Runtime -> AgentRunResult
+
+`agentos_workflow/results.py` delivers `AgentRunResult` alongside `RunFailure` and
+`ArtifactReference`, all frozen and `extra="forbid"`. It is reached from AUTO-010's
+`ProviderRunResult` through `agent_run_result_from_provider_run`, so nothing about the Provider
+Runtime changed: every provider, orchestrator, agent, skill, config, CLI, `src/`, `scripts/`, and
+packaging path is byte-identical to `fd0b34f`, the 240 AUTO-010 mocked tests pass with their files
+untouched, all 25 live CLI tests pass with zero skips, and six `workflowctl` invocations are
+byte-identical to a clean baseline worktree. Compatibility here was preserved by projection, not by
+interface change — which is the pattern to reuse when the next stage needs an existing boundary to
+keep working.
+
+**Reuse was the governing constraint, and it decided the design.** `RunStatus` *is*
+`ProviderRunStatus` — an alias asserted by identity, not a parallel enum — and `ProviderVerdict`,
+`ProviderFailureKind`, `RetryClassification`, `ProviderKind`, `AgentKind`, and `WorkflowState` are
+all reused. Only `ExecutionMode` and `ArtifactKind` are new, and a test parses the module to assert
+they are the *only* enums it declares, so a second status or verdict vocabulary cannot be added
+without failing. A unified contract that ships a parallel enum plus a mapping has unified nothing.
+
+**Adapter totality is the constraint a future stage should inherit.** The canonical model must not
+add a rejection on data AUTO-010 permits, except where the contract explicitly requires one.
+Exactly one conflict existed — a provider reporting `COMPLETED` while naming blocking issues, which
+AUTO-010 permits and the canonical contract forbids. It is recorded as `FAILED` with a
+`MALFORMED_OUTPUT` failure naming the contradiction, preserving both the summary and the blockers,
+because dropping the blockers erases evidence and raising would make the adapter partial. The same
+reasoning kept `changed_files` permissive (a producer's *claim*, verified elsewhere) while
+`ArtifactReference` is strict (a path a reader actually follows).
+
+**D-3 was deliberately narrowed, not collapsed.** AUTO-010 deferred the `verdict`/`status` overlap
+*to* this stage, and this stage kept both axes on purpose: a `COMPLETED` run reporting `fail` is a
+QA provider finding real defects — a successful execution with a failing verdict. Merging them
+would destroy that distinction. What was removed is the ambiguity, by giving each axis one
+canonical type and one documented meaning. Do not "finish" D-3 by deleting a field.
+
+**`recommended_next_state` is advisory and must stay that way.** No module in `agentos_workflow`
+outside the contract contains the string; ten structural tests assert it over parsed syntax trees
+rather than in prose, including that the module imports no `StateStore`, `RepositoryLock`, or
+`WorkflowSession` and calls nothing that spawns or writes. An agent reports; the Orchestrator
+decides.
+
+Three new non-blocking defects remain deferred, none fixed: `ProviderRunResult` still permits
+`COMPLETED` alongside blocking issues (D-8, `RECOMMENDED`); an output-limit breach is not
+distinguishable by failure kind, so the canonical failure recovers it by prefix-matching
+engine-generated wording, pinned by two tests that provoke a real breach through the real process
+runner (D-9, `RECOMMENDED`); and `results.py` importing `AgentKind` and `WorkflowState` will become
+an `agents -> results -> agents` cycle once agents actually produce these results, whose remedy is
+to move those enums into a leaf module exactly as `config/policy.py` did (D-10, `RECOMMENDED`).
+AUTO-010's D-3 through D-6 and AUTO-009's D1-D6 are confirmed untouched.
+
+Still outstanding: this stage standardized results without implementing any producer of them beyond
+the provider adapter. There is still no production code that sequences the six agents, no
+Preparation, Reviewer, or Implementer Mode, and `MVP_SCOPE.md` §4's second acceptance demonstration
+— a real target-repository run — remains unmet. AUTO-012 and every later roadmap phase remain
+unauthorized. No PR, merge, upstream change to any other branch, or stash operation was performed
+by this closeout.

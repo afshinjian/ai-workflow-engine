@@ -7,6 +7,26 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- AUTO-011 (2026-08-01): one canonical result contract for every execution the engine performs.
+  `agentos_workflow/results.py` delivers `AgentRunResult`, reached from AUTO-010's
+  `ProviderRunResult` through the adapter `agent_run_result_from_provider_run`, so the Provider
+  Runtime is unchanged and compatibility is preserved by projection rather than by interface
+  change. The canonical result carries the workflow and session identity, the execution mode, the
+  provider and agent identity, the terminal status, summary, assumptions, blocking issues, changed
+  files, tests run, artifact references, the interval and its duration, exit code, typed failure,
+  final verdict, and an advisory `recommended_next_state`. It reuses `ProviderRunStatus`,
+  `ProviderVerdict`, `ProviderFailureKind`, `RetryClassification`, `ProviderKind`, `AgentKind`, and
+  `WorkflowState` rather than declaring parallel versions — `RunStatus` *is* `ProviderRunStatus`,
+  an alias rather than a second enum, so no mapping between two vocabularies can drift. Status and
+  verdict stay deliberately distinct: a `COMPLETED` run reporting `fail` is a QA provider finding
+  real defects, which is a successful execution with a failing verdict. Every invariant is enforced
+  on construction and re-checked on parse; serialization is deterministic with sorted keys, parsing
+  rejects unknown fields and duplicate keys, timestamps must be timezone-aware, the duration cannot
+  disagree with its own interval, secrets are redacted in every free-text field including artifact
+  paths, and artifacts are references with `..` segments and NUL bytes refused — never embedded
+  content. `recommended_next_state` is advisory only: no module outside the contract reads it, and
+  no workflow transition depends on it.
+
 - AUTO-010 (2026-07-31): the real non-interactive Provider Runtime. `WorkflowService` gained one
   operation, `invoke_provider`, which delegates to `ProviderRuntime.invoke`
   (`agentos_workflow/providers/runtime.py`) and thence to the existing Claude and Codex adapters,

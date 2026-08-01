@@ -70,7 +70,18 @@ registered branch `feature/auto-010-provider-runtime`; contract:
 closed to `Done` on 2026-07-31** after a fourteen-point scope, runtime, and safety verification —
 both providers live-validated against the real installed CLIs on all ten acceptance criteria each
 (25 live tests, zero skipped), 3,241 tests green, three blockers fixed inside the shared provider
-process runner, four non-blocking defects deferred. AUTO-011 remains unauthorized.
+process runner, four non-blocking defects deferred. **AUTO-010 was published on 2026-08-01** via
+PR #10, merged as `fd0b34f`. **AUTO-011 — Unified Provider and Agent Result Contract — was
+registered and authorized by the Human Owner on 2026-08-01** as the single `Current` task, on its
+registered branch `feature/auto-011-agent-result-contract`; it introduces the canonical
+`AgentRunResult` for provider and agent execution without implementing any workflow mode or
+lifecycle; contract: `docs/workflow-automation/stage-prompts/AUTO-011.md`; report:
+`docs/reports/workflow-automation/AUTO-011-completion-report.md`. **AUTO-011 was approved and
+closed to `Done` on 2026-08-01** after a fourteen-point scope, contract, and compatibility
+verification — 3,352 tests green, 25 live tests with zero skips, `mypy --strict` clean over 121
+source files, no production file outside the new module modified, no blocker fixed because none
+existed, and three non-blocking defects (D-8, D-9, D-10) recorded and deferred. AUTO-012 remains
+unauthorized.
 
 | Task | Title | Status |
 |---|---|---|

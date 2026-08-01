@@ -1179,3 +1179,73 @@ byte-identical to the `5d1b6be` baseline. Four non-blocking defects (D-3 through
 deferred and none was fixed; D-1 was withdrawn as misdiagnosed, and D-2 and D-7 were resolved. No
 workflow state-machine change was needed. AUTO-011 and every later roadmap phase remain untouched
 and unauthorized. Report: `docs/reports/workflow-automation/AUTO-010-completion-report.md`.
+
+## AUTO-011 — Unified Provider and Agent Result Contract
+
+Status: Done
+
+Registered and authorized by the Human Owner on 2026-08-01, in one written directive naming the
+stage, its mission, its required architecture, its canonical field set, its status contract and
+invariants, its authority rule, its compatibility constraints, its strictly prohibited behaviours,
+and its stop condition. AUTO-011 had never been registered before, so this single entry records
+both its registration and its authorization. It is the single `Current` task; the `Current` set was
+empty beforehand.
+
+Scope: create one canonical typed result contract for provider and agent execution —
+
+    WorkflowService -> Provider Runtime -> Canonical AgentRunResult
+
+The stage introduces `AgentRunResult` as the canonical result contract for future Claude execution,
+Codex execution, internal agents, and the Preparation/Reviewer/Implementer Modes, without
+implementing any of them. It standardizes execution results only: no workflow mode and no workflow
+lifecycle. The canonical result represents `workflow_id`, `mode`, `agent`, `provider`, `status`,
+`summary`, `assumptions`, `blocking_issues`, `changed_files`, `artifacts`, `tests_run`,
+`started_at`, `completed_at`, `duration`, `exit_code`, `failure`, `final_verdict`, and
+`recommended_next_state`, reusing existing repository models — `ProviderRunStatus`,
+`ProviderVerdict`, `ProviderFailure`, `ProviderKind` — rather than declaring duplicates.
+
+Exactly four terminal statuses are supported (`COMPLETED`, `COMPLETED_WITH_ASSUMPTIONS`, `BLOCKED`,
+`FAILED`), with `COMPLETED_WITH_ASSUMPTIONS` requiring at least one assumption, `BLOCKED` requiring
+at least one concrete blocking issue, `FAILED` requiring a typed failure, `COMPLETED` carrying no
+contradictory blocking or failure data, and unknown statuses rejected. `recommended_next_state` is
+advisory only and must never mutate workflow state, authorize a transition, bypass the
+Orchestrator, or substitute for deterministic validation.
+
+AUTO-010's Provider Runtime must continue to work unchanged; adapters are introduced instead of
+breaking existing interfaces. The provider process runner is not rewritten, and provider argv,
+permission modes, sandbox modes, environment allowlists, timeout behaviour, output limits,
+process-group cleanup, session layout, and the live CLI tests are all unaltered. No legacy result
+model is deleted, and legacy `AgentReport` under `src/ai_workflow_engine` remains unchanged.
+
+Explicitly out of scope and prohibited in this stage: Preparation/Reviewer/Implementer Mode;
+workflow authorization, approval, or approval timeouts; task scheduling; workflow start, resume, or
+cancellation; Claude-Codex coordination; Codex direct correction; Git commit or push automation; PR
+creation; CI polling; merge; branch cleanup; Python governance closeout; daemon; Telegram; and
+AUTO-012 or any successor behaviour. No workflow state-machine change is permitted, Git/GitHub
+skill registration is untouched, shell scripts are neither retired nor modified, and existing
+`workflowctl auto status|list|audit|report` behaviour and output are unchanged. Newly discovered
+defects that do not block AUTO-011 are recorded, classified, and deferred in the completion report.
+
+Contract: `docs/workflow-automation/stage-prompts/AUTO-011.md`.
+Report: `docs/reports/workflow-automation/AUTO-011-completion-report.md`.
+
+**Implemented, validated, approved, and closed `Current -> Done` on 2026-08-01** after a
+Human-Owner-required fourteen-point scope, contract, and compatibility verification that passed in
+full. `agentos_workflow/results.py` delivers the canonical `AgentRunResult`, reached from AUTO-010's
+`ProviderRunResult` through `agent_run_result_from_provider_run`, so the Provider Runtime is
+unchanged and compatibility is preserved by projection rather than by interface change. All
+eighteen required canonical fields are present, plus `session_id` as the invocation's trace
+identity. Status and verdict remain deliberately distinct — AUTO-010's deferred D-3 is narrowed,
+not collapsed, because a `COMPLETED` run reporting `fail` is a QA provider finding real defects.
+`recommended_next_state` is advisory only: no module outside the contract reads it, proven by scan
+rather than by assertion.
+
+3,352 tests pass (3,241 + 111 focused); 25 live CLI acceptance tests pass with zero skips;
+`mypy --strict` clean over 121 source files; `ruff`, `black`, and pre-commit clean. No production
+file outside the new module was modified — every provider, orchestrator, agent, skill, config, CLI,
+`src/`, `scripts/`, and packaging path is byte-identical to `fd0b34f`, and six `workflowctl`
+invocations match a clean baseline worktree exactly. No blocker was fixed because none existed.
+Three non-blocking defects were recorded, classified, and deferred (D-8, D-9, D-10), none
+implemented and no GOV stage created; AUTO-010's D-3 through D-6 and AUTO-009's D1-D6 remain
+deferred and untouched. AUTO-012 and every later roadmap phase remain untouched and unauthorized.
+Report: `docs/reports/workflow-automation/AUTO-011-completion-report.md`.
