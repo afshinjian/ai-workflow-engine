@@ -202,6 +202,9 @@ class StateStorePathConfinementError(StateStoreError):
 
 _TRANSITIONS_FILENAME = "transitions.jsonl"
 _COMMANDS_FILENAME = "commands.jsonl"
+# AUTO-012: the per-workflow approval history, alongside the transition history under the state
+# directory because an approval is workflow state, not a command-execution audit record.
+_APPROVALS_FILENAME = "approvals.jsonl"
 _WORKFLOW_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}")
 
 
@@ -680,6 +683,9 @@ class StateStore:
     def _commands_path(self, workflow_id: str) -> Path:
         return self._audit_directory / _safe_workflow_id(workflow_id) / _COMMANDS_FILENAME
 
+    def _approvals_path(self, workflow_id: str) -> Path:
+        return self._state_directory / _safe_workflow_id(workflow_id) / _APPROVALS_FILENAME
+
     def record_transition(self, record: StateTransitionRecord) -> None:
         _append_jsonl_line(
             self._state_directory,
@@ -701,6 +707,44 @@ class StateStore:
             timestamp_field="completion_time",
             new_timestamp=record.completion_time,
         )
+
+    def record_approval(self, workflow_id: str, record: BaseModel, *, timestamp: str) -> None:
+        """Append one approval event (AUTO-012) to this workflow's `approvals.jsonl`.
+
+        Deliberately generic in the record type. The approval vocabulary belongs to
+        `agentos_workflow.approvals`, which is built *on* this module, so naming its models here
+        would invert the dependency and create an import cycle. What this method contributes is the
+        discipline, not the schema: the exclusive `flock` held across the whole open-write-fsync
+        sequence, the non-decreasing-timestamp check performed under it, `_write_all`'s complete
+        write, the `fsync` of both file and directory, and the confined, symlink-refusing path walk
+        — every bit of it the same code the transition history already uses rather than a second
+        implementation that could drift from it.
+        """
+        _append_jsonl_line(
+            self._state_directory,
+            _safe_workflow_id(workflow_id),
+            _APPROVALS_FILENAME,
+            record.model_dump_json(),
+            timestamp_field="timestamp",
+            new_timestamp=timestamp,
+        )
+
+    def read_approvals(
+        self, workflow_id: str, model: type[_RecordT], *, timestamp_of: Callable[[_RecordT], str]
+    ) -> list[_RecordT]:
+        """Replay one workflow's approval history, in on-disk append order.
+
+        The caller supplies the record model and how to read its timestamp, for the same reason
+        `record_approval` takes a bare `BaseModel`. Ordering is checked here on every read, so a
+        history that was tampered with out from under the append path fails closed exactly as a
+        corrupted transition history does.
+        """
+        path = self._approvals_path(workflow_id)
+        records = _read_jsonl(
+            self._state_directory, _safe_workflow_id(workflow_id), _APPROVALS_FILENAME, model
+        )
+        _require_monotonic_order(path, records, timestamp_of=timestamp_of)
+        return records
 
     def list_workflow_ids(self) -> list[str]:
         """Every workflow that actually has a persisted transition history, sorted.

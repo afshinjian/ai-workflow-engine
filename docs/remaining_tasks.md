@@ -80,8 +80,21 @@ lifecycle; contract: `docs/workflow-automation/stage-prompts/AUTO-011.md`; repor
 closed to `Done` on 2026-08-01** after a fourteen-point scope, contract, and compatibility
 verification — 3,352 tests green, 25 live tests with zero skips, `mypy --strict` clean over 121
 source files, no production file outside the new module modified, no blocker fixed because none
-existed, and three non-blocking defects (D-8, D-9, D-10) recorded and deferred. AUTO-012 remains
-unauthorized.
+existed, and three non-blocking defects (D-8, D-9, D-10) recorded and deferred. **AUTO-011 was
+published on 2026-08-01** via PR #11, merged as `e2b069c`. **AUTO-012 — Configurable Approval
+Policy, Persistence, and Invalidation — was registered and authorized by the Human Owner on
+2026-08-01** as the single `Current` task, on its registered branch
+`feature/auto-012-approval-policy`; it builds the reusable `ApprovalService` subsystem — typed
+policy with four-layer resolution, immutable snapshots, durable append-only records, manual and
+timeout decisions, checksum binding, and invalidation — without implementing any workflow mode. The
+same directive required the separate governance act recorded as `HUMAN_AUTHORIZATION_MODEL.md` v2.0
+§5a, authorizing the subsystem only. Contract:
+`docs/workflow-automation/stage-prompts/AUTO-012.md`; report:
+`docs/reports/workflow-automation/AUTO-012-completion-report.md`. **AUTO-012 was approved and closed
+to `Done` on 2026-08-01** — 3,469 tests green, 25 live tests with zero skips, `mypy --strict` clean
+over 122 source files, both modified production files purely additive, no workflow mode or state
+implemented, no blocker fixed because none existed, and three non-blocking defects (D-11, D-12,
+D-13) recorded and deferred. AUTO-013 remains unauthorized.
 
 | Task | Title | Status |
 |---|---|---|

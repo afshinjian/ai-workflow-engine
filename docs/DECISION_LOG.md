@@ -13,6 +13,99 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-08-01 — Human Owner authorized configurable approval gates (HUMAN_AUTHORIZATION_MODEL v2.0 §5a)
+
+**Decision:** The Human Owner authorizes future workflow modes to define **configurable approval
+gates**, governed exclusively by the `ApprovalService` subsystem delivered in AUTO-012.
+
+**Why this needed its own decision.** `HUMAN_AUTHORIZATION_MODEL.md` v1.1 §1 stated that the
+`CREATED → AUTHORIZED` transition is "the only human gate in this system" and that "no other point
+in the workflow asks for or accepts human approval". Its §8 then classified adding *any* second
+human-approval point as a MAJOR change requiring explicit Human Owner sign-off, "since it changes
+the core safety property this program is built around". Building an approval subsystem without
+first obtaining that sign-off would have contradicted the governing document while implementing the
+thing it forbade. This entry, and §5a of that document (now v2.0), are the sign-off.
+
+**Scope of the authorization:** the *subsystem* — typed policy, four-layer resolution, immutable
+snapshot, durable append-only records, manual decisions, timeout decisions, checksum binding, and
+invalidation. **Not** authorized: any specific Preparation, Reviewer, or Implementer workflow; the
+placement of an approval gate at any particular point in any particular mode; and AUTO-013 or any
+successor. A mode wanting a gate at a specific point needs its own separate authorization naming
+that mode and that point.
+
+**Constraints deliberately not relaxed,** each restated normatively in §5a: the founding
+`CREATED → AUTHORIZED` gate and all of its bindings and invalidation conditions are unchanged, and
+an approval is never a route to `AUTHORIZED`; an approval is evidence, not authority
+(`AGENT_CONTRACTS.md` §1); an approval never substitutes for a deterministic machine gate, and no
+admin-bypass path is created (`SECURITY_MODEL.md` §4); every approval is bound to the repository
+state, diff, canonical agent result, and gate result it was granted against, and is invalidated if
+any changes; an approval is single-use and cannot be replayed for another workflow or gate;
+automatic approval is opt-in at the point of use and never acquired by inheritance; and no Model
+Provider, Agent, or Skill may grant, decide, extend, or consume an approval.
+
+**Alternatives considered and rejected.** *Implementing the subsystem and amending the document
+afterwards* was rejected because it inverts the governance order the document itself sets, and the
+whole value of a written single-gate property is that it is not amended silently by the code that
+outgrows it. *Leaving §1 as written and treating approval gates as "not really human gates"* was
+rejected as word-play: a policy that waits for a named human on a named channel and records who
+decided is a human-approval point by any honest reading. *Authorizing specific gate placements now*
+was rejected as premature — no mode exists yet, so any placement would be speculative, and the
+directive explicitly forbids authorizing successor modes.
+
+**A deliberate consequence:** `AUTO_APPROVE` exists and can, at a deadline, grant permission with
+no human involved. It is confined by three things rather than by prose — it is refused unless the
+specific gate or the run selected it, the resulting approval is still bound to the checksums
+captured when it was requested, and the record states that the decision was automatic and which
+timeout action produced it. An automatic approval is therefore never indistinguishable from a human
+one in the audit trail.
+
+## 2026-08-01 — Human Owner registered and authorized AUTO-012
+
+**Decision:** The Human Owner registered and authorized AUTO-012 — Configurable Approval Policy,
+Persistence, and Invalidation — in one written directive, as the single `Current` task on branch
+`feature/auto-012-approval-policy`, created from clean, synchronized `main` at `e2b069c`. AUTO-012
+had never been registered before, so registration and authorization are one act.
+
+**Scope decided:** the reusable approval subsystem reached as
+`WorkflowService → ApprovalService`, with policy resolution, request persistence, manual decisions,
+timeout decisions, checksum binding, and invalidation. It implements no workflow mode and executes
+no provider as part of an approval.
+
+**Design decisions taken under it, and the alternatives rejected.**
+
+*Events plus replay, not a mutable record.* An approval is an append-only sequence of
+`ApprovalEvent`s and the current `ApprovalRequest` is derived by replaying them. Storing a single
+mutable record and updating it in place was rejected: the requirement is that no decision is ever
+overwritten and no historical record mutated, and with an editable row that is a promise, whereas
+with append-only events it is a property of the file format — there is no code path that rewrites a
+line because the only write is an append. This mirrors what `StateStore` already does for
+transitions and what `WorkflowStatus` already does for state.
+
+*No new workflow states.* The directive permitted adding `AWAITING_APPROVAL`,
+`APPROVAL_TIMED_OUT`, and `HUMAN_INTERVENTION_REQUIRED` to the runtime state machine but preferred
+none if the subsystem could be built without them. It can, so none were added. Adding them would
+have required new edges in `ALLOWED_TRANSITIONS` that nothing in this stage could ever produce —
+AUTO-012 implements no lifecycle — leaving unreachable states and untested edges in the safety-
+critical core the same directive says not to refactor. Approval status lives on `ApprovalStatus`,
+inside the subsystem that owns it, which also satisfies the rule that workflow states must not
+duplicate policy logic. The stage that first *consumes* an approval is the one with the evidence to
+choose the right states.
+
+*Reuse `StateStore`, extend it by two methods.* `record_approval`/`read_approvals` were added to
+`StateStore` rather than reimplementing persistence in the approval module or reaching into that
+module's private helpers. Both alternatives were rejected: a second persistence framework is
+explicitly prohibited and would drift from the original, and importing another module's private
+functions is the same coupling without the type safety. The two methods are deliberately generic in
+the record type, because the approval vocabulary is built *on* the store and naming it there would
+invert the dependency into an import cycle.
+
+*`required=False` refuses rather than auto-satisfies.* A gate whose policy says approval is not
+required cannot have one requested. Returning a pre-approved record instead was rejected because it
+would be automatic approval without the explicit opt-in the same stage is required to enforce.
+
+**Stop condition:** implementation and validation only; no implementation/closeout commit, no push,
+no PR, no merge, and no AUTO-013 work.
+
 ## 2026-08-01 — Human Owner approved and closed AUTO-011
 
 **Decision:** The Human Owner approved AUTO-011 — Unified Provider and Agent Result Contract — for

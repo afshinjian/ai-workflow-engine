@@ -66,11 +66,20 @@ model CLI is a much larger thing than one that can only read:
 
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
+from agentos_workflow.approvals import (
+    ApprovalChannel,
+    ApprovalChecksums,
+    ApprovalDecision,
+    ApprovalPolicy,
+    ApprovalRequest,
+    ApprovalService,
+)
 from agentos_workflow.config.loader import load_config
 from agentos_workflow.config.schema import WorkflowConfig
 from agentos_workflow.orchestrator.engine import TERMINAL_STATES
@@ -88,6 +97,11 @@ from agentos_workflow.skills import SkillFailure
 from agentos_workflow.skills.reporting import PersistedReport, read_reports
 
 __all__ = [
+    "ApprovalChannel",
+    "ApprovalChecksums",
+    "ApprovalDecision",
+    "ApprovalPolicy",
+    "ApprovalRequest",
     "AuditResult",
     "ProviderRunRequest",
     "ProviderRunResult",
@@ -315,6 +329,11 @@ class WorkflowService:
         # delegation checkable: there is exactly one object in this service through which a
         # provider can be reached, and it is not a subprocess API.
         self._provider_runtime = ProviderRuntime(config)
+        # AUTO-012. Shares this service's `StateStore`, so an approval and the transition history
+        # it will one day gate live under one storage root and one confinement walk. It cannot
+        # widen what this service can do: `ApprovalService` holds no provider, no lock, and no
+        # workflow session, so reaching it grants no ability to execute or transition anything.
+        self._approvals = ApprovalService(self._store)
 
     # -- status ---------------------------------------------------------------------------
 
@@ -443,6 +462,89 @@ class WorkflowService:
         to branch on those rather than catch them.
         """
         return self._provider_runtime.invoke(request)
+
+    # -- approvals (AUTO-012) ---------------------------------------------------------------
+
+    def request_approval(
+        self,
+        *,
+        workflow_id: str,
+        gate: str,
+        approval_id: str,
+        checksums: ApprovalChecksums,
+        policy: ApprovalPolicy,
+        now: datetime | None = None,
+    ) -> ApprovalRequest:
+        """Open one approval for a named gate, bound to four checksums (AUTO-012).
+
+        Delegates entirely, for the same reason `invoke_provider` does: policy resolution, the
+        immutable snapshot, the durable append, and the deadline arithmetic all belong to
+        `ApprovalService`, and re-deciding any of them here would create a second answer that could
+        disagree with the first.
+        """
+        return self._approvals.request_approval(
+            workflow_id=workflow_id,
+            gate=gate,
+            approval_id=approval_id,
+            checksums=checksums,
+            policy=policy,
+            now=now,
+        )
+
+    def get_approval(self, *, workflow_id: str, approval_id: str) -> ApprovalRequest:
+        """Replay one approval exactly as persisted. Evaluates no deadline and writes nothing."""
+        return self._approvals.get_approval(workflow_id=workflow_id, approval_id=approval_id)
+
+    def evaluate_approval(
+        self, *, workflow_id: str, approval_id: str, now: datetime | None = None
+    ) -> ApprovalRequest:
+        """Apply the policy's timeout action if the persisted deadline has passed.
+
+        This is the lazy evaluation the foreground engine relies on: no timer, no thread, no
+        scheduler. A deadline takes effect the first time anyone looks after it has passed, which
+        is why it survives a process or machine restart.
+        """
+        return self._approvals.evaluate_approval(
+            workflow_id=workflow_id, approval_id=approval_id, now=now
+        )
+
+    def decide_approval(
+        self,
+        *,
+        workflow_id: str,
+        approval_id: str,
+        decision: ApprovalDecision,
+        approver: str,
+        source: ApprovalChannel,
+        now: datetime | None = None,
+    ) -> ApprovalRequest:
+        """Record one manual decision, with its approver, channel, and timestamp."""
+        return self._approvals.decide_approval(
+            workflow_id=workflow_id,
+            approval_id=approval_id,
+            decision=decision,
+            approver=approver,
+            source=source,
+            now=now,
+        )
+
+    def consume_approval(
+        self,
+        *,
+        workflow_id: str,
+        approval_id: str,
+        checksums: ApprovalChecksums,
+        now: datetime | None = None,
+    ) -> ApprovalRequest:
+        """Spend one approval, re-checking its checksum binding immediately beforehand.
+
+        Any difference invalidates rather than proceeds. An approval is permission to act on one
+        specific state of the world, and this is the moment that claim is verified rather than
+        assumed.
+        """
+        return self._approvals.consume_approval(
+            workflow_id=workflow_id, approval_id=approval_id, checksums=checksums, now=now
+        )
 
 
 def open_workflow_service(

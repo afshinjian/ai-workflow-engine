@@ -5,7 +5,7 @@
 | **Title** | AgentOS Workflow Automation — Changelog |
 | **Purpose** | Program-level changelog, newest first. |
 | **Status** | Draft |
-| **Version** | 2.19 |
+| **Version** | 2.20 |
 | **Owner** | Documentation & Governance session |
 | **Dependencies** | None |
 | **Related Documents** | `docs/CHANGELOG.md` (repository-level; cross-posted there) |
@@ -13,6 +13,27 @@
 ## [Unreleased]
 
 ### Added
+- AUTO-012 (2026-08-01, implementation): `agentos_workflow/approvals.py` delivers the reusable
+  approval subsystem `WorkflowService -> ApprovalService -> policy resolution / request persistence
+  / manual decisions / timeout decisions / checksum binding / invalidation`. `ApprovalPolicyOverlay`
+  and `ApprovalPolicy` are separate types on purpose — "unset" and "set to the default value" must
+  be distinguishable, and that difference is what the `AUTO_APPROVE` opt-in rule turns on. The
+  resolved snapshot carries `timeout_action_source`/`escalation_fallback_source` so an automatic
+  approval's provenance stays auditable. An approval is an append-only sequence of `ApprovalEvent`s
+  (`REQUESTED`, `DECIDED`, `TIMED_OUT`, `ESCALATED`, `EXTENDED`, `INVALIDATED`, `CONSUMED`) and the
+  current `ApprovalRequest` is derived by replay, so "no decision is ever overwritten" is a property
+  of the file format rather than a promise. `StateStore` gained exactly two additive methods,
+  `record_approval` and `read_approvals`, deliberately generic in the record type because the
+  approval vocabulary is built *on* the store and naming it there would invert the dependency into
+  an import cycle; both `state_store.py` and `service.py` changes are purely additive (146
+  insertions, 0 deletions). **No workflow state was added** — `AWAITING_APPROVAL`,
+  `APPROVAL_TIMED_OUT`, and `HUMAN_INTERVENTION_REQUIRED` were permitted but would have been
+  unreachable with untested transition edges, since this stage implements no lifecycle; approval
+  status lives on `ApprovalStatus` inside the subsystem that owns it, and `WorkflowState` remains 19
+  members with 37 edges. `agent_result_checksum` binds AUTO-011's canonical `AgentRunResult` through
+  its own `to_canonical_json`, so no second result contract exists. No public CLI command was added,
+  leaving AUTO-009's D3 deferred.
+
 - AUTO-011 (2026-08-01, implementation): `agentos_workflow/results.py` delivers the canonical
   result contract `WorkflowService -> Provider Runtime -> AgentRunResult`. Three frozen,
   `extra="forbid"` models — `AgentRunResult`, `RunFailure`, `ArtifactReference` — plus two enums

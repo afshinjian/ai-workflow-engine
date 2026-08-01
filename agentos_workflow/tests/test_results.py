@@ -1081,11 +1081,19 @@ class TestExistingBehaviourUnchanged:
             "blockers",
         }
 
-    def test_the_workflow_service_surface_did_not_grow(self) -> None:
+    def test_the_workflow_service_operations_this_stage_relied_on_are_unchanged(self) -> None:
+        """AUTO-011 added nothing to the service and removed nothing from it.
+
+        Originally written as "the surface did not grow", which was the right claim while AUTO-011
+        was the newest stage. AUTO-012 was then authorized to extend the service with its approval
+        boundary, so the enduring claim — and the one this stage actually needs — is that the five
+        operations it was built against are all still there, unchanged.
+        """
         from agentos_workflow.service import WorkflowService
 
         public = {name for name in vars(WorkflowService) if not name.startswith("_")}
-        assert public == {"status", "list", "audit", "report", "invoke_provider"}
+        assert {"status", "list", "audit", "report", "invoke_provider"} <= public
+        assert "AgentRunResult" not in public
 
     def test_the_canonical_module_adds_no_cli_command(self) -> None:
         source = Path("agentos_workflow/cli_auto.py").read_text(encoding="utf-8")

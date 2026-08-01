@@ -50,9 +50,21 @@ from agentos_workflow.skills.reporting import generate_qa_report, generate_stage
 # exactly these and nothing else, so adding a fifth operation cannot pass unnoticed.
 # AUTO-009 approved four read-only operations; AUTO-010 added exactly one that executes,
 # `invoke_provider`, which delegates to the Provider Runtime and still records no transition,
-# acquires no lock, and touches no repository.
+# acquires no lock, and touches no repository. AUTO-012 added the five-operation approval boundary,
+# which delegates to `ApprovalService` and likewise records no workflow transition, acquires no
+# lock, runs no agent or provider, and mutates no repository — it appends only to the per-workflow
+# approval history.
 READ_ONLY_OPERATIONS = frozenset({"status", "list", "audit", "report"})
-APPROVED_OPERATIONS = READ_ONLY_OPERATIONS | {"invoke_provider"}
+APPROVAL_OPERATIONS = frozenset(
+    {
+        "request_approval",
+        "get_approval",
+        "evaluate_approval",
+        "decide_approval",
+        "consume_approval",
+    }
+)
+APPROVED_OPERATIONS = READ_ONLY_OPERATIONS | {"invoke_provider"} | APPROVAL_OPERATIONS
 
 # Everything AUTO-009 is explicitly forbidden to implement, as it would be spelled on a service or
 # a CLI. Checked as a *structural* assertion, not a review convention.

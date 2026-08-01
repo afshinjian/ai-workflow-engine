@@ -1249,3 +1249,88 @@ Three non-blocking defects were recorded, classified, and deferred (D-8, D-9, D-
 implemented and no GOV stage created; AUTO-010's D-3 through D-6 and AUTO-009's D1-D6 remain
 deferred and untouched. AUTO-012 and every later roadmap phase remain untouched and unauthorized.
 Report: `docs/reports/workflow-automation/AUTO-011-completion-report.md`.
+
+## AUTO-012 — Configurable Approval Policy, Persistence, and Invalidation
+
+Status: Done
+
+Registered and authorized by the Human Owner on 2026-08-01, in one written directive naming the
+stage, its mission, its required architecture, its policy and record contracts, its timeout
+semantics, its checksum-binding and invalidation rules, its persistence requirements, its
+boundaries, its strictly prohibited behaviours, and its stop condition. AUTO-012 had never been
+registered before, so this single entry records both its registration and its authorization. It is
+the single `Current` task; the `Current` set was empty beforehand.
+
+Scope: implement a configurable, durable approval subsystem for future workflow gates —
+
+    WorkflowService -> ApprovalService -> policy resolution, request persistence, manual
+    decisions, timeout decisions, checksum binding, invalidation
+
+The stage delivers a strict typed approval policy (`required`, `timeout_seconds`, `timeout_action`,
+`channels`, `approvers`, `escalate_to`) resolved across built-in defaults, project configuration,
+per-gate configuration, and per-run override, then frozen into an immutable snapshot that later
+configuration changes cannot retroactively alter. Timeout actions are `AUTO_APPROVE`, `PAUSE`,
+`FAIL`, `CANCEL`, and `ESCALATE`; channels are `CLI` and `TELEGRAM`, with Telegram a policy value
+only and no transport or networking implemented. `AUTO_APPROVE` requires explicit opt-in at the
+specific gate or per-run override and is refused when inherited from a broad default.
+
+Deadlines are absolute, timezone-aware UTC instants persisted to disk and evaluated lazily: no
+`sleep`, no in-memory timer, no background thread, no process-local scheduler state, so a deadline
+survives process and machine restart. The daemon is not implemented. Every approval binds four
+checksums — repository state, diff, canonical AUTO-011 agent result, and deterministic gate result
+— which are recomputed immediately before consumption; any difference invalidates the approval,
+blocks the action, and records which checksum changed, with no silent recreation and no
+auto-approval of an invalidated request. Persistence is `approvals.jsonl` through the existing
+`StateStore` discipline: append-only, fsync'd, duplicate-key rejecting, monotonically ordered,
+symlink refusing, per-workflow confined, restart-safe on replay, with no historical record ever
+rewritten.
+
+The governance prerequisite is recorded separately: `HUMAN_AUTHORIZATION_MODEL.md` moves to v2.0
+with a new §5a recording the Human Owner's explicit decision that future workflow modes may use
+configurable approval gates governed by `ApprovalService`. That decision authorizes the subsystem
+only — never a specific Preparation, Reviewer, or Implementer workflow, never a gate placement, and
+never AUTO-013.
+
+Explicitly out of scope and prohibited in this stage: Preparation/Reviewer/Implementer Mode; Claude
+or Codex execution changes; provider-runtime changes; canonical result changes; Codex direct
+correction; task scheduling; workflow orchestration; Git commit or push automation; PR creation; CI
+polling; merge; branch deletion; governance closeout automation; daemon; Telegram bot;
+shell-script retirement; and AUTO-013 or any successor behaviour. Git/GitHub skill registration is
+untouched, existing `workflowctl auto status|list|audit|report` behaviour and output are unchanged,
+and no deferred finding is fixed unless it directly blocks AUTO-012. Newly discovered defects that
+do not block AUTO-012 are recorded, classified, and deferred in the completion report.
+
+Contract: `docs/workflow-automation/stage-prompts/AUTO-012.md`.
+Report: `docs/reports/workflow-automation/AUTO-012-completion-report.md`.
+
+**Implemented, validated, approved, and closed `Current -> Done` on 2026-08-01.**
+`agentos_workflow/approvals.py` delivers the reusable `ApprovalService` subsystem: a strict typed
+policy resolved across built-in, project, gate, and run layers into an immutable snapshot; an
+append-only per-workflow `approvals.jsonl` written through the existing `StateStore` discipline,
+with the current request derived by replay so no decision is ever overwritten; absolute
+timezone-aware UTC deadlines evaluated lazily with no thread, timer, sleep, or scheduler anywhere,
+proven to survive a restart; all five timeout actions, with `PAUSE` resumable and escalation bounded
+by a no-loop fallback and at most one extension; and four-checksum binding recomputed immediately
+before consumption, so any change invalidates the approval, records which checksum changed, and
+blocks reuse. `AUTO_APPROVE` is refused when inherited from a broad default and accepted only from
+the specific gate or a per-run override. Telegram is a policy value only — no transport, bot,
+handler, or network call exists.
+
+The governance prerequisite was met before implementation, as its own act:
+`HUMAN_AUTHORIZATION_MODEL.md` moves to v2.0 with a new §5a recording the Human Owner's decision
+that future workflow modes may use configurable approval gates governed by `ApprovalService` —
+authorizing the subsystem only, never a mode, never a gate placement, never a successor stage.
+
+**No workflow mode, lifecycle, or state was implemented.** `WorkflowState` remains 19 members with
+37 transition edges, and `orchestrator/engine.py` is byte-identical. Both modified production files
+are purely additive (146 insertions, 0 deletions); every provider, agent, skill, config, CLI,
+`results.py`, `src/`, `scripts/`, live-test, and packaging path is byte-identical to `e2b069c`, and
+six `workflowctl` invocations match a clean baseline worktree exactly.
+
+3,469 tests pass (3,352 + 117 focused); 25 live CLI acceptance tests pass with zero skips;
+`mypy --strict` clean over 122 source files; `ruff`, `black`, and pre-commit clean. No blocker was
+fixed because none existed. Three non-blocking defects were recorded, classified, and deferred
+(D-11, D-12, D-13), none implemented and no GOV stage created; AUTO-011's D-8 through D-10,
+AUTO-010's D-3 through D-6, and AUTO-009's D1-D6 remain deferred and untouched. AUTO-013 and every
+later roadmap phase remain untouched and unauthorized.
+Report: `docs/reports/workflow-automation/AUTO-012-completion-report.md`.
