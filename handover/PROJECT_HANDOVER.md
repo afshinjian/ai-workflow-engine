@@ -837,3 +837,76 @@ Preparation, Reviewer, or Implementer Mode, and `MVP_SCOPE.md` §4's second acce
 — a real target-repository run — remains unmet. AUTO-012 and every later roadmap phase remain
 unauthorized. No PR, merge, upstream change to any other branch, or stash operation was performed
 by this closeout.
+
+## AUTO-012 — Configurable Approval Policy, Persistence, and Invalidation (closed 2026-08-01)
+
+The engine has a reusable approval subsystem for future workflow gates:
+
+    WorkflowService -> ApprovalService -> policy resolution, request persistence,
+                                          manual decisions, timeout decisions,
+                                          checksum binding, invalidation
+
+`agentos_workflow/approvals.py` holds a `StateStore` and nothing else — no provider, no agent, no
+Skill, no lock, no workflow session, no network client — so an approval cannot cause work to
+happen. It records only that permission was asked for, given, withheld, expired, or spent.
+
+**Read the governance documents before implementing, because one of them can forbid the stage.**
+`HUMAN_AUTHORIZATION_MODEL.md` v1.1 §1 declared the `CREATED -> AUTHORIZED` transition "the only
+human gate in this system", and its own §8 made adding any second human-approval point a MAJOR
+change requiring explicit Human Owner sign-off. Building an approval subsystem without that
+sign-off would have contradicted the governing document while implementing the thing it forbade.
+The prerequisite was therefore satisfied as its own act, ahead of the code: that document is now
+**v2.0**, §1 is amended in place from "the only" to "the founding" gate, and a new **§5a** records
+the decision. It authorizes the **subsystem only** — never a mode, never a gate placement, never a
+successor — and restates seven constraints it does not relax. Reuse this ordering: obtain the
+governance amendment first, and never quietly outgrow a written safety property.
+
+**No workflow state was added, on purpose.** The directive permitted `AWAITING_APPROVAL`,
+`APPROVAL_TIMED_OUT`, and `HUMAN_INTERVENTION_REQUIRED` but preferred none if avoidable. They were
+avoidable: this stage implements no lifecycle, so every such state would be unreachable and every
+new `ALLOWED_TRANSITIONS` edge untested — dead weight in the safety-critical core the same directive
+says not to refactor. Approval status lives on `ApprovalStatus` inside the subsystem that owns it,
+which also satisfies the rule that workflow states must not duplicate policy logic. `WorkflowState`
+is still 19 members with 37 edges. The stage that first *consumes* an approval will have the
+evidence to choose the right states; do not guess them earlier.
+
+**Events plus replay, not a mutable record.** An approval is an append-only sequence of
+`ApprovalEvent`s and the current `ApprovalRequest` is derived by replaying them. That makes "no
+decision is ever overwritten" a property of the file format rather than a promise — there is no code
+path that rewrites a line, because the only write is an append. Same idiom as the transition
+history.
+
+**Reuse persistence; do not rebuild it.** `StateStore` gained exactly two additive methods,
+`record_approval` and `read_approvals`, deliberately generic in the record type: the approval
+vocabulary is built *on* the store, and naming it there would invert the dependency into an import
+cycle. Everything the approval path needs — exclusive locking across the whole open-write-fsync
+sequence, non-decreasing timestamps, complete writes, fsync of file and directory, and the confined
+symlink-refusing walk — is inherited rather than reimplemented, and each property is exercised
+through `ApprovalService` in the tests rather than assumed.
+
+**`AUTO_APPROVE` fails closed and loudly.** It is refused when inherited from a built-in or
+project-wide default and accepted only from the specific gate or a per-run override. It raises
+rather than silently downgrading to `PAUSE`, because a downgrade leaves a configuration that *says*
+`auto_approve` behaving as `pause` — a trap the operator discovers only when a deadline passes,
+with nothing in the record explaining why. The snapshot keeps `timeout_action_source`, so an
+automatic approval is never indistinguishable from a human one in the audit trail.
+
+**Deadlines are facts on disk.** Absolute, timezone-aware, evaluated lazily. There is no thread,
+timer, sleep, or scheduler anywhere in the module — asserted over its syntax tree — which is why a
+deadline survives a process or machine restart, proven by a test that builds an entirely new service
+over the same directory. `get_approval` deliberately stays a pure read so an audit view can observe
+an expired-but-unevaluated approval without deciding its outcome.
+
+Three new non-blocking defects remain deferred, none fixed: a workflow with approvals but no
+transition history is invisible to `list_workflow_ids` (D-11, `RECOMMENDED`, genuinely ambiguous
+until a lifecycle consumes approvals); all approvals for a workflow share one ordered file, so
+timestamps must be non-decreasing across otherwise-independent approvals (D-12, `OPTIONAL`); and
+multi-tier escalation is not expressible, which is a deliberate bound rather than an oversight
+(D-13, `OPTIONAL`). AUTO-011's D-8 through D-10, AUTO-010's D-3 through D-6, and AUTO-009's D1-D6
+are confirmed untouched — D3 in particular because no CLI command was added, the service boundary
+having been validated by tests as the directive preferred.
+
+Still outstanding: this stage built the approval *mechanism* and nothing that uses it. There is
+still no production code that sequences the six agents, no Preparation, Reviewer, or Implementer
+Mode, no gate placement anywhere, and `MVP_SCOPE.md` §4's second acceptance demonstration — a real
+target-repository run — remains unmet. AUTO-013 and every later roadmap phase remain unauthorized.

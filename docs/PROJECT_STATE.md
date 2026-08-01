@@ -369,3 +369,39 @@ advisory only and no module outside the contract reads it. 3,352 tests pass and 
 pass with zero skips; `mypy --strict` clean over 121 source files. No blocker was fixed because
 none existed. Three non-blocking defects (D-8, D-9, D-10) remain deferred. AUTO-012 is not
 authorized.
+
+## AUTO-012 — Configurable Approval Policy, Persistence, and Invalidation
+
+Status: Done
+
+Registered and authorized by the Human Owner on 2026-08-01 as the single `Current` task, on branch
+`feature/auto-012-approval-policy` created from clean, synchronized `main` at `e2b069c` (the
+AUTO-011 publication merge). The `Current` set was empty beforehand.
+
+The stage builds a configurable, durable approval subsystem for future workflow gates:
+
+    WorkflowService -> ApprovalService -> policy resolution, request persistence,
+                                          manual decisions, timeout decisions,
+                                          checksum binding, invalidation
+
+`agentos_workflow/approvals.py` delivers a strict typed policy resolved across built-in, project,
+gate, and run layers into an immutable snapshot; an append-only per-workflow `approvals.jsonl`
+history written through the existing `StateStore` discipline; absolute timezone-aware deadlines
+evaluated lazily with no timer, thread, or sleep; the five timeout actions; and four-checksum
+binding whose recomputation immediately before consumption is what invalidates a stale approval.
+
+A separate governance act accompanies it: `HUMAN_AUTHORIZATION_MODEL.md` moves to v2.0 with a new
+§5a recording the Human Owner's decision that future workflow modes may use configurable approval
+gates governed by `ApprovalService`. That decision authorizes the subsystem only — no specific
+mode, no gate placement, no successor stage — and relaxes none of the existing safety constraints.
+
+No workflow mode is implemented. AUTO-013 and every later roadmap phase remain unauthorized.
+
+**Closed `Current -> Done` on 2026-08-01.** The reusable approval subsystem is delivered and the
+governance decision permitting configurable approval gates is recorded as
+`HUMAN_AUTHORIZATION_MODEL.md` v2.0 §5a, authorizing the subsystem only. No workflow mode,
+lifecycle, or state was implemented: `WorkflowState` remains 19 members with 37 edges and
+`orchestrator/engine.py` is byte-identical. Both modified production files are purely additive.
+3,469 tests pass and 25 live CLI tests pass with zero skips; `mypy --strict` clean over 122 source
+files. No blocker was fixed because none existed. Three non-blocking defects (D-11, D-12, D-13)
+remain deferred. AUTO-013 is not authorized.

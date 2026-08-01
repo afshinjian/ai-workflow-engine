@@ -7,6 +7,39 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- AUTO-012 (2026-08-01): a configurable, durable approval subsystem for future workflow gates.
+  `agentos_workflow/approvals.py` delivers `ApprovalService`, reached through five new
+  `WorkflowService` operations, with a strict typed policy resolved across built-in defaults,
+  project configuration, per-gate configuration, and per-run override into an immutable snapshot
+  that later configuration changes cannot retroactively alter. Approvals are persisted as
+  append-only events in a per-workflow `approvals.jsonl` written through the existing `StateStore`
+  discipline — the same locking, fsync, duplicate-key rejection, monotonic ordering, symlink
+  refusal, and path confinement the transition history already uses — and the current request is
+  derived by replay, so no decision is ever overwritten. Deadlines are absolute timezone-aware UTC
+  instants stored on disk and evaluated lazily: there is no thread, timer, sleep, or scheduler
+  anywhere in the module, so a deadline survives a process or machine restart. All five timeout
+  actions are implemented (`AUTO_APPROVE`, `PAUSE`, `FAIL`, `CANCEL`, `ESCALATE`), with `PAUSE`
+  leaving a resumable human-intervention state and escalation bounded by a no-loop fallback and at
+  most one extension. Every approval binds four checksums — repository state, diff, canonical
+  AUTO-011 agent result, and deterministic gate result — recomputed immediately before consumption;
+  any difference invalidates the approval, records which checksum changed, and blocks reuse.
+  `AUTO_APPROVE` is refused when inherited from a broad default and accepted only from the specific
+  gate or a per-run override. `TELEGRAM` is a policy value only: no transport, bot, handler, or
+  network call exists. No workflow mode, lifecycle, or state was implemented.
+
+### Changed
+- AUTO-012 (2026-08-01): `docs/workflow-automation/HUMAN_AUTHORIZATION_MODEL.md` moves to **v2.0**.
+  Through v1.1 it declared the `CREATED -> AUTHORIZED` transition "the only human gate in this
+  system", and its own §8 made adding any second human-approval point a MAJOR change requiring
+  explicit Human Owner sign-off. A new **§5a** records that sign-off: future workflow modes may use
+  configurable approval gates governed by `ApprovalService`. The decision authorizes the subsystem
+  only — no specific Preparation, Reviewer, or Implementer workflow, no gate placement, and no
+  successor stage — and relaxes none of the existing safety properties: the founding gate and all
+  of its bindings are unchanged, an approval remains evidence rather than authority, an approval
+  never substitutes for a deterministic machine gate, no admin-bypass path is created, every
+  approval is bound to the state it was granted against, approvals are single-use, automatic
+  approval is opt-in at the point of use, and no Provider, Agent, or Skill may grant or consume one.
+
 - AUTO-011 (2026-08-01): one canonical result contract for every execution the engine performs.
   `agentos_workflow/results.py` delivers `AgentRunResult`, reached from AUTO-010's
   `ProviderRunResult` through the adapter `agent_run_result_from_provider_run`, so the Provider
