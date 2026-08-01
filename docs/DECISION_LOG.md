@@ -13,6 +13,95 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-08-01 — Human Owner approved and closed AUTO-011
+
+**Decision:** The Human Owner approved AUTO-011 — Unified Provider and Agent Result Contract — for
+finalization on branch `feature/auto-011-agent-result-contract` (base `fd0b34f`), required a final
+fourteen-point scope, contract, and compatibility verification before any commit, and authorized
+the implementation and closeout commit plus the push. **All fourteen checks passed.** No pull
+request and no merge were authorized.
+
+**What was verified:** the canonical field set with no speculative successor fields; the four-status
+contract; every status invariant including `COMPLETED` rejecting both failure data and blocking
+issues, and unknown statuses rejected; `status` and `final_verdict` still semantically distinct;
+`recommended_next_state` advisory only and unable to mutate state, authorize a transition, invoke
+an agent/provider/skill, or bypass deterministic validation; the adapter preserving every AUTO-010
+result and failure classification; the single documented normalization; deterministic, strict,
+duplicate-key-rejecting, round-trip-safe, timezone-aware, immutable, secret-redacted serialization;
+artifacts as references with unsafe paths refused; no change to any provider, process-runner,
+service, CLI, agent, skill, state-machine, configuration, Git, GitHub, or shell behaviour; AUTO-010
+provider-runtime and live CLI tests unchanged and passing; every deferred finding still deferred;
+AUTO-012 untouched; and no debug code, TODO, FIXME, skip, xfail, temporary workaround,
+commented-out implementation, or unrelated refactor.
+
+**One deviation recorded rather than hidden:** `AgentRunResult` carries a nineteenth field,
+`session_id`, beyond the eighteen the contract enumerated. It is not speculative and not successor
+behaviour — it is the invocation's audit identity, populated today from
+`ProviderRunResult.session_id`, and it is what ties a result to the isolated session directory
+holding its evidence. Artifact references give paths; only this gives identity. Disclosed in the
+completion report's §5 and §1 and accepted.
+
+**Decided not to collapse D-3.** AUTO-010 deferred the overlap between `ProviderReport.verdict` and
+`ProviderReport.status` *to* AUTO-011, and AUTO-011 deliberately did not merge them. They answer
+different questions: a `COMPLETED` run reporting `fail` is a QA provider finding real defects — a
+successful execution with a failing verdict — and collapsing the axes would destroy that
+distinction. What the stage removed is the ambiguity, by giving each axis one canonical type and one
+documented meaning; what it did not do is delete a field from `ProviderReport`, which would have
+modified AUTO-010. D-3 therefore remains recorded as deferred rather than being claimed resolved.
+
+**Provenance note:** the approval was given in conversation and the closeout performed manually, not
+through `scripts/workflow-approve.sh` — no scripted `APPROVE` confirmations were typed, and none
+were supplied by the session.
+
+**Three new defects deferred, none fixed:** D-8 (`ProviderRunResult` permits `COMPLETED` alongside
+blocking issues), D-9 (an output-limit breach is not distinguishable by failure kind), and D-10 (the
+canonical result's enum imports invite a future `agents -> results -> agents` cycle). Each is
+recorded and classified in the completion report; none was implemented and no GOV stage was created
+for any of them. Closing AUTO-011 authorizes no successor.
+
+## 2026-08-01 — Human Owner registered and authorized AUTO-011
+
+**Decision:** The Human Owner registered and authorized AUTO-011 — Unified Provider and Agent
+Result Contract — in one written directive, as the single `Current` task on branch
+`feature/auto-011-agent-result-contract`, created from clean, synchronized `main` at `fd0b34f`.
+AUTO-011 had never been registered before, so registration and authorization are one act. The
+directive first authorized publication of AUTO-010 (PR #10, merged `fd0b34f`), which is what made
+AUTO-011's "predecessor merged and published" precondition true.
+
+**Scope decided:** one canonical `AgentRunResult` for provider and agent execution, reached as
+`WorkflowService -> Provider Runtime -> Canonical AgentRunResult`. It becomes the canonical result
+contract for future Claude execution, Codex execution, internal agents, and the
+Preparation/Reviewer/Implementer Modes — **without implementing any of them**. The stage
+standardizes results and adds no workflow mode, lifecycle, or state transition.
+
+**Alternatives considered and rejected.** *Declaring a fresh status enum, verdict, and failure type
+for the canonical result* was rejected: AUTO-010 already ships `ProviderRunStatus` (the same four
+terminal statuses), `ProviderVerdict`, `ProviderFailure`, and `ProviderKind`, and a parallel set
+would create two answers to the same question and a mapping between them that could drift. The
+canonical model therefore reuses those four and adds only what none of them expresses — execution
+mode, agent identity, artifact references, and the advisory next state. *Changing
+`ProviderRunResult` into the canonical model in place* was rejected because it would break
+AUTO-010's boundary, which the directive requires to keep working unchanged; adapters are used
+instead. *Deleting or migrating the legacy `AgentReport` under `src/ai_workflow_engine`* was
+rejected as out of scope — no legacy result model is removed in this stage.
+
+**Authority rule decided:** `recommended_next_state` is advisory only. It never mutates workflow
+state, authorizes a transition, bypasses the Orchestrator, or substitutes for deterministic
+validation. This preserves `AGENT_CONTRACTS.md` §1 and `ARCHITECTURE.md` §6 — an agent reports, the
+Orchestrator decides — while still letting a result carry the producer's own read of what should
+happen next, which an operator and a future Orchestrator both benefit from seeing. Tests must prove
+no transition depends on the field.
+
+**Prohibited:** Preparation/Reviewer/Implementer Mode; workflow authorization, approval, or
+approval timeouts; task scheduling; workflow start, resume, or cancellation; Claude-Codex
+coordination; Codex direct correction; Git commit/push automation; PR creation; CI polling; merge;
+branch cleanup; Python governance closeout; daemon; Telegram; AUTO-012 or any successor. No
+workflow state-machine change, no Git/GitHub skill registration change, no shell-script
+modification, and no change to existing `workflowctl auto` behaviour or output.
+
+**Stop condition:** implementation and validation only; no implementation/closeout commit, no push,
+no PR, no merge, and no AUTO-012 work. Authorizing AUTO-011 authorizes no successor.
+
 ## 2026-07-31 — Human Owner approved and closed AUTO-010
 
 **Decision:** The Human Owner approved AUTO-010 — Real Non-Interactive Provider Runtime — for

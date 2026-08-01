@@ -333,3 +333,39 @@ Three blockers in the shared provider process runner were fixed: process-group t
 detachment, streaming stdout/stderr ceilings with cleanup on breach, and a Codex report channel
 that could never have parsed a real run. 3,241 tests pass; `mypy --strict` clean over 120 source
 files. Four non-blocking defects (D-3 through D-6) remain deferred. AUTO-011 is not authorized.
+
+## AUTO-011 — Unified Provider and Agent Result Contract
+
+Status: Done
+
+Registered and authorized by the Human Owner on 2026-08-01 as the single `Current` task, on branch
+`feature/auto-011-agent-result-contract` created from clean, synchronized `main` at `fd0b34f` (the
+AUTO-010 publication merge). The `Current` set was empty beforehand.
+
+The stage creates one canonical typed result contract for provider and agent execution:
+
+    WorkflowService -> Provider Runtime -> Canonical AgentRunResult
+
+`AgentRunResult` becomes the canonical result contract for future Claude execution, Codex
+execution, internal agents, and the Preparation, Reviewer, and Implementer Modes, none of which
+this stage implements. It standardizes execution results only — no workflow mode, no workflow
+lifecycle, no state transition.
+
+Existing models are reused rather than duplicated: `ProviderRunStatus` supplies the four terminal
+statuses, `ProviderVerdict` the pass/fail axis, `ProviderFailure` the typed failure, and
+`ProviderKind` the provider identity. `recommended_next_state` is advisory only and can never
+mutate workflow state or authorize a transition. AUTO-010's Provider Runtime continues to work
+unchanged, with compatibility preserved by adapters rather than by interface changes.
+
+AUTO-012 and every later roadmap phase remain unauthorized.
+
+**Closed `Current -> Done` on 2026-08-01** after a Human-Owner-required fourteen-point scope,
+contract, and compatibility verification, all of which passed. The canonical `AgentRunResult` is
+delivered and reached from AUTO-010's `ProviderRunResult` through an adapter, so the Provider
+Runtime is byte-identical and compatibility is preserved by projection rather than by interface
+change. All eighteen required canonical fields are present, plus `session_id` as the invocation's
+trace identity; status and verdict remain deliberately distinct; `recommended_next_state` is
+advisory only and no module outside the contract reads it. 3,352 tests pass and 25 live CLI tests
+pass with zero skips; `mypy --strict` clean over 121 source files. No blocker was fixed because
+none existed. Three non-blocking defects (D-8, D-9, D-10) remain deferred. AUTO-012 is not
+authorized.
