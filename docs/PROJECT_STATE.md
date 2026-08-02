@@ -405,3 +405,20 @@ lifecycle, or state was implemented: `WorkflowState` remains 19 members with 37 
 3,469 tests pass and 25 live CLI tests pass with zero skips; `mypy --strict` clean over 122 source
 files. No blocker was fixed because none existed. Three non-blocking defects (D-11, D-12, D-13)
 remain deferred. AUTO-013 is not authorized.
+
+## Authorization update — 2026-08-02
+
+## GOV-4
+
+Status: Done
+
+The Human Owner explicitly authorized this single task through the local authorization gate, as
+an ordinary (non-AUTO/GOV-AUTO) engine task record following the GOV-2/GOV-3 precedent.
+
+**Closed `Current -> Done` on 2026-08-02.** Two pre-AUTO-013 live acceptance test-harness defects
+are resolved, test-only: session-scoped forwarding of the configured Claude account's real
+`CLAUDE_CONFIG_DIR` (replaced by a per-invocation ephemeral copy of a read-only authentication
+template), and non-deterministic first-attempt compliance with the strict bare-JSON auto-mode
+contract (bounded to 3 attempts, retrying only `FAILED`/`MALFORMED_OUTPUT`). Two full live-suite
+runs: 32 passed/0 failed/0 skipped each. No production code changed. AUTO-013 remains
+unauthorized.

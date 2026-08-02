@@ -1334,3 +1334,63 @@ fixed because none existed. Three non-blocking defects were recorded, classified
 AUTO-010's D-3 through D-6, and AUTO-009's D1-D6 remain deferred and untouched. AUTO-013 and every
 later roadmap phase remain untouched and unauthorized.
 Report: `docs/reports/workflow-automation/AUTO-012-completion-report.md`.
+
+## GOV-4 — Isolate Claude live-test configuration per attempt and add bounded test-only format retries
+
+Status: Done
+
+**Registered and authorized by the Human Owner in one act on 2026-08-02**, as an ordinary
+(non-AUTO/GOV-AUTO-family) engine task record, following the same lightweight pattern GOV-2 and
+GOV-3 established rather than a new AUTO or GOV-AUTO stage. This is a pre-AUTO-013
+baseline-verification correction to the `agentos_workflow` live acceptance test harness
+(`agentos_workflow/tests/live/test_live_providers.py` and its mocked companion
+`agentos_workflow/tests/test_provider_runtime.py`), discovered while verifying the AUTO-013
+baseline required by `docs/workflow-automation/stage-prompts/AUTO-013.md`.
+
+Two distinct, independently reproduced defects motivate it: (1) the live suite forwarded the
+configured Claude account's real, long-lived `CLAUDE_CONFIG_DIR` to every invocation for an entire
+session, letting Claude Code's own client-side continuity state (`.claude.json`, `projects/`,
+`plans/`, session history) accumulate across tests and across separate suite runs — reproduced
+causing a real contract-violating failure, the model treating an injected plan-mode system
+reminder as a genuine ongoing session and refusing the auto-mode JSON-only contract; and (2),
+independent of (1), real Claude's compliance with that same strict bare-JSON contract is not
+deterministic on a single attempt — observed as a short prose sentence plus a fenced JSON block,
+under both `plan` and `acceptEdits` permission modes, on fresh ephemeral directories with no other
+symptom.
+
+Scope: test-only. No production code (`agentos_workflow/providers/`, `agentos_workflow/agents/`,
+`agentos_workflow/orchestrator/`, `agentos_workflow/config/`, `results.py`, `service.py`, or any
+other production path) is touched. No parser change, no permission-mode change, no provider argv
+change, no new workflow state, no `workflowctl` change. AUTO-013 is not registered, authorized,
+branched, or implemented by this task, and this task authorizes no successor.
+
+Explicitly out of scope and prohibited: any GOV-AUTO or AUTO stage for this defect; any change to
+`ProviderRuntime`, `unfenced`, `strict_json_loads`, or report classification; weakening the strict
+JSON contract; treating model non-compliance as accepted nondeterminism; any Codex-side retry
+policy absent concrete Codex evidence of the same failure mode; fixing any unrelated deferred
+finding.
+
+Contract: none — an ordinary engine task record, per the GOV-2/GOV-3 precedent.
+
+**Implemented, validated, and closed `Current -> Done` on 2026-08-02.**
+`_stage_ephemeral_claude_config_dir` makes the configured Claude account directory a read-only
+authentication template: every invocation gets a fresh directory under its own `tmp_path`
+containing only `.credentials.json` (confirmed sufficient by direct probe), never the template
+itself. `run_live_claude_with_bounded_format_repair` retries only `FAILED`/`MALFORMED_OUTPUT` up
+to 3 attempts, each with its own fresh ephemeral config, session, and disposable repository
+directory, stopping immediately at the first non-format-failure result; every other failure kind
+is accepted unchanged on attempt one. A new deterministic mocked test
+(`test_prose_before_a_fenced_report_is_rejected_not_normalized`) pins single-attempt rejection of
+the exact observed failure shape, unweakened.
+
+Two full `pytest -q -m live_cli -rs` runs after both fixes: 32 passed, 0 failed, 0 skipped each
+(32, not 25, because this task also added 7 structural guard tests proving the isolation
+mechanism). The authentication template's file count, SHA-256, and mtime were identical before
+and after every live run; the interactive `.claude-A` directory showed zero diffs under
+`plans/`/`projects/`. 3,470 tests pass (3,469 + 1); `mypy` clean over 122 source files (test
+directories excluded from that count, matching every prior stage's baseline); `ruff`/`black`/
+pre-commit clean; `workflowctl verify` full PASS. Changed files: exactly
+`agentos_workflow/tests/live/test_live_providers.py` and
+`agentos_workflow/tests/test_provider_runtime.py` — no production code. This closure authorizes
+no successor: AUTO-013 and every later roadmap phase remain unauthorized.
+Report: `docs/reports/GOV-4-completion-report.md`.

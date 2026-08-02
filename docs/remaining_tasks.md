@@ -94,7 +94,17 @@ same directive required the separate governance act recorded as `HUMAN_AUTHORIZA
 to `Done` on 2026-08-01** — 3,469 tests green, 25 live tests with zero skips, `mypy --strict` clean
 over 122 source files, both modified production files purely additive, no workflow mode or state
 implemented, no blocker fixed because none existed, and three non-blocking defects (D-11, D-12,
-D-13) recorded and deferred. AUTO-013 remains unauthorized.
+D-13) recorded and deferred. AUTO-013 remains unauthorized. **GOV-4 — Isolate Claude live-test
+configuration per attempt and add bounded test-only format retries — was registered and authorized
+by the Human Owner on 2026-08-02** as the single `Current` task, as an ordinary (non-AUTO/GOV-AUTO)
+engine task record following the GOV-2/GOV-3 precedent — a pre-AUTO-013 baseline-verification
+correction to the live acceptance test harness, discovered while verifying the AUTO-013 baseline.
+Scope was test-only (`agentos_workflow/tests/live/test_live_providers.py` and
+`agentos_workflow/tests/test_provider_runtime.py`); no production code was touched. **GOV-4 was
+approved and closed to `Done` on 2026-08-02** — two full live-suite runs at 32 passed/0 failed/0
+skipped each, authentication template byte- and mtime-identical across every live run, zero
+`.claude-A` contamination, 3,470 tests green, `mypy` clean over 122 source files. AUTO-013 remains
+unauthorized.
 
 | Task | Title | Status |
 |---|---|---|

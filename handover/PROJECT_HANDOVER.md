@@ -910,3 +910,32 @@ Still outstanding: this stage built the approval *mechanism* and nothing that us
 still no production code that sequences the six agents, no Preparation, Reviewer, or Implementer
 Mode, no gate placement anywhere, and `MVP_SCOPE.md` §4's second acceptance demonstration — a real
 target-repository run — remains unmet. AUTO-013 and every later roadmap phase remain unauthorized.
+
+## Authorization update — 2026-08-02
+
+GOV-4 is the single `Current` task after Human Owner authorization, registered and authorized in
+one act as an ordinary (non-AUTO/GOV-AUTO-family) engine task record following the GOV-2/GOV-3
+precedent. It is a pre-AUTO-013 live acceptance test-harness correction discovered while verifying
+the AUTO-013 baseline — two independent defects in `agentos_workflow/tests/live/` and its mocked
+companion `agentos_workflow/tests/test_provider_runtime.py`: session-scoped forwarding of the
+configured Claude account's real `CLAUDE_CONFIG_DIR` letting Claude Code's own continuity state
+accumulate across invocations, and real Claude's non-deterministic first-attempt compliance with
+the strict bare-JSON auto-mode contract. Scope is test-only; no production code, parser, provider
+argv, permission mode, or workflow state changes. The authorization-only commit contains
+governance and handoff records; implementation has not started. No predecessor was closed
+automatically, and no push, merge, upstream, branch, or stash operation was performed.
+
+## Closure update — 2026-08-02
+
+GOV-4 was approved and closed `Current -> Done` on 2026-08-02. `_stage_ephemeral_claude_config_dir`
+makes the configured Claude account directory a read-only authentication template, copying only
+`.credentials.json` into a fresh per-invocation directory. `run_live_claude_with_bounded_format_
+repair` bounds retry to exactly 3 attempts, strictly limited to `FAILED`/`MALFORMED_OUTPUT`, each
+attempt isolated in its own ephemeral config/session/repository directory; every other failure
+kind is accepted unchanged on attempt one. A new deterministic mocked test pins single-attempt
+rejection of malformed output, unweakened. Evidence: two full `pytest -q -m live_cli -rs` runs at
+32 passed/0 failed/0 skipped each; the authentication template byte- and mtime-identical across
+every live run; zero `.claude-A` contamination; 3,470 tests green; `mypy` clean over 122 source
+files; `ruff`/`black`/pre-commit clean; `workflowctl verify` full PASS. No production code was
+changed. This closure authorizes no successor — AUTO-013 and every later roadmap phase remain
+unauthorized. Report: `docs/reports/GOV-4-completion-report.md`.

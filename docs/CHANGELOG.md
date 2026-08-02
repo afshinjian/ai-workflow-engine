@@ -7,6 +7,15 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- GOV-4 (2026-08-02): implemented, Human-Owner-approved, and closed `Current -> Done` — two
+  pre-AUTO-013 live acceptance test-harness fixes, test-only. Claude's configured account
+  directory is now a read-only authentication template, copied per invocation
+  (`_stage_ephemeral_claude_config_dir`); a bounded, test-only helper
+  (`run_live_claude_with_bounded_format_repair`) retries only `FAILED`/`MALFORMED_OUTPUT`, up to 3
+  attempts, each isolated. Two full live-suite runs at 32 passed/0 failed/0 skipped each.
+- GOV-4 (2026-08-02): explicitly registered and authorized by the Human Owner in one act, as an
+  ordinary engine task record (GOV-2/GOV-3 pattern); authorization commit and implementation
+  remain separate.
 - AUTO-012 (2026-08-01): a configurable, durable approval subsystem for future workflow gates.
   `agentos_workflow/approvals.py` delivers `ApprovalService`, reached through five new
   `WorkflowService` operations, with a strict typed policy resolved across built-in defaults,
