@@ -13,6 +13,26 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-08-02 — Human Owner approved and closed GOV-4
+
+**Decision:** The Human Owner reviewed the implementation diff for `GOV-4` on branch
+`fix/live-cli-test-isolation` and approved closure. Two pre-AUTO-013 live acceptance test-harness
+defects are resolved, both test-only, in `agentos_workflow/tests/live/test_live_providers.py` and
+`agentos_workflow/tests/test_provider_runtime.py`: (1) `_stage_ephemeral_claude_config_dir` makes
+the configured Claude account directory a read-only authentication template, copying only
+`.credentials.json` into a fresh per-invocation directory rather than forwarding the template
+directly; (2) `run_live_claude_with_bounded_format_repair` bounds retry to exactly 3 attempts,
+strictly limited to `FAILED`/`MALFORMED_OUTPUT`, each attempt isolated in its own ephemeral
+config/session/repository directory. Evidence: two full `pytest -q -m live_cli -rs` runs at 32
+passed/0 failed/0 skipped each; the authentication template byte- and mtime-identical before and
+after every live run; zero `.claude-A` contamination; a new deterministic mocked test pinning
+single-attempt malformed-output rejection unweakened; 3,470 tests green; `mypy` clean over 122
+source files; `ruff`/`black`/pre-commit clean; `workflowctl verify` full PASS. No production code
+was changed. Report: `docs/reports/GOV-4-completion-report.md`.
+
+**Boundaries:** This decision approves and closes only `GOV-4`. It authorizes no successor
+(including AUTO-013), does not push, merge, or open a PR, and does not begin AUTO-013.
+
 ## 2026-08-02 — Human Owner registered and authorized GOV-4
 
 **Decision:** The Human Owner registered and authorized `GOV-4` — Isolate Claude live-test

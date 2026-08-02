@@ -588,6 +588,25 @@ class TestTerminalResultContract:
         runtime = ProviderRuntime(config_for(tmp_path, claude=claude_stub(tmp_path, fenced)))
         assert runtime.invoke(request_for(tmp_path)).status is ProviderRunStatus.COMPLETED
 
+    def test_prose_before_a_fenced_report_is_rejected_not_normalized(self, tmp_path: Path) -> None:
+        """The exact shape a real live Claude run has produced: a sentence of prose, then a
+        fenced JSON report. `unfenced` only strips a fence wrapping the *entire* answer, so prose
+        outside it means the text is never recognized as fenced at all -- this single attempt
+        must stay rejected as `MALFORMED_OUTPUT`, never silently unwrapped from within surrounding
+        prose. This is the deterministic, single-attempt counterpart to the live suite's bounded
+        format-repair helper (`run_live_claude_with_bounded_format_repair`): that helper retries a
+        *real model* across fresh attempts when it produces exactly this shape, but the engine's
+        own parser must never be the thing that starts tolerating it.
+        """
+        fenced = f"```json\n{json.dumps(COMPLETED_REPORT)}\n```"
+        answer = f"Task complete, see the report below.\n\n{fenced}"
+        runtime = ProviderRuntime(config_for(tmp_path, claude=claude_stub(tmp_path, answer)))
+        result = runtime.invoke(request_for(tmp_path))
+
+        assert result.status is ProviderRunStatus.FAILED
+        assert result.failure is not None
+        assert result.failure.kind is ProviderFailureKind.MALFORMED_OUTPUT
+
     def test_a_spawn_failure_is_a_typed_failed_result(self, tmp_path: Path) -> None:
         runtime = ProviderRuntime(config_for(tmp_path, claude=tmp_path / "not-installed"))
         result = runtime.invoke(request_for(tmp_path))

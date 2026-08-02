@@ -1337,7 +1337,7 @@ Report: `docs/reports/workflow-automation/AUTO-012-completion-report.md`.
 
 ## GOV-4 — Isolate Claude live-test configuration per attempt and add bounded test-only format retries
 
-Status: Current
+Status: Done
 
 **Registered and authorized by the Human Owner in one act on 2026-08-02**, as an ordinary
 (non-AUTO/GOV-AUTO-family) engine task record, following the same lightweight pattern GOV-2 and
@@ -1371,3 +1371,26 @@ policy absent concrete Codex evidence of the same failure mode; fixing any unrel
 finding.
 
 Contract: none — an ordinary engine task record, per the GOV-2/GOV-3 precedent.
+
+**Implemented, validated, and closed `Current -> Done` on 2026-08-02.**
+`_stage_ephemeral_claude_config_dir` makes the configured Claude account directory a read-only
+authentication template: every invocation gets a fresh directory under its own `tmp_path`
+containing only `.credentials.json` (confirmed sufficient by direct probe), never the template
+itself. `run_live_claude_with_bounded_format_repair` retries only `FAILED`/`MALFORMED_OUTPUT` up
+to 3 attempts, each with its own fresh ephemeral config, session, and disposable repository
+directory, stopping immediately at the first non-format-failure result; every other failure kind
+is accepted unchanged on attempt one. A new deterministic mocked test
+(`test_prose_before_a_fenced_report_is_rejected_not_normalized`) pins single-attempt rejection of
+the exact observed failure shape, unweakened.
+
+Two full `pytest -q -m live_cli -rs` runs after both fixes: 32 passed, 0 failed, 0 skipped each
+(32, not 25, because this task also added 7 structural guard tests proving the isolation
+mechanism). The authentication template's file count, SHA-256, and mtime were identical before
+and after every live run; the interactive `.claude-A` directory showed zero diffs under
+`plans/`/`projects/`. 3,470 tests pass (3,469 + 1); `mypy` clean over 122 source files (test
+directories excluded from that count, matching every prior stage's baseline); `ruff`/`black`/
+pre-commit clean; `workflowctl verify` full PASS. Changed files: exactly
+`agentos_workflow/tests/live/test_live_providers.py` and
+`agentos_workflow/tests/test_provider_runtime.py` — no production code. This closure authorizes
+no successor: AUTO-013 and every later roadmap phase remain unauthorized.
+Report: `docs/reports/GOV-4-completion-report.md`.
