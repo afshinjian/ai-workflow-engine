@@ -7,6 +7,9 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- GOV-4 (2026-08-02): explicitly registered and authorized by the Human Owner in one act, as an
+  ordinary engine task record (GOV-2/GOV-3 pattern); authorization commit and implementation
+  remain separate.
 - AUTO-012 (2026-08-01): a configurable, durable approval subsystem for future workflow gates.
   `agentos_workflow/approvals.py` delivers `ApprovalService`, reached through five new
   `WorkflowService` operations, with a strict typed policy resolved across built-in defaults,

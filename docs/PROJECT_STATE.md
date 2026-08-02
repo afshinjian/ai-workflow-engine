@@ -405,3 +405,13 @@ lifecycle, or state was implemented: `WorkflowState` remains 19 members with 37 
 3,469 tests pass and 25 live CLI tests pass with zero skips; `mypy --strict` clean over 122 source
 files. No blocker was fixed because none existed. Three non-blocking defects (D-11, D-12, D-13)
 remain deferred. AUTO-013 is not authorized.
+
+## Authorization update — 2026-08-02
+
+## GOV-4
+
+Status: Current
+
+The Human Owner explicitly authorized this single task through the local authorization gate, as
+an ordinary (non-AUTO/GOV-AUTO) engine task record following the GOV-2/GOV-3 precedent.
+Implementation and approval remain separate phases. AUTO-013 remains unauthorized.

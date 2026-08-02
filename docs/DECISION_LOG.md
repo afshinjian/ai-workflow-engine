@@ -13,6 +13,25 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-08-02 — Human Owner registered and authorized GOV-4
+
+**Decision:** The Human Owner registered and authorized `GOV-4` — Isolate Claude live-test
+configuration per attempt and add bounded test-only format retries — in one act, as an ordinary
+(non-AUTO/GOV-AUTO-family) engine task record following the GOV-2/GOV-3 precedent rather than a
+new AUTO or GOV-AUTO stage. The task moves directly to `Current`; implementation remains a
+separate phase. This is a pre-AUTO-013 baseline-verification correction to the
+`agentos_workflow` live acceptance test harness, discovered while verifying the AUTO-013 baseline:
+(1) the live suite forwarded the configured Claude account's real, long-lived `CLAUDE_CONFIG_DIR`
+to every invocation for an entire session, letting Claude Code's own client-side continuity state
+accumulate and reproducing a real contract-violating failure; and (2), independently, real
+Claude's compliance with the strict bare-JSON auto-mode contract is not deterministic on a single
+attempt. The authorization was recorded from branch `main` at
+`ce0f10775838bd9f20f3e02121600a9aa5dd68ed`.
+
+**Boundaries:** This decision authorizes only the named task. It authorizes no successor
+(including AUTO-013), no GOV-AUTO or AUTO stage, no production-code change, no parser weakening,
+no push, merge, stash mutation, or automatic predecessor closure.
+
 ## 2026-08-01 — Human Owner authorized configurable approval gates (HUMAN_AUTHORIZATION_MODEL v2.0 §5a)
 
 **Decision:** The Human Owner authorizes future workflow modes to define **configurable approval

@@ -910,3 +910,17 @@ Still outstanding: this stage built the approval *mechanism* and nothing that us
 still no production code that sequences the six agents, no Preparation, Reviewer, or Implementer
 Mode, no gate placement anywhere, and `MVP_SCOPE.md` §4's second acceptance demonstration — a real
 target-repository run — remains unmet. AUTO-013 and every later roadmap phase remain unauthorized.
+
+## Authorization update — 2026-08-02
+
+GOV-4 is the single `Current` task after Human Owner authorization, registered and authorized in
+one act as an ordinary (non-AUTO/GOV-AUTO-family) engine task record following the GOV-2/GOV-3
+precedent. It is a pre-AUTO-013 live acceptance test-harness correction discovered while verifying
+the AUTO-013 baseline — two independent defects in `agentos_workflow/tests/live/` and its mocked
+companion `agentos_workflow/tests/test_provider_runtime.py`: session-scoped forwarding of the
+configured Claude account's real `CLAUDE_CONFIG_DIR` letting Claude Code's own continuity state
+accumulate across invocations, and real Claude's non-deterministic first-attempt compliance with
+the strict bare-JSON auto-mode contract. Scope is test-only; no production code, parser, provider
+argv, permission mode, or workflow state changes. The authorization-only commit contains
+governance and handoff records; implementation has not started. No predecessor was closed
+automatically, and no push, merge, upstream, branch, or stash operation was performed.

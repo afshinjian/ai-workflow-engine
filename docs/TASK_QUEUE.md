@@ -1334,3 +1334,40 @@ fixed because none existed. Three non-blocking defects were recorded, classified
 AUTO-010's D-3 through D-6, and AUTO-009's D1-D6 remain deferred and untouched. AUTO-013 and every
 later roadmap phase remain untouched and unauthorized.
 Report: `docs/reports/workflow-automation/AUTO-012-completion-report.md`.
+
+## GOV-4 — Isolate Claude live-test configuration per attempt and add bounded test-only format retries
+
+Status: Current
+
+**Registered and authorized by the Human Owner in one act on 2026-08-02**, as an ordinary
+(non-AUTO/GOV-AUTO-family) engine task record, following the same lightweight pattern GOV-2 and
+GOV-3 established rather than a new AUTO or GOV-AUTO stage. This is a pre-AUTO-013
+baseline-verification correction to the `agentos_workflow` live acceptance test harness
+(`agentos_workflow/tests/live/test_live_providers.py` and its mocked companion
+`agentos_workflow/tests/test_provider_runtime.py`), discovered while verifying the AUTO-013
+baseline required by `docs/workflow-automation/stage-prompts/AUTO-013.md`.
+
+Two distinct, independently reproduced defects motivate it: (1) the live suite forwarded the
+configured Claude account's real, long-lived `CLAUDE_CONFIG_DIR` to every invocation for an entire
+session, letting Claude Code's own client-side continuity state (`.claude.json`, `projects/`,
+`plans/`, session history) accumulate across tests and across separate suite runs — reproduced
+causing a real contract-violating failure, the model treating an injected plan-mode system
+reminder as a genuine ongoing session and refusing the auto-mode JSON-only contract; and (2),
+independent of (1), real Claude's compliance with that same strict bare-JSON contract is not
+deterministic on a single attempt — observed as a short prose sentence plus a fenced JSON block,
+under both `plan` and `acceptEdits` permission modes, on fresh ephemeral directories with no other
+symptom.
+
+Scope: test-only. No production code (`agentos_workflow/providers/`, `agentos_workflow/agents/`,
+`agentos_workflow/orchestrator/`, `agentos_workflow/config/`, `results.py`, `service.py`, or any
+other production path) is touched. No parser change, no permission-mode change, no provider argv
+change, no new workflow state, no `workflowctl` change. AUTO-013 is not registered, authorized,
+branched, or implemented by this task, and this task authorizes no successor.
+
+Explicitly out of scope and prohibited: any GOV-AUTO or AUTO stage for this defect; any change to
+`ProviderRuntime`, `unfenced`, `strict_json_loads`, or report classification; weakening the strict
+JSON contract; treating model non-compliance as accepted nondeterminism; any Codex-side retry
+policy absent concrete Codex evidence of the same failure mode; fixing any unrelated deferred
+finding.
+
+Contract: none — an ordinary engine task record, per the GOV-2/GOV-3 precedent.
