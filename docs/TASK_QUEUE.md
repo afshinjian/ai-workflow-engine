@@ -1394,3 +1394,65 @@ pre-commit clean; `workflowctl verify` full PASS. Changed files: exactly
 `agentos_workflow/tests/test_provider_runtime.py` — no production code. This closure authorizes
 no successor: AUTO-013 and every later roadmap phase remain unauthorized.
 Report: `docs/reports/GOV-4-completion-report.md`.
+
+## AUTO-013 — Foreground Implementer Mode (AUTHORIZED → PR_OPEN)
+
+Status: Done
+
+Registered and authorized by the Human Owner in one written directive naming the stage, its
+mission, its final approved runtime flow, its required implementation surface
+(`ImplementerModeDriver`, `ImplementationTask`, the `WorkflowService` implementation entry point,
+guarded QA configuration, Claude/AgentRunResult/deterministic-validation/bounded-repair/
+`ApprovalService`/commit/push/PR-creation integration, resume support for every AUTO-013 state),
+its guarded `independent_qa_required` policy (default `true`; `false` reachable only through the
+same explicit gate/run opt-in discipline AUTO-012 established for `AUTO_APPROVE`, never
+fabricating `qa_passed = true`), its security preservation requirements (no `shell=True`, fixed
+argv, provider isolation, approval integrity, checksum validation, scope/forbidden-path
+validation, secret detection), its newly discovered defect policy, and its stop condition
+(implementation and validation only — no commit, no push, no PR, no merge, no AUTO-014, no
+AUTO-015). AUTO-013 had never been registered before, so this single entry records both its
+registration and its authorization.
+
+Preconditions verified before implementation began: predecessor AUTO-012 `COMPLETE`, merged, and
+published; AUTO-001 through AUTO-012 and GOV-4 all `COMPLETE`/`Done`; no other `Current` task
+anywhere in the queue; registry and task-queue agreement; clean, synchronized `main` ==
+`origin/main` at `985405369b8229fc48ba2b70fc03a8c47ff13879`; `workflowctl verify --config
+self-governance.yaml` full PASS; `pytest -q` at 3,470 passed / 0 skipped and `pytest -q -m
+live_cli -rs` at 32 passed / 0 skipped; no blocking OD-#. Branch
+`feature/auto-013-implementer-to-pr` created from that clean, synchronized `main`.
+
+`agentos_workflow/implementer.py` delivers `ImplementerModeDriver` and `ImplementationTask`,
+composing the already-delivered `WorkflowSession` (state/lock/durable attempt bookkeeping),
+`WorkflowService` (`invoke_provider` and the five approval operations — the "`WorkflowService`
+implementation entry point" this stage's directive named, deliberately without adding a sixth
+workflow verb to that class, since its own docstring and `test_service.py`'s
+`APPROVED_OPERATIONS`/`FORBIDDEN_OPERATIONS` pins explicitly forbid one), `agents.
+run_deterministic_validation` (unmodified), and the existing Git/GitHub/reporting Skills, to drive
+one workflow from `AUTHORIZED` to `PR_OPEN`. One deliberately additive Skill was added outside this
+module, `skills.repository.checkout_stage_branch` — no prior Skill checked out a non-baseline,
+already-created branch. `WorkflowState`'s 19 members and 37 edges, `ProviderRuntime`, both CLI
+providers, `ProviderResult`, `AgentRunResult`, and `ApprovalService` are all reused exactly as
+AUTO-002/010/011/012 left them, unmodified.
+
+Contract: `docs/workflow-automation/stage-prompts/AUTO-013.md`.
+Report: `docs/reports/workflow-automation/AUTO-013-completion-report.md`.
+
+**Implemented, validated, approved, and closed `Current -> Done` on 2026-08-02**, after an
+eighteen-point final scope and integrity verification the Human Owner required before any commit.
+Two corrections were made during that verification, neither weakening any existing gate, invariant,
+or transition table: the `ApprovalService` gate was relocated from `QA_RUNNING` to
+`READY_TO_COMMIT` (matching that state's own standing `WORKFLOW_STATES.md` §2 definition more
+precisely — a rejected/changes-requested decision there fails the workflow directly, since no
+`READY_TO_COMMIT → REPAIRING` edge exists and none was added); and `MACHINE_GATES.md` was amended
+(1.3 → 1.4, new §4a) to record the Human Owner's explicit authorization of the guarded
+`independent_qa_required=false` exception to its previously-unconditional "QA is never skipped"
+clause — the same treatment `HUMAN_AUTHORIZATION_MODEL.md` v2.0 §5a gave AUTO-012's approval-gate
+authorization. See the completion report for the full evidence table (3,484 tests passing — 3,470
++ 14 new — 0 skipped; `pytest -q -m live_cli -rs` at 32 passed / 0 skipped, after one transient,
+investigated, and cleared Claude usage-limit flake unrelated to this stage's code; `mypy --strict`
+clean over 123 source files; `ruff`/`black`/pre-commit clean; wheel packaging and out-of-tree
+imports both verified). Three new non-blocking defects (D-14, D-15, D-16) recorded and deferred,
+none implemented, no GOV stage created. **Publication is limited to pushing**
+`feature/auto-013-implementer-to-pr`: no PR, no merge. This entry authorizes no successor:
+AUTO-014, AUTO-015, and every later roadmap phase remain unauthorized, and
+merge/CI-wait/branch-cleanup/runtime-closeout behavior was not implemented by this stage.

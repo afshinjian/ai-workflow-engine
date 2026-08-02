@@ -103,8 +103,21 @@ Scope was test-only (`agentos_workflow/tests/live/test_live_providers.py` and
 `agentos_workflow/tests/test_provider_runtime.py`); no production code was touched. **GOV-4 was
 approved and closed to `Done` on 2026-08-02** — two full live-suite runs at 32 passed/0 failed/0
 skipped each, authentication template byte- and mtime-identical across every live run, zero
-`.claude-A` contamination, 3,470 tests green, `mypy` clean over 122 source files. AUTO-013 remains
-unauthorized.
+`.claude-A` contamination, 3,470 tests green, `mypy` clean over 122 source files. **AUTO-013 —
+Foreground Implementer Mode (AUTHORIZED → PR_OPEN) — was registered and authorized by the Human
+Owner in one written directive on 2026-08-02** as the single `Current` task, on its registered
+branch `feature/auto-013-implementer-to-pr`; it builds `ImplementerModeDriver`/`ImplementationTask`
+(`agentos_workflow/implementer.py`), composing the already-delivered `WorkflowSession`,
+`WorkflowService`, deterministic validation, and Git/GitHub/reporting Skills to drive one workflow
+from `AUTHORIZED` to `PR_OPEN`, with a guarded `independent_qa_required` opt-out and no new
+workflow state. Contract: `docs/workflow-automation/stage-prompts/AUTO-013.md`; report:
+`docs/reports/workflow-automation/AUTO-013-completion-report.md`. **AUTO-013 was approved and closed to `Done` on 2026-08-02** after an eighteen-point final
+scope and integrity verification, with two corrections recorded (the `ApprovalService` gate moved
+to `READY_TO_COMMIT`; `MACHINE_GATES.md` amended to 1.4 with a new §4a) — 3,484 tests passing, 32
+live-CLI tests passing with zero skips, `mypy --strict` clean over 123 source files,
+`ruff`/`black`/pre-commit clean, wheel packaging and out-of-tree imports verified. Publication is
+limited to pushing `feature/auto-013-implementer-to-pr`: no PR, no merge. AUTO-014, AUTO-015, and
+every later roadmap phase remain unauthorized.
 
 | Task | Title | Status |
 |---|---|---|

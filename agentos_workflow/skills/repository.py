@@ -41,6 +41,7 @@ __all__ = [
     "WorkingTree",
     "WorkingTreeEntry",
     "checkout_baseline",
+    "checkout_stage_branch",
     "create_stage_branch",
     "delete_local_branch",
     "delete_remote_branch",
@@ -596,6 +597,61 @@ def checkout_baseline(repository_path: Path, *, baseline_branch: str) -> SkillRe
     if not execution.succeeded:
         return _git_failure(skill, execution)
     return verify_final_repository_state(repository_path, baseline_branch=baseline_branch)
+
+
+def checkout_stage_branch(
+    repository_path: Path, *, branch: str, baseline_branch: str
+) -> SkillResult[BranchState]:
+    """Switch the working tree to an already-created, non-baseline stage branch.
+
+    `checkout_baseline` above only ever targets the configured baseline; nothing in this module
+    previously checked out an arbitrary branch, which "Registered Branch Preparation" (AUTO-013)
+    needs once `create_stage_branch` has created the ref. Refuses the baseline as a target — that
+    switch is `checkout_baseline`'s job, not this one's — and, like `checkout_baseline`, refuses an
+    unclean working tree rather than risking uncommitted work (`SECURITY_MODEL.md` §5). Idempotent:
+    already being on `branch` is a no-op success.
+    """
+    skill = "checkout_stage_branch"
+    if problem := _validate_refs(skill, branch=branch, baseline_branch=baseline_branch):
+        return problem
+    if problem := _reject_baseline(skill, branch, baseline_branch):
+        return problem
+    branch_result = inspect_current_branch(repository_path)
+    if not branch_result.ok or branch_result.value is None:
+        return failure(
+            skill,
+            FailureKind.PRECONDITION,
+            f"could not determine current branch: {branch_result.error}",
+        )
+    if branch_result.value.branch == branch:
+        return success(branch_result.value)
+    tree_result = inspect_working_tree(repository_path)
+    if not tree_result.ok or tree_result.value is None:
+        return failure(
+            skill, FailureKind.PRECONDITION, f"could not inspect working tree: {tree_result.error}"
+        )
+    if not tree_result.value.clean:
+        return failure(
+            skill,
+            FailureKind.PRECONDITION,
+            "refusing to switch stage branch with uncommitted work in the tree: "
+            f"{len(tree_result.value.entries)} changed path(s) would be at risk",
+        )
+    existing = _git(
+        repository_path,
+        ("show-ref", "--verify", "--quiet", f"refs/heads/{branch}"),
+        identity=skill,
+    )
+    if existing.outcome is not CommandOutcome.COMPLETED or existing.exit_code != 0:
+        return failure(
+            skill,
+            FailureKind.PRECONDITION,
+            f"local branch {branch!r} does not exist; create it before checking it out",
+        )
+    execution = _git(repository_path, ("checkout", branch, "--"), identity=skill)
+    if not execution.succeeded:
+        return _git_failure(skill, execution)
+    return inspect_current_branch(repository_path)
 
 
 def fast_forward_pull(

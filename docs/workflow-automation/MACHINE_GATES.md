@@ -5,7 +5,7 @@
 | **Title** | AgentOS Workflow Automation — Machine Gates |
 | **Purpose** | Every automatic checkpoint that stands in for human approval after the single human gate, with pass/fail criteria and on-fail behavior. |
 | **Status** | Draft |
-| **Version** | 1.3 |
+| **Version** | 1.4 |
 | **Owner** | Documentation & Governance session (AUTO-001) · Human Owner (approval) |
 | **Dependencies** | `WORKFLOW_STATES.md`, `HUMAN_AUTHORIZATION_MODEL.md` |
 | **Related Documents** | `SKILL_CONTRACTS.md`, `SECURITY_MODEL.md`, `FAILURE_RECOVERY.md` |
@@ -67,9 +67,23 @@ attempts remain) or `FAILED`.
 
 Pass requires `CodexCLIProvider`'s QA report to have an explicit pass verdict, and
 `validate_qa_report` to confirm the report is well-formed and internally consistent with the
-deterministic validation results it was given. QA is never skipped, and its verdict is never
-inferred from the implementation report — it is independently derived
+deterministic validation results it was given. By default QA is never skipped, and its verdict is
+never inferred from the implementation report — it is independently derived
 (`MODEL_PROVIDER_CONTRACTS.md` §3). Any failure → `REPAIRING` (if attempts remain) or `FAILED`.
+
+### 4a. Guarded QA opt-out (Human Owner decision, AUTO-013)
+
+The Human Owner's AUTO-013 directive explicitly named and required a narrow, guarded exception to
+this gate: `independent_qa_required` may be set to `false`, but only through the same explicit,
+per-gate or per-run opt-in discipline `HUMAN_AUTHORIZATION_MODEL.md` v2.0 §5a and AUTO-012 already
+established for `ApprovalService`'s `AUTO_APPROVE` timeout action — never inherited from a broad
+built-in or project-wide default. When the exception is not invoked, this gate is unchanged: QA
+runs, and passing it is required to reach `READY_TO_COMMIT`. When it is invoked, `QA_RUNNING`
+records the skip and the reason, computes no verdict, and never treats the skip as a passing QA
+result — a downstream approval gated on this decision (`WORKFLOW_STATES.md` §2's `READY_TO_COMMIT`)
+sees `qa_performed=false`, never a fabricated `qa_passed=true`. This is recorded here, in the same
+document whose §11 requires it, rather than only in `STAGE_REGISTRY.md`'s authorization log — see
+AUTO-013's completion report for the implementation.
 
 ## 5. Merge Safety Gate (`PR_OPEN → AUTO_MERGE_ENABLED`)
 
@@ -112,7 +126,8 @@ destructive step without re-verifying its precondition.
 | Closeout | `CLOSING` | `DONE` | `FAILED` |
 
 ## 9. Decision References
-DD-04, DD-05.
+DD-04, DD-05. §4a: Human Owner AUTO-013 directive (2026-08-02), recorded in
+`docs/workflow-automation/STAGE_REGISTRY.md`'s authorization log.
 
 ## 10. Open Questions
 OD-1 (required-checks read mechanism).
