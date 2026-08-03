@@ -2960,3 +2960,54 @@ moves `IN_PROGRESS → COMPLETE`. Capability selection does not register or auth
 create a contract or branch, or permit implementation, commit, push, PR, or merge. The Current task
 set is empty. AUTO-015 remains unregistered, unauthorized, and unimplemented pending a separate
 contract-definition and explicit authorization step.
+
+## 2026-08-04 — Human Owner accepted DEC-001 through DEC-011 for the proposed AUTO-015 contract
+
+**Decision:** The Human Owner accepted eleven contract-semantics decisions, DEC-001 through
+DEC-011, for the proposed (not authorized) `docs/workflow-automation/stage-prompts/AUTO-015.md`
+stage contract, Revision 3, following that contract's remediation against an independent audit and
+this repository's own final independent contract review
+(`docs/reports/workflow-automation/AUTO-015-contract-review.md`). The eleven decisions are:
+
+- **DEC-001 — Architecture:** Option A, Core Engine Planning Service under
+  `src/ai_workflow_engine/successor_planning/`; no AgentOS `WorkflowService` adapter.
+- **DEC-002 — Artifact root:** external repository-scoped root
+  `~/.ai-workflow-engine/successor-proposals/<repository-id>/`, never part of Git.
+- **DEC-003 — Candidate source:** static authoritative catalog only; no arbitrary-prose or
+  bounded-derived candidates in the AUTO-015 MVP.
+- **DEC-004 — One eligible candidate:** always issue an advisory recommendation; never selection,
+  registration, authorization, implementation permission, or owner approval.
+- **DEC-005 — Multiple eligible candidates:** list all eligible candidates and recommend none; the
+  Human Owner alone selects one.
+- **DEC-006 — Entry surface:** a new read-only `workflowctl successor-planning` command backed by
+  the Core Engine Planning Service.
+- **DEC-007 — Publication:** the lock-free, immutable, content-addressed, atomic, no-clobber
+  protocol in AUTO-015.md §§17-18.
+- **DEC-008 — Rendering:** AUTO-015.md §14's safe structured rendering; repository-derived content
+  remains untrusted data and never becomes directive text.
+- **DEC-009 — Identity and baseline:** AUTO-015.md §7's repository identity, Git baseline, evidence
+  snapshot, drift detection, and fail-closed protocol.
+- **DEC-010 — Repository ID:**
+  `<normalized-repository-name>--<first-12-hex-characters-of-SHA256(canonical-primary-remote-identity)>`,
+  excluding credentials/query/fragments, normalizing SSH/HTTPS equivalence and host casing and an
+  optional `.git` suffix, retaining owner and repository name, and excluding local filesystem paths.
+- **DEC-011 — CLI:**
+  `workflowctl successor-planning propose --config <CONFIG_PATH> --predecessor <STAGE_ID>`, with
+  optional `--output console|json` (default `console`) and `--dry-run`; no mutation, authorization,
+  registration, provider, Git, task, workflow, commit, push, PR, or merge option exists.
+
+**Rationale:** The final independent contract review found that DEC-001 through DEC-011 were
+recorded only inside the contract document and its own review report, with no corroborating entry
+in this append-only decision record — the same authoritative source AUTO-015's own evidence model
+(§8 item 4) treats as governing for decision rationale and Human Owner directives. This entry closes
+that gap so the acceptance of these eleven decisions is independently verifiable the same way every
+other Human Owner decision in this repository is, rather than resting solely on the proposed
+contract's own self-description.
+
+**Boundary:** This entry finalizes AUTO-015 **contract semantics only**. It does not register a
+`STAGE_REGISTRY.md` row, does not create a branch, does not grant implementation permission, and
+does not constitute the separate, explicit "I authorize AUTO-015" act `STAGE_REGISTRY.md` §3 rule 3
+requires. AUTO-015 remains unregistered, unauthorized, and unimplemented. No production source,
+test, script, configuration schema, commit, push, PR, or merge is authorized or occurred as part of
+this entry. A fresh authorization preflight and a separate, explicit Human Owner authorization
+statement remain mandatory before any implementation may begin.
