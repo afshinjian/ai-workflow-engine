@@ -2926,3 +2926,88 @@ configured document is a mirror that must agree with it, checked by `check_task_
 introduce ambiguity about what a document says. Treating one document as authoritative and
 everything else as a verified mirror turns "these two docs quietly disagree" into a detectable
 `FAIL` instead of a silent inconsistency an agent (or a human) could act on incorrectly.
+
+## 2026-08-04 — GOV-AUTO-08 — AUTO-015 successor decision remains with the Human Owner
+
+**Decision:** Register GOV-AUTO-08 as the sole `Current` task for documentation-only comparison
+and contract definition of possible successors after AUTO-014. Do not select, register, authorize,
+or implement AUTO-015.
+
+**Rationale:** AUTO-014 is `COMPLETE`, but its closeout does not select a successor. The repository
+evidence does not establish one coherent AUTO-015 implementation stage. The Human Owner must
+choose exactly one candidate, or explicitly choose “No AUTO-015 at this time,” using the governed
+decision template. Any later implementation requires a fresh stage contract, preflight, and
+explicit authorization.
+
+**Boundary:** GOV-AUTO-08 changes governance documents only. No production source, tests, scripts,
+providers, workflow states, CLI commands, or runtime behavior are changed or authorized. No
+commit, push, PR, or merge occurs. GOV-AUTO-08 remains Current until the Human Owner decision gate
+is completed. AUTO-015 remains undefined, unregistered, unauthorized, and untouched.
+
+## 2026-08-04 — GOV-AUTO-08 closure — Human Owner selected the AUTO-015 capability
+
+**Decision:** The Human Owner selected **Automatic Next-Stage Computation and Prompt Generation**
+as the proposed basis for **AUTO-015 — Deterministic Next-Stage Proposal and Governed Prompt
+Generation**. The authorization statement is **Not authorized**.
+
+**Rationale:** This capability directly supports governed continuation after AUTO-014 while
+preserving the mandatory Human Owner gate. Preparation Mode, Reviewer Mode, Codex Correction Mode,
+daemon/scheduler, operator interface, multi-task orchestration, security hardening, provider
+expansion, and deferred-defect remediation remain separate future work.
+
+**Closure and boundary:** GOV-AUTO-08 moves `Current → Done` and its registry continuity state
+moves `IN_PROGRESS → COMPLETE`. Capability selection does not register or authorize AUTO-015,
+create a contract or branch, or permit implementation, commit, push, PR, or merge. The Current task
+set is empty. AUTO-015 remains unregistered, unauthorized, and unimplemented pending a separate
+contract-definition and explicit authorization step.
+
+## 2026-08-04 — Human Owner accepted DEC-001 through DEC-011 for the proposed AUTO-015 contract
+
+**Decision:** The Human Owner accepted eleven contract-semantics decisions, DEC-001 through
+DEC-011, for the proposed (not authorized) `docs/workflow-automation/stage-prompts/AUTO-015.md`
+stage contract, Revision 3, following that contract's remediation against an independent audit and
+this repository's own final independent contract review
+(`docs/reports/workflow-automation/AUTO-015-contract-review.md`). The eleven decisions are:
+
+- **DEC-001 — Architecture:** Option A, Core Engine Planning Service under
+  `src/ai_workflow_engine/successor_planning/`; no AgentOS `WorkflowService` adapter.
+- **DEC-002 — Artifact root:** external repository-scoped root
+  `~/.ai-workflow-engine/successor-proposals/<repository-id>/`, never part of Git.
+- **DEC-003 — Candidate source:** static authoritative catalog only; no arbitrary-prose or
+  bounded-derived candidates in the AUTO-015 MVP.
+- **DEC-004 — One eligible candidate:** always issue an advisory recommendation; never selection,
+  registration, authorization, implementation permission, or owner approval.
+- **DEC-005 — Multiple eligible candidates:** list all eligible candidates and recommend none; the
+  Human Owner alone selects one.
+- **DEC-006 — Entry surface:** a new read-only `workflowctl successor-planning` command backed by
+  the Core Engine Planning Service.
+- **DEC-007 — Publication:** the lock-free, immutable, content-addressed, atomic, no-clobber
+  protocol in AUTO-015.md §§17-18.
+- **DEC-008 — Rendering:** AUTO-015.md §14's safe structured rendering; repository-derived content
+  remains untrusted data and never becomes directive text.
+- **DEC-009 — Identity and baseline:** AUTO-015.md §7's repository identity, Git baseline, evidence
+  snapshot, drift detection, and fail-closed protocol.
+- **DEC-010 — Repository ID:**
+  `<normalized-repository-name>--<first-12-hex-characters-of-SHA256(canonical-primary-remote-identity)>`,
+  excluding credentials/query/fragments, normalizing SSH/HTTPS equivalence and host casing and an
+  optional `.git` suffix, retaining owner and repository name, and excluding local filesystem paths.
+- **DEC-011 — CLI:**
+  `workflowctl successor-planning propose --config <CONFIG_PATH> --predecessor <STAGE_ID>`, with
+  optional `--output console|json` (default `console`) and `--dry-run`; no mutation, authorization,
+  registration, provider, Git, task, workflow, commit, push, PR, or merge option exists.
+
+**Rationale:** The final independent contract review found that DEC-001 through DEC-011 were
+recorded only inside the contract document and its own review report, with no corroborating entry
+in this append-only decision record — the same authoritative source AUTO-015's own evidence model
+(§8 item 4) treats as governing for decision rationale and Human Owner directives. This entry closes
+that gap so the acceptance of these eleven decisions is independently verifiable the same way every
+other Human Owner decision in this repository is, rather than resting solely on the proposed
+contract's own self-description.
+
+**Boundary:** This entry finalizes AUTO-015 **contract semantics only**. It does not register a
+`STAGE_REGISTRY.md` row, does not create a branch, does not grant implementation permission, and
+does not constitute the separate, explicit "I authorize AUTO-015" act `STAGE_REGISTRY.md` §3 rule 3
+requires. AUTO-015 remains unregistered, unauthorized, and unimplemented. No production source,
+test, script, configuration schema, commit, push, PR, or merge is authorized or occurred as part of
+this entry. A fresh authorization preflight and a separate, explicit Human Owner authorization
+statement remain mandatory before any implementation may begin.

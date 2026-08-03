@@ -7,6 +7,14 @@ so keep the version line's wording exact if you edit it.
 
 Current Version: 1.0.0
 
+## Latest governance activity — GOV-AUTO-08
+
+GOV-AUTO-08 — AUTO-015 Successor Scope and Contract Definition — closed `Current → Done` on
+2026-08-04 after the Human Owner selected **Automatic Next-Stage Computation and Prompt
+Generation** as the proposed basis for AUTO-015. The selection supports governed continuation
+after AUTO-014 while preserving the Human Owner gate. AUTO-015 remains unregistered, unauthorized,
+and unimplemented; the Current task set is empty.
+
 ## Summary
 
 `ai-workflow-engine` is a local orchestration foundation for governed AI-assisted software

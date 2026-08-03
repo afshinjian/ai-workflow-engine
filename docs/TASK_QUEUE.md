@@ -1490,3 +1490,34 @@ Report: `docs/reports/workflow-automation/AUTO-014-completion-report.md`.
 AUTO-014 was implemented, fully validated, and approved for finalization on 2026-08-03 after the
 corrected AUTO-013-created disposable acceptance run reached `DONE`. The completion report records
 the accepted PR #2 lifecycle, repository ledger, validation evidence, and deferred findings.
+
+## GOV-AUTO-08 — AUTO-015 Successor Scope and Contract Definition
+
+Status: Done
+
+Registered as the sole `Current` task by the Human Owner’s GOV-AUTO-08 directive on 2026-08-04,
+after AUTO-014 was verified `COMPLETE`/`Done` and the Current set was empty. This is a
+documentation-only governance task. Its predecessor is AUTO-014 `COMPLETE`; its purpose is to
+compare successor capabilities and obtain an explicit Human Owner choice through
+`docs/workflow-automation/successor-planning/AUTO-015-DECISION-TEMPLATE.md`.
+
+The Human Owner selected **Automatic Next-Stage Computation and Prompt Generation** as the
+proposed basis for AUTO-015, with proposed title **AUTO-015 — Deterministic Next-Stage Proposal
+and Governed Prompt Generation**. The decision is capability selection only and is explicitly
+**not authorized** for implementation.
+
+GOV-AUTO-08 authorizes no AUTO-015 capability. It must not implement Preparation Mode, Reviewer
+Mode, Codex Correction Mode, automatic next-stage computation, daemon/scheduler, Telegram or
+another operator interface, multi-task orchestration, security hardening, provider expansion, or
+any deferred-defect remediation. It must not modify production source, tests, scripts, providers,
+workflow states, or runtime behavior. The registered working branch is
+`governance/gov-auto-08-successor-scope`; no commit, push, PR, or merge is authorized.
+
+The governance activity transitions `Planned → Current → Done` and is recorded as
+`IN_PROGRESS → COMPLETE` in its continuity log. GOV-AUTO-08 is closed because the decision gate
+was completed; AUTO-015 remains unregistered, unauthorized, and unimplemented. No AUTO-015
+contract, stage row, branch, implementation, commit, push, PR, or merge was created or authorized.
+
+Deliverables: `docs/workflow-automation/successor-planning/AUTO-015-CANDIDATES.md`,
+`docs/workflow-automation/successor-planning/AUTO-015-DECISION-TEMPLATE.md`, and the GOV-AUTO-08
+completion report.
