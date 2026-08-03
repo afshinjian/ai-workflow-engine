@@ -1,14 +1,24 @@
-"""The additive, read-only ``workflowctl auto`` sub-application (AUTO-009).
+"""The additive ``workflowctl auto`` sub-application (AUTO-009, extended by AUTO-014).
 
 The second half of the boundary `agentos_workflow.service` opens::
 
-    workflowctl auto  ->  WorkflowService  ->  agentos_workflow read-only APIs
+    workflowctl auto  ->  WorkflowService  ->  agentos_workflow state, audit, report, and
+                                               continuation APIs
 
-Four commands — ``status``, ``list``, ``audit``, ``report`` — each of which does nothing but parse
-options, call the matching `WorkflowService` operation, and render the typed result it gets back.
-There is no business logic here and none in the service's caller: the CLI decides presentation,
-the service decides everything else. Nothing in this module can start, authorize, approve, reject,
-resume, cancel, commit, push, or merge anything, because the object it holds has no such method.
+Five commands — ``status``, ``list``, ``audit``, ``report``, ``continue`` — each of which does
+nothing but parse options, call the matching `WorkflowService` operation, and render the typed
+result it gets back. There is no business logic here and none in the service's caller: the CLI
+decides presentation, the service decides everything else. Nothing in this module can start,
+authorize, approve, reject, resume, cancel, commit, push, or merge anything, because the object it
+holds has no such method.
+
+**``continue`` (AUTO-014).** The first command in this module that advances a workflow rather than
+only reading it. It parses the same caller-supplied identity `MergeCloseoutTask` already requires
+(`ImplementationTask`'s own discipline — nothing is recovered from persisted state, see
+`merge_closeout`'s module docstring) and calls exactly one `WorkflowService` operation,
+`continue_implementation_to_done`. No merge policy, polling, branch, or closeout decision is made
+here; a `MergeCloseoutRunOutcome` — success, still-pending, or failure — is rendered exactly as
+returned.
 
 **Why the `ai_workflow_engine` imports below are deferred into function bodies.**
 `src/ai_workflow_engine/cli.py` imports this module to register `auto_app`. A module-level import
@@ -40,6 +50,11 @@ from typing import TYPE_CHECKING, Annotated, TypeVar, cast
 
 import typer
 
+from agentos_workflow.merge_closeout import (
+    MergeCloseoutRunOutcome,
+    MergeCloseoutStepOutcome,
+    MergeCloseoutTask,
+)
 from agentos_workflow.service import (
     AuditResult,
     ReportResult,
@@ -58,9 +73,11 @@ T = TypeVar("T")
 
 auto_app = typer.Typer(
     help=(
-        "Read-only inspection of persisted AgentOS workflow state, audit trails, and reports. "
-        "Every command in this group reads; none starts, advances, approves, or cancels a "
-        "workflow, and none mutates a target repository."
+        "Inspection of persisted AgentOS workflow state, audit trails, and reports, plus one "
+        "continuation command. Every command but `continue` only reads; `continue` resumes an "
+        "already-authorized workflow from PR_OPEN through DONE and touches no repository beyond "
+        "what MergeCloseoutModeDriver itself does. No command starts, authorizes, approves, "
+        "rejects, or cancels a workflow."
     )
 )
 
@@ -115,6 +132,18 @@ ReportKindOption = Annotated[
     ),
 ]
 OutputOption = Annotated[OutputFormat, typer.Option("--output")]
+StageIdOption = Annotated[str, typer.Option("--stage-id")]
+StageBranchOption = Annotated[str, typer.Option("--stage-branch")]
+PullRequestNumberOption = Annotated[int, typer.Option("--pull-request-number")]
+ExpectedHeadShaOption = Annotated[str, typer.Option("--expected-head-sha")]
+IndependentQaRequiredOption = Annotated[
+    bool,
+    typer.Option(
+        "--independent-qa-required/--no-independent-qa-required",
+        help="Whether a real independent QA verdict is required before merge eligibility "
+        "(default: required).",
+    ),
+]
 
 
 # ------------------------------------------------------------------------------------------
@@ -304,3 +333,68 @@ def auto_report(
         command=command,
     )
     _emit(command, result.model_dump(mode="json"), output, _report_lines(result))
+
+
+def _step_payload(step: MergeCloseoutStepOutcome) -> dict[str, object]:
+    return {
+        "from_state": step.from_state.value,
+        "to_state": step.to_state.value if step.to_state is not None else None,
+        "phase": step.phase.value,
+        "detail": step.detail,
+    }
+
+
+def _continue_payload(result: MergeCloseoutRunOutcome) -> dict[str, object]:
+    return {
+        "workflow_id": result.workflow_id,
+        "final_state": result.final_state.value,
+        "reached_done": result.reached_done,
+        "steps": [_step_payload(step) for step in result.steps],
+    }
+
+
+def _continue_lines(result: MergeCloseoutRunOutcome) -> list[str]:
+    lines = [
+        f"Workflow: {result.workflow_id}",
+        f"Final state: {result.final_state.value}" + (" (DONE)" if result.reached_done else ""),
+        f"Steps: {len(result.steps)}",
+    ]
+    for index, step in enumerate(result.steps, start=1):
+        to_state = step.to_state.value if step.to_state is not None else "(unchanged)"
+        lines.append(
+            f"  {index:>3}. {step.from_state.value} -> {to_state} [{step.phase.value}] "
+            f"{step.detail}"
+        )
+    return lines
+
+
+@auto_app.command("continue")
+def auto_continue(
+    target_repo: TargetRepoOption,
+    workflow_id: WorkflowIdOption,
+    stage_id: StageIdOption,
+    stage_branch: StageBranchOption,
+    pull_request_number: PullRequestNumberOption,
+    expected_head_sha: ExpectedHeadShaOption,
+    independent_qa_required: IndependentQaRequiredOption = True,
+    config: ConfigOverrideOption = None,
+    output: OutputOption = OutputFormat.HUMAN,
+) -> None:
+    """Resume a persisted implementation workflow from PR_OPEN (or a later AUTO-014-owned state)
+    through DONE (AUTO-014). Parses options and renders the result; every merge-policy, polling,
+    branch-retention, and closeout decision belongs to `WorkflowService` and the driver it calls.
+    """
+    command = "auto-continue"
+    service = _service_for(target_repo, config, output=output, command=command)
+    task = MergeCloseoutTask(
+        workflow_id=workflow_id,
+        stage_id=stage_id,
+        planned_stage_branch=stage_branch,
+        pull_request_number=pull_request_number,
+        expected_head_sha=expected_head_sha,
+        independent_qa_required=independent_qa_required,
+    )
+    result = _protected(
+        lambda: service.continue_implementation_to_done(task), output=output, command=command
+    )
+    _emit(command, _continue_payload(result), output, _continue_lines(result))

@@ -115,9 +115,18 @@ workflow state. Contract: `docs/workflow-automation/stage-prompts/AUTO-013.md`; 
 scope and integrity verification, with two corrections recorded (the `ApprovalService` gate moved
 to `READY_TO_COMMIT`; `MACHINE_GATES.md` amended to 1.4 with a new §4a) — 3,484 tests passing, 32
 live-CLI tests passing with zero skips, `mypy --strict` clean over 123 source files,
-`ruff`/`black`/pre-commit clean, wheel packaging and out-of-tree imports verified. Publication is
-limited to pushing `feature/auto-013-implementer-to-pr`: no PR, no merge. AUTO-014, AUTO-015, and
-every later roadmap phase remain unauthorized.
+`ruff`/`black`/pre-commit clean, wheel packaging and out-of-tree imports verified. Publication was
+subsequently completed via PR #14 (merge commit `4659335`); no governance entry recorded that
+merge at the time, which AUTO-014's registration records as a deferred documentation finding.
+**AUTO-014 — CI, Merge, Repository Finalization, and Runtime Closeout (`PR_OPEN → DONE`) — was
+registered, implemented, fully validated, and closed to `Done` on 2026-08-03** on its registered branch
+`feature/auto-014-merge-closeout`; it resumes an
+existing workflow's persisted `PR_OPEN` state through `MergeCloseoutModeDriver`
+(`agentos_workflow/merge_closeout.py`), composing the already-delivered `WorkflowSession`,
+`MergeAgent`, `CloseoutAgent`, and Git/GitHub/reporting Skills to reach `DONE`, with no new
+workflow state. Contract: `docs/workflow-automation/stage-prompts/AUTO-014.md`. AUTO-015 and
+every later roadmap phase remain unauthorized. Completion report:
+`docs/reports/workflow-automation/AUTO-014-completion-report.md`.
 
 | Task | Title | Status |
 |---|---|---|

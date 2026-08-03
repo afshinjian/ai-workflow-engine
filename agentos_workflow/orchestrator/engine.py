@@ -2010,18 +2010,26 @@ def _validate_live_resume_observation(
             "commit evidence and reconciliation",
         )
 
-    if state in {
-        WorkflowState.COMMITTED,
-        WorkflowState.PUSHED,
-        WorkflowState.PR_OPEN,
-        WorkflowState.AUTO_MERGE_ENABLED,
-        WorkflowState.WAITING_FOR_CHECKS,
-    }:
+    if state in {WorkflowState.COMMITTED, WorkflowState.PUSHED}:
         raise ResumeReconciliationRequiredError(
             "commit_evidence",
             "this persisted state requires expected commit/ref evidence not represented by "
             "transition history alone",
         )
+    # AUTO-014: `PR_OPEN`/`AUTO_MERGE_ENABLED`/`WAITING_FOR_CHECKS` used to fall into the same
+    # unconditional `commit_evidence` raise as `COMMITTED`/`PUSHED` above — a placeholder AUTO-013
+    # left in place on purpose (its own module docstring: "remote and PR evidence remain pending
+    # future authorized Skill/GitHub observation work"), since no stage before AUTO-014 ever
+    # needed to resume *into* a post-`PUSHED` state. That authorized observation work is exactly
+    # `MergeCloseoutModeDriver`'s own PR reconciliation (`skills.git_github.
+    # read_pull_request_state`), which runs immediately after every successful resume into one of
+    # these three states and independently re-verifies the live pull request's repository, base
+    # branch, head branch, and head SHA — the remote evidence this generic function has no
+    # authorized verifier for. Every generic check above it (repository identity, contract hash,
+    # baseline ancestry, current branch, clean working tree) already ran unconditionally for these
+    # states before reaching this point, so removing the blanket raise does not weaken any of
+    # them; it only stops refusing a resume that AUTO-014's own driver is about to reconcile
+    # properly one layer up.
     if state in {WorkflowState.MERGED, WorkflowState.CLOSING}:
         if observation.current_branch not in {
             record.baseline_branch,
@@ -2032,10 +2040,12 @@ def _validate_live_resume_observation(
                 f"{record.baseline_branch} or {record.planned_stage_branch}",
                 observation.current_branch,
             )
-        raise ResumeReconciliationRequiredError(
-            "merge_closeout_evidence",
-            "merged/closeout state requires persisted merge and closeout-operation evidence",
-        )
+        # AUTO-014: same relaxation as `PR_OPEN`/`AUTO_MERGE_ENABLED`/`WAITING_FOR_CHECKS` above,
+        # for the same reason — `MergeCloseoutModeDriver` re-derives a fresh `MergeConfirmation`
+        # via `MergeAgent.confirm_merge()` immediately after resuming into either state (see the
+        # module docstring's "re-observe before any possible repeated side effect" rule) rather
+        # than trusting anything carried across a process restart, which is the authorized
+        # merge/closeout evidence this function's own placeholder raise had no verifier for.
 
 
 def _persist_binding_drift_failure(

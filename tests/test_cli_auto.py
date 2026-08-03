@@ -1,9 +1,9 @@
-"""AUTO-009: the additive, read-only `workflowctl auto` sub-application.
+"""AUTO-009: the additive `workflowctl auto` sub-application (AUTO-014 adds `continue`).
 
-Covers the four commands' registration, human and JSON output under both contract versions, exit
-codes, stdout/stderr separation, the structural absence of every write-capable verb, and the
-compatibility guarantee that registering the sub-app changes nothing about the commands that
-already existed.
+Covers the five commands' registration, human and JSON output under both contract versions, exit
+codes, stdout/stderr separation, the structural absence of every write-capable verb `continue`
+does not itself spell, and the compatibility guarantee that registering the sub-app changes
+nothing about the commands that already existed.
 
 The out-of-process helper (`_run_cli`) is what proves the stdout/stderr and exit-code claims:
 `CliRunner` merges streams and swallows `SystemExit`, so a byte-discipline assertion made through
@@ -34,10 +34,12 @@ from ai_workflow_engine.cli import app
 
 runner = CliRunner()
 
-AUTO_COMMANDS = ("status", "list", "audit", "report")
+AUTO_COMMANDS = ("status", "list", "audit", "report", "continue")
 
 # The verbs AUTO-009 is forbidden to expose. Asserted against the real registered command names,
-# so a future stage cannot add one of them to this group without this failing first.
+# so a future stage cannot add one of them to this group without this failing first. AUTO-014
+# added `continue` (a continuation, not any of these lower-level lifecycle verbs) and left this
+# list otherwise unchanged.
 FORBIDDEN_COMMANDS = (
     "start",
     "authorize",
@@ -160,7 +162,7 @@ class TestRegistration:
     def test_command_is_registered(self, command: str) -> None:
         assert command in {registered.name for registered in auto_app.registered_commands}
 
-    def test_exactly_the_four_approved_commands_exist(self) -> None:
+    def test_exactly_the_five_approved_commands_exist(self) -> None:
         assert {registered.name for registered in auto_app.registered_commands} == set(
             AUTO_COMMANDS
         )
@@ -181,7 +183,7 @@ class TestRegistration:
         assert result.returncode != 0
         assert "No such command" in result.stderr or "Usage" in result.stderr
 
-    def test_help_lists_only_the_four_commands(self) -> None:
+    def test_help_lists_only_the_five_commands(self) -> None:
         result = _run_cli(["auto", "--help"])
         assert result.returncode == 0
         for command in AUTO_COMMANDS:

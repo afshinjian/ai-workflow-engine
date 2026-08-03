@@ -149,6 +149,15 @@ def _prepare(config: WorkflowConfig, target: WorkflowState) -> None:
         WorkflowState.QA_RUNNING,
         WorkflowState.READY_TO_COMMIT,
         WorkflowState.COMMITTED,
+        # AUTO-014: PUSHED/PR_OPEN/AUTO_MERGE_ENABLED/WAITING_FOR_CHECKS all still require
+        # `current_branch == planned_stage_branch` (`_validate_live_resume_observation`'s
+        # `planned_required` block, unchanged by AUTO-014) — MERGED/CLOSING deliberately do not,
+        # since AUTO-014's own baseline-restoration work is what moves the repository back to the
+        # baseline branch after those two.
+        WorkflowState.PUSHED,
+        WorkflowState.PR_OPEN,
+        WorkflowState.AUTO_MERGE_ENABLED,
+        WorkflowState.WAITING_FOR_CHECKS,
     }
     if target in branch_states:
         repository = config.repository_path.resolve()
@@ -201,8 +210,6 @@ def test_supported_clean_state_categories_resume_from_real_observations(
     [
         (WorkflowState.READY_TO_COMMIT, "commit_boundary"),
         (WorkflowState.COMMITTED, "commit_evidence"),
-        (WorkflowState.MERGED, "merge_closeout_evidence"),
-        (WorkflowState.CLOSING, "merge_closeout_evidence"),
     ],
 )
 def test_evidence_dependent_states_fail_closed_to_reconciliation(
@@ -215,6 +222,56 @@ def test_evidence_dependent_states_fail_closed_to_reconciliation(
         _resume(config)
     assert exc_info.value.field == field
     assert StateStore.for_config(config).read_transitions(_WORKFLOW_ID) == before
+
+
+@pytest.mark.parametrize(
+    "state",
+    [
+        WorkflowState.PUSHED,
+        WorkflowState.PR_OPEN,
+        WorkflowState.AUTO_MERGE_ENABLED,
+        WorkflowState.WAITING_FOR_CHECKS,
+    ],
+)
+def test_pushed_and_later_states_no_longer_fail_closed_to_generic_reconciliation(
+    tmp_path: Path, state: WorkflowState
+) -> None:
+    """AUTO-014: `PUSHED`/`PR_OPEN`/`AUTO_MERGE_ENABLED`/`WAITING_FOR_CHECKS` used to fall into
+    the same unconditional `commit_evidence` `ResumeReconciliationRequiredError` `COMMITTED` still
+    raises above — a placeholder AUTO-013 left in place on purpose (its own module docstring:
+    "remote and PR evidence remain pending future authorized Skill/GitHub observation work"), since
+    no stage before AUTO-014 ever needed to resume *into* a post-`COMMITTED` state.
+
+    `PUSHED` itself is untouched (still owned by AUTO-013, still raises — asserted separately
+    below); the three AUTO-014-owned states now resume successfully instead, because
+    `MergeCloseoutModeDriver` performs the authorized remote observation this generic function has
+    no verifier for immediately afterward (`skills.git_github.read_pull_request_state`).
+    """
+    config = _config(tmp_path)
+    _prepare(config, state)
+    if state is WorkflowState.PUSHED:
+        with pytest.raises(ResumeReconciliationRequiredError) as exc_info:
+            _resume(config)
+        assert exc_info.value.field == "commit_evidence"
+        return
+    with _resume(config) as resumed:
+        assert resumed.state is state
+
+
+@pytest.mark.parametrize("state", [WorkflowState.MERGED, WorkflowState.CLOSING])
+def test_merged_and_closing_no_longer_fail_closed_to_generic_reconciliation(
+    tmp_path: Path, state: WorkflowState
+) -> None:
+    """AUTO-014: same relaxation as `PR_OPEN`/`AUTO_MERGE_ENABLED`/`WAITING_FOR_CHECKS` above, for
+    the same reason — `MergeCloseoutModeDriver` re-derives a fresh `MergeConfirmation` via
+    `MergeAgent.confirm_merge()` immediately after resuming into either state rather than trusting
+    anything carried across a process restart, which is the authorized merge/closeout evidence
+    this function's own placeholder raise previously had no verifier for.
+    """
+    config = _config(tmp_path)
+    _prepare(config, state)
+    with _resume(config) as resumed:
+        assert resumed.state is state
 
 
 def test_agentos_owned_lock_is_excluded_but_arbitrary_agentos_file_is_not(
