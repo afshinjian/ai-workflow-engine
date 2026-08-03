@@ -5,7 +5,7 @@
 | Stage | AUTO-014 — CI, Merge, Repository Finalization, and Runtime Closeout |
 | Branch | `feature/auto-014-merge-closeout` |
 | Contract | `docs/workflow-automation/stage-prompts/AUTO-014.md` |
-| Status | Approved, fully validated, governance-closed; ready for commit/push |
+| Status | Committed and pushed; fully validated; governance-closed |
 
 ## Verdict
 
@@ -44,7 +44,7 @@ No workflow state or transition was added. AUTO-014 remains limited to `PR_OPEN`
 | Black `--check` | PASS |
 | `git diff --check` | PASS |
 | `workflowctl check-task-state --config self-governance.yaml` | PASS — 0 Current, 48 Done, 6 Planned |
-| `workflowctl verify --config self-governance.yaml` | PARTIAL — task/governance/registries/handover PASS; Git fails only on `upstream_missing` |
+| `workflowctl verify --config self-governance.yaml` | PASS — Git, task-state, governance, registries, and handover |
 | `pytest -q -m live_cli -rs` | PASS — 32 passed, no authentication skips (Human Owner verified environment) |
 | `ruff check .` | PASS |
 | `black --check .` | PASS |
@@ -80,12 +80,13 @@ permission did not affect the workflow lifecycle or its acceptance evidence.
 
 ## Stop condition
 
-The working tree remains uncommitted. No commit or push was performed on the engine repository;
-the only PR and merge were in the disposable acceptance repository. AUTO-015 was not begun.
+The implementation/closeout commit is `d0e2b57a4906178a04ed37f81c6e5b7615ba8edc`; the branch
+was pushed and verified equal to its upstream. The only PR and merge were in the disposable
+acceptance repository. AUTO-015 was not begun.
 Cleanup is complete according to the Human Owner, who manually deleted
 `afshinjian/auto-014-disposable-1785759666` and
 `afshinjian/auto-014-disposable-1785775978`; no broader OAuth scope was requested. The accepted
 run recorded repository `afshinjian/auto-014-disposable-1785776005`, which differs from the
 second repository name in the cleanup notice, so that identity discrepancy is preserved here
-without rewriting the acceptance evidence. AUTO-014 is `COMPLETE`/`Done` and ready for the
-authorized commit and push. AUTO-015 remains unauthorized and untouched.
+without rewriting the acceptance evidence. AUTO-014 is `COMPLETE`/`Done`. AUTO-015 remains
+unauthorized and untouched.
