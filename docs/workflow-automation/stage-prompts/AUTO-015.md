@@ -25,7 +25,7 @@
 | **Status** | `PROPOSED — NOT AUTHORIZED` |
 | **Predecessor** | AUTO-014 (`COMPLETE`, merged, published) |
 | **Human Owner decision source** | `docs/workflow-automation/successor-planning/AUTO-015-DECISION-TEMPLATE.md` (capability selected 2026-08-04; `OPEN_QUESTIONS.md` OD-13 resolved on the same basis) |
-| **Contract source** | This document, Revision 3, drafted under GOV-AUTO-08's follow-up scope, remediated against independent Codex audits, and reconciled against DEC-001 through DEC-011 |
+| **Contract source** | This document, Revision 4, drafted under GOV-AUTO-08's follow-up scope, remediated against independent Codex audits, and reconciled against DEC-001 through DEC-011 |
 | **Proposed report path** | `docs/reports/workflow-automation/AUTO-015-completion-report.md` (does not exist; created only if AUTO-015 is later implemented) |
 | **Proposed branch name** | Not fixed by this contract; branch naming is outside this contract's blocking semantics |
 | **Implementation class** | Read-only planning/proposal capability — no target-repository mutation, no runtime workflow-state mutation, no Git/GitHub mutation |

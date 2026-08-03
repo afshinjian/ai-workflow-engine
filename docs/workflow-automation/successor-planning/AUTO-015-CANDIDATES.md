@@ -1,5 +1,17 @@
 # AUTO-015 Successor Candidates
 
+> **Status note (post-decision).** This document was originally produced, and its comparison
+> conducted, *before* the Human Owner decision described below. Its original "Current conclusion"
+> (§ below) selected no candidate — that was accurate at the time this document was written. The
+> Human Owner subsequently selected **Automatic Next-Stage Computation and Prompt Generation**
+> (Candidate 4). The authoritative record of that decision is `docs/DECISION_LOG.md` and
+> `docs/workflow-automation/successor-planning/AUTO-015-DECISION-TEMPLATE.md`; the runtime
+> authoritative candidate catalog is
+> `docs/workflow-automation/successor-planning/AUTO-015-AUTHORITATIVE-CATALOG.yaml`. This document
+> remains historical decision support only — it is never read at runtime and is not the runtime
+> candidate authority. Selection is not authorization: AUTO-015 remains unregistered, unauthorized,
+> and unimplemented.
+
 ## Governance status
 
 This is a decision-support document for GOV-AUTO-08. It does not register, authorize, or
@@ -337,7 +349,18 @@ preflight, and explicit Human Owner authorization. “No AUTO-015 at this time�
 
 ## Current conclusion
 
-No candidate is selected. The options are deliberately not ranked into an automatic successor.
-The Human Owner must complete `AUTO-015-DECISION-TEMPLATE.md`, selecting exactly one option or
-providing the mandatory definition for “Other.” Until then, AUTO-015 remains undefined,
-unregistered, unauthorized, and unimplemented.
+**Original conclusion (pre-decision, preserved for the record).** No candidate is selected. The
+options are deliberately not ranked into an automatic successor. The Human Owner must complete
+`AUTO-015-DECISION-TEMPLATE.md`, selecting exactly one option or providing the mandatory
+definition for "Other." Until then, AUTO-015 remains undefined, unregistered, unauthorized, and
+unimplemented.
+
+**Subsequent Human Owner decision (post-dates the above).** The Human Owner has since selected
+**Candidate 4 — Automatic Next-Stage Computation and Prompt Generation**. This selection is
+recorded in `docs/DECISION_LOG.md` and `docs/workflow-automation/successor-planning/AUTO-015-DECISION-TEMPLATE.md`;
+the runtime authoritative candidate catalog is
+`docs/workflow-automation/successor-planning/AUTO-015-AUTHORITATIVE-CATALOG.yaml`. This document
+(`AUTO-015-CANDIDATES.md`) is historical decision support only — it is not the runtime candidate
+authority and is never read at runtime. Selection is not authorization: AUTO-015 remains
+unregistered, unauthorized, and unimplemented until a separate, explicit Human Owner authorization
+act occurs.

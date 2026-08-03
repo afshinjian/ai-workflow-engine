@@ -83,7 +83,10 @@ records `Not authorized`; no implementation capability was silently or automatic
 - `docs/workflow-automation/STAGE_REGISTRY.md` records GOV-AUTO-08 in its append-only continuity
   log as `Planned → Current → Done` / `IN_PROGRESS → COMPLETE`; it does not add an AUTO-015 stage row.
 - `docs/workflow-automation/OPEN_QUESTIONS.md` resolves OD-13 while preserving the non-authorization boundary.
-- GOV-AUTO-08 is closed; AUTO-015 remains pending a separate contract-definition and authorization step.
+- GOV-AUTO-08 is closed. At the time GOV-AUTO-08 closed on 2026-08-04, AUTO-015 remained pending a
+  separate contract-definition and authorization step. That contract-definition process was
+  subsequently completed, as documented in §9, "Post-closure status note"; authorization remains
+  outstanding and AUTO-015 remains unimplemented.
 
 ## 5. Exact files changed
 
@@ -123,8 +126,44 @@ run because this task is documentation-only.
 
 ## 8. Final governance statement
 
-The Human Owner decision is recorded, and GOV-AUTO-08 is `COMPLETE`/`Done`. AUTO-015 is
-conceptually selected but remains unregistered, unauthorized, and unimplemented. No AUTO-015
-contract, stage registry row, implementation branch, or runtime behavior exists. A separate
-contract-definition review and explicit `I authorize AUTO-015` act are required before any future
-implementation.
+The Human Owner decision is recorded, and GOV-AUTO-08 is `COMPLETE`/`Done`. At the time GOV-AUTO-08
+closed on 2026-08-04, AUTO-015 was conceptually selected but remained unregistered, unauthorized,
+and unimplemented, and no AUTO-015 contract, stage registry row, implementation branch, or runtime
+behavior existed. This historical closure condition was later superseded only with respect to
+contract definition and Human Owner capability selection; see §9, "Post-closure status note." At
+closure, the next required step was a separate contract-definition process and an explicit
+`I authorize AUTO-015` act before any future implementation. That contract-definition process was
+subsequently completed as documented in §9; it did not authorize implementation. AUTO-015 remains
+unauthorized and unimplemented.
+
+## 9. Post-closure status note (dated, does not alter the above)
+
+**This section is added after GOV-AUTO-08's closure and does not alter the completion evidence
+recorded in §§1–7 above, or the historical closure conditions restated in §4 and §8, which describe
+the state at closure (2026-08-04).**
+
+At the time GOV-AUTO-08 closed on 2026-08-04, AUTO-015 had no stage contract and remained
+undefined and unauthorized beyond the Human Owner's capability selection; §8's original statement
+that "no AUTO-015 contract ... exists" and that "a separate contract-definition review ... [is]
+required" was accurate as of that closure. This historical closure condition was later superseded
+only with respect to contract definition and Human Owner capability selection; it was never
+superseded with respect to authorization.
+
+After closure, and outside GOV-AUTO-08's own scope, a proposed AUTO-015 contract was drafted and
+finalized in `docs/workflow-automation/stage-prompts/AUTO-015.md`. DEC-001 through DEC-011 were
+subsequently recorded in `docs/DECISION_LOG.md`. The authoritative candidate catalog,
+`docs/workflow-automation/successor-planning/AUTO-015-AUTHORITATIVE-CATALOG.yaml`, was also
+subsequently created.
+
+**Current repository status after GOV-AUTO-08 closure:**
+
+- the Human Owner selected Automatic Next-Stage Computation and Prompt Generation;
+- the proposed AUTO-015 contract now exists at
+  `docs/workflow-automation/stage-prompts/AUTO-015.md`;
+- DEC-001 through DEC-011 are recorded in `docs/DECISION_LOG.md`;
+- the authoritative static catalog exists;
+- contract status is `PROPOSED — NOT AUTHORIZED`;
+- AUTO-015 remains unregistered, unauthorized, unimplemented, and without an implementation branch.
+
+This section updates current status only. It does not reopen, amend, rewrite, or invalidate the
+historical GOV-AUTO-08 completion evidence recorded in §§1–8 above.
