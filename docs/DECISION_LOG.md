@@ -2926,3 +2926,37 @@ configured document is a mirror that must agree with it, checked by `check_task_
 introduce ambiguity about what a document says. Treating one document as authoritative and
 everything else as a verified mirror turns "these two docs quietly disagree" into a detectable
 `FAIL` instead of a silent inconsistency an agent (or a human) could act on incorrectly.
+
+## 2026-08-04 — GOV-AUTO-08 — AUTO-015 successor decision remains with the Human Owner
+
+**Decision:** Register GOV-AUTO-08 as the sole `Current` task for documentation-only comparison
+and contract definition of possible successors after AUTO-014. Do not select, register, authorize,
+or implement AUTO-015.
+
+**Rationale:** AUTO-014 is `COMPLETE`, but its closeout does not select a successor. The repository
+evidence does not establish one coherent AUTO-015 implementation stage. The Human Owner must
+choose exactly one candidate, or explicitly choose “No AUTO-015 at this time,” using the governed
+decision template. Any later implementation requires a fresh stage contract, preflight, and
+explicit authorization.
+
+**Boundary:** GOV-AUTO-08 changes governance documents only. No production source, tests, scripts,
+providers, workflow states, CLI commands, or runtime behavior are changed or authorized. No
+commit, push, PR, or merge occurs. GOV-AUTO-08 remains Current until the Human Owner decision gate
+is completed. AUTO-015 remains undefined, unregistered, unauthorized, and untouched.
+
+## 2026-08-04 — GOV-AUTO-08 closure — Human Owner selected the AUTO-015 capability
+
+**Decision:** The Human Owner selected **Automatic Next-Stage Computation and Prompt Generation**
+as the proposed basis for **AUTO-015 — Deterministic Next-Stage Proposal and Governed Prompt
+Generation**. The authorization statement is **Not authorized**.
+
+**Rationale:** This capability directly supports governed continuation after AUTO-014 while
+preserving the mandatory Human Owner gate. Preparation Mode, Reviewer Mode, Codex Correction Mode,
+daemon/scheduler, operator interface, multi-task orchestration, security hardening, provider
+expansion, and deferred-defect remediation remain separate future work.
+
+**Closure and boundary:** GOV-AUTO-08 moves `Current → Done` and its registry continuity state
+moves `IN_PROGRESS → COMPLETE`. Capability selection does not register or authorize AUTO-015,
+create a contract or branch, or permit implementation, commit, push, PR, or merge. The Current task
+set is empty. AUTO-015 remains unregistered, unauthorized, and unimplemented pending a separate
+contract-definition and explicit authorization step.

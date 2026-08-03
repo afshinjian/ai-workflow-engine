@@ -141,3 +141,16 @@ Future hardening recorded at AUTO-002 closure—including infrastructure-retry a
 future stage first introduces such operations, remote/GitHub reconciliation in the integration
 stages, and any later portability work beyond the existing POSIX runtime boundary—is future
 work, not an AUTO-002 blocker.
+
+## GOV-AUTO-08 — AUTO-015 Successor Scope and Contract Definition
+
+Status: Done
+
+Documentation-only governance task registered on 2026-08-04 as the sole Current task after
+AUTO-014 `COMPLETE`. It inventories the successor options and records no selection on behalf of
+the Human Owner. Branch: `governance/gov-auto-08-successor-scope`.
+
+The Human Owner selected **Automatic Next-Stage Computation and Prompt Generation** as the
+proposed basis for AUTO-015. GOV-AUTO-08 is closed `Current → Done`; this selection does not
+authorize implementation. AUTO-015 is not registered, authorized, or implemented, and the
+Current task set is empty.

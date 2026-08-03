@@ -195,6 +195,21 @@ being `Open` at authorization time is expected, not a defect.
 
 ## Resolved
 
+### OD-13 — Which single capability, if any, is the basis for AUTO-015?
+
+- **Question:** After AUTO-014 `COMPLETE`, which one successor capability should the Human Owner
+  authorize as AUTO-015, if any?
+- **Resolution (2026-08-04):** The Human Owner selected **Automatic Next-Stage Computation and
+  Prompt Generation**, with proposed title **AUTO-015 — Deterministic Next-Stage Proposal and
+  Governed Prompt Generation**. The approved mission, scope, exclusions, permissions, invariants,
+  acceptance requirements, and stop condition are recorded in
+  `successor-planning/AUTO-015-DECISION-TEMPLATE.md`.
+- **Authorization boundary:** This is capability selection only. It does not register or authorize
+  AUTO-015, create a contract or branch, permit implementation, or permit commit/push/PR/merge.
+  A separate contract-definition and explicit Human Owner authorization are required.
+- **Disposition:** Resolved by the Human Owner. The selected capability remains unregistered,
+  unauthorized, and unimplemented; no successor is executed automatically.
+
 ### OD-8 — Task-status semantics for a `SUPERSEDED` development stage
 
 - **Question:** When an AUTO or DASH development-stage registry moves a stage to `SUPERSEDED`,

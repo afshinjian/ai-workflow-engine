@@ -5,6 +5,14 @@ the same status as the task queue — workflowctl check-task-state fails otherwi
 
 ## No task is currently active
 
+GOV-AUTO-08 — AUTO-015 Successor Scope and Contract Definition — was closed `Current → Done` on
+2026-08-04 after the Human Owner selected **Automatic Next-Stage Computation and Prompt
+Generation** as the proposed basis for AUTO-015. The selection is not implementation
+authorization. AUTO-015 remains unregistered, unauthorized, and unimplemented. The Current set is
+therefore empty under `maximum_current_tasks: 1`.
+
+## Prior current-task history
+
 AUTO-014 — CI, Merge, Repository Finalization, and Runtime Closeout was closed `Current -> Done`
 on 2026-08-03 by explicit Human Owner approval after its implementation, validation, and corrected
 AUTO-013-created disposable acceptance run completed. The Current set is therefore empty. Under
