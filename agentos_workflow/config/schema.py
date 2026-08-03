@@ -101,6 +101,17 @@ class WorkflowConfig(StrictModel):
     repair_attempt_limit: Literal[3]
     state_directory: Path
     audit_directory: Path
+    # AUTO-014. Safe default `False`: a stage branch and its remote counterpart are retained
+    # (and the retention recorded) unless an operator explicitly opts into deletion. This engine
+    # repository's own policy of never deleting stage branches is deliberately *not* encoded here
+    # — the field exists so each target repository can choose for itself.
+    delete_branch_after_merge: bool = False
+    # Bounded required-check polling (`MACHINE_GATES.md` §6): a fixed number of observations,
+    # each `merge_check_poll_interval_seconds` apart, per foreground `WAITING_FOR_CHECKS` visit —
+    # never an unbounded loop and never a background poller. Resuming a still-pending workflow
+    # simply re-enters `WAITING_FOR_CHECKS` for a fresh bounded budget.
+    merge_check_poll_interval_seconds: float = Field(default=15.0, gt=0)
+    merge_check_poll_max_observations: int = Field(default=4, ge=1)
 
     @field_validator("repository_path")
     @classmethod

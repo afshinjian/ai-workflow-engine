@@ -1452,7 +1452,41 @@ authorization. See the completion report for the full evidence table (3,484 test
 investigated, and cleared Claude usage-limit flake unrelated to this stage's code; `mypy --strict`
 clean over 123 source files; `ruff`/`black`/pre-commit clean; wheel packaging and out-of-tree
 imports both verified). Three new non-blocking defects (D-14, D-15, D-16) recorded and deferred,
-none implemented, no GOV stage created. **Publication is limited to pushing**
-`feature/auto-013-implementer-to-pr`: no PR, no merge. This entry authorizes no successor:
+none implemented, no GOV stage created. **Publication was subsequently completed via PR #14**
+(`feature/auto-013-implementer-to-pr` merged into `main`, merge commit `4659335`) — no governance
+entry recorded that merge at the time; AUTO-014's registration below notes the gap as a deferred
+documentation finding rather than rewriting this closed entry. This entry authorizes no successor:
 AUTO-014, AUTO-015, and every later roadmap phase remain unauthorized, and
 merge/CI-wait/branch-cleanup/runtime-closeout behavior was not implemented by this stage.
+
+## AUTO-014 — CI, Merge, Repository Finalization, and Runtime Closeout (PR_OPEN → DONE)
+
+Status: Done
+
+Registered and authorized by the Human Owner in one written directive naming the stage, its
+mission, its approved runtime flow (`PR_OPEN → AUTO_MERGE_ENABLED → WAITING_FOR_CHECKS → MERGED →
+CLOSING → DONE`), its required architecture (`WorkflowService` continuation operation ->
+`MergeCloseoutModeDriver` -> `WorkflowSession.resume()` -> `MergeAgent`/Git-GitHub skills/
+`CloseoutAgent`/`StateStore`), its explicit exclusions (no Claude implementation, no Codex
+review/correction, no commit/push/PR creation, no Preparation/Reviewer Mode, no daemon, no
+Telegram, no scheduler, no AUTO-015), its start-condition, PR-reconciliation, QA/merge-eligibility,
+bounded-polling, merge-reconciliation, baseline-update, branch-retention, runtime-closeout,
+resume, failure-model, CLI, and security-invariant requirements, its newly discovered defect
+policy, and its stop condition. AUTO-014 had never been registered before, so this single entry
+records both its registration and its authorization.
+
+Preconditions verified before implementation began: predecessor AUTO-013 `COMPLETE`, merged, and
+published (PR #14, merge commit `4659335`); AUTO-001 through AUTO-013 and GOV-4 all
+`COMPLETE`/`Done`; no other `Current` task anywhere in the queue; registry and task-queue
+agreement; clean, synchronized `main` == `origin/main` at
+`465933551c28f65d38be6c0dceab95d95af8fa03`; `workflowctl verify --config self-governance.yaml`
+full PASS; `pytest -q` at 3,484 passed / 0 skipped and `pytest -q -m live_cli -rs` at 32 passed /
+0 skipped; no blocking OD-#. Branch `feature/auto-014-merge-closeout` created from that clean,
+synchronized `main`.
+
+Contract: `docs/workflow-automation/stage-prompts/AUTO-014.md`.
+Report: `docs/reports/workflow-automation/AUTO-014-completion-report.md`.
+
+AUTO-014 was implemented, fully validated, and approved for finalization on 2026-08-03 after the
+corrected AUTO-013-created disposable acceptance run reached `DONE`. The completion report records
+the accepted PR #2 lifecycle, repository ledger, validation evidence, and deferred findings.

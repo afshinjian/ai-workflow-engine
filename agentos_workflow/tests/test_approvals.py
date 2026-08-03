@@ -1395,10 +1395,23 @@ class TestCompatibility:
         assert {"status", "list", "audit", "report", "invoke_provider"} <= public
 
     def test_the_workflow_service_added_exactly_the_approval_boundary(self) -> None:
+        """AUTO-012 added exactly the five approval operations. AUTO-014 later added exactly one
+        more, `continue_implementation_to_done` — a separate continuation operation, not part of
+        the approval boundary this test is about — so it is excluded here the same way
+        `invoke_provider` (AUTO-010) is, and pinned separately by `test_service.py`'s own
+        `APPROVED_OPERATIONS`."""
         from agentos_workflow.service import WorkflowService
 
         public = {name for name in vars(WorkflowService) if not name.startswith("_")}
-        assert public - {"status", "list", "audit", "report", "invoke_provider"} == {
+        excluded = {
+            "status",
+            "list",
+            "audit",
+            "report",
+            "invoke_provider",
+            "continue_implementation_to_done",
+        }
+        assert public - excluded == {
             "request_approval",
             "get_approval",
             "evaluate_approval",

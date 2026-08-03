@@ -47,13 +47,15 @@ from agentos_workflow.skills import FailureKind, RetryClassification
 from agentos_workflow.skills.reporting import generate_qa_report, generate_stage_report
 
 # The complete, closed set of operations AUTO-009 authorizes. A test below asserts the class has
-# exactly these and nothing else, so adding a fifth operation cannot pass unnoticed.
+# exactly these and nothing else, so adding a further operation cannot pass unnoticed.
 # AUTO-009 approved four read-only operations; AUTO-010 added exactly one that executes,
 # `invoke_provider`, which delegates to the Provider Runtime and still records no transition,
 # acquires no lock, and touches no repository. AUTO-012 added the five-operation approval boundary,
 # which delegates to `ApprovalService` and likewise records no workflow transition, acquires no
 # lock, runs no agent or provider, and mutates no repository — it appends only to the per-workflow
-# approval history.
+# approval history. AUTO-014 added exactly one continuation operation,
+# `continue_implementation_to_done`, which delegates entirely to `MergeCloseoutModeDriver` and
+# adds no lifecycle logic of its own.
 READ_ONLY_OPERATIONS = frozenset({"status", "list", "audit", "report"})
 APPROVAL_OPERATIONS = frozenset(
     {
@@ -64,7 +66,10 @@ APPROVAL_OPERATIONS = frozenset(
         "consume_approval",
     }
 )
-APPROVED_OPERATIONS = READ_ONLY_OPERATIONS | {"invoke_provider"} | APPROVAL_OPERATIONS
+CONTINUATION_OPERATIONS = frozenset({"continue_implementation_to_done"})
+APPROVED_OPERATIONS = (
+    READ_ONLY_OPERATIONS | {"invoke_provider"} | APPROVAL_OPERATIONS | CONTINUATION_OPERATIONS
+)
 
 # Everything AUTO-009 is explicitly forbidden to implement, as it would be spelled on a service or
 # a CLI. Checked as a *structural* assertion, not a review convention.

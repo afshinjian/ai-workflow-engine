@@ -22,6 +22,7 @@ safely, so every step's outcome is reported even when a later one fails.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -72,8 +73,25 @@ class CloseoutAgent(Agent):
     def kind(self) -> AgentKind:
         return AgentKind.CLOSEOUT
 
-    def close_out(self, *, merge_confirmation: MergeConfirmation) -> AgentResult:
-        """Run the closeout sequence. Refuses entirely without a valid, matching confirmation."""
+    def close_out(
+        self,
+        *,
+        merge_confirmation: MergeConfirmation,
+        delete_branches: bool = True,
+        extra_report_fields: Mapping[str, Any] | None = None,
+    ) -> AgentResult:
+        """Run the closeout sequence. Refuses entirely without a valid, matching confirmation.
+
+        `delete_branches` (AUTO-014, additive, default `True` to preserve this method's original
+        behavior for every caller that predates the flag): when `False`, the branch-deletion
+        Skills are never invoked and the merged stage branch is retained, both locally and on the
+        remote — the safe-default retention policy a target repository's own configuration
+        selects. `extra_report_fields` (also AUTO-014, additive) lets a caller fold additional,
+        already-computed evidence (workflow/task identity, validation and QA evidence, approval
+        evidence, provider/agent-result references) into the one closeout report this Agent
+        writes, so a caller never has to write — and thereby duplicate — a second closeout report
+        of its own.
+        """
         action = "close_out"
         steps: list[dict[str, Any]] = []
 
@@ -116,41 +134,48 @@ class CloseoutAgent(Agent):
                 retry=retry_classification_of(pulled),
             )
 
-        local_deleted = self._broker.invoke_skill(
-            "delete_local_branch",
-            repository_path=self._repository_path,
-            branch=self._stage_branch,
-            baseline_branch=self._baseline_branch,
-            merge_confirmation=merge_confirmation,
-        )
-        steps.append({"step": "delete_local_branch", "ok": bool(local_deleted.ok)})
-        if not local_deleted.ok:
-            return self._stop(
-                action,
-                f"local stage branch could not be deleted: {local_deleted.error}",
-                skill="delete_local_branch",
-                steps=steps,
-                retry=retry_classification_of(local_deleted),
+        if delete_branches:
+            local_deleted = self._broker.invoke_skill(
+                "delete_local_branch",
+                repository_path=self._repository_path,
+                branch=self._stage_branch,
+                baseline_branch=self._baseline_branch,
+                merge_confirmation=merge_confirmation,
             )
+            steps.append({"step": "delete_local_branch", "ok": bool(local_deleted.ok)})
+            if not local_deleted.ok:
+                return self._stop(
+                    action,
+                    f"local stage branch could not be deleted: {local_deleted.error}",
+                    skill="delete_local_branch",
+                    steps=steps,
+                    retry=retry_classification_of(local_deleted),
+                )
 
-        remote_deleted = self._broker.invoke_skill(
-            "delete_remote_branch",
-            repository_path=self._repository_path,
-            branch=self._stage_branch,
-            baseline_branch=self._baseline_branch,
-            remote=self._remote_name,
-            merge_confirmation=merge_confirmation,
-            allowed_environment_variables=self._allowed_environment_variables,
-        )
-        steps.append({"step": "delete_remote_branch", "ok": bool(remote_deleted.ok)})
-        if not remote_deleted.ok:
-            return self._stop(
-                action,
-                f"remote stage branch could not be deleted: {remote_deleted.error}",
-                skill="delete_remote_branch",
-                steps=steps,
-                retry=retry_classification_of(remote_deleted),
+            remote_deleted = self._broker.invoke_skill(
+                "delete_remote_branch",
+                repository_path=self._repository_path,
+                branch=self._stage_branch,
+                baseline_branch=self._baseline_branch,
+                remote=self._remote_name,
+                merge_confirmation=merge_confirmation,
+                allowed_environment_variables=self._allowed_environment_variables,
             )
+            steps.append({"step": "delete_remote_branch", "ok": bool(remote_deleted.ok)})
+            if not remote_deleted.ok:
+                return self._stop(
+                    action,
+                    f"remote stage branch could not be deleted: {remote_deleted.error}",
+                    skill="delete_remote_branch",
+                    steps=steps,
+                    retry=retry_classification_of(remote_deleted),
+                )
+        else:
+            # Safe-default retention (`WorkflowConfig.delete_branch_after_merge=False`): neither
+            # deletion Skill is invoked at all, so a target repository that has not opted into
+            # deletion can never lose its merged stage branch to this Agent.
+            steps.append({"step": "delete_local_branch", "ok": True, "retained": True})
+            steps.append({"step": "delete_remote_branch", "ok": True, "retained": True})
 
         final_state = self._broker.invoke_skill(
             "verify_final_repository_state",
@@ -173,7 +198,9 @@ class CloseoutAgent(Agent):
             "baseline_branch": self._baseline_branch,
             "merge_commit_sha": merge_confirmation.merge_commit_sha,
             "final_head_sha": final_state.value.head_sha,
+            "branches_deleted": delete_branches,
             "steps": steps,
+            **(extra_report_fields or {}),
         }
         written = self._broker.invoke_skill(
             "generate_closeout_report",

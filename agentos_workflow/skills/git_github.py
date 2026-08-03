@@ -150,6 +150,15 @@ class PullRequestState:
     state: str
     head_sha: str
     merged: bool
+    # AUTO-014: base/head branch names and GitHub's own `mergeable` verdict, so a caller can
+    # reconcile a persisted PR identity (repository, base branch, head branch, expected head SHA)
+    # against the live pull request before ever enabling a merge. `mergeable` is GitHub's own
+    # string (`"MERGEABLE"`/`"CONFLICTING"`/`"UNKNOWN"`), passed through rather than collapsed to
+    # a boolean, since `"UNKNOWN"` (GitHub still computing the merge) is not the same fact as
+    # `"CONFLICTING"` and a caller must be able to tell them apart.
+    base_branch: str = ""
+    head_branch: str = ""
+    mergeable: str = "UNKNOWN"
 
 
 @dataclass(frozen=True)
@@ -717,13 +726,20 @@ def read_pull_request_state(
     allowed_environment_variables: tuple[str, ...] = (),
 ) -> SkillResult[PullRequestState]:
     """Read a pull request's current state — the reconciliation read used when an earlier
-    `create_pull_request`/merge step failed ambiguously."""
+    `create_pull_request`/merge step failed ambiguously, and the read AUTO-014 uses to reconcile
+    a persisted PR identity against the live pull request before ever acting on it."""
     skill = "read_pull_request_state"
     if problem := _validate_pr_number(skill, pull_request_number):
         return problem
     execution = _gh(
         repository_path,
-        ("pr", "view", str(pull_request_number), "--json", "number,state,headRefOid,mergedAt"),
+        (
+            "pr",
+            "view",
+            str(pull_request_number),
+            "--json",
+            "number,state,headRefOid,headRefName,baseRefName,mergedAt,mergeable",
+        ),
         identity=skill,
         allowed_environment_variables=allowed_environment_variables,
     )
@@ -739,6 +755,9 @@ def read_pull_request_state(
             state=state.lower(),
             head_sha=str(payload.get("headRefOid", "")),
             merged=state == "MERGED" or payload.get("mergedAt") is not None,
+            base_branch=str(payload.get("baseRefName", "")),
+            head_branch=str(payload.get("headRefName", "")),
+            mergeable=str(payload.get("mergeable", "UNKNOWN")).upper(),
         )
     )
 
@@ -776,6 +795,30 @@ def read_required_checks(
     if parsed is None:
         if "no checks reported" in execution.stderr.lower():
             return success(RequiredChecks(all_passed=True, pending=(), failed=()))
+        if "unknown flag: --json" in execution.stderr.lower():
+            # Older gh releases do not support JSON output for `pr checks`. Keep the same
+            # required-only query and interpret its bounded human output rather than making the
+            # entire AUTO-014 continuation unusable on an otherwise supported GitHub CLI.
+            legacy = _gh(
+                repository_path,
+                ("pr", "checks", str(pull_request_number), "--required"),
+                identity=skill,
+                allowed_environment_variables=allowed_environment_variables,
+            )
+            legacy_output = f"{legacy.stdout}\n{legacy.stderr}".lower()
+            if "no checks reported" in legacy_output:
+                return success(RequiredChecks(all_passed=True, pending=(), failed=()))
+            if legacy.succeeded:
+                return success(RequiredChecks(all_passed=True, pending=(), failed=()))
+            if legacy.outcome is not CommandOutcome.COMPLETED:
+                return _invoked_failure(skill, legacy, network=True)
+            if any(marker in legacy_output for marker in ("fail", "cancel", "error")):
+                return success(
+                    RequiredChecks(all_passed=False, pending=(), failed=("required checks",))
+                )
+            return success(
+                RequiredChecks(all_passed=False, pending=("required checks",), failed=())
+            )
         if execution.outcome is not CommandOutcome.COMPLETED:
             return _invoked_failure(skill, execution, network=True)
         return failure(

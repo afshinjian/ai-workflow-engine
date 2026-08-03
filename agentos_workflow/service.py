@@ -12,6 +12,16 @@ second::
 since AUTO-010 exactly one operation that executes anything, `invoke_provider`. The read-only four
 are unchanged and remain read-only; the new one is discussed at the end of this docstring.
 
+**`continue_implementation_to_done` (AUTO-014).** The second lifecycle-advancing operation this
+class gains, after `invoke_provider`. Resumes a persisted implementation workflow from `PR_OPEN`
+(or a later AUTO-014-owned state) through `DONE` by constructing exactly one
+`MergeCloseoutModeDriver` and running it — the same "the entire body is a delegation" discipline
+`invoke_provider`'s own docstring describes applies here too: this method decides nothing about
+merge policy, check polling, branch retention, or closeout, and adds no lifecycle logic of its
+own. It is still not `merge`, `close`, or `finalize` in disguise — it names a continuation, not a
+lower-level Git/GitHub verb, the same distinction `invoke_provider` draws for "it names a provider
+and a task, not a stage lifecycle step".
+
 The read-only property of the four is structural, not a convention this module asks callers to
 respect:
 
@@ -66,6 +76,7 @@ model CLI is a much larger thing than one that can only read:
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -82,6 +93,11 @@ from agentos_workflow.approvals import (
 )
 from agentos_workflow.config.loader import load_config
 from agentos_workflow.config.schema import WorkflowConfig
+from agentos_workflow.merge_closeout import (
+    MergeCloseoutModeDriver,
+    MergeCloseoutRunOutcome,
+    MergeCloseoutTask,
+)
 from agentos_workflow.orchestrator.engine import TERMINAL_STATES
 from agentos_workflow.orchestrator.state_store import (
     CommandExecutionRecord,
@@ -103,6 +119,8 @@ __all__ = [
     "ApprovalPolicy",
     "ApprovalRequest",
     "AuditResult",
+    "MergeCloseoutRunOutcome",
+    "MergeCloseoutTask",
     "ProviderRunRequest",
     "ProviderRunResult",
     "ReportArtifactView",
@@ -315,11 +333,13 @@ class WorkflowService:
     discovery stays in `config.loader` (where the repository-identity mismatch check lives) and is
     not re-implemented here; `open_workflow_service` below is the convenience that does both.
 
-    The five public methods are the complete surface: four reads (`status`, `list`, `audit`,
-    `report`) and one execution (`invoke_provider`). There is deliberately no `start`,
-    `authorize`, `approve`, `reject`, `resume`, `cancel`, `prepare`, `review`, `implement`,
-    `commit`, `push`, or `merge`, and no accessor that would hand a caller the `StateStore` (and
-    through it the append path) back out.
+    The public surface is `APPROVED_OPERATIONS` in `test_service.py`, checked structurally rather
+    than merely asserted in prose: four reads (`status`, `list`, `audit`, `report`), one execution
+    (`invoke_provider`, AUTO-010), the five approval operations (AUTO-012), and one continuation
+    (`continue_implementation_to_done`, AUTO-014). There is deliberately no `start`, `authorize`,
+    `reject`, `resume`, `cancel`, `prepare`, `review`, `implement`, `commit`, `push`, or bare
+    `merge`/`close`/`finalize` verb, and no accessor that would hand a caller the `StateStore`
+    (and through it the append path) back out.
     """
 
     def __init__(self, config: WorkflowConfig) -> None:
@@ -545,6 +565,34 @@ class WorkflowService:
         return self._approvals.consume_approval(
             workflow_id=workflow_id, approval_id=approval_id, checksums=checksums, now=now
         )
+
+    # -- merge/closeout continuation (AUTO-014) ---------------------------------------------
+
+    def continue_implementation_to_done(
+        self,
+        task: MergeCloseoutTask,
+        *,
+        sleep: Callable[[float], None] | None = None,
+    ) -> MergeCloseoutRunOutcome:
+        """Resume a persisted implementation workflow from `PR_OPEN` (or a later AUTO-014-owned
+        state) through `DONE` (AUTO-014).
+
+        The entire body is a delegation, for the same reason `invoke_provider` is: sequencing,
+        transition selection, PR reconciliation, merge eligibility, bounded check polling, merge
+        confirmation, baseline update, branch retention, and runtime closeout all belong to
+        `MergeCloseoutModeDriver`, and re-deciding any of them here would create a second answer
+        that could disagree with the first. This method constructs no `WorkflowSession`,
+        `RepositoryLock`, `MergeAgent`, or `CloseoutAgent` of its own — it builds exactly one
+        `MergeCloseoutModeDriver` and returns what running it produces.
+
+        Never raises for a workflow-level failure or a still-pending observation: both come back
+        as a typed `MergeCloseoutRunOutcome` a caller can branch on. `InvalidStartStateError` (a
+        resume against a state AUTO-014 does not own) and every `WorkflowSessionError`/
+        `ResumeError` subtype the driver's own `.resume()` can raise still propagate — they are
+        refusals to begin, not workflow outcomes to report.
+        """
+        driver = MergeCloseoutModeDriver.resume(self._config, task=task, sleep=sleep)
+        return driver.run_to_done()
 
 
 def open_workflow_service(
