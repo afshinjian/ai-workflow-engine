@@ -3011,3 +3011,55 @@ requires. AUTO-015 remains unregistered, unauthorized, and unimplemented. No pro
 test, script, configuration schema, commit, push, PR, or merge is authorized or occurred as part of
 this entry. A fresh authorization preflight and a separate, explicit Human Owner authorization
 statement remain mandatory before any implementation may begin.
+
+## 2026-08-04 — Human Owner registered and authorized AUTO-015
+
+**Decision:** The Human Owner authorized AUTO-015 — Deterministic Next-Stage Proposal and Governed
+Prompt Generation — for registration, in one written directive: "Authorization received. AUTO-015
+implementation is authorized only within the finalized contract and its stated boundaries." AUTO-015
+had never been registered before, so this entry records both its registration and its
+authorization, exactly as AUTO-009 through AUTO-014's registrations did.
+
+**Scope of the authorization**, stated exactly by the directive and verified against the finalized
+Revision 4 contract (`docs/workflow-automation/stage-prompts/AUTO-015.md`) and its independent
+final review (`docs/reports/workflow-automation/AUTO-015-contract-review.md` §12, verdict
+"CONTRACT READY FOR AUTHORIZATION PREFLIGHT"): the exact architecture (DEC-001 — Option A, the
+Core Engine Planning Service under `src/ai_workflow_engine/successor_planning/`, exposing
+`workflowctl successor-planning propose --config <CONFIG_PATH> --predecessor <STAGE_ID>` with no
+`agentos_workflow.WorkflowService` adapter); DEC-001 through DEC-011 in full, each already
+independently recorded in this log's immediately preceding 2026-08-04 entry; the exact
+implementation allowlist (contract §23) and the exact forbidden surface (§24); the static
+authoritative candidate catalog only
+(`docs/workflow-automation/successor-planning/AUTO-015-AUTHORITATIVE-CATALOG.yaml`, DEC-003); the
+security invariants (§22); the deterministic outcome and failure model (§12/§13); the verification
+plan (§25); the live-acceptance plan (§27); the defect policy (§28); and the implementation stop
+condition (§30). No work outside the finalized contract is authorized.
+
+**Preconditions verified before this registration** (`STAGE_REGISTRY.md` §3 rule 1): predecessor
+AUTO-014 `COMPLETE`, merged, and published; AUTO-001 through AUTO-014 and GOV-4 all
+`COMPLETE`/`Done`; GOV-AUTO-08 `Done`; registry and `docs/TASK_QUEUE.md` in agreement; no other
+`Current` task anywhere in the queue (the `Current` set was empty); clean, synchronized `main` ==
+`origin/main` at `fcb93730bf211ee020027dcb67733a5e8b00e8ea`; no AUTO-015 branch, `STAGE_REGISTRY.md`
+row, source symbol, or task entry existed before this session; `workflowctl verify --config
+self-governance.yaml` full PASS (`git`, `task-state`, `governance`, `registries`, `handover` all
+PASS); no blocking `OPEN_QUESTIONS.md` `## Open` entry (OD-6, OD-7, OD-10, OD-11, OD-12 each
+explicitly "blocks nothing's authorization"). Registry state moves `NOT_STARTED → AUTHORIZED`
+(`docs/workflow-automation/STAGE_REGISTRY.md` §4/§5); task status moves to `Current`
+(`docs/TASK_QUEUE.md`).
+
+**Registration only — initial start did not occur.** `STAGE_REGISTRY.md` §3 rule 14 requires the
+stage's one branch to be created from a `main` baseline that already carries the authorization
+record being registered here, and rule 4's `AUTHORIZED → IN_PROGRESS` "Starting" transition
+presupposes that branch exists. This session holds no commit authorization, so the governance
+edits recording this registration (this entry, `docs/TASK_QUEUE.md`, `docs/current_task.md`,
+`docs/remaining_tasks.md`, `docs/PROJECT_STATE.md`, and `docs/workflow-automation/STAGE_REGISTRY.md`
+§4/§5) are left **uncommitted** in the working tree, the registered branch
+`feature/auto-015-successor-planning` was **not created**, and registry state stops at
+`AUTHORIZED`. A separate Human Owner-directed documentation commit and publication of this
+registration is required before the branch may be created and initial start (rule 4) may proceed.
+
+**Boundaries:** This decision authorizes only AUTO-015's registration and its future
+implementation and validation work as scoped by the finalized contract. It does not authorize a
+commit, a push, a PR, a merge, branch creation, any target-repository mutation, any runtime
+workflow-state mutation, any Claude/Codex/model-provider invocation, or any successor stage.
+Authorizing AUTO-015 authorizes no successor.

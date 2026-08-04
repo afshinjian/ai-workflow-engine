@@ -7,13 +7,21 @@ so keep the version line's wording exact if you edit it.
 
 Current Version: 1.0.0
 
-## Latest governance activity — GOV-AUTO-08
+## Latest governance activity — AUTO-015 registered and authorized
 
-GOV-AUTO-08 — AUTO-015 Successor Scope and Contract Definition — closed `Current → Done` on
-2026-08-04 after the Human Owner selected **Automatic Next-Stage Computation and Prompt
-Generation** as the proposed basis for AUTO-015. The selection supports governed continuation
-after AUTO-014 while preserving the Human Owner gate. AUTO-015 remains unregistered, unauthorized,
-and unimplemented; the Current task set is empty.
+AUTO-015 — Deterministic Next-Stage Proposal and Governed Prompt Generation — was registered and
+authorized by the Human Owner on 2026-08-04 within the finalized Revision 4 contract
+(`docs/workflow-automation/stage-prompts/AUTO-015.md`) and its independent final review (verdict
+"CONTRACT READY FOR AUTHORIZATION PREFLIGHT"). Registry state moved `NOT_STARTED → AUTHORIZED`;
+task status moved to `Current`. This session performed registration and authorization-preflight
+only: no implementation, no branch creation, and no commit — the registered branch
+`feature/auto-015-successor-planning` was not created because `STAGE_REGISTRY.md` §3 rule 14
+requires it to be cut from a `main` baseline that already carries the authorization record, and
+this session holds no commit authorization. A separate Human Owner-directed documentation commit
+and publication of this registration is required before initial start. GOV-AUTO-08 — AUTO-015
+Successor Scope and Contract Definition — was closed `Current → Done` on 2026-08-04 after the
+Human Owner selected **Automatic Next-Stage Computation and Prompt Generation** as the proposed
+basis for AUTO-015.
 
 ## Summary
 
@@ -100,6 +108,14 @@ plan to 1.0, and `docs/architecture.md` for the pipeline shapes.
   `docs/FINAL_COMPLETION_REPORT.md`.
 
 ## In progress
+
+**AUTO-015** (registered and authorized 2026-08-04): Deterministic Next-Stage Proposal and
+Governed Prompt Generation — a new read-only Core Engine Planning Service,
+`src/ai_workflow_engine/successor_planning/`, exposed as `workflowctl successor-planning propose`.
+Registration and authorization-preflight only; no implementation performed, no branch created, no
+commit made. Registry state `NOT_STARTED → AUTHORIZED`. Contract:
+`docs/workflow-automation/stage-prompts/AUTO-015.md`. Awaiting a separate Human Owner-directed
+documentation commit and publication before initial start.
 
 **DASH-004** (authorized 2026-07-30): the local backend and dashboard shell —
 `agentos_dashboard/{settings.py, main.py, __main__.py, api/**, web/**}`. Loopback-only FastAPI

@@ -154,3 +154,18 @@ The Human Owner selected **Automatic Next-Stage Computation and Prompt Generatio
 proposed basis for AUTO-015. GOV-AUTO-08 is closed `Current → Done`; this selection does not
 authorize implementation. AUTO-015 is not registered, authorized, or implemented, and the
 Current task set is empty.
+
+## Authorization update — 2026-08-04
+
+## AUTO-015
+
+Status: Current
+
+The Human Owner explicitly authorized this single task, registering it for the first time in the
+same act, within the finalized Revision 4 contract (`docs/workflow-automation/stage-prompts/AUTO-015.md`)
+and its independent final review (verdict "CONTRACT READY FOR AUTHORIZATION PREFLIGHT"). Registry
+state `NOT_STARTED → AUTHORIZED`. Registration only — implementation has not begun, and the
+registered branch `feature/auto-015-successor-planning` was not created because this session holds
+no commit authorization and rule 14 requires the branch to be cut from a `main` baseline that
+already carries the authorization record. A separate Human Owner-directed documentation commit and
+publication of this registration is required before initial start.

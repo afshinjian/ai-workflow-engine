@@ -3,13 +3,25 @@
 Mirror of docs/TASK_QUEUE.md's Current set. Must contain exactly the same task ID(s) at
 the same status as the task queue — workflowctl check-task-state fails otherwise.
 
-## No task is currently active
+## AUTO-015 — Deterministic Next-Stage Proposal and Governed Prompt Generation
 
-GOV-AUTO-08 — AUTO-015 Successor Scope and Contract Definition — was closed `Current → Done` on
-2026-08-04 after the Human Owner selected **Automatic Next-Stage Computation and Prompt
-Generation** as the proposed basis for AUTO-015. The selection is not implementation
-authorization. AUTO-015 remains unregistered, unauthorized, and unimplemented. The Current set is
-therefore empty under `maximum_current_tasks: 1`.
+Status: Current
+
+Registered and authorized by the Human Owner on 2026-08-04: "Authorization received. AUTO-015
+implementation is authorized only within the finalized contract and its stated boundaries."
+AUTO-015 had never been registered before, so this entry records both its registration and its
+authorization. Predecessor AUTO-014 is `COMPLETE`, merged, and published. Registry state
+`NOT_STARTED → AUTHORIZED` (`docs/workflow-automation/STAGE_REGISTRY.md` §4/§5). Full scope:
+`docs/TASK_QUEUE.md`.
+
+**Registration and authorization only — no implementation performed.** The registered branch
+`feature/auto-015-successor-planning` was **not created**: `STAGE_REGISTRY.md` §3 rule 14 requires
+the branch to be created from a `main` baseline that already carries this authorization record,
+and this session holds no commit authorization, so the governance edits recording this
+registration are left uncommitted in the working tree. Registry state therefore stops at
+`AUTHORIZED`; the `AUTHORIZED → IN_PROGRESS` initial-start transition (rule 4) does not occur
+here. A separate Human Owner-directed documentation commit and publication of this registration is
+required before implementation may begin.
 
 ## Prior current-task history
 

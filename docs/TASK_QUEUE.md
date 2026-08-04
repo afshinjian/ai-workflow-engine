@@ -1521,3 +1521,63 @@ contract, stage row, branch, implementation, commit, push, PR, or merge was crea
 Deliverables: `docs/workflow-automation/successor-planning/AUTO-015-CANDIDATES.md`,
 `docs/workflow-automation/successor-planning/AUTO-015-DECISION-TEMPLATE.md`, and the GOV-AUTO-08
 completion report.
+
+## AUTO-015 — Deterministic Next-Stage Proposal and Governed Prompt Generation
+
+Status: Current
+
+Registered and authorized by the Human Owner on 2026-08-04, in one written directive:
+"Authorization received. AUTO-015 implementation is authorized only within the finalized contract
+and its stated boundaries." AUTO-015 had never been registered before, so this single entry
+records both its registration and its authorization. It is the single `Current` task; the
+`Current` set was empty beforehand. Predecessor AUTO-014 is `COMPLETE`, merged, and published.
+
+Authorization is limited to exactly the finalized Revision 4 contract
+(`docs/workflow-automation/stage-prompts/AUTO-015.md`) and its independent final review
+(`docs/reports/workflow-automation/AUTO-015-contract-review.md`, verdict "CONTRACT READY FOR
+AUTHORIZATION PREFLIGHT"): the exact architecture (DEC-001, Option A — Core Engine Planning
+Service, `src/ai_workflow_engine/successor_planning/`, no `agentos_workflow.WorkflowService`
+adapter); DEC-001 through DEC-011 in full (recorded independently in `docs/DECISION_LOG.md`'s
+2026-08-04 "Human Owner accepted DEC-001 through DEC-011" entry and again in this same day's
+registration entry); the exact implementation allowlist (contract §23) and forbidden surface
+(§24); the static authoritative candidate catalog only
+(`docs/workflow-automation/successor-planning/AUTO-015-AUTHORITATIVE-CATALOG.yaml`); the security
+invariants (§22); the deterministic outcome/failure model (§12/§13); the verification plan (§25);
+the live-acceptance plan (§27); the defect policy (§28); and the implementation stop condition
+(§30). No work outside the finalized contract is authorized.
+
+Scope: a new read-only Core Engine Planning Service —
+
+    workflowctl successor-planning propose --config <CONFIG_PATH> --predecessor <STAGE_ID>
+        -> src/ai_workflow_engine/successor_planning/
+        -> reads this repository's own authoritative governance/completed-stage evidence
+        -> evaluates the static candidate catalog against deterministic eligibility rules
+        -> renders a governed, non-authoritative prompt draft
+        -> publishes one hash-bound proposal artifact under
+           ~/.ai-workflow-engine/successor-proposals/<repository-id>/
+        -> stops at the Human Owner decision gate
+
+AUTO-015 never registers, authorizes, or implements a successor; never mutates task, Registry,
+workflow, Git, source, or configuration state; never creates a branch, commits, pushes, opens a
+PR, or merges; never invokes Claude, Codex, or any model provider by default.
+
+Contract: `docs/workflow-automation/stage-prompts/AUTO-015.md`.
+Contract review: `docs/reports/workflow-automation/AUTO-015-contract-review.md`.
+
+Preconditions verified before this registration: AUTO-001 through AUTO-014 and GOV-4 all
+`COMPLETE`/`Done`; GOV-AUTO-08 `Done`; no other `Current` task anywhere in the queue (the `Current`
+set was empty); registry and task-queue agreement; clean, synchronized `main` == `origin/main` at
+`fcb93730bf211ee020027dcb67733a5e8b00e8ea`; `workflowctl verify --config self-governance.yaml`
+full PASS (git, task-state, governance, registries, handover); no blocking OD-# (`OPEN_QUESTIONS.md`
+`## Open`: OD-6, OD-7, OD-10, OD-11, OD-12 each explicitly "blocks nothing's authorization"); no
+AUTO-015 branch, Registry row, source symbol, or task entry existed before this session.
+
+**This session performed registration and authorization-preflight only — no implementation.**
+Registry state moves `NOT_STARTED → AUTHORIZED` (`docs/workflow-automation/STAGE_REGISTRY.md` §4/
+§5); task status moves to `Current`. The registered branch is `feature/auto-015-successor-planning`,
+but it was **not created** in this session: `STAGE_REGISTRY.md` §3 rule 14 requires the branch to
+be created from a `main` baseline that already carries this authorization record, and this session
+holds no commit authorization (governance edits are left uncommitted in the working tree). Registry
+state therefore stops at `AUTHORIZED`; the `AUTHORIZED → IN_PROGRESS` initial-start transition (rule
+4) does not occur here. A separate Human Owner-directed documentation commit and publication of this
+registration is required before implementation may begin.
