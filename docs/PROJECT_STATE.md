@@ -7,21 +7,22 @@ so keep the version line's wording exact if you edit it.
 
 Current Version: 1.0.0
 
-## Latest governance activity — AUTO-015 registered and authorized
+## Latest governance activity — AUTO-015 initial start
 
 AUTO-015 — Deterministic Next-Stage Proposal and Governed Prompt Generation — was registered and
 authorized by the Human Owner on 2026-08-04 within the finalized Revision 4 contract
 (`docs/workflow-automation/stage-prompts/AUTO-015.md`) and its independent final review (verdict
 "CONTRACT READY FOR AUTHORIZATION PREFLIGHT"). Registry state moved `NOT_STARTED → AUTHORIZED`;
-task status moved to `Current`. This session performed registration and authorization-preflight
-only: no implementation, no branch creation, and no commit — the registered branch
-`feature/auto-015-successor-planning` was not created because `STAGE_REGISTRY.md` §3 rule 14
-requires it to be cut from a `main` baseline that already carries the authorization record, and
-this session holds no commit authorization. A separate Human Owner-directed documentation commit
-and publication of this registration is required before initial start. GOV-AUTO-08 — AUTO-015
-Successor Scope and Contract Definition — was closed `Current → Done` on 2026-08-04 after the
-Human Owner selected **Automatic Next-Stage Computation and Prompt Generation** as the proposed
-basis for AUTO-015.
+task status moved to `Current`. A subsequent session verified the standard initial-start preflight
+(predecessor AUTO-014 `COMPLETE`; no other `Current`/`AUTHORIZED`/`IN_PROGRESS` AUTO stage; clean,
+synchronized `main` == `origin/main` at `c9cda8823c4c9e37c806a057dba1b83684619dfe`; full
+`workflowctl verify` PASS; no pre-existing AUTO-015 branch or source symbol) and created branch
+`feature/auto-015-successor-planning` from that baseline. Per rule 4 the registry state moved
+`AUTHORIZED → IN_PROGRESS`; no new Human Owner authorization act occurred. **No implementation was
+performed**: progress is 0%, no production or test file changed, and no commit, push, PR, or merge
+occurred. GOV-AUTO-08 — AUTO-015 Successor Scope and Contract Definition — was closed
+`Current → Done` on 2026-08-04 after the Human Owner selected **Automatic Next-Stage Computation
+and Prompt Generation** as the proposed basis for AUTO-015.
 
 ## Summary
 
@@ -109,13 +110,14 @@ plan to 1.0, and `docs/architecture.md` for the pipeline shapes.
 
 ## In progress
 
-**AUTO-015** (registered and authorized 2026-08-04): Deterministic Next-Stage Proposal and
-Governed Prompt Generation — a new read-only Core Engine Planning Service,
+**AUTO-015** (registered and authorized 2026-08-04; initial start 2026-08-04): Deterministic
+Next-Stage Proposal and Governed Prompt Generation — a new read-only Core Engine Planning Service,
 `src/ai_workflow_engine/successor_planning/`, exposed as `workflowctl successor-planning propose`.
-Registration and authorization-preflight only; no implementation performed, no branch created, no
-commit made. Registry state `NOT_STARTED → AUTHORIZED`. Contract:
-`docs/workflow-automation/stage-prompts/AUTO-015.md`. Awaiting a separate Human Owner-directed
-documentation commit and publication before initial start.
+Registry state `NOT_STARTED → AUTHORIZED → IN_PROGRESS`; branch
+`feature/auto-015-successor-planning` created from `main` at
+`c9cda8823c4c9e37c806a057dba1b83684619dfe`. Initial-start transition only — no implementation
+performed, no commit made; progress remains 0%. Contract:
+`docs/workflow-automation/stage-prompts/AUTO-015.md`.
 
 **DASH-004** (authorized 2026-07-30): the local backend and dashboard shell —
 `agentos_dashboard/{settings.py, main.py, __main__.py, api/**, web/**}`. Loopback-only FastAPI

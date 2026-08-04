@@ -1581,3 +1581,21 @@ holds no commit authorization (governance edits are left uncommitted in the work
 state therefore stops at `AUTHORIZED`; the `AUTHORIZED → IN_PROGRESS` initial-start transition (rule
 4) does not occur here. A separate Human Owner-directed documentation commit and publication of this
 registration is required before implementation may begin.
+
+**Initial start (2026-08-04):** the authorization record above landed on `main` (`c9cda88`). A
+subsequent session verified the standard initial-start preflight — active stage exactly AUTO-015
+with registry status `AUTHORIZED`; predecessor AUTO-014 `COMPLETE`, merged, published; no other
+`Current`/`AUTHORIZED`/`IN_PROGRESS` AUTO stage; `docs/TASK_QUEUE.md`/`docs/current_task.md`/
+`docs/remaining_tasks.md` agree; clean, synchronized `main` == `origin/main` at
+`c9cda8823c4c9e37c806a057dba1b83684619dfe`; no pre-existing AUTO-015 branch, source symbol, or
+registry row beyond the authorization entry; `workflowctl verify --config self-governance.yaml`
+full PASS — then created branch `feature/auto-015-successor-planning` from that clean,
+synchronized `main`; the branch's HEAD and its merge-base with `main` both equal
+`c9cda8823c4c9e37c806a057dba1b83684619dfe`, with no additional commit and no remote branch created.
+Per rule 4 the registry state moves `AUTHORIZED → IN_PROGRESS`; no new Human Owner authorization
+act occurs. **This session performs the initial-start transition only — no implementation
+begins.** Implementation progress remains 0%; no file under `src/`, `tests/`,
+`agentos_workflow/`, or `agentos_dashboard/` changed; no script, package, or dependency file
+changed; no commit, push, PR, or merge occurs. AUTO-015 remains bounded by the exact finalized
+Revision 4 contract. Full record: `docs/workflow-automation/STAGE_REGISTRY.md`, 2026-08-04
+"AUTO-015 (initial-start preflight passed)".
