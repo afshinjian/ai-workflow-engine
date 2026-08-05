@@ -7,7 +7,32 @@ so keep the version line's wording exact if you edit it.
 
 Current Version: 1.0.0
 
-## Latest governance activity — AUTO-015 closed
+## Latest governance activity — GOV-AUTO-10 closed; AUTO-016 contract defined
+
+GOV-AUTO-10 — AUTO-016 Integrated Runner Contract Definition — was registered as the sole Current
+task and closed `Current -> Done` on 2026-08-05, after the Human Owner selected **Integrated
+Milestone Automation Runner** as the AUTO-016 capability. This documentation-only governance task
+produced the finalized AUTO-016 stage contract
+(`docs/workflow-automation/stage-prompts/AUTO-016.md`, now Revision 4) — a supported
+`workflowctl milestone-runner` capability under `src/ai_workflow_engine/milestone_runner/` that
+converts the proven local AUTO-015 prototype runner into a packaged subsystem — together with its
+independent review (`docs/reports/workflow-automation/AUTO-016-contract-review.md`, verdict
+"CONTRACT READY FOR HUMAN OWNER AUTHORIZATION"). One bounded Codex review returned two blockers
+(AUTO016-REV-001, AUTO016-REV-002); both were remediated in one correction round and confirmed
+through one closure verification. On the same date the Human Owner ruled the three decisions the
+closure had recorded as open — DEC-016-002 (package-owned provider adapters under
+`milestone_runner/providers/`), DEC-016-005 (external default plan root; repository-local plans only
+at exact contract-allowlisted paths; no repository plan discovery), and DEC-016-006 (prototype
+unchanged until live acceptance, deprecated afterwards, never automatically deleted) — and the
+rulings were propagated into contract Revision 3 and review-report Revision 3.
+
+**No contract decision remains open, and nothing is authorized.** Design rulings are not an
+implementation authorization: AUTO-016 remains unregistered, unauthorized, and unimplemented, with
+no Registry row, task entry, branch, or source, and still requires allowlist sign-off,
+acceptance-plan approval, a fresh authorization preflight, and the explicit authorization statement
+`STAGE_REGISTRY.md` §3 rule 3 requires. The Current task set is empty.
+
+## Prior governance activity — AUTO-015 closed
 
 AUTO-015 — Deterministic Next-Stage Proposal and Governed Prompt Generation — was registered and
 authorized by the Human Owner on 2026-08-04 within the finalized Revision 4 contract

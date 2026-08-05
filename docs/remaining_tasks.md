@@ -163,3 +163,22 @@ request #17, merged into `main` as `e325f95`. It is closed `Current → Done`; t
 empty. Completion report:
 `docs/reports/workflow-automation/AUTO-015-completion-report.md`. This closure authorizes no
 successor — AUTO-016 and every later roadmap phase remain unauthorized and `Planned`.
+
+## GOV-AUTO-10 — AUTO-016 Integrated Runner Contract Definition
+
+Status: Done
+
+Documentation-only governance task registered on 2026-08-05 as the sole Current task after
+AUTO-015 `COMPLETE`. It converts the Human Owner's selected successor capability —
+**Integrated Milestone Automation Runner** — into a finalized, implementation-ready stage contract
+and obtains one bounded independent review of it. No branch was registered; the work was performed
+on `main` as an uncommitted documentation change set.
+
+GOV-AUTO-10 is closed `Current -> Done`; the contract does not authorize implementation. AUTO-016
+is not registered, authorized, or implemented, and the Current task set is empty. The three
+decisions this task recorded as open — DEC-016-002, DEC-016-005, DEC-016-006 — were ruled by the
+Human Owner on 2026-08-05 and propagated into contract Revision 4 (`docs/DECISION_LOG.md`). No
+contract decision remains open; allowlist sign-off, acceptance-plan approval, a fresh authorization
+preflight, and an explicit authorization statement still block implementation. Contract:
+`docs/workflow-automation/stage-prompts/AUTO-016.md`. Review:
+`docs/reports/workflow-automation/AUTO-016-contract-review.md`.

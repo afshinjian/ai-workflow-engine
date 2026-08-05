@@ -1612,3 +1612,49 @@ Critical or High blocker remains; the deferred, non-blocking findings (D-14 thro
 OD-7, OD-10, OD-11, OD-12) are unchanged. Registry state moved `IN_PROGRESS → COMPLETE`; task
 status moved `Current → Done`. This closure authorizes no successor — AUTO-016 and every later
 roadmap phase remain unauthorized and `Planned`. Human Owner approved and closed AUTO-015.
+
+## GOV-AUTO-10 — AUTO-016 Integrated Runner Contract Definition
+
+Status: Done
+
+Registered as the sole `Current` task by the Human Owner's GOV-AUTO-10 directive on 2026-08-05,
+after AUTO-015 was verified `COMPLETE`/`Done` and the Current set was empty. This is a
+documentation-only governance task. Its predecessor is AUTO-015 `COMPLETE`; its purpose is to
+convert the Human Owner's selected successor capability into a finalized, implementation-ready
+stage contract and to obtain one bounded independent review of that contract.
+
+The Human Owner selected **Integrated Milestone Automation Runner** as the AUTO-016 capability,
+with proposed title **AUTO-016 — Integrated Milestone Automation Runner**: a supported,
+production-grade `workflowctl milestone-runner` capability converting the proven local AUTO-015
+prototype runner into a packaged subsystem of `ai-workflow-engine`. The selection is capability
+definition only and is explicitly **not authorized** for implementation.
+
+GOV-AUTO-10 authorizes no AUTO-016 implementation. It must not create the
+`src/ai_workflow_engine/milestone_runner/` package, any CLI command, any test, any provider
+adapter, any run state, or any configuration schema. It must not modify production source, tests,
+scripts, package files, dependencies, workflow runtime, providers, or the local prototype runner
+at `~/.local/share/auto015-runner/`. It must not register AUTO-016 in
+`docs/workflow-automation/STAGE_REGISTRY.md` §4, create an AUTO-016 task entry, create any branch,
+or permit any commit, push, PR, or merge.
+
+The governance activity transitions `Planned -> Current -> Done` and is recorded as
+`IN_PROGRESS -> COMPLETE` in its continuity log. GOV-AUTO-10 is closed because the contract and its
+independent review are complete; AUTO-016 remains unregistered, unauthorized, and unimplemented. No
+AUTO-016 stage row, branch, implementation, commit, push, PR, or merge was created or authorized.
+
+The three decisions this task recorded as genuinely open were subsequently **ruled by the Human
+Owner on 2026-08-05**: DEC-016-002 (provider adapters under
+`src/ai_workflow_engine/milestone_runner/providers/`, package-owned, `agentos_workflow` provider
+runtime not reused), DEC-016-005 (external default plan root, repository-local plans only at exact
+contract-allowlisted paths, no repository plan discovery), and DEC-016-006 (prototype unchanged
+until AUTO-016 live acceptance succeeds, deprecated afterwards, never automatically deleted,
+deletion requiring a separate explicit decision). The rulings are recorded in
+`docs/DECISION_LOG.md` and propagated into contract Revision 3. **No contract decision remains
+open.** The rulings are design rulings only and authorize nothing; AUTO-016 still requires allowlist
+sign-off, acceptance-plan approval, a fresh authorization preflight, and the explicit authorization
+statement `STAGE_REGISTRY.md` §3 rule 3 requires. The contract review's verdict is
+"CONTRACT READY FOR HUMAN OWNER AUTHORIZATION".
+
+Deliverables: `docs/workflow-automation/stage-prompts/AUTO-016.md` (Revision 4),
+`docs/reports/workflow-automation/AUTO-016-contract-review.md` (Revision 3), and the GOV-AUTO-10
+completion report.
