@@ -3063,3 +3063,46 @@ implementation and validation work as scoped by the finalized contract. It does 
 commit, a push, a PR, a merge, branch creation, any target-repository mutation, any runtime
 workflow-state mutation, any Claude/Codex/model-provider invocation, or any successor stage.
 Authorizing AUTO-015 authorizes no successor.
+
+## 2026-08-05 — Human Owner approved and closed AUTO-015
+
+**Decision:** The Human Owner reviewed the AUTO-015 implementation and approved its governance
+closure. AUTO-015 — Deterministic Next-Stage Proposal and Governed Prompt Generation — was
+implemented on branch `feature/auto-015-successor-planning`, committed as `05b819e`, and published
+via pull request **#17**, merged as **`e325f95`** (parents `c9cda88` + `05b819e`). The completion
+report (`docs/reports/workflow-automation/AUTO-015-completion-report.md`) records repository-native
+verification evidence — a git before/after comparison showing the working tree and all fourteen
+authoritative governance documents byte- and mtime-identical across a publishing run and a dry run,
+process/environment evidence that no `claude` or `codex` subprocess was ever spawned, a
+package-wide AST structural sweep, and a live invocation against this repository — plus a
+correction round in which an independent review raised three High findings (AUTO015-REV-001,
+secret-bearing catalog fields reaching the persisted artifact; AUTO015-REV-002, the §4 item 6
+unauthorized-successor preflight never performed; AUTO015-REV-003), each reproduced first and then
+closed with the smallest change satisfying the contract.
+
+**Evidence — Human Owner–confirmed external runner record.** The following is confirmed directly
+by the Human Owner from the local AUTO-015 runner session; it was produced and observed outside
+this repository and is **not** claimed to exist as a repository-stored artifact or transcript:
+runner run ID `auto015-20260804T060616Z-dedd54c6`; one full Codex review, completed exactly once,
+initial verdict `BLOCKED` on findings AUTO015-REV-001, AUTO015-REV-002, and AUTO015-REV-003; one
+correction round, completed; one closure verification, completed exactly once and limited to those
+same three finding IDs, with all three found `CLOSED`; final runner state
+`READY_FOR_COMMIT_APPROVAL`; full verification 11/11 PASS. The repository-native artifacts backing
+this closure are the completion report, the implementation diff on `05b819e`, the CI results on
+PR #17, PR #17 itself, and merge commit `e325f95` — no other repository artifact path is claimed
+for the Codex review or the closure verification.
+
+None of the six deferred, non-blocking items (D-14 through D-16, inherited unimplemented from
+AUTO-013's scope; OD-6, OD-7, OD-10, OD-11, OD-12) is a Critical or High blocker — each is
+dispositioned "not a blocker" in the completion report for AUTO-015's read-only, non-runtime scope,
+and none was fixed by this closure. Registry state moves `IN_PROGRESS → COMPLETE`
+(`docs/workflow-automation/STAGE_REGISTRY.md` §4/§5); task status moves `Current → Done`
+(`docs/TASK_QUEUE.md`, `docs/current_task.md`, `docs/remaining_tasks.md`). The Current task set is
+now empty.
+
+**Boundaries:** This decision approves and closes only AUTO-015's governance record. It does not
+register, authorize, or implement AUTO-016 or any later roadmap phase — AUTO-016 remains
+unregistered, unauthorized, and `Planned`, and requires its own separate, fresh, written Human
+Owner authorization. It does not authorize any further commit, push, PR, or merge beyond PR #17
+and merge commit `e325f95`, both of which had already occurred before this closure entry was
+written.

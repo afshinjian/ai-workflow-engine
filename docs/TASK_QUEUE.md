@@ -1524,7 +1524,7 @@ completion report.
 
 ## AUTO-015 — Deterministic Next-Stage Proposal and Governed Prompt Generation
 
-Status: Current
+Status: Done
 
 Registered and authorized by the Human Owner on 2026-08-04, in one written directive:
 "Authorization received. AUTO-015 implementation is authorized only within the finalized contract
@@ -1599,3 +1599,16 @@ begins.** Implementation progress remains 0%; no file under `src/`, `tests/`,
 changed; no commit, push, PR, or merge occurs. AUTO-015 remains bounded by the exact finalized
 Revision 4 contract. Full record: `docs/workflow-automation/STAGE_REGISTRY.md`, 2026-08-04
 "AUTO-015 (initial-start preflight passed)".
+
+**Closure (2026-08-05):** AUTO-015 was implemented on branch `feature/auto-015-successor-planning`,
+committed as `05b819e`, and published via pull request #17, merged into `main` as `e325f95`. The
+completion report (`docs/reports/workflow-automation/AUTO-015-completion-report.md`) records full
+repository-native verification evidence and a correction round closing three independent-review
+High findings (AUTO015-REV-001, AUTO015-REV-002, AUTO015-REV-003). Per Human Owner–confirmed
+external runner evidence (runner run ID `auto015-20260804T060616Z-dedd54c6`, not stored in this
+repository), a full Codex review and a separate closure verification each ran exactly once against
+those same three finding IDs, with all three closed and full verification 11/11 PASS. No open
+Critical or High blocker remains; the deferred, non-blocking findings (D-14 through D-16, OD-6,
+OD-7, OD-10, OD-11, OD-12) are unchanged. Registry state moved `IN_PROGRESS → COMPLETE`; task
+status moved `Current → Done`. This closure authorizes no successor — AUTO-016 and every later
+roadmap phase remain unauthorized and `Planned`. Human Owner approved and closed AUTO-015.

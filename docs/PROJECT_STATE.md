@@ -7,22 +7,25 @@ so keep the version line's wording exact if you edit it.
 
 Current Version: 1.0.0
 
-## Latest governance activity — AUTO-015 initial start
+## Latest governance activity — AUTO-015 closed
 
 AUTO-015 — Deterministic Next-Stage Proposal and Governed Prompt Generation — was registered and
 authorized by the Human Owner on 2026-08-04 within the finalized Revision 4 contract
 (`docs/workflow-automation/stage-prompts/AUTO-015.md`) and its independent final review (verdict
-"CONTRACT READY FOR AUTHORIZATION PREFLIGHT"). Registry state moved `NOT_STARTED → AUTHORIZED`;
-task status moved to `Current`. A subsequent session verified the standard initial-start preflight
-(predecessor AUTO-014 `COMPLETE`; no other `Current`/`AUTHORIZED`/`IN_PROGRESS` AUTO stage; clean,
-synchronized `main` == `origin/main` at `c9cda8823c4c9e37c806a057dba1b83684619dfe`; full
-`workflowctl verify` PASS; no pre-existing AUTO-015 branch or source symbol) and created branch
-`feature/auto-015-successor-planning` from that baseline. Per rule 4 the registry state moved
-`AUTHORIZED → IN_PROGRESS`; no new Human Owner authorization act occurred. **No implementation was
-performed**: progress is 0%, no production or test file changed, and no commit, push, PR, or merge
-occurred. GOV-AUTO-08 — AUTO-015 Successor Scope and Contract Definition — was closed
-`Current → Done` on 2026-08-04 after the Human Owner selected **Automatic Next-Stage Computation
-and Prompt Generation** as the proposed basis for AUTO-015.
+"CONTRACT READY FOR AUTHORIZATION PREFLIGHT"). It was implemented on branch
+`feature/auto-015-successor-planning`, committed as `05b819e`, and published via pull request #17,
+merged into `main` as `e325f95` on 2026-08-05. The completion report
+(`docs/reports/workflow-automation/AUTO-015-completion-report.md`) records full repository-native
+verification evidence and a correction round that closed three independent-review High findings
+(AUTO015-REV-001, AUTO015-REV-002, AUTO015-REV-003). Per Human Owner–confirmed external runner
+evidence (runner run ID `auto015-20260804T060616Z-dedd54c6`, produced outside this repository and
+not stored as a repository artifact), a full Codex review and a separate closure verification each
+ran exactly once against those same three findings, with all three closed and full verification
+11/11 PASS. Registry state moved `IN_PROGRESS → COMPLETE`; task status moved `Current → Done`. No
+task is currently `Current`. This closure authorizes no successor — AUTO-016 and every later
+roadmap phase remain unauthorized and `Planned`. GOV-AUTO-08 — AUTO-015 Successor Scope and
+Contract Definition — was closed `Current → Done` on 2026-08-04 after the Human Owner selected
+**Automatic Next-Stage Computation and Prompt Generation** as the proposed basis for AUTO-015.
 
 ## Summary
 

@@ -155,28 +155,11 @@ proposed basis for AUTO-015. GOV-AUTO-08 is closed `Current → Done`; this sele
 authorize implementation. AUTO-015 is not registered, authorized, or implemented, and the
 Current task set is empty.
 
-## Authorization update — 2026-08-04
+## AUTO-015 closure — 2026-08-05
 
-## AUTO-015
-
-Status: Current
-
-The Human Owner explicitly authorized this single task, registering it for the first time in the
-same act, within the finalized Revision 4 contract (`docs/workflow-automation/stage-prompts/AUTO-015.md`)
-and its independent final review (verdict "CONTRACT READY FOR AUTHORIZATION PREFLIGHT"). Registry
-state `NOT_STARTED → AUTHORIZED`. Registration only — implementation has not begun, and the
-registered branch `feature/auto-015-successor-planning` was not created because this session holds
-no commit authorization and rule 14 requires the branch to be cut from a `main` baseline that
-already carries the authorization record. A separate Human Owner-directed documentation commit and
-publication of this registration is required before initial start.
-
-## Initial start — 2026-08-04
-
-Registry status `AUTHORIZED`. The authorization record above landed on `main` (`c9cda88`); a
-subsequent session verified the initial-start preflight (predecessor AUTO-014 `COMPLETE`; no other
-`Current`/`AUTHORIZED`/`IN_PROGRESS` AUTO stage; clean, synchronized `main`; full `workflowctl
-verify` PASS; no pre-existing AUTO-015 branch or source symbol) and created branch
-`feature/auto-015-successor-planning` from `main` at `c9cda8823c4c9e37c806a057dba1b83684619dfe`.
-Registry state moves `AUTHORIZED → IN_PROGRESS` (rule 4; no new Human Owner authorization act).
-Implementation has not begun: progress is 0%, no production or test file changed, and no commit,
-push, PR, or merge occurred in this session.
+AUTO-015 — Deterministic Next-Stage Proposal and Governed Prompt Generation — was implemented on
+branch `feature/auto-015-successor-planning`, committed as `05b819e`, and published via pull
+request #17, merged into `main` as `e325f95`. It is closed `Current → Done`; the Current set is
+empty. Completion report:
+`docs/reports/workflow-automation/AUTO-015-completion-report.md`. This closure authorizes no
+successor — AUTO-016 and every later roadmap phase remain unauthorized and `Planned`.
