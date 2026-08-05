@@ -7,7 +7,7 @@ so keep the version line's wording exact if you edit it.
 
 Current Version: 1.0.0
 
-## Latest governance activity — AUTO-016 registered and authorized
+## Latest governance activity — AUTO-016 initial start
 
 AUTO-016 — Integrated Milestone Automation Runner — was registered and authorized by the Human Owner
 on 2026-08-05: "I authorize AUTO-016 implementation under the finalized AUTO-016 contract and its
@@ -21,17 +21,26 @@ review's verdict "CONTRACT READY FOR HUMAN OWNER AUTHORIZATION". Registry state 
 executes an already-authorized stage as a bounded, resumable sequence of typed milestones and stops
 at a human commit approval gate that is disabled by default.
 
-This session performed registration and authorization-preflight only, by explicit Human Owner
-instruction: prepare and validate the authorization governance edits, commit exactly those governance
-files to `main` as one documentation-only authorization commit, then stop. **No implementation, no
-branch, and progress 0%**; push is withheld for Human Owner review. The registered branch
-`feature/auto-016-milestone-runner` was not created, because `STAGE_REGISTRY.md` §3 rule 14 requires
-it to be cut from a `main` baseline already carrying this authorization record, so registry state
-stops at `AUTHORIZED` and the `AUTHORIZED → IN_PROGRESS` initial-start transition (rule 4) does not
-occur here. A separate initial-start session will create the branch from the synchronized authorized
-baseline and record that transition, stopping before implementation; a separate implementation
-session will then execute AUTO-016. Live acceptance (contract §27) is authorized only during that
-later implementation/verification phase.
+That authorization session performed registration and authorization-preflight only, by explicit
+Human Owner instruction, and did not create the registered branch: `STAGE_REGISTRY.md` §3 rule 14
+requires the branch to be cut from a `main` baseline already carrying the authorization record, so
+registry state stopped at `AUTHORIZED` pending the Human Owner's own review and push of that commit.
+
+The Human Owner published that commit to `origin/main` as `4cbd714`. On 2026-08-06 a separate
+initial-start session verified the standard initial-start preflight (predecessor AUTO-015
+`COMPLETE`, merged as `e325f95` via pull request #17; no other AUTO stage `AUTHORIZED` or
+`IN_PROGRESS`; exactly one `Current` task with the queue and both mirrors in agreement; clean,
+synchronized `main` == `origin/main` at `4cbd714dd6a83de1b390feac39223e0b8f5d4cbf` with zero
+divergence and no staged or untracked files; the finalized Revision 4 contract present and unmodified
+at its recorded SHA-256; DEC-016-001 through DEC-016-008 recorded; full `workflowctl verify` PASS; no
+pre-existing AUTO-016 branch or `milestone_runner` source symbol) and created branch
+`feature/auto-016-milestone-runner` from that baseline. Per rule 4 the registry state moved
+`AUTHORIZED → IN_PROGRESS`; no new Human Owner authorization act occurred. **No implementation was
+performed**: progress is 0%, no production, test, script, package, or dependency file changed, the
+local prototype runner is untouched (DEC-016-006), no provider was invoked, and no commit, push, PR,
+or merge occurred or was permitted. A separate implementation session will execute AUTO-016 under the
+finalized contract. Live acceptance (contract §27) is authorized only during that later
+implementation/verification phase.
 
 ## Prior governance activity — GOV-AUTO-10 closed; AUTO-016 contract defined
 
@@ -166,7 +175,8 @@ plan to 1.0, and `docs/architecture.md` for the pipeline shapes.
 
 ## In progress
 
-**AUTO-016** (registered and authorized 2026-08-05): Integrated Milestone Automation Runner — a
+**AUTO-016** (registered and authorized 2026-08-05; initial start 2026-08-06): Integrated Milestone
+Automation Runner — a
 supported, production-grade Core Engine capability, `src/ai_workflow_engine/milestone_runner/`
 (nineteen files: fifteen modules plus the four-file `providers/` subpackage), exposed as
 `workflowctl milestone-runner <verb>`. It executes an already-authorized stage as a bounded,
@@ -174,11 +184,10 @@ resumable sequence of typed milestones — one Claude CLI invocation per milesto
 focused verification after each, the full verification set at the end, exactly one bounded
 independent Codex review, at most one correction round and one closure verification — writing
 durable, redacted run state outside the repository and stopping at a human commit approval gate that
-is disabled by default. Registration and authorization-preflight only: registry state
-`NOT_STARTED → AUTHORIZED`, no implementation performed, no branch created, progress 0%, and the
-authorization commit not pushed. Awaiting the Human Owner's review and push of that commit before a
-separate initial-start session may create `feature/auto-016-milestone-runner` and record
-`AUTHORIZED → IN_PROGRESS`. Contract:
+is disabled by default. Registry state `NOT_STARTED → AUTHORIZED → IN_PROGRESS`; branch
+`feature/auto-016-milestone-runner` created from `main` at
+`4cbd714dd6a83de1b390feac39223e0b8f5d4cbf`. Initial-start transition only — no implementation
+performed, no commit made; progress remains 0%. Contract:
 `docs/workflow-automation/stage-prompts/AUTO-016.md`.
 
 **AUTO-015** (registered and authorized 2026-08-04; initial start 2026-08-04): Deterministic
@@ -189,6 +198,14 @@ Registry state `NOT_STARTED → AUTHORIZED → IN_PROGRESS`; branch
 `c9cda8823c4c9e37c806a057dba1b83684619dfe`. Initial-start transition only — no implementation
 performed, no commit made; progress remains 0%. Contract:
 `docs/workflow-automation/stage-prompts/AUTO-015.md`.
+**Closed — historical record only (noted 2026-08-06).** The paragraph above records AUTO-015's
+state as of its 2026-08-04 initial start and is retained unchanged. AUTO-015 was subsequently
+implemented, approved, and closed `IN_PROGRESS → COMPLETE` / `Current → Done` on 2026-08-05, merged
+as `e325f95` via pull request #17 — see "Prior governance activity — AUTO-015 closed" above and
+`docs/workflow-automation/STAGE_REGISTRY.md`. AUTO-015 is **not** in progress. This note was added
+by the AUTO-016 initial-start session solely to remove the contradiction with its own preflight
+finding that no other AUTO stage is `AUTHORIZED` or `IN_PROGRESS`; no other stale entry in this
+section was touched.
 
 **DASH-004** (authorized 2026-07-30): the local backend and dashboard shell —
 `agentos_dashboard/{settings.py, main.py, __main__.py, api/**, web/**}`. Loopback-only FastAPI
