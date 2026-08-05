@@ -3106,3 +3106,177 @@ unregistered, unauthorized, and `Planned`, and requires its own separate, fresh,
 Owner authorization. It does not authorize any further commit, push, PR, or merge beyond PR #17
 and merge commit `e325f95`, both of which had already occurred before this closure entry was
 written.
+
+## 2026-08-05 — GOV-AUTO-10 registered — AUTO-016 capability selected, implementation withheld
+
+**Decision:** The Human Owner selected **AUTO-016 — Integrated Milestone Automation Runner** as the
+AUTO-015 successor capability and registered GOV-AUTO-10 — AUTO-016 Integrated Runner Contract
+Definition — as the sole `Current`, documentation-only governance task, bounded to producing a
+finalized, implementation-ready stage contract and one bounded independent review of it.
+
+**Rationale:** The local AUTO-015 runner drove an entire authorized stage to a reviewed,
+ready-to-commit state under real conditions (run `auto015-20260804T060616Z-dedd54c6`), including one
+provider failure, one result-format reconciliation, one milestone reopening, one review recovery,
+and one post-correction revalidation. That is proven behavior currently living in unsupported,
+untested, single-file operator tooling outside the repository. Converting it into a packaged,
+tested, `mypy --strict`-clean capability of the engine is the natural successor, and the selection
+records the capability only.
+
+**Boundary:** This registration authorizes no AUTO-016 implementation. It permits no creation of
+`src/ai_workflow_engine/milestone_runner/`, no CLI command, no test, no provider adapter, no run
+state, and no configuration schema. It permits no modification of production source, tests,
+scripts, package files, dependencies, workflow runtime, providers, or the local prototype runner. It
+creates no `STAGE_REGISTRY.md` §4 row and no AUTO-016 task entry, and authorizes no branch, commit,
+push, PR, or merge.
+
+## 2026-08-05 — GOV-AUTO-10 closure — AUTO-016 contract finalized and independently reviewed
+
+**Decision:** GOV-AUTO-10 is closed `Current -> Done`. The finalized contract
+(`docs/workflow-automation/stage-prompts/AUTO-016.md`, Revision 2) and its independent review
+(`docs/reports/workflow-automation/AUTO-016-contract-review.md`, verdict "CONTRACT READY FOR HUMAN
+OWNER AUTHORIZATION") are complete. The following contract decisions are recorded as pre-resolved by
+direct repository evidence, requiring Human Owner confirmation at authorization rather than a fresh
+choice:
+
+- **DEC-016-001 — Architecture.** A Core Engine Milestone Runner under
+  `src/ai_workflow_engine/milestone_runner/`, with no `agentos_workflow.WorkflowService`
+  integration. Four independent lines of evidence prove that route is not mandatory:
+  `ARCHITECTURE.md` §4's package-boundary rule; the single existing `src -> agentos_workflow` edge
+  (`cli.py:1268`, importing only `auto_app`); `WorkflowService`'s requirement of a
+  target-repository `WorkflowConfig` that this repository does not have; and AUTO-015's accepted
+  precedent of declining the same route.
+- **DEC-016-003 — Process lock.** A runner-owned `fcntl.flock` lock, because no `flock` lock exists
+  anywhere under `src/ai_workflow_engine/` and the only one in the tree
+  (`agentos_workflow/orchestrator/lock.py`) is unimportable across the package boundary. Its
+  documented disciplines are adopted without importing it.
+- **DEC-016-004 — Run-state location.** An external, repository-scoped artifact root outside the
+  worktree, reusing AUTO-015's repository-containment rejection, so a runner guarding a diff cannot
+  pollute it.
+- **DEC-016-007 — Command surface.** The twelve required commands plus one disclosed, retained
+  read-only `verify` command carried over from the prototype.
+- **DEC-016-008 — Redaction utility.** Intra-package reuse of
+  `successor_planning.redaction.redact_text` rather than a duplicated runner-local redactor. No
+  package boundary is crossed and no existing module is modified; duplicating a security primitive
+  would let the two copies drift.
+
+**Independent review:** One bounded Codex review, read-only, capped at three Critical/High
+blockers, returned two: AUTO016-REV-001 (Critical — the contract both permitted a human-gated
+commit/push and asserted that no mutating Git argv was reachable anywhere, and its gates omitted
+`HUMAN_AUTHORIZATION_MODEL.md` §5a's binding, invalidation, and single-use properties) and
+AUTO016-REV-002 (High — transcripts were to be persisted without the redaction that
+`SECURITY_MODEL.md` §1 and `AUDIT_MODEL.md` §2 require *before* a referenced file is written, §2
+forbidding a raw credential "even in a referenced file"). Both were independently re-verified
+against the governing documents, found real, and remediated in one bounded correction round. One
+bounded closure verification confirmed AUTO016-REV-002 `CLOSED` and returned AUTO016-REV-001
+`STILL_OPEN` on one residual unqualified line in §25; that line was corrected and verified by direct
+inspection, the review budget being spent — a weaker standard, recorded as such in the review
+report §4a rather than presented as independently confirmed.
+
+**Remaining prerequisites:** Three genuinely open Human Owner decisions block authorization —
+**DEC-016-002** (provider-adapter ownership: runner-owned adapters, recommended, versus importing
+`agentos_workflow/providers/**`), **DEC-016-005** (milestone plan location: operator-supplied
+root-confined directory, recommended, versus a fixed location inside `docs/`), and **DEC-016-006**
+(prototype disposition after acceptance: retain deprecated and frozen, recommended, versus remove).
+Formal allowlist and acceptance-plan sign-off, a fresh dated authorization preflight, and the
+explicit authorization statement `STAGE_REGISTRY.md` §3 rule 3 requires also remain.
+
+**Boundary:** This closure does not register, authorize, or implement AUTO-016 or any later roadmap
+phase. AUTO-016 remains unregistered, unauthorized, and `Planned`, with no `STAGE_REGISTRY.md` §4
+row, no task entry, no branch, and no source symbol, and requires its own separate, fresh, written
+Human Owner authorization. No commit, push, PR, or merge was performed or authorized. The local
+prototype runner at `~/.local/share/auto015-runner/` was read in full and left unmodified. The
+Current task set is empty.
+
+## 2026-08-05 — Human Owner rulings on AUTO-016 open contract decisions (DEC-016-002, -005, -006)
+
+**Decision:** The Human Owner ruled the three decisions the GOV-AUTO-10 closure recorded as
+genuinely open. All three are binding on any future AUTO-016 implementation and are propagated into
+the contract, which advances to Revision 3 and retains the status `PROPOSED — NOT AUTHORIZED`.
+
+- **DEC-016-002 — Provider adapter ownership. RULED.** Provider adapters belong under
+  `src/ai_workflow_engine/milestone_runner/providers/` and are owned by the AUTO-016
+  milestone-runner package. The `agentos_workflow` provider runtime must not be reused directly.
+  Adapters must use validated configuration, stdin prompt delivery, bounded timeout, captured
+  stdout/stderr, durable transcripts, strict result parsing, and no credential storage. This
+  confirms the contract's recommended direction and tightens its shape: Revision 2 proposed a single
+  `providers.py` module, whereas the ruling requires a dedicated four-file subpackage, raising the
+  package's allowed surface from sixteen to nineteen files. The alternative — importing
+  `agentos_workflow/providers/**` — is closed and may not be reopened at implementation time.
+- **DEC-016-005 — Milestone plan location. RULED.** The default milestone-plan root is external to
+  the target repository: `~/.ai-workflow-engine/milestone-runs/<repository-id>/plans/`, a sibling of
+  the run directories under the same repository-scoped artifact root. Repository-local milestone
+  plans are permitted only when the governing stage contract explicitly lists their exact paths in
+  its implementation allowlist — not a directory, glob, or prefix. Arbitrary repository-local plan
+  discovery is forbidden: no search, walk, glob, or default scan of the worktree may exist anywhere
+  in the package. This is narrower and more specific than the contract's recommendation, which named
+  no default and no repository-local rule, and it is recorded as a security invariant rather than a
+  preference: worktree plan discovery would let a file inside the repository the runner is guarding
+  influence what the runner is permitted to change.
+- **DEC-016-006 — Prototype runner disposition. RULED.** The prototype at
+  `~/.local/share/auto015-runner/` remains unchanged as historical and reference tooling until
+  AUTO-016 live acceptance succeeds. After successful live acceptance it is marked deprecated; it is
+  never automatically deleted; its historical state and transcripts are never migrated or rewritten;
+  and deletion requires a separate explicit Human Owner decision. This confirms the contract's
+  recommendation and adds a sequencing condition and an explicit deletion barrier that Revision 2
+  did not carry. AUTO-016's implementation touches the prototype at no point; the post-acceptance
+  deprecation note is a separate operator act outside the stage allowlist.
+
+**Propagation:** Contract Revision 3 records the rulings in a new §1b and carries them into §6, §8
+(nineteen files including the `providers/` subpackage), §11, §14, §17, §21, §22 (two new invariants,
+19 and 20), §23, §24, §26, §27, §28, §30, and §32. The contract review report advances to Revision 3
+with a new §8a documenting the propagation check.
+
+**Review standard:** The bounded independent review budget the Human Owner set — one Codex review,
+one correction round, one closure verification — was spent during the GOV-AUTO-10 closure and was
+not reopened for these rulings. The propagation was verified by direct inspection only. That is a
+weaker standard than the independent review applied to Revisions 1 and 2, and it is recorded as such
+in the review report §8a rather than presented as independent confirmation.
+
+**Remaining prerequisites:** No contract decision remains open. Authorization still requires formal
+allowlist sign-off against the revised nineteen-file surface, acceptance of the verification, test,
+and live-acceptance plans including the assertions the rulings added, a fresh dated authorization
+preflight, and the explicit authorization statement `STAGE_REGISTRY.md` §3 rule 3 requires.
+
+**Boundary:** These are design rulings, not an authorization. Ruling on how a capability would be
+built is a different act from authorizing that it be built
+(`HUMAN_AUTHORIZATION_MODEL.md` §5a). AUTO-016 remains unregistered, unauthorized, and
+unimplemented, with no `STAGE_REGISTRY.md` §4 row, no task entry, no branch, and no source symbol.
+No production source, test, script, package file, dependency, workflow runtime, provider, or the
+local prototype runner was created, modified, or deleted. No commit, push, PR, or merge was
+performed or authorized. The Current task set is empty.
+
+## 2026-08-05 — AUTO-016 contract correction AUTO016-REV-003 — Git-authority restatement
+
+**Decision:** A bounded verification identified two residual absolute Git-authority statements in
+the AUTO-016 contract that contradicted its own §20 gated commit and push capability. Both are
+corrected, documentation-only, in contract Revision 4.
+
+- **Contract §1, implementation class.** "Performs no commit, push, PR, merge, or governance
+  mutation" — an unqualified claim, incompatible with §20's Human Owner–gated capability. Replaced
+  with the precise semantics: AUTO-016 performs no **automatic** commit, push, pull-request
+  creation, merge, branch deletion, reset, restore, rebase, stash, or governance mutation; commit
+  and push execute only when explicitly enabled by configuration, separately approved by the Human
+  Owner, bound to repository identity, branch, baseline SHA, the exact staged diff or commit
+  payload and the exact operation, single-use, and invalidated by branch drift, HEAD drift,
+  changed-path drift, verification failure, expiry, or prior use; pull-request creation, merge,
+  branch deletion, reset, restore, rebase, stash, and governance mutation remain forbidden outright
+  unless a future separate contract explicitly authorizes them.
+- **Contract §4, entry condition 4.** "Because the runner never commits, this value is invariant
+  for a whole run" — rescoped to invariance up to the §20 commit gate, an approved commit being the
+  only event that may advance `HEAD`, recorded with the approval that authorized it.
+- **Contract §20, approval binding.** The bound-state bullet gains repository identity and the
+  exact authorized operation (commit or push, never both, never a substitute); the invalidation
+  bullet names all six triggers explicitly.
+
+**Why this was missed.** The Revision 2 remediation of AUTO016-REV-001 swept for mutating-Git
+*argv* language and re-scoped every instance it found. It did not sweep capability *summaries*, so
+two prose restatements survived. The contract review report §4a now records that its own earlier
+sweep claim — "the only remaining unqualified commit/push statement carries an explicit 'by default'
+qualifier" — was wrong, and leaves the claim visible rather than rewriting it.
+
+**Boundary:** Git authority is **narrowed and made explicit, never broadened**. No design change,
+no Human Owner decision change, no ruling change, no new capability, and no authorization. AUTO-016
+remains unregistered, unauthorized, and unimplemented, status `PROPOSED — NOT AUTHORIZED`. Only
+four documentation files were touched. No production source, test, script, package file,
+dependency, workflow runtime, provider, or the local prototype runner was modified. No commit,
+push, PR, or merge was performed or authorized. The Current task set is empty.
