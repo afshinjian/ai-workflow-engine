@@ -182,3 +182,24 @@ contract decision remains open; allowlist sign-off, acceptance-plan approval, a 
 preflight, and an explicit authorization statement still block implementation. Contract:
 `docs/workflow-automation/stage-prompts/AUTO-016.md`. Review:
 `docs/reports/workflow-automation/AUTO-016-contract-review.md`.
+
+## Authorization update — 2026-08-05
+
+## AUTO-016
+
+Status: Current
+
+The Human Owner explicitly authorized this single task, registering it for the first time in the
+same act: "I authorize AUTO-016 implementation under the finalized AUTO-016 contract and its exact
+implementation allowlist." Authorization is bounded to the finalized Revision 4 contract
+(`docs/workflow-automation/stage-prompts/AUTO-016.md`) and its exact nineteen-file implementation
+allowlist (§23), with the forbidden surface (§24) unchanged; the independent review's verdict is
+"CONTRACT READY FOR HUMAN OWNER AUTHORIZATION". Registry state `NOT_STARTED → AUTHORIZED`.
+
+Registration only — implementation has not begun and progress is 0%. The registered branch
+`feature/auto-016-milestone-runner` was not created, because rule 14 requires it to be cut from a
+`main` baseline that already carries the authorization record; this session was bounded to preparing,
+validating, and committing that record locally, with push withheld for Human Owner review. A separate
+initial-start session will create the branch from the synchronized authorized baseline and record
+`AUTHORIZED → IN_PROGRESS`; a separate implementation session will then execute AUTO-016. Live
+acceptance is authorized only during that later implementation/verification phase.

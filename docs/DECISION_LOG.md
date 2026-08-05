@@ -3280,3 +3280,75 @@ remains unregistered, unauthorized, and unimplemented, status `PROPOSED — NOT 
 four documentation files were touched. No production source, test, script, package file,
 dependency, workflow runtime, provider, or the local prototype runner was modified. No commit,
 push, PR, or merge was performed or authorized. The Current task set is empty.
+
+## 2026-08-05 — AUTO-016 registered and authorized (registration only; no implementation)
+
+**Decision:** The Human Owner registered and authorized AUTO-016 — Integrated Milestone Automation
+Runner — in one written directive: "I authorize AUTO-016 implementation under the finalized AUTO-016
+contract and its exact implementation allowlist." AUTO-016 had never been registered before, so this
+single act records both its registration and its authorization. Registry state moves
+`NOT_STARTED → AUTHORIZED` (`docs/workflow-automation/STAGE_REGISTRY.md` §4/§5); task status moves to
+`Current`. This satisfies the four authorization prerequisites contract §30 left outstanding and the
+six acceptance criteria of §32.
+
+**Authorization boundary.** Authorization is limited to exactly the finalized **Revision 4** contract
+(`docs/workflow-automation/stage-prompts/AUTO-016.md`, SHA-256
+`56f6a8f5720f30543f5b0623f5cb52ffa2cc45cbe51be8c5f9b9f5f256b90a7e`) and its independent review
+(`docs/reports/workflow-automation/AUTO-016-contract-review.md`, Revision 3, SHA-256
+`00c44cac08891f166be1bc50412a18069c305e31259a984a469f3b7ff699a58d`, verdict "CONTRACT READY FOR HUMAN
+OWNER AUTHORIZATION"). The directive names the implementation allowlist explicitly, so §23's exact
+nineteen-file package surface (fifteen modules plus the four-file `providers/` subpackage), the
+additive `cli.py` surface, and the twelve new test modules are the authorized surface, with §24's
+forbidden surface unchanged. Also bounded in: DEC-016-001 (Core Engine architecture, no
+`agentos_workflow.WorkflowService` integration), the ruled DEC-016-002/-005/-006, the
+evidence-resolved DEC-016-003/-004/-007/-008, the twenty security invariants (§22), the run state
+machine (§10), the durable state model (§11), the plan format and location rules (§14), the scope
+guard (§15), the verification executor (§16), the provider boundary (§17), the
+sanitization-before-persistence boundary (§17a), the result grammar (§18), the review and budget
+policy (§19), the human gates and two-surface Git authority (§20), the configuration model (§21), the
+verification plan (§25), the test matrix (§26), the two-tier live-acceptance plan (§27), the
+migration plan (§28), the defect policy (§29), and the implementation stop condition (§31). Nothing
+outside the finalized contract is authorized.
+
+**Preflight (contract §30 prerequisite 3; `STAGE_REGISTRY.md` §3 rule 1), verified before any file was
+modified:** predecessor AUTO-015 `COMPLETE`, merged as `e325f95` and published via PR #17; AUTO-001
+through AUTO-015, GOV-4, GOV-AUTO-08, and GOV-AUTO-10 all `COMPLETE`/`Done`; no other `Current` task
+anywhere in the queue (the `Current` set was empty, so `maximum_current_tasks: 1` is satisfied by this
+promotion); registry and `docs/TASK_QUEUE.md` in agreement; branch `main`, working tree clean, `main`
+== `origin/main` at `3b1cc232b3ae8a32f19f154a98ec89b1f464b946`; `workflowctl verify --config
+self-governance.yaml` full PASS across all five checks (`git`, `task-state` at `0 Current, 51 Done, 6
+Planned`, `governance`, `registries` at 25 stages across 2 registries, `handover`), with
+`check-task-state`, `check-governance`, and `check-handover --source working-tree` each independently
+PASS; no blocking OD-# (OD-6, OD-7, OD-10, OD-11, OD-12 each explicitly "blocks nothing's
+authorization"); and no pre-existing AUTO-016 branch, Registry row, source symbol, or task entry.
+
+**Scope of this session — registration only.** The Human Owner bounded this session to exactly three
+permitted acts: prepare and validate the authorization governance edits; commit exactly those
+governance files to `main` as one documentation-only authorization commit; then stop with AUTO-016
+`AUTHORIZED` and implementation progress 0%. Push is explicitly withheld for Human Owner review. The
+registered branch `feature/auto-016-milestone-runner` was **not created**, and the
+`AUTHORIZED → IN_PROGRESS` initial-start transition (rule 4) does **not** occur here: rule 14 requires
+the branch to be cut from a `main` baseline that already carries this authorization record, which
+depends on the Human Owner's own review and push of this commit. Under rule 17 the recorded
+authorization is not weakened by this — implementation simply has not begun.
+
+**Directed sequencing.** After the Human Owner reviews and pushes this authorization commit to
+`origin/main`, a separate **initial-start session** creates `feature/auto-016-milestone-runner` from
+that synchronized authorized baseline, records `AUTHORIZED → IN_PROGRESS`, and stops before
+implementation. A separate **implementation session** then executes AUTO-016 using the milestone
+runner. Live acceptance (§27), including its Tier 2 real Claude/Codex invocations under the
+`live_cli` marker, is authorized only as the finalized contract defines it and only during that later
+implementation/verification phase — never during this authorization session.
+
+**Boundary:** Six documentation and governance files were modified, exactly the sanctioned
+governance-transition edit set of rule 1: `docs/TASK_QUEUE.md`, `docs/current_task.md`,
+`docs/remaining_tasks.md`, `docs/PROJECT_STATE.md` (prose only; the `Current Version:` fact line
+untouched), this file, and `docs/workflow-automation/STAGE_REGISTRY.md` (§4 row and one §5
+Authorization Log row) — the same six-file shape as the AUTO-015 authorization commit `c9cda88`. No
+production source, test, script, package file, dependency, workflow runtime, provider, CI
+configuration, or the local prototype runner at `~/.local/share/auto015-runner/` was created,
+modified, or deleted; no `src/ai_workflow_engine/milestone_runner/` package, CLI command, test, run
+state, or configuration file exists. No branch, push, PR, or merge occurred. The authorization
+directive and the preflight above are dated 2026-08-05; the commit carrying this record was made on
+2026-08-06, which changes no recorded fact and is noted so the commit timestamp is not mistaken for a
+second authorization act.

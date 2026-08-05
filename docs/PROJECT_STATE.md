@@ -7,7 +7,33 @@ so keep the version line's wording exact if you edit it.
 
 Current Version: 1.0.0
 
-## Latest governance activity — GOV-AUTO-10 closed; AUTO-016 contract defined
+## Latest governance activity — AUTO-016 registered and authorized
+
+AUTO-016 — Integrated Milestone Automation Runner — was registered and authorized by the Human Owner
+on 2026-08-05: "I authorize AUTO-016 implementation under the finalized AUTO-016 contract and its
+exact implementation allowlist." Authorization is bounded to the finalized Revision 4 contract
+(`docs/workflow-automation/stage-prompts/AUTO-016.md`, SHA-256
+`56f6a8f5720f30543f5b0623f5cb52ffa2cc45cbe51be8c5f9b9f5f256b90a7e`) and its exact nineteen-file
+implementation allowlist (§23), with the forbidden surface (§24) unchanged and the independent
+review's verdict "CONTRACT READY FOR HUMAN OWNER AUTHORIZATION". Registry state moved
+`NOT_STARTED → AUTHORIZED`; task status moved to `Current`. AUTO-016 delivers a supported
+`workflowctl milestone-runner` capability under `src/ai_workflow_engine/milestone_runner/` that
+executes an already-authorized stage as a bounded, resumable sequence of typed milestones and stops
+at a human commit approval gate that is disabled by default.
+
+This session performed registration and authorization-preflight only, by explicit Human Owner
+instruction: prepare and validate the authorization governance edits, commit exactly those governance
+files to `main` as one documentation-only authorization commit, then stop. **No implementation, no
+branch, and progress 0%**; push is withheld for Human Owner review. The registered branch
+`feature/auto-016-milestone-runner` was not created, because `STAGE_REGISTRY.md` §3 rule 14 requires
+it to be cut from a `main` baseline already carrying this authorization record, so registry state
+stops at `AUTHORIZED` and the `AUTHORIZED → IN_PROGRESS` initial-start transition (rule 4) does not
+occur here. A separate initial-start session will create the branch from the synchronized authorized
+baseline and record that transition, stopping before implementation; a separate implementation
+session will then execute AUTO-016. Live acceptance (contract §27) is authorized only during that
+later implementation/verification phase.
+
+## Prior governance activity — GOV-AUTO-10 closed; AUTO-016 contract defined
 
 GOV-AUTO-10 — AUTO-016 Integrated Runner Contract Definition — was registered as the sole Current
 task and closed `Current -> Done` on 2026-08-05, after the Human Owner selected **Integrated
@@ -26,11 +52,13 @@ at exact contract-allowlisted paths; no repository plan discovery), and DEC-016-
 unchanged until live acceptance, deprecated afterwards, never automatically deleted) — and the
 rulings were propagated into contract Revision 3 and review-report Revision 3.
 
-**No contract decision remains open, and nothing is authorized.** Design rulings are not an
-implementation authorization: AUTO-016 remains unregistered, unauthorized, and unimplemented, with
-no Registry row, task entry, branch, or source, and still requires allowlist sign-off,
-acceptance-plan approval, a fresh authorization preflight, and the explicit authorization statement
-`STAGE_REGISTRY.md` §3 rule 3 requires. The Current task set is empty.
+**As of that closure, no contract decision remained open and nothing was yet authorized.** Design
+rulings are not an implementation authorization: at that point AUTO-016 was still unregistered,
+unauthorized, and unimplemented, with no Registry row, task entry, branch, or source, and still
+required allowlist sign-off, acceptance-plan approval, a fresh authorization preflight, and the
+explicit authorization statement `STAGE_REGISTRY.md` §3 rule 3 requires — each of which the separate
+2026-08-05 authorization recorded above then satisfied. The Current task set was empty until that
+authorization.
 
 ## Prior governance activity — AUTO-015 closed
 
@@ -137,6 +165,21 @@ plan to 1.0, and `docs/architecture.md` for the pipeline shapes.
   `docs/FINAL_COMPLETION_REPORT.md`.
 
 ## In progress
+
+**AUTO-016** (registered and authorized 2026-08-05): Integrated Milestone Automation Runner — a
+supported, production-grade Core Engine capability, `src/ai_workflow_engine/milestone_runner/`
+(nineteen files: fifteen modules plus the four-file `providers/` subpackage), exposed as
+`workflowctl milestone-runner <verb>`. It executes an already-authorized stage as a bounded,
+resumable sequence of typed milestones — one Claude CLI invocation per milestone, deterministic
+focused verification after each, the full verification set at the end, exactly one bounded
+independent Codex review, at most one correction round and one closure verification — writing
+durable, redacted run state outside the repository and stopping at a human commit approval gate that
+is disabled by default. Registration and authorization-preflight only: registry state
+`NOT_STARTED → AUTHORIZED`, no implementation performed, no branch created, progress 0%, and the
+authorization commit not pushed. Awaiting the Human Owner's review and push of that commit before a
+separate initial-start session may create `feature/auto-016-milestone-runner` and record
+`AUTHORIZED → IN_PROGRESS`. Contract:
+`docs/workflow-automation/stage-prompts/AUTO-016.md`.
 
 **AUTO-015** (registered and authorized 2026-08-04; initial start 2026-08-04): Deterministic
 Next-Stage Proposal and Governed Prompt Generation — a new read-only Core Engine Planning Service,
