@@ -60,6 +60,7 @@ from ai_workflow_engine.schema.contract import (
     resolve_contract_version,
     success_envelope,
 )
+from ai_workflow_engine.successor_planning.proposal import ProposalRun, propose_successor
 from ai_workflow_engine.workflow.event_store import derive_state, record_outcome
 from ai_workflow_engine.workflow.events import Verdict, WorkflowEvent
 from ai_workflow_engine.workflow.invariants import summarize_workflow
@@ -1146,6 +1147,113 @@ def migrate_apply_command(
 
     payload = _protected(build, output=output, command="migrate-apply")
     _emit_migration_payload("migrate-apply", payload, output)
+
+
+# AUTO-015: the additive, read-only `workflowctl successor-planning` sub-application, namespaced
+# away from the `check-*` gates exactly as `prompt_app` already is. It is a thin adapter and
+# nothing else: it validates command-line syntax, hands the four fixed inputs to
+# `successor_planning.proposal.propose_successor`, and renders the typed result it gets back.
+# No eligibility, repository, catalog, prompt, publication or authorization logic lives here, and
+# no existing command changes.
+
+successor_planning_app = typer.Typer(
+    help=(
+        "Read-only successor-stage planning: propose a next stage from this repository's own "
+        "governance evidence. Selects, registers and authorizes nothing."
+    )
+)
+app.add_typer(successor_planning_app, name="successor-planning")
+
+
+class SuccessorPlanningOutput(StrEnum):
+    """DEC-011 fixes this command's rendering choice as `console|json`, not the `human|json`
+    every other command uses. The vocabularies are deliberately not merged: `OutputFormat` is
+    the existing gates' contract and widening it would change commands this stage may not
+    touch."""
+
+    CONSOLE = "console"
+    JSON = "json"
+
+
+#: `--predecessor` is optional at the parser level and required by the contract. Typer would
+#: reject an omitted required option with its own usage error, which would replace section 13's
+#: `MISSING_PREDECESSOR` with an exit code that says nothing about the governance contract. The
+#: classification therefore stays where section 4.1 puts it: in the planning service.
+PredecessorOption = Annotated[str | None, typer.Option("--predecessor")]
+SuccessorPlanningOutputOption = Annotated[SuccessorPlanningOutput, typer.Option("--output")]
+DryRunOption = Annotated[bool, typer.Option("--dry-run")]
+
+
+def _print_successor_planning(run: ProposalRun) -> None:
+    """Render one `ProposalRun` for a human reader. Presentation only; nothing is computed."""
+    artifact = run.artifact
+    recommendation = run.recommendation
+    lines = [f"Outcome: {run.outcome_class}"]
+    if artifact is not None and artifact.outcome.outcome_class == "PROPOSAL_READY":
+        lines.append(f"Result variant: {artifact.outcome.result_variant}")
+    if run.failure_code is not None:
+        lines.append(f"Failure code: {run.failure_code}")
+    lines.append(f"Predecessor: {run.predecessor_stage_id or '(none)'}")
+    if artifact is not None:
+        lines += [
+            f"Proposal ID: {artifact.proposal_id}",
+            f"Authorization status: {artifact.authorization_status}",
+            f"Candidates evaluated: {len(artifact.candidate_list)}",
+            f"Warnings: {len(artifact.warnings)}",
+        ]
+    lines.append(
+        "Recommendation: "
+        + (
+            f"{recommendation.candidate_id} — {recommendation.title}"
+            if recommendation is not None
+            else "(none)"
+        )
+    )
+    lines.append(f"Dry run: {'yes' if run.dry_run else 'no'}")
+    lines.append(
+        f"Artifact: {run.publication.artifact_path} "
+        f"({'written' if run.publication.created else 'already published'})"
+        if run.publication is not None
+        else "Artifact: (not published)"
+    )
+    lines += [
+        f"Error [{error.code}] {error.path_or_candidate_id}: {error.message}"
+        for error in run.errors
+    ]
+    # Written directly rather than through Rich for the same reason `_emit_prompt_success`'s
+    # human block is: Rich soft-wraps to the console width and highlights numbers and paths,
+    # which would silently corrupt a digest, an artifact path or a failure code.
+    sys.stdout.write("\n".join(lines) + "\n")
+    sys.stdout.flush()
+
+
+@successor_planning_app.command("propose")
+def successor_planning_propose(
+    config: ConfigOption,
+    predecessor: PredecessorOption = None,
+    output: SuccessorPlanningOutputOption = SuccessorPlanningOutput.CONSOLE,
+    dry_run: DryRunOption = False,
+) -> None:
+    """Propose a successor stage for --predecessor. Read-only; authorizes nothing.
+
+    `--dry-run` performs the complete inspection, reconciliation, eligibility evaluation, prompt
+    rendering and validation, and publishes nothing.
+    """
+    json_output = output == SuccessorPlanningOutput.JSON
+    run = _protected(
+        lambda: propose_successor(
+            config, predecessor=predecessor, output=output.value, dry_run=dry_run
+        ),
+        output=OutputFormat.JSON if json_output else OutputFormat.HUMAN,
+        command="successor-planning-propose",
+    )
+    if json_output:
+        sys.stdout.buffer.write(canonical_json(run.model_dump(mode="json")) + b"\n")
+        sys.stdout.buffer.flush()
+    else:
+        _print_successor_planning(run)
+    if run.outcome_class != "PROPOSAL_READY":
+        raise typer.Exit(code=1)
 
 
 # AUTO-009: the additive, read-only `workflowctl auto` sub-application. This is the *only* place

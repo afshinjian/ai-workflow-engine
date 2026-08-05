@@ -169,3 +169,14 @@ registered branch `feature/auto-015-successor-planning` was not created because 
 no commit authorization and rule 14 requires the branch to be cut from a `main` baseline that
 already carries the authorization record. A separate Human Owner-directed documentation commit and
 publication of this registration is required before initial start.
+
+## Initial start — 2026-08-04
+
+Registry status `AUTHORIZED`. The authorization record above landed on `main` (`c9cda88`); a
+subsequent session verified the initial-start preflight (predecessor AUTO-014 `COMPLETE`; no other
+`Current`/`AUTHORIZED`/`IN_PROGRESS` AUTO stage; clean, synchronized `main`; full `workflowctl
+verify` PASS; no pre-existing AUTO-015 branch or source symbol) and created branch
+`feature/auto-015-successor-planning` from `main` at `c9cda8823c4c9e37c806a057dba1b83684619dfe`.
+Registry state moves `AUTHORIZED → IN_PROGRESS` (rule 4; no new Human Owner authorization act).
+Implementation has not begun: progress is 0%, no production or test file changed, and no commit,
+push, PR, or merge occurred in this session.

@@ -23,6 +23,18 @@ registration are left uncommitted in the working tree. Registry state therefore 
 here. A separate Human Owner-directed documentation commit and publication of this registration is
 required before implementation may begin.
 
+**Initial start (2026-08-04):** a later session verified the authorization record above had
+landed on `main` (`c9cda88`), confirmed the standard initial-start preflight (active stage exactly
+AUTO-015, registry `AUTHORIZED`, predecessor AUTO-014 `COMPLETE`, clean/synchronized `main`, no
+other `Current`/`AUTHORIZED`/`IN_PROGRESS` AUTO stage, no pre-existing AUTO-015 branch or source
+symbol, full `workflowctl verify` PASS), and created branch `feature/auto-015-successor-planning`
+from `main` at `c9cda8823c4c9e37c806a057dba1b83684619dfe`. Per rule 4 the registry state moved
+`AUTHORIZED → IN_PROGRESS`; no new Human Owner authorization act occurred. This session performed
+the initial-start transition only — **no implementation was performed**: implementation progress
+remains 0%, no production or test file changed, and no commit, push, PR, or merge occurred. Full
+record: `docs/workflow-automation/STAGE_REGISTRY.md`, 2026-08-04 "AUTO-015 (initial-start
+preflight passed)".
+
 ## Prior current-task history
 
 AUTO-014 — CI, Merge, Repository Finalization, and Runtime Closeout was closed `Current -> Done`
