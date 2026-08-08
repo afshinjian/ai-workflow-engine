@@ -203,3 +203,19 @@ validating, and committing that record locally, with push withheld for Human Own
 initial-start session will create the branch from the synchronized authorized baseline and record
 `AUTHORIZED → IN_PROGRESS`; a separate implementation session will then execute AUTO-016. Live
 acceptance is authorized only during that later implementation/verification phase.
+
+## Initial start — 2026-08-06
+
+Registry status was `AUTHORIZED`. The authorization record above landed on `main` and was published
+to `origin/main` (`4cbd714`); a subsequent session verified the initial-start preflight (predecessor
+AUTO-015 `COMPLETE`, merged as `e325f95` via pull request #17; no other AUTO stage `AUTHORIZED` or
+`IN_PROGRESS`; exactly one `Current` task; clean, synchronized `main` == `origin/main` at
+`4cbd714dd6a83de1b390feac39223e0b8f5d4cbf` with zero divergence and no staged or untracked files;
+finalized Revision 4 contract present and unmodified at its recorded SHA-256; all Human Owner
+decisions DEC-016-001 through DEC-016-008 recorded; full `workflowctl verify` PASS; no pre-existing
+AUTO-016 branch or `milestone_runner` source symbol) and created branch
+`feature/auto-016-milestone-runner` from `main` at
+`4cbd714dd6a83de1b390feac39223e0b8f5d4cbf`. Registry state moves `AUTHORIZED → IN_PROGRESS` (rule 4;
+no new Human Owner authorization act). Implementation has not begun: progress is 0%, no production,
+test, script, package, or dependency file changed, the local prototype runner is untouched, no
+provider was invoked, and no commit, push, PR, or merge occurred or was permitted in that session.

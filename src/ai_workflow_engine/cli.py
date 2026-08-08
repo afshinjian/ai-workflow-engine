@@ -3,7 +3,7 @@
 import json
 import sys
 import traceback
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, TypeVar, cast
@@ -21,7 +21,7 @@ from ai_workflow_engine.commit.gates import (
     run_push_gate,
 )
 from ai_workflow_engine.config import load_config
-from ai_workflow_engine.exceptions import UnsupportedSchemaVersionError
+from ai_workflow_engine.exceptions import UnsupportedSchemaVersionError, WorkflowEngineError
 from ai_workflow_engine.git.approval import load_commit_approval, load_push_approval
 from ai_workflow_engine.git.client import GitClient
 from ai_workflow_engine.git.validators import check_git, matching_paths
@@ -35,6 +35,16 @@ from ai_workflow_engine.migration.apply import apply_migration
 from ai_workflow_engine.migration.errors import ApplyNotAuthorizedError
 from ai_workflow_engine.migration.inspect import default_migration_source, inspect_source
 from ai_workflow_engine.migration.plan import build_backup_plan, build_recovery_plan
+from ai_workflow_engine.milestone_runner.application import (
+    ApprovalReport,
+    MilestoneRunnerApplication,
+    PlanReport,
+    PreflightReport,
+    RecoveryReport,
+    RunReport,
+    StatusReport,
+    VerifyReport,
+)
 from ai_workflow_engine.models import EngineConfig
 from ai_workflow_engine.prompt.context import build_prompt_context
 from ai_workflow_engine.prompt.models import (
@@ -1254,6 +1264,336 @@ def successor_planning_propose(
         _print_successor_planning(run)
     if run.outcome_class != "PROPOSAL_READY":
         raise typer.Exit(code=1)
+
+
+# AUTO-016: the additive `workflowctl milestone-runner` sub-application, registered exactly as
+# `successor-planning` already is. Section 7 is binding here: business logic never lives in a CLI
+# handler. Each of the thirteen functions below parses its options, calls exactly one
+# `MilestoneRunnerApplication` method, renders the typed result it gets back and selects an exit
+# code -- nothing decides anything. Every gate, every transition, every scope check and the whole
+# of section 20's Git authority live in the application and in `milestone_runner/approval_git.py`.
+# No existing command is moved, renamed or changed.
+
+milestone_runner_app = typer.Typer(
+    help=(
+        "Drive an already-authorized stage as a bounded, resumable sequence of typed milestones. "
+        "Authorizes nothing, registers nothing, and stops at a human commit gate that is "
+        "disabled by default."
+    )
+)
+app.add_typer(milestone_runner_app, name="milestone-runner")
+
+#: Section 9's conventions: long-form `--kebab-case` options only, no short flags, module-level
+#: `Annotated` aliases. `--config` names a validated runner configuration file, which is a
+#: different document from `self-governance.yaml`.
+MilestoneRunnerConfigOption = Annotated[Path, typer.Option("--config", dir_okay=False)]
+MilestoneOption = Annotated[str, typer.Option("--milestone")]
+ReasonOption = Annotated[str, typer.Option("--reason")]
+ClassificationOption = Annotated[str, typer.Option("--classification")]
+RulingOption = Annotated[str, typer.Option("--ruling")]
+MilestoneRunnerJsonOption = Annotated[bool, typer.Option("--json")]
+
+
+def _milestone_runner_application(config: Path) -> MilestoneRunnerApplication:
+    """Load the validated runner configuration and bind an application to it.
+
+    An unreadable or invalid configuration is an operational error, so it exits `2` through
+    `_protected` rather than being reported as a domain failure -- section 4 item 8's rule that a
+    missing configuration is a precondition failure, never an assumed default.
+    """
+    return _protected(
+        lambda: MilestoneRunnerApplication.from_config_path(config),
+        command="milestone-runner",
+    )
+
+
+def _milestone_runner_protected(operation: Callable[[], T], *, command: str) -> T:
+    """Run one application method under section 9's exit-code contract.
+
+    The split is by exception type, and it is the contract's own. A `WorkflowEngineError` is one of
+    the package's typed refusals -- a tripped gate, a refused transition, a refused recovery, an
+    approval that no longer binds -- and that is a **domain** failure, so it exits `1`. Anything
+    else is unexpected, which is an **operational** error and exits `2` with the same exact-bytes
+    stderr shape `_protected` uses. `--debug` prints the traceback for either.
+    """
+    try:
+        return operation()
+    except WorkflowEngineError as exc:
+        if _debug:
+            traceback.print_exc()
+        sys.stderr.write(f"ERROR [{command}]: {exc}\n")
+        sys.stderr.flush()
+        raise typer.Exit(code=1) from exc
+    except Exception as exc:
+        if _debug:
+            traceback.print_exc()
+        sys.stderr.write(f"ERROR [{command}]: {exc}\n")
+        sys.stderr.flush()
+        raise typer.Exit(code=2) from exc
+
+
+def _print_milestone_runner(lines: Sequence[str]) -> None:
+    """Render one typed report for a human reader. Presentation only; nothing is computed.
+
+    Written directly rather than through Rich for the same reason `_print_successor_planning` is:
+    Rich soft-wraps to the console width and highlights numbers and paths, which would silently
+    corrupt a digest, an object id or a stop reason.
+    """
+    sys.stdout.write("\n".join(lines) + "\n")
+    sys.stdout.flush()
+
+
+def _milestone_runner_exit(satisfied: bool) -> None:
+    """Section 9's exit-code contract: `0` success, `1` domain failure or tripped gate.
+
+    `2` is `_protected`'s, and belongs to an operational error -- an unreadable configuration, an
+    unusable repository, a refused lock -- which never reaches this function.
+    """
+    if not satisfied:
+        raise typer.Exit(code=1)
+
+
+def _preflight_lines(report: PreflightReport) -> list[str]:
+    lines = [f"Entry conditions: {'satisfied' if report.satisfied else 'NOT satisfied'}"]
+    for condition in report.conditions:
+        if not condition.evaluated:
+            mark = "SKIP"
+        elif condition.satisfied:
+            mark = "PASS"
+        else:
+            mark = "FAIL"
+        lines.append(f"  [{mark}] {condition.number}. {condition.name}: {condition.detail}")
+    return lines
+
+
+def _plan_lines(report: PlanReport) -> list[str]:
+    lines = [f"Plan: {'valid' if report.satisfied else 'INVALID'}", f"  {report.detail}"]
+    if report.plan is not None:
+        lines.append(f"  Source files: {len(report.plan.source_paths)}")
+        lines.append(f"  Covered paths: {len(report.plan.covered_paths())}")
+        lines.append(f"  Required coverage: {len(report.required_coverage)}")
+    return lines
+
+
+def _status_lines(report: StatusReport) -> list[str]:
+    lines = [f"Run: {report.run_id or '(none)'}", f"Status: {report.detail}"]
+    record = report.record
+    if record is not None:
+        lines += [
+            f"Branch: {record.expected_branch}",
+            f"Baseline: {record.baseline_sha}",
+            f"Completed milestones: {', '.join(record.completed_milestones) or '(none)'}",
+            f"Current milestone: {record.current_milestone or '(none)'}",
+            f"Changed paths: {len(record.changed_paths)}",
+            f"Provider runs: {len(record.provider_runs)}",
+            f"Verification results: {len(record.verification_results)}",
+            f"Blocking findings: {len(record.blocking_findings)}",
+            f"Deferred findings: {len(record.deferred_findings)}",
+            f"Approvals: {len(record.approvals)}",
+        ]
+    return lines
+
+
+def _verify_lines(report: VerifyReport) -> list[str]:
+    lines = _preflight_lines(report.preflight)
+    lines.append(f"Verification set: {len(report.results)} command(s)")
+    for result in report.results:
+        lines.append(
+            f"  [{'PASS' if result.passed else 'FAIL'}] {' '.join(result.command)} "
+            f"(exit {result.exit_code}, {result.duration_ms}ms)"
+        )
+    return lines
+
+
+def _run_lines(report: RunReport) -> list[str]:
+    return [
+        f"Run: {report.run_id}",
+        f"State: {report.state.value}",
+        f"Stop reason: {report.stop_reason.value if report.stop_reason else '(none)'}",
+        f"Completed milestones: {', '.join(report.completed_milestones) or '(none)'}",
+        f"Current milestone: {report.current_milestone or '(none)'}",
+        report.detail,
+    ]
+
+
+def _recovery_lines(report: RecoveryReport) -> list[str]:
+    budgets = ", ".join(
+        f"{name}{delta:+d}" for name, delta in sorted(report.budgets_touched.items())
+    )
+    return [
+        f"Run: {report.run_id}",
+        f"Recovery: {report.command.value}",
+        f"State: {report.pre_state.value} -> {report.post_state.value}",
+        f"Budgets touched: {budgets or '(none)'}",
+        report.summary,
+    ]
+
+
+def _approval_lines(report: ApprovalReport) -> list[str]:
+    return list(report.lines)
+
+
+def _emit_milestone_runner_status(report: StatusReport, json_output: bool) -> None:
+    """Render `status` as either the human block or the exact JSON document."""
+    if json_output:
+        _write_stdout(json.dumps(report.payload(), indent=2, sort_keys=True))
+    else:
+        _print_milestone_runner(_status_lines(report))
+
+
+@milestone_runner_app.command("doctor")
+def milestone_runner_doctor(config: MilestoneRunnerConfigOption) -> None:
+    """Evaluate every section 4 entry condition. Read-only; acquires no lock and writes nothing."""
+    application = _milestone_runner_application(config)
+    report = _milestone_runner_protected(application.doctor, command="milestone-runner-doctor")
+    _print_milestone_runner(_preflight_lines(report))
+    _milestone_runner_exit(report.satisfied)
+
+
+@milestone_runner_app.command("plan")
+def milestone_runner_plan(config: MilestoneRunnerConfigOption) -> None:
+    """Load, validate, dependency-order and coverage-reconcile the milestone plan. Read-only."""
+    application = _milestone_runner_application(config)
+    report = _milestone_runner_protected(application.plan, command="milestone-runner-plan")
+    _print_milestone_runner(_plan_lines(report))
+    _milestone_runner_exit(report.satisfied)
+
+
+@milestone_runner_app.command("start")
+def milestone_runner_start(config: MilestoneRunnerConfigOption) -> None:
+    """Start a run: acquire the lock, publish the initial state and drive the approved flow."""
+    application = _milestone_runner_application(config)
+    report = _milestone_runner_protected(application.start, command="milestone-runner-start")
+    _print_milestone_runner(_run_lines(report))
+    _milestone_runner_exit(report.satisfied)
+
+
+@milestone_runner_app.command("resume")
+def milestone_runner_resume(config: MilestoneRunnerConfigOption) -> None:
+    """Continue an interrupted run from exactly where it stopped, re-verifying every condition."""
+    application = _milestone_runner_application(config)
+    report = _milestone_runner_protected(application.resume, command="milestone-runner-resume")
+    _print_milestone_runner(_run_lines(report))
+    _milestone_runner_exit(report.satisfied)
+
+
+@milestone_runner_app.command("status")
+def milestone_runner_status(
+    config: MilestoneRunnerConfigOption,
+    json_output: MilestoneRunnerJsonOption = False,
+) -> None:
+    """Print the durable run record. Read-only; acquires no lock."""
+    application = _milestone_runner_application(config)
+    report = _milestone_runner_protected(application.status, command="milestone-runner-status")
+    _emit_milestone_runner_status(report, json_output)
+    _milestone_runner_exit(report.satisfied)
+
+
+@milestone_runner_app.command("verify")
+def milestone_runner_verify(config: MilestoneRunnerConfigOption) -> None:
+    """Re-run the safety gates and the full verification set. Read-only; persists nothing."""
+    application = _milestone_runner_application(config)
+    report = _milestone_runner_protected(application.verify, command="milestone-runner-verify")
+    _print_milestone_runner(_verify_lines(report))
+    _milestone_runner_exit(report.satisfied)
+
+
+@milestone_runner_app.command("reconcile-milestone")
+def milestone_runner_reconcile_milestone(
+    config: MilestoneRunnerConfigOption,
+    milestone: MilestoneOption,
+    reason: ReasonOption,
+) -> None:
+    """Reconcile a milestone whose result was valid but non-conforming. Budgets untouched."""
+    application = _milestone_runner_application(config)
+    report = _milestone_runner_protected(
+        lambda: application.reconcile_milestone(milestone=milestone, reason=reason),
+        command="milestone-runner-reconcile-milestone",
+    )
+    _print_milestone_runner(_recovery_lines(report))
+    _milestone_runner_exit(report.satisfied)
+
+
+@milestone_runner_app.command("reopen-milestone")
+def milestone_runner_reopen_milestone(
+    config: MilestoneRunnerConfigOption,
+    milestone: MilestoneOption,
+    reason: ReasonOption,
+) -> None:
+    """Reopen one milestone under an explicit Human Owner scope ruling. Budgets preserved."""
+    application = _milestone_runner_application(config)
+    report = _milestone_runner_protected(
+        lambda: application.reopen_milestone(milestone=milestone, reason=reason),
+        command="milestone-runner-reopen-milestone",
+    )
+    _print_milestone_runner(_recovery_lines(report))
+    _milestone_runner_exit(report.satisfied)
+
+
+@milestone_runner_app.command("recover-failed-review")
+def milestone_runner_recover_failed_review(
+    config: MilestoneRunnerConfigOption,
+    classification: ClassificationOption,
+    ruling: RulingOption,
+) -> None:
+    """Restore exactly one review budget a recorded provider failure consumed."""
+    application = _milestone_runner_application(config)
+    report = _milestone_runner_protected(
+        lambda: application.recover_failed_review(classification=classification, ruling=ruling),
+        command="milestone-runner-recover-failed-review",
+    )
+    _print_milestone_runner(_recovery_lines(report))
+    _milestone_runner_exit(report.satisfied)
+
+
+@milestone_runner_app.command("revalidate-correction")
+def milestone_runner_revalidate_correction(config: MilestoneRunnerConfigOption) -> None:
+    """Clear a post-correction verification failure. Budgets explicitly untouched."""
+    application = _milestone_runner_application(config)
+    report = _milestone_runner_protected(
+        application.revalidate_correction,
+        command="milestone-runner-revalidate-correction",
+    )
+    _print_milestone_runner(_recovery_lines(report))
+    _milestone_runner_exit(report.satisfied)
+
+
+@milestone_runner_app.command("approve-commit")
+def milestone_runner_approve_commit(config: MilestoneRunnerConfigOption) -> None:
+    """Print the exact commit commands. Executes only under the configuration flip, the typed
+    confirmation `APPROVE COMMIT` and a bound, unexpired, single-use approval."""
+    application = _milestone_runner_application(config)
+    report = _milestone_runner_protected(
+        application.approve_commit, command="milestone-runner-approve-commit"
+    )
+    _print_milestone_runner(_approval_lines(report))
+    _milestone_runner_exit(report.satisfied)
+
+
+@milestone_runner_app.command("approve-push")
+def milestone_runner_approve_push(config: MilestoneRunnerConfigOption) -> None:
+    """Print the exact push command. Executes only under the configuration flip, the typed
+    confirmation `APPROVE PUSH` and a bound, unexpired, single-use approval."""
+    application = _milestone_runner_application(config)
+    report = _milestone_runner_protected(
+        application.approve_push, command="milestone-runner-approve-push"
+    )
+    _print_milestone_runner(_approval_lines(report))
+    _milestone_runner_exit(report.satisfied)
+
+
+@milestone_runner_app.command("abort")
+def milestone_runner_abort(
+    config: MilestoneRunnerConfigOption,
+    reason: ReasonOption,
+) -> None:
+    """Abort the run, holding the run lock like every other state-mutating command (defect P-6)."""
+    application = _milestone_runner_application(config)
+    report = _milestone_runner_protected(
+        lambda: application.abort(reason=reason), command="milestone-runner-abort"
+    )
+    _print_milestone_runner(_run_lines(report))
+    _milestone_runner_exit(report.satisfied)
 
 
 # AUTO-009: the additive, read-only `workflowctl auto` sub-application. This is the *only* place

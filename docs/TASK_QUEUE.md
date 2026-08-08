@@ -1744,3 +1744,30 @@ authorization commit to `origin/main`, a separate **initial-start session** crea
 then executes AUTO-016 using the milestone runner. Live acceptance (contract §27) is authorized only
 as the finalized contract defines it and only during that later implementation/verification phase —
 never during this authorization session.
+
+**Initial start (2026-08-06):** the authorization record above landed on `main` and was published
+to `origin/main` as `4cbd714`. A subsequent initial-start session verified the standard
+initial-start preflight — active stage exactly AUTO-016 with registry status `AUTHORIZED`;
+predecessor AUTO-015 `COMPLETE`, merged as `e325f95`, published via pull request #17; no other AUTO
+stage `AUTHORIZED` or `IN_PROGRESS`; `docs/TASK_QUEUE.md`/`docs/current_task.md`/
+`docs/remaining_tasks.md` agree with exactly one `Current` task; clean, synchronized `main` ==
+`origin/main` at `4cbd714dd6a83de1b390feac39223e0b8f5d4cbf` with zero divergence, no staged or
+untracked files; no pre-existing AUTO-016 branch (local or remote), `milestone_runner` source
+symbol, or registry row beyond the authorization entry; the finalized Revision 4 contract present
+and unmodified at SHA-256 `56f6a8f5720f30543f5b0623f5cb52ffa2cc45cbe51be8c5f9b9f5f256b90a7e`, the
+value recorded at authorization; DEC-016-001 through DEC-016-008 all recorded in
+`docs/DECISION_LOG.md`; `workflowctl check-task-state`, `check-governance`, `check-handover`, and
+`verify --config self-governance.yaml` all full PASS — then created branch
+`feature/auto-016-milestone-runner` from that clean, synchronized `main`; the branch's HEAD and its
+merge-base with `main` both equal `4cbd714dd6a83de1b390feac39223e0b8f5d4cbf`, the branch carries the
+authoritative authorization record as its tip commit, and no additional commit and no remote branch
+were created. Per `STAGE_REGISTRY.md` §3 rule 4 the registry state moves
+`AUTHORIZED → IN_PROGRESS`; no new Human Owner authorization act occurs. **This session performs the
+initial-start transition only — no implementation begins.** Implementation progress remains 0%; no
+file under `src/`, `tests/`, `agentos_workflow/`, or `agentos_dashboard/` changed; no script,
+package, or dependency file changed; the local prototype runner is untouched (DEC-016-006); no
+provider was invoked and no live acceptance was performed; and this session held no commit, push,
+PR, or merge permission, so none occurred. AUTO-016 remains bounded by the exact finalized Revision
+4 contract and its exact nineteen-file implementation allowlist (§23), with the forbidden surface
+(§24) unchanged. Full record: `docs/workflow-automation/STAGE_REGISTRY.md`, 2026-08-06 "AUTO-016
+(initial-start preflight passed)".
