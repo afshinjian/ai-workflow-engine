@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Board · AgentOS Dashboard{% endblock %}
+{% block content %}
+<h1>Board</h1>
+<p class="empty-state">Read-only: no drag/drop, status edit, or other mutation affordance exists on this page (DR-023).</p>
+
+<section aria-labelledby="stage-strip-heading">
+  <h2 id="stage-strip-heading">
+    Engine workflow stages <span class="badge badge-info">reference, display-only</span>
+  </h2>
+  <ol class="stage-strip">
+    {% for stage in board.workflow_stages %}
+      <li>{{ stage }}</li>
+    {% endfor %}
+  </ol>
+</section>
+
+<section aria-labelledby="board-findings-heading">
+  <h2 id="board-findings-heading">Board findings</h2>
+  {% if board.findings %}
+    <ul>
+      {% for finding in board.findings %}
+        <li>
+          <span class="badge badge-{{ finding.severity.value }}">{{ finding.severity.value|upper }}</span>
+          {{ finding.rule }}: {{ finding.message }}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="empty-state">No board findings — every recognized task heading has a Status field</p>
+  {% endif %}
+</section>
+
+<section aria-labelledby="lanes-heading">
+  <h2 id="lanes-heading" class="visually-hidden">Queue lanes</h2>
+  <div class="board-lanes">
+    <div class="lane" aria-labelledby="lane-planned-heading">
+      <h3 id="lane-planned-heading">Planned <span class="badge badge-info">{{ board.planned|length }}</span></h3>
+      {% for card in board.planned %}
+        {% include "_board_card.html" %}
+      {% else %}
+        <p class="empty-state">No Planned tasks</p>
+      {% endfor %}
+    </div>
+    <div class="lane" aria-labelledby="lane-current-heading">
+      <h3 id="lane-current-heading">Current <span class="badge badge-info">{{ board.current|length }}</span></h3>
+      {% for card in board.current %}
+        {% include "_board_card.html" %}
+      {% else %}
+        <p class="empty-state">No Current task — expected between authorized tasks</p>
+      {% endfor %}
+    </div>
+    <div class="lane" aria-labelledby="lane-done-heading">
+      <h3 id="lane-done-heading">Done <span class="badge badge-info">{{ board.done|length }}</span></h3>
+      {% for card in board.done %}
+        {% include "_board_card.html" %}
+      {% else %}
+        <p class="empty-state">No Done tasks</p>
+      {% endfor %}
+    </div>
+    <div class="lane lane-unclassified" aria-labelledby="lane-unclassified-heading">
+      <h3 id="lane-unclassified-heading">Unclassified <span class="badge badge-info">{{ board.unclassified|length }}</span></h3>
+      {% for card in board.unclassified %}
+        <article class="card card-unclassified">
+          <h4>{{ card.task_id }} — {{ card.title }}</h4>
+          <p><span class="badge badge-warning">UNCLASSIFIED</span>
+             recorded status: {{ card.raw_status or "none recorded" }}</p>
+          <p class="empty-state">{{ card.source }}:{{ card.line }}</p>
+        </article>
+      {% else %}
+        <p class="empty-state">No unclassified task headings — every recognized heading has a Status field</p>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section aria-labelledby="orch-heading" class="orch-lane">
+  <h2 id="orch-heading">Orchestration program (ORCH) <span class="badge badge-info">separate program lane</span></h2>
+  {% for stage in board.orch_stages %}
+    <article class="card card-orch">
+      <h4>{{ stage.stage_id }} — {{ stage.title or "untitled" }}</h4>
+      <p><span class="badge badge-info">{{ (stage.status or "unknown")|upper }}</span></p>
+      <dl>
+        <dt>Prerequisites</dt>
+        <dd>{{ stage.prerequisites|join(", ") if stage.prerequisites else "none" }}</dd>
+        <dt>Blockers</dt>
+        <dd>{{ stage.blockers|join("; ") if stage.blockers else "none recorded" }}</dd>
+        <dt>Evidence</dt>
+        <dd>{{ stage.evidence|join(", ") if stage.evidence else "none recorded" }}</dd>
+      </dl>
+    </article>
+  {% else %}
+    <p class="empty-state">No orchestration stages recorded</p>
+  {% endfor %}
+</section>
+{% endblock %}

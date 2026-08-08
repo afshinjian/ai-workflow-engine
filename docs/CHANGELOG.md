@@ -7,6 +7,15 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- DASH-005 (2026-08-08): implemented, Human-Owner-approved, and closed
+  `Current -> Done` in one local commit via scripts/workflow-approve.sh's automatic
+  task closeout (GOV-AUTO-03).
+- DASH-005 (2026-08-08): implemented and validated on the registered branch
+  `feature/dash-005-board-task-detail` — the workflow board (queue lanes, a coded display-only
+  mirror of the engine's seven workflow stages, the ORCH program lane, an unclassified lane) and
+  the task detail page (recorded scope, an acceptance-criteria checklist, lifecycle history
+  parsed from queue prose, Git-verified commit references, and related-document links), all
+  read-only with zero mutation affordance. Stopped, uncommitted, for Human Owner approval.
 - DASH-005 (2026-08-08): explicitly authorized by the Human Owner through the local
   two-confirmation task gate; authorization commit and implementation remain separate.
 - GOV-4 (2026-08-02): implemented, Human-Owner-approved, and closed `Current -> Done` — two

@@ -8,6 +8,7 @@ from typing import Any
 
 from fastapi import APIRouter
 
+from agentos_dashboard.api.board import board_to_json, task_detail_to_json, workflow_view_to_json
 from agentos_dashboard.api.envelope import ok
 from agentos_dashboard.api.errors import ApiErrorCode, DashboardAPIError
 from agentos_dashboard.api.lock import ExecutionLock
@@ -15,6 +16,7 @@ from agentos_dashboard.api.overview import build_overview, overview_to_json
 from agentos_dashboard.api.snapshot_cache import SnapshotBuildInProgress, SnapshotCache
 from agentos_dashboard.core import utc_now
 from agentos_dashboard.core.snapshot import RepositorySnapshot
+from agentos_dashboard.services.tasks import build_task_detail
 from agentos_dashboard.settings import DashboardSettings
 
 __all__ = ["build_router"]
@@ -75,5 +77,20 @@ def build_router(
                 ApiErrorCode.SNAPSHOT_BUILDING, "a snapshot rebuild is already in progress"
             ) from exc
         return ok(_snapshot_payload(refreshed))
+
+    @router.get("/tasks")
+    async def tasks_board(status: str | None = None, program: str | None = None) -> dict[str, Any]:
+        return ok(board_to_json(cache.get(), status=status, program=program))
+
+    @router.get("/tasks/{task_id}")
+    async def task_detail(task_id: str) -> dict[str, Any]:
+        detail = build_task_detail(cache.get(), task_id)
+        if detail is None:
+            raise DashboardAPIError(ApiErrorCode.NOT_FOUND, f"unknown task id: {task_id!r}")
+        return ok(task_detail_to_json(detail))
+
+    @router.get("/workflow")
+    async def workflow_view() -> dict[str, Any]:
+        return ok(workflow_view_to_json(cache.get()))
 
     return router

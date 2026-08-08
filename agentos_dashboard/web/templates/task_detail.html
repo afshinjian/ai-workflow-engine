@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block title %}{% if detail %}{{ detail.task_id }} · AgentOS Dashboard{% else %}Task not found · AgentOS Dashboard{% endif %}{% endblock %}
+{% block content %}
+{% if detail is none %}
+  <h1>Task not found</h1>
+  <p class="empty-state">
+    {{ requested_task_id }} is not a recognized <code>docs/TASK_QUEUE.md</code> record.
+    <a href="/board">Back to the board</a>.
+  </p>
+{% else %}
+  <h1>{{ detail.task_id }} — {{ detail.title }}</h1>
+  <p>
+    <span class="badge badge-info">{{ detail.program }}</span>
+    <span class="badge badge-{{ 'pass' if detail.status.value == 'Done' else 'info' }}">{{ detail.status.value|upper }}</span>
+    <a href="/board">back to board</a>
+  </p>
+  <p class="empty-state">Recorded at {{ detail.source }}:{{ detail.line }}. Read-only: no edit affordance exists.</p>
+
+  <section aria-labelledby="scope-heading">
+    <h2 id="scope-heading">Recorded scope <span class="badge badge-info">as recorded in queue prose</span></h2>
+    <pre class="prose">{{ detail.raw_text }}</pre>
+  </section>
+
+  <section aria-labelledby="ac-heading">
+    <h2 id="ac-heading">Acceptance-criteria checklist</h2>
+    <p class="empty-state">
+      Derived from queue prose clauses (DR-030); each line's checked state reflects the task's
+      overall recorded status, not independent per-item verification.
+    </p>
+    {% if detail.acceptance_items %}
+      <ul class="checklist">
+        {% for item in detail.acceptance_items %}
+          <li><input type="checkbox" disabled {% if item.done %}checked{% endif %}> {{ item.text }}</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="empty-state">No recognizable clauses in the recorded prose</p>
+    {% endif %}
+  </section>
+
+  <section aria-labelledby="allowed-heading">
+    <h2 id="allowed-heading">Allowed / forbidden files <span class="badge badge-info">where recorded</span></h2>
+    {% if detail.stage_contract and detail.stage_contract.allowed_text %}
+      <p>Recorded in <code>{{ detail.stage_contract.path }}</code> (governance browser not yet available — DASH-007):</p>
+      <p>{{ detail.stage_contract.allowed_text }}</p>
+    {% else %}
+      <p class="empty-state">Not recorded in queue prose for this task</p>
+    {% endif %}
+  </section>
+
+  <section aria-labelledby="validation-heading">
+    <h2 id="validation-heading">Required validation <span class="badge badge-info">where recorded</span></h2>
+    {% if detail.validation_notes %}
+      <ul>
+        {% for note in detail.validation_notes %}<li>{{ note }}</li>{% endfor %}
+      </ul>
+    {% else %}
+      <p class="empty-state">Not recorded in queue prose</p>
+    {% endif %}
+  </section>
+
+  <section aria-labelledby="documentation-heading">
+    <h2 id="documentation-heading">Documentation updates <span class="badge badge-info">where recorded</span></h2>
+    {% if detail.documentation_notes %}
+      <ul>
+        {% for note in detail.documentation_notes %}<li>{{ note }}</li>{% endfor %}
+      </ul>
+    {% else %}
+      <p class="empty-state">Not recorded in queue prose</p>
+    {% endif %}
+  </section>
+
+  <section aria-labelledby="rollback-heading">
+    <h2 id="rollback-heading">Rollback <span class="badge badge-info">where recorded</span></h2>
+    {% if detail.rollback_notes %}
+      <ul>
+        {% for note in detail.rollback_notes %}<li>{{ note }}</li>{% endfor %}
+      </ul>
+    {% else %}
+      <p class="empty-state">Not recorded in queue prose</p>
+    {% endif %}
+  </section>
+
+  <section aria-labelledby="lifecycle-heading">
+    <h2 id="lifecycle-heading">Lifecycle history <span class="badge badge-info">parsed from queue prose</span></h2>
+    {% if detail.lifecycle_events %}
+      <ul>
+        {% for event in detail.lifecycle_events %}
+          <li><span class="badge badge-info">{{ event.kind|upper }}</span> {{ event.text }}</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="empty-state">No recognizable review/completion/merge milestones in the recorded prose</p>
+    {% endif %}
+  </section>
+
+  <section aria-labelledby="provenance-heading">
+    <h2 id="provenance-heading">Git provenance <span class="badge badge-info">DR-032, verified against Git</span></h2>
+    {% if detail.commit_references %}
+      <ul>
+        {% for ref in detail.commit_references %}
+          <li>
+            <code>{{ ref.token }}</code>
+            {% if ref.resolvable %}
+              <span class="badge badge-pass">VERIFIED</span> resolves to <code>{{ ref.resolved_sha }}</code>
+            {% else %}
+              <span class="badge badge-error">UNRESOLVABLE</span>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="empty-state">No commit references recorded in this task's prose</p>
+    {% endif %}
+  </section>
+
+  <section aria-labelledby="documents-heading">
+    <h2 id="documents-heading">Related documents <span class="badge badge-info">DR-033</span></h2>
+    {% if detail.doc_references %}
+      <ul>
+        {% for ref in detail.doc_references %}
+          <li>
+            <code>{{ ref.path }}</code>
+            {% if ref.exists %}
+              <span class="badge badge-pass">VERIFIED</span>
+            {% else %}
+              <span class="badge badge-error">MISSING</span>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="empty-state">No document references recorded in this task's prose</p>
+    {% endif %}
+    <p class="empty-state">
+      Referenced tasks: {{ detail.referenced_tasks|join(", ") if detail.referenced_tasks else "none recorded" }}
+    </p>
+  </section>
+
+  <section aria-labelledby="consistency-heading">
+    <h2 id="consistency-heading">Related consistency findings</h2>
+    {% if detail.related_findings %}
+      <ul>
+        {% for finding in detail.related_findings %}
+          <li>
+            <span class="badge badge-{{ finding.severity.value }}">{{ finding.severity.value|upper }}</span>
+            {{ finding.rule }}: {{ finding.message }}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="empty-state">No related consistency findings</p>
+    {% endif %}
+  </section>
+
+  <section aria-labelledby="raw-heading">
+    <h2 id="raw-heading" class="visually-hidden">Raw source</h2>
+    <details>
+      <summary>Raw Markdown source (<code>{{ detail.source }}:{{ detail.line }}</code>)</summary>
+      <pre class="prose">{{ detail.raw_text }}</pre>
+    </details>
+  </section>
+{% endif %}
+{% endblock %}

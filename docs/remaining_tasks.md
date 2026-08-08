@@ -130,7 +130,6 @@ every later roadmap phase remain unauthorized. Completion report:
 
 | Task | Title | Status |
 |---|---|---|
-| DASH-005 | Workflow board and task detail | Current |
 | DASH-006 | Git, upstream, handover, and consistency views | Planned |
 | DASH-007 | Stage registry and prompt generation | Planned |
 | DASH-008 | Run records, evidence, and audit timeline | Planned |
@@ -198,3 +197,11 @@ verification, one out-of-band closure of the last blocker, final verification 11
 state `READY_FOR_COMMIT_APPROVAL`, no blocking findings. The deferred finding
 `AUTO-016-M08-BLOCKER-001` is retained as explicitly non-blocking. This closure authorizes no
 successor — AUTO-017 and every later roadmap phase remain unauthorized and `Planned`.
+
+## DASH-005 implementation update — 2026-08-08
+
+**DASH-005 — Workflow board and task detail — was authorized by the Human Owner on 2026-08-08**
+as the single `Current` task — implemented and validated the same day on its registered branch
+`feature/dash-005-board-task-detail` (the queue-lane board, the coded workflow-stage strip, the
+ORCH program lane, the unclassified lane, and the task detail page), stopped, uncommitted, for
+Human Owner approval; report: `docs/reports/agentos-dashboard/STAGE-05-completion.md`.

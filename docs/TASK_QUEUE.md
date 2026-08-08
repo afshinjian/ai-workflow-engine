@@ -748,10 +748,25 @@ reconciliation-log entry per `SECURITY_MODEL.md` §7.
 
 ## DASH-005 — Workflow board and task detail
 
-Status: Current
+Status: Done
 
 Queue-lane board (Planned/Current/Done), workflow-stage strip, ORCH program lane, task detail
 views. Contract: `docs/agentos-dashboard/stage-prompts/DASH-005.md`.
+
+Authorized by the Human Owner on 2026-08-08; implemented and validated the same day on the
+registered branch `feature/dash-005-board-task-detail`. New services
+(`agentos_dashboard/services/{workflow,board,tasks,_prose}.py`), API routes (EP-04/EP-05/EP-06 in
+`agentos_dashboard/api/board.py`, wired into `api/routes.py`), and templates (PG-02 `board.html`,
+PG-03 `task_detail.html`) — read-only, zero mutation affordance (DR-023). The board's per-task
+workflow-stage strip is a fixed, coded mirror of the engine's seven stages and transition table
+(display-only, never a per-task computed position — see `services/workflow.py`'s module docstring
+and `OPEN_QUESTIONS.md` OD-D12 for why); the task detail page's lifecycle history, acceptance
+checklist, Git provenance, and document references are tolerant extractions over queue prose,
+each labeled "as recorded"/"where recorded". Against the real repository: GOV-1 and T-501 render
+as `Done`; T-401's two-round plan review renders as two `review`-kind lifecycle events; DASH-001
+renders in its actual `Done` state with its stage contract's `Allowed` field surfaced. 72 new
+tests, all passing; engine suite collection and green status unaffected. Stopped, uncommitted, for
+Human Owner approval. Report: `docs/reports/agentos-dashboard/STAGE-05-completion.md`.
 
 ## DASH-006 — Git, upstream, handover, and consistency views
 

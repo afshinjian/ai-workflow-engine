@@ -5,7 +5,7 @@
 | **Title** | AgentOS Dashboard — Decisions |
 | **Purpose** | Append-only record of dashboard-program decisions (DD-##). Subordinate to `docs/DECISION_LOG.md`; cross-posted there when repository governance requires. |
 | **Status** | Draft |
-| **Version** | 1.4 |
+| **Version** | 1.5 |
 | **Owner** | Documentation & Governance session (append) · Human Owner (approval) |
 | **Dependencies** | `MASTER_PLAN.md` §8 |
 | **Related Documents** | `docs/DECISION_LOG.md` |
@@ -274,6 +274,60 @@ appended, never rewritten; supersessions are explicit.
 - **Reconsider when:** a future stage's test needs behavior this minimal client does not model
   (e.g. chunked transfer, real TCP timing), or the Human Owner authorizes an HTTP test client
   dependency directly.
+
+## DD-12 — The board's engine workflow-stage strip is a static reference diagram, never a per-task computed position
+
+- **Status:** Accepted (DASH-005 implementation decision, 2026-08-08).
+- **Context:** `DASH-005.md`'s Build clause asks for "a per-task workflow-stage strip driven by a
+  coded mirror of the engine's seven workflow stages and fixed transition table (display-only)"
+  (DR-020). The engine's *actual* per-task position in that seven-stage machine is recorded only
+  in its persisted, event-sourced workflow state
+  (`ai_workflow_engine.workflow.event_store.load_history`), stored under
+  `~/.ai-workflow-engine/workflow-runs/state/<project_id>/<task_dir>/` — outside the repository
+  working copy, and therefore outside every adapter's `RepositoryRoot` confinement
+  (`ARCHITECTURE.md` §3; `SECURITY_MODEL.md` SC-06..SC-08). No dashboard document authorizes
+  reading outside that confinement (recorded as `OPEN_QUESTIONS.md` OD-D12). A keyword heuristic
+  that guessed a task's stage from queue prose was considered and rejected: it would present a
+  fabricated position as fact, which `SOURCE_OF_TRUTH.md` TR-04 forbids, and queue prose for many
+  Done tasks does not name every engine stage it actually passed through.
+- **Decision:** `agentos_dashboard/services/workflow.py` renders the seven stages and the fixed
+  transition table identically on every task, as a fixed reference diagram of the engine's
+  pipeline — never a per-task computed "you are here" marker. What genuinely is per-task and
+  prose-derived is kept separate and clearly labeled: the task-queue's own three-status
+  transition (`services.workflow.compute_queue_transitions`, DR-021) and the free-text lifecycle
+  history `services.tasks` extracts from queue prose (DR-031).
+- **Consequences:** DR-020 is satisfied literally (a per-task strip is rendered on every card/
+  detail page) without any risk of misrepresenting a task's actual engine-stage position. DR-031's
+  "persisted workflow events" clause is left unimplemented for this stage (OD-D12); every task
+  detail page in the current repository state renders correctly without it, since no persisted
+  events exist for this repository's own project id today.
+- **Reconsider when:** OD-D12 is resolved with an explicitly-scoped, separately-authorized adapter
+  for the out-of-repo state directory.
+
+## DD-13 — SC-29's mutating-Git-verb source scan is narrowed to modules that import `subprocess`
+
+- **Status:** Accepted (DASH-005 implementation decision, 2026-08-08).
+- **Context:** `test_gitread.py::test_no_mutating_git_verb_in_package_source` (SC-29) flags any
+  string literal anywhere in non-test package source that exactly matches a mutating Git verb.
+  DASH-005 legitimately needs the literal word `push` — the seventh of the engine's own seven
+  fixed workflow stages (`ai_workflow_engine.prompt.models.WORKFLOW_STAGES`), mirrored by value in
+  `services.workflow.WORKFLOW_STAGES` — and the literal word `merge`, one kind of queue-prose
+  lifecycle event (`services.tasks.LifecycleEvent.kind`). Neither is ever an argument to
+  `subprocess`; both are English words the engine's own vocabulary and the queue's own prose
+  happen to use. The unnarrowed scan flagged both as false positives.
+- **Decision:** the scan is narrowed to modules that import `subprocess` at all —
+  `agentos_dashboard/core/gitread.py`, the package's sole subprocess call site
+  (`ARCHITECTURE.md` §3: "The two adapters ... are the only code permitted to touch the
+  repository"). A module that never imports `subprocess` cannot construct a Git argv, so it
+  cannot pose the risk SC-29 exists to catch.
+- **Consequences:** The test's actual protective guarantee — no mutating Git verb ever reaches a
+  `subprocess` call in this package — is unchanged and unweakened; a module that starts importing
+  `subprocess` in the future is automatically back under full literal scanning with no test change
+  required. `services/workflow.py` and `services/tasks.py` may freely use the engine's own
+  workflow-stage vocabulary as display data.
+- **Reconsider when:** a second subprocess call site is ever added to this package (per
+  `ARCHITECTURE.md` §3, that would itself be a significant, separately-reviewed architecture
+  change, not an incidental one).
 
 ## Decision References
 Repository decisions binding this program are recorded in `docs/DECISION_LOG.md` (2026-07-23
