@@ -1661,7 +1661,7 @@ completion report.
 
 ## AUTO-016 — Integrated Milestone Automation Runner
 
-Status: Current
+Status: Done
 
 Registered and authorized by the Human Owner on 2026-08-05, in one written directive: "I authorize
 AUTO-016 implementation under the finalized AUTO-016 contract and its exact implementation
@@ -1771,3 +1771,27 @@ PR, or merge permission, so none occurred. AUTO-016 remains bounded by the exact
 4 contract and its exact nineteen-file implementation allowlist (§23), with the forbidden surface
 (§24) unchanged. Full record: `docs/workflow-automation/STAGE_REGISTRY.md`, 2026-08-06 "AUTO-016
 (initial-start preflight passed)".
+
+**Closure (2026-08-08):** AUTO-016 was implemented on branch `feature/auto-016-milestone-runner`
+(`4fa9212` initial start, `34ae307` implementation, `f41d3f3` CI fix) and published via pull
+request #19, merged into `main` as `b4534c7`, with PR #19 CI green. The completion report
+(`docs/reports/workflow-automation/AUTO-016-completion-report.md`) records the delivered
+nineteen-file `src/ai_workflow_engine/milestone_runner/` package plus the additive
+`workflowctl milestone-runner` sub-app, the §25 verification evidence, the twenty §22 security
+invariants each held by a named negative test, the ten prototype-defect regressions, the §27 Tier 1
+acceptance matrix, the four-way no-automatic-Git-mutation proof, the GOV-AUTO-11 correction round
+(F1–F4), and the independent implementation review's three High blockers (AUTO016-IMPL-001, -002,
+-003). Per Human Owner–confirmed external runner evidence (runner run ID
+`auto016-20260805T213855Z-7fea75fc`, produced by the local AUTO-016 runner at
+`~/.local/share/auto016-runner/` and not stored in this repository): 9/9 milestones AUTO-016-M01 …
+AUTO-016-M09 complete; exactly one bounded Codex review, initially `AUTO016_REVIEW_BLOCKED`; one
+correction round; one closure verification closing AUTO016-IMPL-002 and -003; then one Human
+Owner-authorized narrowly bounded remediation whose out-of-band read-only Codex verification
+returned `AUTO016-IMPL-001 CLOSED`, consuming no budget; final verification 11/11 exit 0; final
+runner state `READY_FOR_COMMIT_APPROVAL` with the durable blocking-findings list empty. The single
+deferred finding `AUTO-016-M08-BLOCKER-001` is retained as explicitly non-blocking
+(`cross_milestone`, `budget_effect: none`; subsequently resolved as GOV-AUTO-11-F4), as are the
+pre-existing non-blocking OD-6, OD-7, OD-10, OD-11, OD-12 and D-14 through D-16. Registry state
+moved `IN_PROGRESS → COMPLETE`; task status moved `Current → Done`. This closure authorizes no
+successor — AUTO-017 and every later roadmap phase remain unauthorized and `Planned`. Human Owner
+approved and closed AUTO-016.

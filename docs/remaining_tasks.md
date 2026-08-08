@@ -183,39 +183,18 @@ preflight, and an explicit authorization statement still block implementation. C
 `docs/workflow-automation/stage-prompts/AUTO-016.md`. Review:
 `docs/reports/workflow-automation/AUTO-016-contract-review.md`.
 
-## Authorization update — 2026-08-05
+## AUTO-016 closure — 2026-08-08
 
-## AUTO-016
-
-Status: Current
-
-The Human Owner explicitly authorized this single task, registering it for the first time in the
-same act: "I authorize AUTO-016 implementation under the finalized AUTO-016 contract and its exact
-implementation allowlist." Authorization is bounded to the finalized Revision 4 contract
-(`docs/workflow-automation/stage-prompts/AUTO-016.md`) and its exact nineteen-file implementation
-allowlist (§23), with the forbidden surface (§24) unchanged; the independent review's verdict is
-"CONTRACT READY FOR HUMAN OWNER AUTHORIZATION". Registry state `NOT_STARTED → AUTHORIZED`.
-
-Registration only — implementation has not begun and progress is 0%. The registered branch
-`feature/auto-016-milestone-runner` was not created, because rule 14 requires it to be cut from a
-`main` baseline that already carries the authorization record; this session was bounded to preparing,
-validating, and committing that record locally, with push withheld for Human Owner review. A separate
-initial-start session will create the branch from the synchronized authorized baseline and record
-`AUTHORIZED → IN_PROGRESS`; a separate implementation session will then execute AUTO-016. Live
-acceptance is authorized only during that later implementation/verification phase.
-
-## Initial start — 2026-08-06
-
-Registry status was `AUTHORIZED`. The authorization record above landed on `main` and was published
-to `origin/main` (`4cbd714`); a subsequent session verified the initial-start preflight (predecessor
-AUTO-015 `COMPLETE`, merged as `e325f95` via pull request #17; no other AUTO stage `AUTHORIZED` or
-`IN_PROGRESS`; exactly one `Current` task; clean, synchronized `main` == `origin/main` at
-`4cbd714dd6a83de1b390feac39223e0b8f5d4cbf` with zero divergence and no staged or untracked files;
-finalized Revision 4 contract present and unmodified at its recorded SHA-256; all Human Owner
-decisions DEC-016-001 through DEC-016-008 recorded; full `workflowctl verify` PASS; no pre-existing
-AUTO-016 branch or `milestone_runner` source symbol) and created branch
-`feature/auto-016-milestone-runner` from `main` at
-`4cbd714dd6a83de1b390feac39223e0b8f5d4cbf`. Registry state moves `AUTHORIZED → IN_PROGRESS` (rule 4;
-no new Human Owner authorization act). Implementation has not begun: progress is 0%, no production,
-test, script, package, or dependency file changed, the local prototype runner is untouched, no
-provider was invoked, and no commit, push, PR, or merge occurred or was permitted in that session.
+AUTO-016 — Integrated Milestone Automation Runner — was registered and authorized by the Human
+Owner on 2026-08-05, started on 2026-08-06 on branch `feature/auto-016-milestone-runner` (cut from
+`main` at `4cbd714dd6a83de1b390feac39223e0b8f5d4cbf`), implemented under the finalized Revision 4
+contract and its exact nineteen-file implementation allowlist, and published via pull request #19,
+merged into `main` as `b4534c7` with CI green. It is closed `Current → Done`; the Current set is
+empty. Completion report:
+`docs/reports/workflow-automation/AUTO-016-completion-report.md`. Human Owner–confirmed external
+runner evidence (runner run ID `auto016-20260805T213855Z-7fea75fc`, produced outside this
+repository): 9/9 milestones complete, one bounded Codex review, one correction round, one closure
+verification, one out-of-band closure of the last blocker, final verification 11/11, final runner
+state `READY_FOR_COMMIT_APPROVAL`, no blocking findings. The deferred finding
+`AUTO-016-M08-BLOCKER-001` is retained as explicitly non-blocking. This closure authorizes no
+successor — AUTO-017 and every later roadmap phase remain unauthorized and `Planned`.

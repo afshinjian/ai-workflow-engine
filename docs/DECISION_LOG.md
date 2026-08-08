@@ -3352,3 +3352,100 @@ state, or configuration file exists. No branch, push, PR, or merge occurred. The
 directive and the preflight above are dated 2026-08-05; the commit carrying this record was made on
 2026-08-06, which changes no recorded fact and is noted so the commit timestamp is not mistaken for a
 second authorization act.
+
+## 2026-08-08 — Human Owner approved and closed AUTO-016
+
+**Decision:** The Human Owner reviewed the AUTO-016 implementation and approved its governance
+closure. AUTO-016 — Integrated Milestone Automation Runner — was implemented on branch
+`feature/auto-016-milestone-runner` (`4fa9212` initial start, `34ae307` implementation, `f41d3f3`
+CI fix) and published via pull request **#19**, merged into `main` as **`b4534c7`** on 2026-08-08.
+PR #19's CI is green. The stage delivers exactly the nineteen-file
+`src/ai_workflow_engine/milestone_runner/` package DEC-016-001 and contract §23.1 fix, plus one
+additive `workflowctl milestone-runner` Typer sub-app; with shipped defaults it commits nothing,
+pushes nothing, opens no pull request and merges nothing.
+
+**Repository-native evidence.** The completion report
+(`docs/reports/workflow-automation/AUTO-016-completion-report.md`) records the §25 verification
+command set, the twenty §22 security invariants each held by a named negative test, the ten
+prototype-defect regressions, a real wheel build and a fresh-venv out-of-tree import, the §27 Tier 1
+disposable-repository acceptance matrix, the four-way proof that no automatic Git mutation occurs,
+the DEC-016-006 prototype non-interference fixtures, and the DEC-016-005 plan-location assertions.
+It also records, and does not paper over, the two §25 commands not executed in that evidence set
+(`pre-commit run --all-files` and `pytest -q -m live_cli -rs`) — both of which were subsequently
+executed and passed in the external runner's final verification set recorded below. The other
+repository-native artifacts backing this closure are the implementation diff on PR #19, PR #19's CI
+results, PR #19 itself, and merge commit `b4534c7`.
+
+**Milestones.** 9/9 complete: AUTO-016-M01 through AUTO-016-M09.
+
+**Review, correction, and closure history.** One bounded independent Codex review was conducted
+against the delivered code and returned `AUTO016_REVIEW_BLOCKED` with three High blockers, all in
+`application.py`: **AUTO016-IMPL-001** (a crash during a provider invocation could let resume repeat
+an already-effectful invocation without reconciliation), **AUTO016-IMPL-002** (the push gate was
+unreachable after the runner's own approved commit, because the push preflight still demanded the
+original baseline SHA), and **AUTO016-IMPL-003** (Git approval and consumption were persisted only
+after the external Git mutation, leaving an unrecorded and reusable crash window). Each was
+reproduced first and then corrected in one bounded correction round. The single closure
+verification returned **AUTO016-IMPL-002 `CLOSED`** and **AUTO016-IMPL-003 `CLOSED`**, and
+**AUTO016-IMPL-001 `STILL_OPEN`** — the corrected reconciliation still compared changed-path names
+rather than content. A separate GOV-AUTO-11 correction round, raised by the run against itself
+earlier, closed GOV-AUTO-11-F1 through F4, each held closed by a named test.
+
+**Final blocker remediation.** The Human Owner authorized one narrowly bounded production
+remediation to close AUTO016-IMPL-001, scoped to `state.py`, `application.py` and their three test
+modules only. It replaced changed-path-name reconciliation with a durable pre-invocation SHA-256
+content fingerprint. A strictly read-only, out-of-band Codex verification — explicitly not a new
+review round, and bounded to four questions — returned `AUTO016-IMPL-001 CLOSED`. It was recorded
+with `budget_effect: none`: no further review, correction, or closure round was authorized or
+performed. **All three of AUTO016-IMPL-001, -002 and -003 are closed.**
+
+**Evidence — Human Owner–confirmed external runner record.** The following is confirmed directly by
+the Human Owner from the local AUTO-016 runner at `~/.local/share/auto016-runner/`, with durable run
+state under `~/.ai-workflow-engine/milestone-runs/`; it was produced and observed **outside this
+repository** and is **not** claimed to exist as a repository-stored artifact or transcript: runner
+run ID `auto016-20260805T213855Z-7fea75fc`; baseline `4fa9212`, contract SHA-256
+`56f6a8f5720f30543f5b0623f5cb52ffa2cc45cbe51be8c5f9b9f5f256b90a7e`; nine completed milestones;
+`review_attempts` 1 and `successful_review_rounds` 1; `correction_round` 1; `closure_round` 1; the
+final verification set 11/11 exit 0 (`pytest -q`, `pytest -q -m live_cli -rs`, `ruff check .`,
+`black --check .`, `mypy --strict`, `pre-commit run --all-files`, `git diff --check`,
+`workflowctl check-task-state`, `check-governance`, `check-registries`, `check-handover`); the
+out-of-band verdict file
+`~/.local/share/auto016-runner/state/auto016-impl-001-out-of-band-verdict.txt`, SHA-256
+`80a473b8811974a651c91bc385647707d5046c0acca401d888531f9346294989`, containing exactly
+`AUTO016-IMPL-001 CLOSED`; a durable `blocking_findings` list that is **empty**; and final runner
+state **`READY_FOR_COMMIT_APPROVAL`**. No repository artifact path is claimed for the Codex review,
+the closure verification, or the out-of-band verification.
+
+**Deferred finding retained as non-blocking.** `AUTO-016-M08-BLOCKER-001` remains recorded in the
+external runner's durable state as a deferred finding, classified `cross_milestone` by Human Owner
+ruling on 2026-08-07 and carrying `budget_effect: none`. It records a pre-existing conflict between
+AUTO-016-M04's `TestProviderSpawnOnlyFromProvidersSubpackage` allowed set and both contract §20's
+required `approval_git.py` execution vectors and AUTO-016-M05's independent `verification.py`
+`subprocess.run` — neither file inside AUTO-016-M08's `allowed_files`, and the test not in M08's
+focused verification, so M08 could not have turned it green. It is **not** a blocking finding, it
+blocks nothing, and it was subsequently resolved on its merits as GOV-AUTO-11-F4. The pre-existing
+deferred, non-blocking items OD-6, OD-7, OD-10, OD-11, OD-12 and D-14 through D-16 are each
+dispositioned "not applicable" or "not a blocker" in the completion report for AUTO-016's scope, and
+none was fixed by this closure. The suspected load-sensitive flake in AUTO-015's
+`test_successor_planning_publishes_once_and_is_idempotent` is likewise recorded, deferred, and not
+claimed as a defect.
+
+**No remaining blocking findings.** Registry state moves `IN_PROGRESS → COMPLETE`
+(`docs/workflow-automation/STAGE_REGISTRY.md` §4/§5); task status moves `Current → Done`
+(`docs/TASK_QUEUE.md`, `docs/current_task.md`, `docs/remaining_tasks.md`). The Current task set is
+now empty.
+
+**Boundaries:** This decision approves and closes only AUTO-016's governance record. It does not
+register, authorize, or implement AUTO-017 or any later roadmap phase — every successor remains
+unregistered, unauthorized, and `Planned`, and requires its own separate, fresh, written Human Owner
+authorization. It does not authorize any further commit, push, PR, or merge beyond PR #19 and merge
+commit `b4534c7`, both of which had already occurred before this closure entry was written. It does
+not deprecate or delete the local prototype runner at `~/.local/share/auto015-runner/`: DEC-016-006
+makes post-acceptance deprecation a separate operator act and deletion a separate explicit Human
+Owner decision, and neither is taken here. Six governance files were modified, exactly the sanctioned
+closeout mirror set and the same shape as the AUTO-015 closure commit `ef1d565`:
+`docs/TASK_QUEUE.md`, `docs/current_task.md`, `docs/remaining_tasks.md`, `docs/PROJECT_STATE.md`
+(prose only; the `Current Version:` fact line untouched), this file, and
+`docs/workflow-automation/STAGE_REGISTRY.md` (§4 row and one appended §5 Authorization Log row; no
+historical row rewritten). No production source, test, script, package file, dependency, workflow
+runtime, provider, CI configuration, or external runner file was created, modified, or deleted.
