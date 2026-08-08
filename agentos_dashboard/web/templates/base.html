@@ -15,7 +15,7 @@
         <span>branch: {{ snapshot.git_status.branch if snapshot.git_status else "unknown" }}</span>
         <span>HEAD: {{ (snapshot.head or "unborn")[:12] }}</span>
         <span>upstream: {{ (snapshot.git_status.upstream if snapshot.git_status else none) or "none" }}</span>
-        {% if overview and overview.stale %}
+        {% if snapshot.is_stale() %}
           <span class="badge badge-stale" role="status">STALE — refresh to update</span>
         {% endif %}
       {% endif %}
@@ -24,8 +24,8 @@
   <div class="layout">
     <nav aria-label="Primary">
       <ul>
-        <li><a href="/" aria-current="page">Overview</a></li>
-        <li class="disabled" aria-disabled="true" title="Not yet available">Board</li>
+        <li><a href="/" {% if active_nav == "overview" %}aria-current="page"{% endif %}>Overview</a></li>
+        <li><a href="/board" {% if active_nav == "board" %}aria-current="page"{% endif %}>Board</a></li>
         <li class="disabled" aria-disabled="true" title="Not yet available">Tasks</li>
         <li class="disabled" aria-disabled="true" title="Not yet available">Stages &amp; Prompts</li>
         <li class="disabled" aria-disabled="true" title="Not yet available">Runs</li>

@@ -550,3 +550,21 @@ template), and non-deterministic first-attempt compliance with the strict bare-J
 contract (bounded to 3 attempts, retrying only `FAILED`/`MALFORMED_OUTPUT`). Two full live-suite
 runs: 32 passed/0 failed/0 skipped each. No production code changed. AUTO-013 remains
 unauthorized.
+
+## Authorization update — 2026-08-08
+
+## DASH-005
+
+Status: Done
+
+The Human Owner explicitly authorized this single task through the local authorization gate.
+Implementation and approval remain separate phases.
+
+## DASH-005 implementation update — 2026-08-08
+
+Status: Current
+
+DASH-005 is implemented and validated on the registered branch
+`feature/dash-005-board-task-detail`, uncommitted, stopped for Human Owner approval.
+Implementation and approval remain separate phases. Report:
+`docs/reports/agentos-dashboard/STAGE-05-completion.md`.

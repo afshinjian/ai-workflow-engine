@@ -939,3 +939,17 @@ every live run; zero `.claude-A` contamination; 3,470 tests green; `mypy` clean 
 files; `ruff`/`black`/pre-commit clean; `workflowctl verify` full PASS. No production code was
 changed. This closure authorizes no successor — AUTO-013 and every later roadmap phase remain
 unauthorized. Report: `docs/reports/GOV-4-completion-report.md`.
+
+## Authorization update — 2026-08-08
+
+DASH-005 is the single `Current` task after two exact Human Owner `AUTHORIZE` confirmations.
+The authorization-only commit contains governance and handoff records; implementation has not
+started. No predecessor was closed automatically, and no push, merge, upstream, branch, or stash
+operation was performed.
+
+## Closure update — 2026-08-08
+
+DASH-005 was approved and closed `Current -> Done` by the Human Owner through
+scripts/workflow-approve.sh's automatic task closeout. No task is `Current` after this commit
+unless a fresh authorization already named a successor. No push, merge, branch, upstream, or
+stash operation was performed by this closeout.

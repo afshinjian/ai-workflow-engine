@@ -13,6 +13,28 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-08-08 — Human Owner approved and closed DASH-005
+
+**Decision:** The Human Owner reviewed the implementation diff for `DASH-005` on
+branch `feature/dash-005-board-task-detail` at base `87203a6c184ee8c3bf49687b66041f85b14d1e85`, typed the two exact `APPROVE` confirmations
+required by `scripts/workflow-approve.sh`, and approved the Conventional Commit
+message `feat(dashboard): implement DASH-005 workflow board and task detail`. The script then performed the deterministic governance closeout
+(`DASH-005` moves `Current -> Done`) and staged the approved implementation
+together with the generated closeout records in one local commit.
+
+**Boundaries:** This decision approves and closes only `DASH-005`. It does not
+push, merge, authorize a successor task, change branches, alter upstream, or mutate
+stashes.
+
+## 2026-08-08 — Human Owner authorized DASH-005
+
+**Decision:** The Human Owner typed the two exact `AUTHORIZE` confirmations for
+`DASH-005`. The task moves `Planned → Current`; implementation remains separate.
+The authorization was recorded from branch `main` at `1bfa860bf2583405e2e7e4caabef52ebff771f2e`.
+
+**Boundaries:** This decision authorizes only the named task. It authorizes no successor,
+push, merge, implementation approval, stash mutation, or automatic predecessor closure.
+
 ## 2026-08-02 — Human Owner approved and closed GOV-4
 
 **Decision:** The Human Owner reviewed the implementation diff for `GOV-4` on branch

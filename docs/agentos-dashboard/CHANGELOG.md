@@ -5,7 +5,7 @@
 | **Title** | AgentOS Dashboard — Changelog |
 | **Purpose** | Append-only log of every approved change to the dashboard documentation set; the audit spine of `MASTER_PLAN.md` §8. |
 | **Status** | Draft |
-| **Version** | 1.4 |
+| **Version** | 1.5 |
 | **Owner** | Completing agent per stage · verified at review |
 | **Dependencies** | None |
 | **Related Documents** | `MASTER_PLAN.md` §7–§8 |
@@ -16,6 +16,30 @@ Entry ID `CL-YYYYMMDD-##`, newest first. Each entry: documents touched, versions
 before/after, authorizing task, approver. Entries are appended, never edited.
 
 ## Entries
+
+### CL-20260808-01 — DASH-005 implemented: workflow board and task detail
+
+- **Documents:** `DECISIONS.md` (new DD-12, DD-13), `OPEN_QUESTIONS.md` (new OD-D12, Open),
+  `STAGE_REGISTRY.md` §3 (state cell `AUTHORIZED` → `IN_PROGRESS`) and §4 (new append-only
+  preflight row), and the new report `docs/reports/agentos-dashboard/STAGE-05-completion.md`.
+- **Versions:** `DECISIONS.md` 1.4 → **1.5**; `OPEN_QUESTIONS.md` 1.2 → **1.3**;
+  `STAGE_REGISTRY.md` 5.0 → 5.0 (append-only log growth and a state-cell update, neither of which
+  §8 versions).
+- **Code delivered (outside this documentation set):** `agentos_dashboard/services/{workflow.py,
+  board.py, tasks.py, _prose.py}` (the coded engine workflow-stage mirror and queue-status
+  transitions, DR-020/DR-021's board data, and DR-030..033's task detail), `agentos_dashboard/api/
+  board.py` (EP-04/EP-05/EP-06, wired into `api/routes.py`), `agentos_dashboard/web/templates/
+  {board.html, _board_card.html, task_detail.html}` (PG-02/PG-03) plus a nav update to
+  `base.html`/`style.css`, and `agentos_dashboard/tests/**` (72 new tests) — exactly the stage
+  contract's Allowed list. One narrow, justified refinement to an existing DASH-002 test
+  (`test_gitread.py::test_no_mutating_git_verb_in_package_source`, DD-13) — no new dependency.
+- **Reason for change:** DASH-005's implementation. Against the real repository: GOV-1 and T-501
+  render as `Done`; T-401's two-round plan review renders as lifecycle history; DASH-001 renders
+  in its actual `Done` state.
+- **Authorizing task:** DASH-005, authorized by the Human Owner 2026-08-08 through
+  `scripts/workflow-authorize.sh` (`STAGE_REGISTRY.md` §4).
+- **Approver:** pending — the implementation is uncommitted and awaits Human Owner approval.
+- **Date:** 2026-08-08.
 
 ### CL-20260730-01 — DASH-004 implemented: local backend and dashboard shell
 
@@ -247,7 +271,7 @@ before/after, authorizing task, approver. Entries are appended, never edited.
 - **Approver:** pending Human Owner acceptance at DASH-001 completion.
 
 ## Decision References
-DD-01, DD-02, DD-03, DD-09.
+DD-01, DD-02, DD-03, DD-09, DD-12, DD-13.
 
 ## Open Questions
 None.
@@ -289,4 +313,20 @@ uncommitted, stopped for Human Owner approval. Registry state `AUTHORIZED` → `
 ## 2026-07-30 — DASH-004 closed
 
 The Human Owner approved and closed DASH-004 through the automatic task-closeout gate
+(`scripts/workflow-approve.sh`, GOV-AUTO-03). Registry state `COMPLETE`; task status `Done`.
+
+## 2026-08-08 — DASH-005 authorized
+
+The Human Owner authorized DASH-005 through the two-confirmation local gate. The stage is
+`AUTHORIZED`; implementation, approval, push, and merge remain separate.
+
+## 2026-08-08 — DASH-005 implemented
+
+Implemented and validated on the registered branch `feature/dash-005-board-task-detail`,
+uncommitted, stopped for Human Owner approval. Registry state `AUTHORIZED` → `IN_PROGRESS`. See
+`CL-20260808-01` above and `docs/reports/agentos-dashboard/STAGE-05-completion.md`.
+
+## 2026-08-08 — DASH-005 closed
+
+The Human Owner approved and closed DASH-005 through the automatic task-closeout gate
 (`scripts/workflow-approve.sh`, GOV-AUTO-03). Registry state `COMPLETE`; task status `Done`.

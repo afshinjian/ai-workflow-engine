@@ -5,7 +5,7 @@
 | **Title** | AgentOS Dashboard — Open Questions |
 | **Purpose** | Owner-decision register (OD-D#) with dispositions and the requirement IDs each question blocks. |
 | **Status** | Draft |
-| **Version** | 1.2 |
+| **Version** | 1.3 |
 | **Owner** | Documentation & Governance session · Human Owner (dispositions) |
 | **Dependencies** | `MASTER_PLAN.md` §11 |
 | **Related Documents** | `STAGE_REGISTRY.md` (preconditions cite entries here) |
@@ -17,7 +17,28 @@ Resolved append-only; they are never deleted.
 
 ## Open
 
-None. Every registered question has a disposition below.
+### OD-D12 — Reading the engine's persisted workflow-event store from the task detail page
+
+- **Question:** `DR-031` asks the task detail page (PG-03) to show "lifecycle history parsed
+  from queue prose **and, where present, the engine's persisted workflow events**". The engine's
+  persisted workflow events (`ai_workflow_engine.workflow.event_store`) live under
+  `~/.ai-workflow-engine/workflow-runs/state/<project_id>/<task_dir>/` — outside the repository
+  working copy entirely, and therefore outside every adapter's `RepositoryRoot` confinement
+  (`ARCHITECTURE.md` §3; `SECURITY_MODEL.md` SC-06..SC-08). No dashboard document authorizes a
+  read path outside that confinement (the same class of decision OD-D9/OD-D5 each required for a
+  narrower scope expansion). May a future stage add a second, explicitly-scoped read-only adapter
+  for this one out-of-repo location, and if so under what confinement (a fixed, non-configurable
+  path only; no traversal of any kind beyond it)?
+- **Recommendation:** yes, as a narrowly-scoped follow-on stage: a second adapter confined to
+  exactly `~/.ai-workflow-engine/workflow-runs/state/<this repo's project_id>/**`, read-only,
+  with its own SC-06-equivalent containment tests, gated on its own Human Owner decision before
+  any DASH stage reads it.
+- **Disposition:** Open. DASH-005 implements DR-031's queue-prose clause in full and leaves the
+  persisted-workflow-events clause unimplemented rather than expanding read scope unilaterally;
+  every task detail page in the current repository state renders correctly without it, since
+  `~/.ai-workflow-engine/workflow-runs/state/` holds no events for this repository's own project
+  id today (verified at implementation time).
+- **Blocked:** the persisted-workflow-events half of DR-031 for every DASH stage, until resolved.
 
 ## Resolved
 

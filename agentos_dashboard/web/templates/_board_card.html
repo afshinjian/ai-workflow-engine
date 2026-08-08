@@ -1,0 +1,21 @@
+{# One DR-021 board card. Included from board.html once per lane; `card` is a `BoardCard`. #}
+<article class="card">
+  <h4><a href="/tasks/{{ card.task_id }}">{{ card.task_id }} — {{ card.title }}</a></h4>
+  <p>
+    <span class="badge badge-info">{{ card.program }}</span>
+    <span class="badge badge-{{ 'pass' if card.evidence.value == 'pass' else ('error' if card.evidence.value == 'fail' else 'warning') }}">
+      EVIDENCE: {{ card.evidence.value|upper }}
+    </span>
+  </p>
+  <p class="empty-state">
+    referenced tasks: {{ card.referenced_tasks|join(", ") if card.referenced_tasks else "none recorded" }}
+  </p>
+  <p>
+    next: {{ card.transition.next_status.value if card.transition.next_status else "terminal" }} —
+    <span class="badge badge-{{ 'pass' if card.transition.allowed else 'warning' }}">
+      {{ "ALLOWED" if card.transition.allowed else "BLOCKED" }}
+    </span>
+    {{ card.transition.reason }}
+  </p>
+  <p class="empty-state">{{ card.source }}:{{ card.line }}</p>
+</article>
