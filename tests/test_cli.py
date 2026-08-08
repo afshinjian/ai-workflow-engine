@@ -13,6 +13,20 @@ from click.testing import Result
 from typer.testing import CliRunner
 
 from ai_workflow_engine.cli import app
+from ai_workflow_engine.milestone_runner.application import record_latest_run
+from ai_workflow_engine.milestone_runner.git_inspect import GitReadOnlyInspector
+from ai_workflow_engine.milestone_runner.lock import RunLock
+from ai_workflow_engine.milestone_runner.models import (
+    STATE_SCHEMA_VERSION,
+    ProviderFailureClass,
+    ProviderRole,
+    ProviderRunRecord,
+    RunRecord,
+    RunStatus,
+    StopReason,
+    VerificationResult,
+)
+from ai_workflow_engine.milestone_runner.state import RunStateStore
 from ai_workflow_engine.models import EngineConfig
 from ai_workflow_engine.prompt.context import build_prompt_context
 from ai_workflow_engine.prompt.models import PromptSuccess
@@ -2248,3 +2262,931 @@ def test_successor_planning_package_names_no_mutating_git_subcommand() -> None:
             assert (
                 value not in SP_MUTATING_GIT_SUBCOMMANDS
             ), f"{path.name} carries the Git subcommand {value!r}"
+
+
+# ======================================================================================
+# AUTO-016 -- `workflowctl milestone-runner`
+# ======================================================================================
+#
+# Contract: `docs/workflow-automation/stage-prompts/AUTO-016.md` (Revision 4) sections 9 (the
+# thirteen commands, their long-form kebab-case options and the 0/1/2 exit-code contract), 7
+# (business logic never lives in a CLI handler; `MilestoneRunnerApplication` is the sole transition
+# authority), 20 (the two human gates and the two-surface Git authority), 23.2/23.3 (the additive
+# `cli.py` surface, and the convention that CLI tests follow the CLI) and 26 (the CLI row of the
+# test matrix, which names the four gate classes below verbatim).
+#
+# This block is strictly additive. No test above it is edited, renamed, reordered or removed, and
+# the whole module is re-run in this milestone's focused verification to prove that.
+#
+# Every fixture here is real: a real `git init` worktree under `tmp_path` with a real remote and a
+# real revision, a real milestone plan under the real external plan root of DEC-016-005, a real
+# runner configuration file, real `flock`-held atomic state publications, and real subprocesses for
+# section 16's five machine-readable governance checks. Nothing is mocked.
+#
+# **No test here spawns a provider.** The configured provider executables are deliberately names
+# that resolve to nothing on any `PATH`, and the one command that could reach a provider -- `start`
+# -- is driven into a tripped section 4 gate, which stops it before any invocation. Where the
+# property under test is non-mutation, `HEAD`, the reflog and the remote refs are compared.
+
+MR_REMOTE = "https://github.com/example/milestone-runner-probe.git"
+MR_STAGE_ID = "AUTO-099"
+MR_MILESTONE_ID = "AUTO-099-M01"
+MR_CONTRACT_PATH = "docs/workflow-automation/stage-prompts/AUTO-099.md"
+MR_REGISTRY_PATH = "docs/workflow-automation/STAGE_REGISTRY.md"
+MR_IMPLEMENTED_PATH = "src/demo/feature.py"
+MR_RUN_ID = "auto016-20260806T120000Z-deadbeef"
+
+#: Section 16's five canonical governance checks. Each runs as a real command emitting the real
+#: machine-readable document the gate reads -- never a scraped console table (defect P-7).
+MR_GOVERNANCE_CHECKS = ("git", "task-state", "governance", "registries", "handover")
+
+#: A provider executable that resolves to nothing on any `PATH`. Section 21's grammar admits a
+#: bare name only, so this is how this module guarantees that no `claude` and no `codex` process
+#: can be started even if a test reached an invocation -- which none does.
+MR_ABSENT_PROVIDER = "milestone-runner-absent-provider"
+
+#: Section 9's thirteen commands, in the order the contract lists them. The AST proof below reads
+#: this as the expected registration set, so a fourteenth command or a renamed one fails a test
+#: rather than shipping.
+MR_COMMANDS: dict[str, str] = {
+    "doctor": "doctor",
+    "plan": "plan",
+    "start": "start",
+    "resume": "resume",
+    "status": "status",
+    "verify": "verify",
+    "reconcile-milestone": "reconcile_milestone",
+    "reopen-milestone": "reopen_milestone",
+    "recover-failed-review": "recover_failed_review",
+    "revalidate-correction": "revalidate_correction",
+    "approve-commit": "approve_commit",
+    "approve-push": "approve_push",
+    "abort": "abort",
+}
+
+
+def mr_git(repository: Path, *args: str) -> str:
+    return subprocess.run(
+        ["git", "-C", str(repository), *args], check=True, capture_output=True, text=True
+    ).stdout.strip()
+
+
+def mr_governance_command(name: str) -> list[str]:
+    """One governance check as a real command emitting a real machine-readable document."""
+    document = json.dumps({"check_name": name, "status": "PASS", "findings": []})
+    return [sys.executable, "-c", f"print({document!r})"]
+
+
+@pytest.fixture
+def mr_worktree(tmp_path: Path) -> Path:
+    """A real, disposable repository with an authorized registry row and one contract."""
+    repository = tmp_path / "milestone-runner-worktree"
+    (repository / "docs" / "workflow-automation" / "stage-prompts").mkdir(parents=True)
+    (repository / "src" / "demo").mkdir(parents=True)
+    mr_git(repository, "init", "-b", "main")
+    mr_git(repository, "config", "user.email", "tests@example.invalid")
+    mr_git(repository, "config", "user.name", "Milestone Runner CLI Tests")
+    mr_git(repository, "remote", "add", "origin", MR_REMOTE)
+    (repository / MR_CONTRACT_PATH).write_text(
+        "# AUTO-099 -- a disposable contract for a disposable repository\n", encoding="utf-8"
+    )
+    (repository / MR_REGISTRY_PATH).write_text(
+        "| Stage | Status |\n|---|---|\n| AUTO-099 | AUTHORIZED |\n", encoding="utf-8"
+    )
+    (repository / "src" / "demo" / "__init__.py").write_text("", encoding="utf-8")
+    mr_git(repository, "add", ".")
+    mr_git(repository, "commit", "-m", "initial")
+    return repository
+
+
+@pytest.fixture
+def mr_identity(mr_worktree: Path) -> str:
+    """The canonical repository identity, derived rather than restated (section 11)."""
+    return GitReadOnlyInspector(mr_worktree).repository_identity()
+
+
+@pytest.fixture
+def mr_plan_root(mr_identity: str, _isolated_prompt_home: Path) -> Path:
+    """DEC-016-005's external default plan root, carrying one real milestone file."""
+    root = _isolated_prompt_home / ".ai-workflow-engine" / "milestone-runs" / mr_identity / "plans"
+    root.mkdir(parents=True)
+    root.joinpath(f"{MR_MILESTONE_ID}.yaml").write_text(
+        yaml.safe_dump(
+            {
+                "schema_version": 1,
+                "milestone_id": MR_MILESTONE_ID,
+                "title": "The one milestone this disposable plan carries",
+                "objective": "Write one file inside the milestone's own scope.",
+                "depends_on": [],
+                "contract_sections": ["section 5"],
+                "allowed_files": [MR_IMPLEMENTED_PATH],
+                "forbidden_files": ["everything else"],
+                "required_symbols": ["demo.feature"],
+                "explicit_exclusions": ["Do not touch anything else."],
+                "acceptance_criteria": ["The file exists."],
+                "focused_verification": [
+                    {"command": [sys.executable, "-c", "pass"], "purpose": "a real no-op command"}
+                ],
+                "completion_evidence": ["The focused command passes."],
+            },
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+    return root
+
+
+@pytest.fixture
+def mr_config_factory(
+    tmp_path: Path, mr_worktree: Path, mr_identity: str, mr_plan_root: Path
+):  # type: ignore[no-untyped-def]
+    """A validated runner configuration file, with per-section overrides."""
+    baseline = mr_git(mr_worktree, "rev-parse", "HEAD")
+    contract_sha256 = GitReadOnlyInspector(mr_worktree).contract_digest(MR_CONTRACT_PATH)
+
+    def factory(**overrides: Any) -> Path:
+        document: dict[str, Any] = {
+            "schema_version": 1,
+            "repository": {
+                "root": str(mr_worktree),
+                "identity": mr_identity,
+                "expected_branch": "main",
+                "baseline_sha": baseline,
+                "conda_environment": "ai-workflow-engine",
+            },
+            "stage": {
+                "stage_id": MR_STAGE_ID,
+                "contract_path": MR_CONTRACT_PATH,
+                "contract_sha256": contract_sha256,
+            },
+            "allowlist": {
+                "allowed_paths": [MR_IMPLEMENTED_PATH],
+                "forbidden_paths": ["self-governance.yaml"],
+                "required_coverage": [MR_IMPLEMENTED_PATH],
+            },
+            "review_policy": {
+                "max_full_reviews": 1,
+                "max_correction_rounds": 1,
+                "max_closure_reviews": 1,
+                "max_blockers": 3,
+                "blocking_severities": ["CRITICAL", "HIGH"],
+                "defer_severities": ["MEDIUM", "LOW"],
+            },
+            # Section 20: both flags ship `false`. A test that needs one flipped says so.
+            "git": {"execute_commit": False, "execute_push": False},
+            "providers": {
+                "claude": {"executable": MR_ABSENT_PROVIDER, "timeout_seconds": 60},
+                "codex": {"executable": MR_ABSENT_PROVIDER, "timeout_seconds": 60},
+                "allowed_environment_variables": ["PATH", "HOME"],
+            },
+            "verification": {
+                "focused": [],
+                "final": [
+                    {
+                        "command": mr_governance_command(name),
+                        "timeout_seconds": 120,
+                        "purpose": name,
+                    }
+                    for name in MR_GOVERNANCE_CHECKS
+                ],
+            },
+        }
+        for section, values in overrides.items():
+            if isinstance(values, dict):
+                document[section] = {**document.get(section, {}), **values}
+            else:
+                document[section] = values
+        existing = len(list(tmp_path.glob("milestone-runner-*.yaml")))
+        path = tmp_path / f"milestone-runner-{existing}.yaml"
+        path.write_text(yaml.safe_dump(document, sort_keys=True), encoding="utf-8")
+        return path
+
+    return factory
+
+
+@pytest.fixture
+def mr_config(mr_config_factory) -> Path:  # type: ignore[no-untyped-def]
+    return mr_config_factory()
+
+
+def mr_record(mr_worktree: Path, mr_identity: str, **overrides: Any) -> RunRecord:
+    """A published-shaped run record consistent with the fixtures above."""
+    payload: dict[str, Any] = {
+        "schema_version": STATE_SCHEMA_VERSION,
+        "run_id": MR_RUN_ID,
+        "repository_root": str(mr_worktree),
+        "repository_identity": mr_identity,
+        "expected_branch": "main",
+        "baseline_sha": mr_git(mr_worktree, "rev-parse", "HEAD"),
+        "contract_sha256": GitReadOnlyInspector(mr_worktree).contract_digest(MR_CONTRACT_PATH),
+        "workflow_state": RunStatus.IMPLEMENTING,
+        "created_at": "2026-08-06T11:00:00Z",
+        "updated_at": "2026-08-06T12:00:00Z",
+    }
+    payload.update(overrides)
+    return RunRecord.model_validate(payload)
+
+
+def mr_publish(mr_worktree: Path, mr_identity: str, record: RunRecord) -> RunStateStore:
+    """Publish `record` exactly the way the runner does: atomically, under a real held lock."""
+    store = RunStateStore.pin(
+        repository_id=mr_identity, run_id=record.run_id, repository_root=mr_worktree
+    )
+    lock = RunLock(
+        run_id=record.run_id, repository_identity=mr_identity, artifact_root=store.artifact_root
+    )
+    lock.acquire()
+    try:
+        store.publish(record, lock=lock)
+    finally:
+        lock.release()
+    # `start_run` names the run at the artifact root the moment it publishes; a test that
+    # publishes directly does the same, so the run is findable exactly as a driven one is.
+    record_latest_run(store.artifact_root, record.run_id)
+    return store
+
+
+def mr_at_commit_gate(mr_worktree: Path, mr_identity: str) -> RunStateStore:
+    """A run sitting at section 20's first gate, with one changed file and a clean result set."""
+    (mr_worktree / MR_IMPLEMENTED_PATH).write_text("the work this run produced\n", encoding="utf-8")
+    return mr_publish(
+        mr_worktree,
+        mr_identity,
+        mr_record(
+            mr_worktree,
+            mr_identity,
+            workflow_state=RunStatus.READY_FOR_COMMIT_APPROVAL,
+            changed_paths=[MR_IMPLEMENTED_PATH],
+            completed_milestones=[MR_MILESTONE_ID],
+            review_attempts=1,
+            successful_review_rounds=1,
+            verification_results=[
+                VerificationResult(
+                    command=[sys.executable, "-c", "pass"],
+                    exit_code=0,
+                    passed=True,
+                    duration_ms=11,
+                    stdout_path="transcripts/0001-20260806T120000Z-verification.stdout.txt",
+                    stderr_path="transcripts/0001-20260806T120000Z-verification.stderr.txt",
+                )
+            ],
+        ),
+    )
+
+
+def mr_git_state(repository: Path) -> tuple[str, str, str]:
+    """`HEAD`, the reflog and the remote refs -- the three things a gate must not move."""
+    head = mr_git(repository, "rev-parse", "HEAD")
+    reflog = subprocess.run(
+        ["git", "-C", str(repository), "reflog", "--no-abbrev"],
+        check=False,
+        capture_output=True,
+        text=True,
+    ).stdout
+    remotes = mr_git(repository, "for-each-ref", "refs/remotes")
+    return head, reflog, remotes
+
+
+# --------------------------------------------------------------------------------------
+# Section 9 -- one test per command, thirteen of them
+# --------------------------------------------------------------------------------------
+
+
+def test_milestone_runner_doctor_evaluates_every_entry_condition(mr_config: Path) -> None:
+    """`doctor`: read-only, acquires no lock, and reports section 4 condition by condition."""
+    result = runner.invoke(app, ["milestone-runner", "doctor", "--config", str(mr_config)])
+    assert result.exit_code == 0, result.output
+    assert "Entry conditions: satisfied" in result.output
+    for number in range(1, 10):
+        assert f"] {number}." in result.output
+    # Condition 9 is the run lock, which a read-only command does not acquire (section 12).
+    assert "[SKIP] 9." in result.output
+
+
+def test_milestone_runner_plan_validates_the_milestone_plan(mr_config: Path) -> None:
+    """`plan`: loads, validates, dependency-orders and coverage-reconciles. Read-only."""
+    result = runner.invoke(app, ["milestone-runner", "plan", "--config", str(mr_config)])
+    assert result.exit_code == 0, result.output
+    assert "Plan: valid" in result.output
+    assert MR_MILESTONE_ID in result.output
+    assert "Required coverage: 1" in result.output
+
+
+def test_milestone_runner_start_stops_at_a_tripped_gate_and_invokes_no_provider(
+    mr_worktree: Path, mr_identity: str, mr_config_factory
+) -> None:  # type: ignore[no-untyped-def]
+    """`start`: a tripped section 4 gate stops the run with the tree untouched (sections 5, 31).
+
+    The baseline is pinned to a revision that is not `HEAD`, which is condition 4. The run
+    publishes its refusal, exits `1`, and records no provider invocation -- the gate trips before
+    section 5's `IMPLEMENTING` step, so nothing is ever spawned.
+    """
+    config = mr_config_factory(repository={"baseline_sha": "0" * 40})
+    before = mr_git_state(mr_worktree)
+    result = runner.invoke(app, ["milestone-runner", "start", "--config", str(config)])
+    assert result.exit_code == 1, result.output
+    assert RunStatus.HUMAN_INTERVENTION_REQUIRED.value in result.output
+    assert StopReason.HEAD_DRIFT.value in result.output
+    assert mr_git_state(mr_worktree) == before
+
+    status = runner.invoke(app, ["milestone-runner", "status", "--config", str(config), "--json"])
+    assert status.exit_code == 0, status.output
+    record = json.loads(status.stdout)["record"]
+    assert record["provider_runs"] == []
+    assert record["workflow_state"] == RunStatus.HUMAN_INTERVENTION_REQUIRED.value
+
+
+def test_milestone_runner_resume_repeats_nothing_at_a_gate(
+    mr_worktree: Path, mr_identity: str, mr_config: Path
+) -> None:
+    """`resume`: a run already at a gate is a no-op success (section 13's idempotence)."""
+    mr_at_commit_gate(mr_worktree, mr_identity)
+    result = runner.invoke(app, ["milestone-runner", "resume", "--config", str(mr_config)])
+    assert result.exit_code == 0, result.output
+    assert "resume repeats nothing" in result.output
+    assert RunStatus.READY_FOR_COMMIT_APPROVAL.value in result.output
+
+
+def test_milestone_runner_status_renders_the_record_and_the_exact_json_document(
+    mr_worktree: Path, mr_identity: str, mr_config: Path
+) -> None:
+    """`status`: the durable record, human-rendered and as the exact `--json` document."""
+    mr_publish(mr_worktree, mr_identity, mr_record(mr_worktree, mr_identity))
+
+    human = runner.invoke(app, ["milestone-runner", "status", "--config", str(mr_config)])
+    assert human.exit_code == 0, human.output
+    assert f"Run: {MR_RUN_ID}" in human.output
+    assert f"Status: {RunStatus.IMPLEMENTING.value}" in human.output
+
+    machine = runner.invoke(
+        app, ["milestone-runner", "status", "--config", str(mr_config), "--json"]
+    )
+    assert machine.exit_code == 0, machine.output
+    payload = json.loads(machine.stdout)
+    assert payload["run_id"] == MR_RUN_ID
+    assert payload["record"]["repository_identity"] == mr_identity
+
+
+def test_milestone_runner_verify_reruns_the_gates_and_the_full_verification_set(
+    mr_config: Path,
+) -> None:
+    """`verify`: the safety gates plus the full configured set, persisting nothing."""
+    result = runner.invoke(app, ["milestone-runner", "verify", "--config", str(mr_config)])
+    assert result.exit_code == 0, result.output
+    assert "Entry conditions: satisfied" in result.output
+    assert f"Verification set: {len(MR_GOVERNANCE_CHECKS)} command(s)" in result.output
+    assert result.output.count("[PASS] ") >= len(MR_GOVERNANCE_CHECKS)
+
+
+def test_milestone_runner_reconcile_milestone_refuses_a_run_it_does_not_clear(
+    mr_worktree: Path, mr_identity: str, mr_config: Path
+) -> None:
+    """`reconcile-milestone`: a typed refusal is a domain failure, so the exit code is `1`.
+
+    Section 13 gives this command exactly one entry state. Invoked against a run stopped anywhere
+    else it refuses, nothing is derived and nothing is published -- which the record proves.
+    """
+    store = mr_publish(
+        mr_worktree,
+        mr_identity,
+        mr_record(
+            mr_worktree,
+            mr_identity,
+            workflow_state=RunStatus.MILESTONE_FAILED,
+            current_milestone=MR_MILESTONE_ID,
+        ),
+    )
+    result = runner.invoke(
+        app,
+        [
+            "milestone-runner",
+            "reconcile-milestone",
+            "--config",
+            str(mr_config),
+            "--milestone",
+            MR_MILESTONE_ID,
+            "--reason",
+            "the recorded result was fenced but semantically valid",
+        ],
+    )
+    assert result.exit_code == 1, result.output
+    assert "ERROR [milestone-runner-reconcile-milestone]" in result.stderr
+    assert store.load().workflow_state is RunStatus.MILESTONE_FAILED
+    assert store.load().reconciliations == []
+
+
+def test_milestone_runner_reopen_milestone_clears_a_failed_milestone(
+    mr_worktree: Path, mr_identity: str, mr_config: Path
+) -> None:
+    """`reopen-milestone`: budgets preserved, and the operator's reason recorded as the ruling."""
+    store = mr_publish(
+        mr_worktree,
+        mr_identity,
+        mr_record(
+            mr_worktree,
+            mr_identity,
+            workflow_state=RunStatus.MILESTONE_FAILED,
+            current_milestone=MR_MILESTONE_ID,
+        ),
+    )
+    result = runner.invoke(
+        app,
+        [
+            "milestone-runner",
+            "reopen-milestone",
+            "--config",
+            str(mr_config),
+            "--milestone",
+            MR_MILESTONE_ID,
+            "--reason",
+            "the Human Owner corrected this milestone's scope",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "Recovery: REOPEN_MILESTONE" in result.output
+    assert "Budgets touched: (none)" in result.output
+    reopened = store.load()
+    assert len(reopened.reopenings) == 1
+    assert reopened.completed_milestones == []
+
+
+def test_milestone_runner_recover_failed_review_restores_exactly_one_budget(
+    mr_worktree: Path, mr_identity: str, mr_config: Path
+) -> None:
+    """`recover-failed-review`: one budget back, from the class persisted at invocation time."""
+    store = mr_publish(
+        mr_worktree,
+        mr_identity,
+        mr_record(
+            mr_worktree,
+            mr_identity,
+            workflow_state=RunStatus.HUMAN_INTERVENTION_REQUIRED,
+            stop_reason=StopReason.GOVERNANCE_CONTRADICTION,
+            review_attempts=1,
+            successful_review_rounds=1,
+            provider_runs=[
+                ProviderRunRecord(
+                    sequence=1,
+                    role=ProviderRole.REVIEW,
+                    provider="codex",
+                    started_at="2026-08-06T11:30:00Z",
+                    completed_at="2026-08-06T11:31:00Z",
+                    duration_ms=60000,
+                    exit_code=1,
+                    failure_class=ProviderFailureClass.AUTH_FAILED,
+                    prompt_path="transcripts/0001-20260806T113000Z-codex-review.prompt.md",
+                    stdout_path="transcripts/0001-20260806T113000Z-codex-review.stdout.txt",
+                    stderr_path="transcripts/0001-20260806T113000Z-codex-review.stderr.txt",
+                )
+            ],
+        ),
+    )
+    result = runner.invoke(
+        app,
+        [
+            "milestone-runner",
+            "recover-failed-review",
+            "--config",
+            str(mr_config),
+            "--classification",
+            ProviderFailureClass.AUTH_FAILED.value,
+            "--ruling",
+            "the Human Owner ruled the token expiry did not consume the review",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "successful_review_rounds-1" in result.output
+    recovered = store.load()
+    assert recovered.successful_review_rounds == 0
+    assert recovered.review_attempts == 1
+    assert len(recovered.review_recoveries) == 1
+
+
+def test_milestone_runner_revalidate_correction_leaves_every_budget_untouched(
+    mr_worktree: Path, mr_identity: str, mr_config: Path
+) -> None:
+    """`revalidate-correction`: section 13's "budgets explicitly untouched", by the record."""
+    store = mr_publish(
+        mr_worktree,
+        mr_identity,
+        mr_record(
+            mr_worktree,
+            mr_identity,
+            workflow_state=RunStatus.HUMAN_INTERVENTION_REQUIRED,
+            stop_reason=StopReason.GOVERNANCE_CONTRADICTION,
+            review_attempts=1,
+            successful_review_rounds=1,
+            correction_round=1,
+        ),
+    )
+    result = runner.invoke(
+        app, ["milestone-runner", "revalidate-correction", "--config", str(mr_config)]
+    )
+    assert result.exit_code == 0, result.output
+    assert "Recovery: REVALIDATE_CORRECTION" in result.output
+    assert "Budgets touched: (none)" in result.output
+    revalidated = store.load()
+    assert revalidated.correction_round == 1
+    assert revalidated.successful_review_rounds == 1
+    assert len(revalidated.revalidations) == 1
+
+
+def test_milestone_runner_approve_commit_prints_the_exact_commands_and_changes_nothing(
+    mr_worktree: Path, mr_identity: str, mr_config: Path
+) -> None:
+    """`approve-commit`: section 20's first gate, print-only under the shipped defaults."""
+    mr_at_commit_gate(mr_worktree, mr_identity)
+    before = mr_git_state(mr_worktree)
+    result = runner.invoke(app, ["milestone-runner", "approve-commit", "--config", str(mr_config)])
+    assert result.exit_code == 0, result.output
+    assert "Executed: no" in result.output
+    assert f"git add -- {MR_IMPLEMENTED_PATH}" in result.output
+    assert "git commit --message" in result.output
+    assert mr_git_state(mr_worktree) == before
+
+
+def test_milestone_runner_approve_push_prints_the_exact_command_and_changes_nothing(
+    mr_worktree: Path, mr_identity: str, mr_config: Path
+) -> None:
+    """`approve-push`: section 20's second gate, print-only under the shipped defaults."""
+    (mr_worktree / MR_IMPLEMENTED_PATH).write_text("the work this run produced\n", encoding="utf-8")
+    mr_publish(
+        mr_worktree,
+        mr_identity,
+        mr_record(
+            mr_worktree,
+            mr_identity,
+            workflow_state=RunStatus.READY_FOR_PUSH_APPROVAL,
+            changed_paths=[MR_IMPLEMENTED_PATH],
+            completed_milestones=[MR_MILESTONE_ID],
+            review_attempts=1,
+            successful_review_rounds=1,
+        ),
+    )
+    before = mr_git_state(mr_worktree)
+    result = runner.invoke(app, ["milestone-runner", "approve-push", "--config", str(mr_config)])
+    assert result.exit_code == 0, result.output
+    assert "Executed: no" in result.output
+    assert "git push origin main" in result.output
+    assert mr_git_state(mr_worktree) == before
+
+
+def test_milestone_runner_abort_stops_the_run_and_holds_the_lock(
+    mr_worktree: Path, mr_identity: str, mr_config: Path
+) -> None:
+    """`abort`: a state-mutating command, so it acquires the run lock too (defect P-6)."""
+    store = mr_publish(mr_worktree, mr_identity, mr_record(mr_worktree, mr_identity))
+    result = runner.invoke(
+        app,
+        [
+            "milestone-runner",
+            "abort",
+            "--config",
+            str(mr_config),
+            "--reason",
+            "the operator stopped this run",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert f"State: {RunStatus.ABORTED.value}" in result.output
+    assert store.load().workflow_state is RunStatus.ABORTED
+
+    # A held lock refuses the same command, which is what proves it was taken.
+    contender = RunLock(
+        run_id="auto016-20260806T110000Z-otherrun",
+        repository_identity=mr_identity,
+        artifact_root=store.artifact_root,
+    )
+    contender.acquire()
+    try:
+        refused = runner.invoke(
+            app,
+            [
+                "milestone-runner",
+                "abort",
+                "--config",
+                str(mr_config),
+                "--reason",
+                "a second operator, at the same time",
+            ],
+        )
+    finally:
+        contender.release()
+    assert refused.exit_code == 1, refused.output
+
+
+# --------------------------------------------------------------------------------------
+# Section 20 -- the two gates, and what they refuse
+# --------------------------------------------------------------------------------------
+
+
+class TestCommitGateIsPrintOnlyByDefault:
+    """Section 20: with the shipped defaults `approve-commit` prints and executes nothing."""
+
+    def test_the_gate_prints_the_exact_commands_and_moves_nothing(
+        self, mr_worktree: Path, mr_identity: str, mr_config: Path
+    ) -> None:
+        store = mr_at_commit_gate(mr_worktree, mr_identity)
+        before = mr_git_state(mr_worktree)
+        result = runner.invoke(
+            app, ["milestone-runner", "approve-commit", "--config", str(mr_config)]
+        )
+        assert result.exit_code == 0, result.output
+        assert "git.execute_commit is false, the shipped default" in result.output
+        assert "Executed: no" in result.output
+        # HEAD, the reflog and the remote refs are all exactly as they were.
+        assert mr_git_state(mr_worktree) == before
+        # The run has not advanced: a print-only gate is not a consumed one.
+        assert store.load().workflow_state is RunStatus.READY_FOR_COMMIT_APPROVAL
+
+    def test_the_recorded_approval_carries_every_property_section_20_names(
+        self, mr_worktree: Path, mr_identity: str, mr_config: Path
+    ) -> None:
+        store = mr_at_commit_gate(mr_worktree, mr_identity)
+        result = runner.invoke(
+            app, ["milestone-runner", "approve-commit", "--config", str(mr_config)]
+        )
+        assert result.exit_code == 0, result.output
+        approvals = store.load().approvals
+        assert len(approvals) == 1
+        approval = approvals[0]
+        assert approval.operation.value == "COMMIT"
+        assert approval.repository_identity == mr_identity
+        assert approval.branch == "main"
+        assert approval.baseline_sha == mr_git(mr_worktree, "rev-parse", "HEAD")
+        assert approval.head_sha == mr_git(mr_worktree, "rev-parse", "HEAD")
+        assert approval.changed_paths == [MR_IMPLEMENTED_PATH]
+        assert set(approval.changed_path_digests) == {MR_IMPLEMENTED_PATH}
+        assert len(approval.verification_digest) == 64
+        assert approval.review_verdict.value == "APPROVED"
+        assert approval.human_confirmation_supplied is False
+        assert approval.consumed is False
+
+    def test_a_run_anywhere_else_never_reaches_the_gate(
+        self, mr_worktree: Path, mr_identity: str, mr_config: Path
+    ) -> None:
+        """The façade is reachable only from this command in its one approval state."""
+        mr_publish(mr_worktree, mr_identity, mr_record(mr_worktree, mr_identity))
+        result = runner.invoke(
+            app, ["milestone-runner", "approve-commit", "--config", str(mr_config)]
+        )
+        assert result.exit_code == 1, result.output
+        assert "reachable only from READY_FOR_COMMIT_APPROVAL" in result.stderr
+
+
+class TestPushGateIsPrintOnlyByDefault:
+    """Section 20: the push gate ships disabled on exactly the same terms."""
+
+    def test_the_gate_prints_the_exact_command_and_moves_no_remote_ref(
+        self, mr_worktree: Path, mr_identity: str, mr_config: Path
+    ) -> None:
+        (mr_worktree / MR_IMPLEMENTED_PATH).write_text("work\n", encoding="utf-8")
+        store = mr_publish(
+            mr_worktree,
+            mr_identity,
+            mr_record(
+                mr_worktree,
+                mr_identity,
+                workflow_state=RunStatus.READY_FOR_PUSH_APPROVAL,
+                changed_paths=[MR_IMPLEMENTED_PATH],
+                completed_milestones=[MR_MILESTONE_ID],
+            ),
+        )
+        before = mr_git_state(mr_worktree)
+        result = runner.invoke(
+            app, ["milestone-runner", "approve-push", "--config", str(mr_config)]
+        )
+        assert result.exit_code == 0, result.output
+        assert "git.execute_push is false, the shipped default" in result.output
+        assert "Executed: no" in result.output
+        assert result.output.count("git push") == 1
+        assert mr_git_state(mr_worktree) == before
+        assert store.load().workflow_state is RunStatus.READY_FOR_PUSH_APPROVAL
+
+    def test_the_commit_gate_state_never_satisfies_the_push_gate(
+        self, mr_worktree: Path, mr_identity: str, mr_config: Path
+    ) -> None:
+        mr_at_commit_gate(mr_worktree, mr_identity)
+        result = runner.invoke(
+            app, ["milestone-runner", "approve-push", "--config", str(mr_config)]
+        )
+        assert result.exit_code == 1, result.output
+        assert "reachable only from READY_FOR_PUSH_APPROVAL" in result.stderr
+
+
+class TestExecuteFlagStillRequiresTypedConfirmation:
+    """Section 20: the configuration flip alone authorizes nothing.
+
+    Both gates are opt-in *at the point of use*: with `git.execute_commit` or `git.execute_push`
+    flipped, execution additionally requires the typed phrase, byte-for-byte, and no built-in or
+    project-wide default can supply it. Every case below leaves `HEAD`, the reflog and the remote
+    refs exactly where they were.
+    """
+
+    def test_a_flipped_commit_flag_with_a_mistyped_phrase_executes_nothing(
+        self, mr_worktree: Path, mr_identity: str, mr_config_factory
+    ) -> None:  # type: ignore[no-untyped-def]
+        config = mr_config_factory(git={"execute_commit": True})
+        store = mr_at_commit_gate(mr_worktree, mr_identity)
+        before = mr_git_state(mr_worktree)
+        result = runner.invoke(
+            app,
+            ["milestone-runner", "approve-commit", "--config", str(config)],
+            input="approve commit\n",
+        )
+        assert result.exit_code == 1, result.output
+        assert "'APPROVE COMMIT'" in result.stderr
+        assert mr_git_state(mr_worktree) == before
+        assert store.load().workflow_state is RunStatus.READY_FOR_COMMIT_APPROVAL
+
+    def test_a_flipped_commit_flag_with_no_answer_at_all_executes_nothing(
+        self, mr_worktree: Path, mr_identity: str, mr_config_factory
+    ) -> None:  # type: ignore[no-untyped-def]
+        config = mr_config_factory(git={"execute_commit": True})
+        mr_at_commit_gate(mr_worktree, mr_identity)
+        before = mr_git_state(mr_worktree)
+        result = runner.invoke(
+            app, ["milestone-runner", "approve-commit", "--config", str(config)], input=""
+        )
+        assert result.exit_code == 1, result.output
+        assert mr_git_state(mr_worktree) == before
+
+    def test_a_flipped_push_flag_with_a_mistyped_phrase_executes_nothing(
+        self, mr_worktree: Path, mr_identity: str, mr_config_factory
+    ) -> None:  # type: ignore[no-untyped-def]
+        config = mr_config_factory(git={"execute_push": True})
+        (mr_worktree / MR_IMPLEMENTED_PATH).write_text("work\n", encoding="utf-8")
+        mr_publish(
+            mr_worktree,
+            mr_identity,
+            mr_record(
+                mr_worktree,
+                mr_identity,
+                workflow_state=RunStatus.READY_FOR_PUSH_APPROVAL,
+                changed_paths=[MR_IMPLEMENTED_PATH],
+                completed_milestones=[MR_MILESTONE_ID],
+            ),
+        )
+        before = mr_git_state(mr_worktree)
+        result = runner.invoke(
+            app,
+            ["milestone-runner", "approve-push", "--config", str(config)],
+            input="APPROVE PUSH PLEASE\n",
+        )
+        assert result.exit_code == 1, result.output
+        assert "'APPROVE PUSH'" in result.stderr
+        assert mr_git_state(mr_worktree) == before
+
+    def test_the_commit_confirmation_never_satisfies_the_push_gate(
+        self, mr_worktree: Path, mr_identity: str, mr_config_factory
+    ) -> None:  # type: ignore[no-untyped-def]
+        """One approval authorizes one operation, never both and never a substitute."""
+        config = mr_config_factory(git={"execute_push": True})
+        (mr_worktree / MR_IMPLEMENTED_PATH).write_text("work\n", encoding="utf-8")
+        mr_publish(
+            mr_worktree,
+            mr_identity,
+            mr_record(
+                mr_worktree,
+                mr_identity,
+                workflow_state=RunStatus.READY_FOR_PUSH_APPROVAL,
+                changed_paths=[MR_IMPLEMENTED_PATH],
+                completed_milestones=[MR_MILESTONE_ID],
+            ),
+        )
+        before = mr_git_state(mr_worktree)
+        result = runner.invoke(
+            app,
+            ["milestone-runner", "approve-push", "--config", str(config)],
+            input="APPROVE COMMIT\n",
+        )
+        assert result.exit_code == 1, result.output
+        assert mr_git_state(mr_worktree) == before
+
+
+# --------------------------------------------------------------------------------------
+# Section 9's exit-code contract, and section 7's thin-handler discipline
+# --------------------------------------------------------------------------------------
+
+
+class TestExitCodeContract:
+    """Section 9: `0` success, `1` domain failure or tripped gate, `2` operational error."""
+
+    def test_zero_on_success(self, mr_config: Path) -> None:
+        result = runner.invoke(app, ["milestone-runner", "doctor", "--config", str(mr_config)])
+        assert result.exit_code == 0, result.output
+
+    def test_one_on_a_tripped_gate(self, mr_config_factory) -> None:  # type: ignore[no-untyped-def]
+        config = mr_config_factory(repository={"expected_branch": "not-the-branch"})
+        result = runner.invoke(app, ["milestone-runner", "doctor", "--config", str(config)])
+        assert result.exit_code == 1, result.output
+        assert StopReason.BRANCH_MISMATCH.name in result.output or "not-the-branch" in result.output
+
+    def test_one_on_a_typed_domain_refusal(self, mr_config: Path) -> None:
+        """No run exists, so `resume` refuses -- a typed refusal, not an operational error."""
+        result = runner.invoke(app, ["milestone-runner", "resume", "--config", str(mr_config)])
+        assert result.exit_code == 1, result.output
+        assert "ERROR [milestone-runner-resume]" in result.stderr
+
+    def test_two_on_an_operational_error(self, tmp_path: Path) -> None:
+        """An unreadable configuration is a precondition failure, never an assumed default."""
+        missing = tmp_path / "there-is-no-such-configuration.yaml"
+        result = runner.invoke(app, ["milestone-runner", "status", "--config", str(missing)])
+        assert result.exit_code == 2, result.output
+        # `_protected`'s pre-existing exact-bytes stderr shape, unchanged by AUTO-016.
+        assert result.stderr.startswith("ERROR: ")
+        assert "runner configuration" in result.stderr
+
+    def test_an_unknown_option_is_a_usage_error(self, mr_config: Path) -> None:
+        result = runner.invoke(
+            app, ["milestone-runner", "doctor", "--config", str(mr_config), "--admin"]
+        )
+        assert result.exit_code == 2, result.output
+
+
+class TestNoBusinessLogicInCliHandlers:
+    """Section 7: each handler parses options, calls exactly one application method, renders the
+    typed result and selects an exit code. Nothing decides anything (AST-asserted)."""
+
+    @staticmethod
+    def _handlers() -> dict[str, ast.FunctionDef]:
+        tree = ast.parse(
+            (
+                Path(__file__).resolve().parents[1] / "src" / "ai_workflow_engine" / "cli.py"
+            ).read_text(encoding="utf-8")
+        )
+        handlers: dict[str, ast.FunctionDef] = {}
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.FunctionDef):
+                continue
+            for decorator in node.decorator_list:
+                if (
+                    isinstance(decorator, ast.Call)
+                    and isinstance(decorator.func, ast.Attribute)
+                    and isinstance(decorator.func.value, ast.Name)
+                    and decorator.func.value.id == "milestone_runner_app"
+                    and decorator.func.attr == "command"
+                    and decorator.args
+                    and isinstance(decorator.args[0], ast.Constant)
+                ):
+                    handlers[str(decorator.args[0].value)] = node
+        return handlers
+
+    def test_all_thirteen_commands_are_registered_under_their_contract_names(self) -> None:
+        assert sorted(self._handlers()) == sorted(MR_COMMANDS)
+
+    def test_each_handler_calls_exactly_one_application_method(self) -> None:
+        for command, handler in self._handlers().items():
+            called = {
+                node.attr
+                for node in ast.walk(handler)
+                if isinstance(node, ast.Attribute)
+                and isinstance(node.value, ast.Name)
+                and node.value.id == "application"
+            }
+            assert called == {MR_COMMANDS[command]}, f"{command} reaches {sorted(called)}"
+
+    def test_no_handler_branches_loops_or_handles_an_exception(self) -> None:
+        """A decision in a handler would be business logic; there is none to find."""
+        deciding = (ast.If, ast.For, ast.While, ast.Try, ast.With, ast.Compare, ast.BoolOp)
+        for command, handler in self._handlers().items():
+            offenders = [
+                type(node).__name__ for node in ast.walk(handler) if isinstance(node, deciding)
+            ]
+            assert offenders == [], f"{command} decides something: {offenders}"
+
+    def test_the_sub_app_is_registered_exactly_once_and_nothing_existing_is_renamed(self) -> None:
+        source = (
+            Path(__file__).resolve().parents[1] / "src" / "ai_workflow_engine" / "cli.py"
+        ).read_text(encoding="utf-8")
+        assert source.count('name="milestone-runner"') == 1
+        # Section 7's single, deliberate `src -> agentos_workflow` edge is left exactly as it is.
+        assert source.count("from agentos_workflow.cli_auto import auto_app") == 1
+
+    def test_the_thirteen_commands_use_long_form_kebab_case_options_only(self) -> None:
+        source = (
+            Path(__file__).resolve().parents[1] / "src" / "ai_workflow_engine" / "cli.py"
+        ).read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        options: set[str] = set()
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "Option"
+                and node.args
+                and isinstance(node.args[0], ast.Constant)
+            ):
+                options.add(str(node.args[0].value))
+        milestone_options = {
+            "--config",
+            "--milestone",
+            "--reason",
+            "--classification",
+            "--ruling",
+            "--json",
+        }
+        assert milestone_options <= options
+        for option in milestone_options:
+            assert option.startswith("--"), option
+            assert option == option.lower(), option
