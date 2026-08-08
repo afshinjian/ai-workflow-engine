@@ -748,7 +748,7 @@ reconciliation-log entry per `SECURITY_MODEL.md` §7.
 
 ## DASH-005 — Workflow board and task detail
 
-Status: Planned
+Status: Current
 
 Queue-lane board (Planned/Current/Done), workflow-stage strip, ORCH program lane, task detail
 views. Contract: `docs/agentos-dashboard/stage-prompts/DASH-005.md`.

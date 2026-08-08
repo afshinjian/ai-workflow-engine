@@ -7,6 +7,8 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- DASH-005 (2026-08-08): explicitly authorized by the Human Owner through the local
+  two-confirmation task gate; authorization commit and implementation remain separate.
 - GOV-4 (2026-08-02): implemented, Human-Owner-approved, and closed `Current -> Done` — two
   pre-AUTO-013 live acceptance test-harness fixes, test-only. Claude's configured account
   directory is now a read-only authentication template, copied per invocation

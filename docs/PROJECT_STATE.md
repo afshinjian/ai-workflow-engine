@@ -550,3 +550,12 @@ template), and non-deterministic first-attempt compliance with the strict bare-J
 contract (bounded to 3 attempts, retrying only `FAILED`/`MALFORMED_OUTPUT`). Two full live-suite
 runs: 32 passed/0 failed/0 skipped each. No production code changed. AUTO-013 remains
 unauthorized.
+
+## Authorization update — 2026-08-08
+
+## DASH-005
+
+Status: Current
+
+The Human Owner explicitly authorized this single task through the local authorization gate.
+Implementation and approval remain separate phases.
