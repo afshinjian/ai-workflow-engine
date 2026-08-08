@@ -29,6 +29,13 @@ dashboard = [
 ]
 dev = [
   "black>=24.4,<26",
+  # AUTO-016: the Section 25 packaging tests build a real wheel with `pip wheel
+  # --no-build-isolation`, which requires the `[build-system]` backend to be importable from the
+  # interpreter running the build rather than from a throwaway isolated environment. Without this
+  # entry the backend was present only where a developer happened to have it installed globally,
+  # so those tests passed locally and failed in CI with `Cannot import 'hatchling.build'`. Pinned
+  # to the same floor as `[build-system] requires` so the two can never disagree.
+  "hatchling>=1.25",
   "mypy>=1.10,<2",
   "pre-commit>=3.7,<5",
   "pytest>=8.2,<9",
