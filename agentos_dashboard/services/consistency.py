@@ -445,7 +445,9 @@ def run_consistency_checks(root: RepositoryRoot) -> ConsistencyReport:
         parse_task_records(queue_text, TASK_QUEUE_PATH) if queue_text is not None else None
     )
     current_parse = (
-        parse_task_records(current_text, CURRENT_TASK_PATH) if current_text is not None else None
+        parse_task_records(current_text, CURRENT_TASK_PATH, recognize_empty_current=True)
+        if current_text is not None
+        else None
     )
     remaining_parse = (
         parse_task_records(remaining_text, REMAINING_TASKS_PATH)
