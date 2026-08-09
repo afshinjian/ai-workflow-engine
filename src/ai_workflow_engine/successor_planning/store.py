@@ -571,18 +571,22 @@ class ArtifactStore:
             )
         # The file at this address re-derives to this address, so its hashed payload is either
         # identical to ours -- differing only in the explicitly non-canonical
-        # `generation_metadata` envelope (section 16.3) -- or genuinely different, which for a
-        # 64-character digest is a SHA-256 collision and gets section 16.2's severe marker.
+        # `generation_metadata` envelope (section 16.3), which section 18 requires this
+        # invocation to converge on as a no-op success rather than refuse -- or genuinely
+        # different, which for a 64-character digest is a SHA-256 collision and gets section
+        # 16.2's severe marker.
         collision = payload != canonical_payload_bytes(artifact)
+        if not collision:
+            # Idempotent republish across a `generation_metadata` boundary: the already-published
+            # file is left untouched and re-verified as itself -- never against this invocation's
+            # own freshly stamped, non-canonical envelope bytes, which is what made this a false
+            # conflict in the first place.
+            return self._verify_published(final, existing, artifact, created=False)
         raise PublicationConflict(
-            f"{final} already holds different bytes at the same content address "
-            + (
-                "with a genuinely different canonical payload: this is a SHA-256 collision"
-                if collision
-                else "differing only in the unhashed generation_metadata envelope"
-            )
-            + "; refusing to overwrite it",
-            digest_collision=collision,
+            f"{final} already holds different bytes at the same content address with a "
+            "genuinely different canonical payload: this is a SHA-256 collision; refusing to "
+            "overwrite it",
+            digest_collision=True,
         )
 
     def _verify_published(
