@@ -312,3 +312,54 @@ pre.prose {
   max-height: 24rem;
   overflow-y: auto;
 }
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.875rem;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.875rem;
+}
+
+th,
+td {
+  border-bottom: 1px solid var(--border);
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+  white-space: nowrap;
+}
+
+th {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.ack-form {
+  margin-top: 0.5rem;
+}
+
+.ack-form label {
+  display: block;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.ack-form textarea {
+  display: block;
+  width: 100%;
+  max-width: 32rem;
+  font: inherit;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.4rem;
+  margin: 0.25rem 0 0.5rem;
+  background: var(--bg);
+  color: var(--fg);
+}

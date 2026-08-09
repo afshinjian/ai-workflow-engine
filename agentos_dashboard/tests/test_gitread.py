@@ -27,6 +27,7 @@ from agentos_dashboard.core.gitread import (
     read_diff_stat,
     read_head,
     read_log,
+    read_merged_branch_names,
     read_status,
     read_tags,
     resolve_revision,
@@ -241,6 +242,31 @@ def test_read_branches_lists_local_and_remote_branches(tmp_path: Path, git_repo:
     assert branches["feature/dash"].is_head is False
     assert branches["feature/dash"].upstream is None
     assert branches["origin/main"].is_remote is True
+
+
+def test_read_merged_branch_names_excludes_an_unmerged_branch(git_repo: Path) -> None:
+    git(git_repo, "checkout", "--quiet", "-b", "feature/unmerged")
+    write(git_repo, "unmerged.txt", "content\n")
+    git(git_repo, "add", "unmerged.txt")
+    git(git_repo, "commit", "--quiet", "-m", "never merged")
+    git(git_repo, "checkout", "--quiet", "main")
+    git(git_repo, "checkout", "--quiet", "-b", "feature/merged")
+    write(git_repo, "extra.txt", "content\n")
+    git(git_repo, "add", "extra.txt")
+    git(git_repo, "commit", "--quiet", "-m", "second commit")
+    git(git_repo, "checkout", "--quiet", "main")
+    git(git_repo, "merge", "--quiet", "--no-ff", "-m", "merge it", "feature/merged")
+
+    merged = read_merged_branch_names(git_repo, "main")
+    assert "main" in merged
+    assert "feature/merged" in merged
+    assert "feature/unmerged" not in merged
+
+
+def test_read_merged_branch_names_refuses_an_unknown_target(git_repo: Path) -> None:
+    with pytest.raises(GitReadError) as caught:
+        read_merged_branch_names(git_repo, "does-not-exist")
+    assert caught.value.failure is GitFailure.COMMAND_FAILED
 
 
 def test_read_tags_reports_annotated_and_lightweight_tags(git_repo: Path) -> None:

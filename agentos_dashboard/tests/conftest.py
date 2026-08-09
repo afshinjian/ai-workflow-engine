@@ -94,6 +94,20 @@ def client(dashboard_app: FastAPI) -> AsgiTestClient:
 
 
 @pytest.fixture
+def git_dashboard_app(git_repo: Path) -> FastAPI:
+    """A `create_app()` instance rooted at a real Git repository (`git_repo`), for the Git/
+    handover/consistency pages' HTTP-level tests (DASH-006), which need real Git status/log/
+    branch data rather than `workspace`'s plain non-Git directory."""
+    settings = DashboardSettings.from_env({"AWED_REPO_ROOT": str(git_repo)})
+    return create_app(settings)
+
+
+@pytest.fixture
+def git_client(git_dashboard_app: FastAPI) -> AsgiTestClient:
+    return AsgiTestClient(git_dashboard_app)
+
+
+@pytest.fixture
 def isolated_state_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """Isolates `~` for `ai_workflow_engine.workflow.event_store` (DASH-005 remediation,
     `services.legacy_workflow`), so a test never reads or writes the real operator's

@@ -573,7 +573,16 @@ Implementation and approval remain separate phases. Report:
 
 ## DASH-006
 
-Status: Current
+Status: Done
 
 The Human Owner explicitly authorized this single task through the local authorization gate.
 Implementation and approval remain separate phases.
+
+## DASH-006 implementation update — 2026-08-09
+
+Status: Current
+
+DASH-006 is implemented and validated on the registered branch
+`feature/dash-006-git-handover-views`, uncommitted, stopped for Human Owner approval.
+Implementation and approval remain separate phases. Report:
+`docs/reports/agentos-dashboard/STAGE-06-completion.md`.
