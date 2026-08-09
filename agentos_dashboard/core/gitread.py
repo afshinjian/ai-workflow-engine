@@ -46,6 +46,7 @@ __all__ = [
     "read_diff_stat",
     "read_head",
     "read_log",
+    "read_merged_branch_names",
     "read_status",
     "read_tags",
     "resolve_revision",
@@ -462,6 +463,28 @@ def read_tags(root: Path) -> tuple[TagRef, ...]:
         name, sha, target, created_at = fields
         tags.append(TagRef(name=name, sha=sha, target_sha=target or None, created_at=created_at))
     return tuple(tags)
+
+
+def read_merged_branch_names(root: Path, target: str) -> frozenset[str]:
+    """`git branch -a --merged <target>` — short names of every branch already an ancestor of
+    `target` (`DASH-006.md` DR-080's "merged-into-target indication").
+
+    Reuses the already-allowlisted `branch` subcommand (no new verb added to
+    `READ_ONLY_SUBCOMMANDS`): `--merged` is a read-only filter on `git branch`'s own listing, not
+    a different operation. `target` is validated exactly as `resolve_revision` validates a
+    caller-supplied revision (`_validated_revision`, which requires a leading alphanumeric
+    character), so it can never be interpreted as an option itself; `--end-of-options` is not used
+    here because `git branch --merged` consumes the token immediately following `--merged` as its
+    own argument and rejects an intervening `--end-of-options` marker (verified against the
+    installed Git).
+    """
+    validated = _validated_revision(target)
+    completed = _run(
+        root,
+        ("branch", "-a", "--format=%(refname:short)", "--merged", validated),
+        allowed_exit_codes=(0,),
+    )
+    return frozenset(line.strip() for line in completed.stdout.splitlines() if line.strip())
 
 
 def read_diff_stat(root: Path, base: str, head: str) -> DiffStat:

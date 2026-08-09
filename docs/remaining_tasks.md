@@ -130,11 +130,14 @@ every later roadmap phase remain unauthorized. Completion report:
 
 | Task | Title | Status |
 |---|---|---|
-| DASH-006 | Git, upstream, handover, and consistency views | Planned |
 | DASH-007 | Stage registry and prompt generation | Planned |
 | DASH-008 | Run records, evidence, and audit timeline | Planned |
 | DASH-009 | Security hardening and failure handling | Planned |
 | DASH-010 | Integration testing, documentation, and release readiness | Planned |
+
+**DASH-006 implementation update (2026-08-09):** implemented and validated on branch
+`feature/dash-006-git-handover-views`, uncommitted, awaiting Human Owner approval. Report:
+`docs/reports/agentos-dashboard/STAGE-06-completion.md`.
 
 Future hardening recorded at AUTO-002 closure—including infrastructure-retry accounting when a
 future stage first introduces such operations, remote/GitHub reconciliation in the integration

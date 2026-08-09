@@ -20,6 +20,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.requests import Request
 
+from agentos_dashboard.api.acknowledgments import AcknowledgmentStore
 from agentos_dashboard.api.envelope import err
 from agentos_dashboard.api.errors import (
     INTERNAL_ERROR_MESSAGE,
@@ -43,6 +44,7 @@ WEB_ROOT = Path(__file__).parent / "web"
 def create_app(settings: DashboardSettings, *, lock: ExecutionLock | None = None) -> FastAPI:
     root = RepositoryRoot(path=settings.repo_root)
     cache = SnapshotCache(root)
+    acknowledgments = AcknowledgmentStore()
 
     app = FastAPI(title="AgentOS Dashboard", docs_url=None, redoc_url=None, openapi_url=None)
     # Exposed for introspection (tests, `--check`) only; every route closes over `cache`
@@ -53,8 +55,14 @@ def create_app(settings: DashboardSettings, *, lock: ExecutionLock | None = None
     app.mount("/static", StaticFiles(directory=str(WEB_ROOT / "static")), name="static")
     templates = Jinja2Templates(directory=str(WEB_ROOT / "templates"))
 
-    app.include_router(build_api_router(settings=settings, cache=cache, lock=lock))
-    app.include_router(build_web_router(cache=cache, templates=templates))
+    app.include_router(
+        build_api_router(
+            settings=settings, cache=cache, lock=lock, acknowledgments_store=acknowledgments
+        )
+    )
+    app.include_router(
+        build_web_router(cache=cache, templates=templates, acknowledgments_store=acknowledgments)
+    )
 
     _install_exception_handlers(app)
     return app

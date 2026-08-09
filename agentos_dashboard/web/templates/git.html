@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+{% block title %}Git · AgentOS Dashboard{% endblock %}
+{% block content %}
+<h1>Git</h1>
+<p class="empty-state">Read-only: no commit, push, merge, tag-creation, branch-deletion, or history-rewrite affordance exists on this page (DR-083).</p>
+
+<section aria-labelledby="git-findings-heading">
+  <h2 id="git-findings-heading">Git findings</h2>
+  {% if git_data.findings %}
+    <ul>
+      {% for finding in git_data.findings %}
+        <li>
+          <span class="badge badge-{{ finding.severity.value }}">{{ finding.severity.value|upper }}</span>
+          {{ finding.rule }}: {{ finding.message }}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="empty-state">No Git findings</p>
+  {% endif %}
+</section>
+
+<section aria-labelledby="status-heading">
+  <h2 id="status-heading">Status</h2>
+  {% if git_data.status %}
+    <dl>
+      <dt>Branch</dt><dd>{{ git_data.status.branch or "detached" }}</dd>
+      <dt>HEAD</dt><dd class="mono">{{ git_data.status.head or "unborn" }}</dd>
+      <dt>Working tree</dt>
+      <dd>
+        {% if git_data.status.clean %}
+          <span class="badge badge-pass">CLEAN</span>
+        {% else %}
+          <span class="badge badge-warning">DIRTY</span>
+        {% endif %}
+      </dd>
+    </dl>
+  {% else %}
+    <p class="empty-state">Git status unavailable</p>
+  {% endif %}
+</section>
+
+<section aria-labelledby="upstream-heading">
+  <h2 id="upstream-heading">Upstream check <span class="badge badge-info">DR-081</span></h2>
+  <dl>
+    <dt>Default branch</dt><dd>{{ upstream.default_branch }}</dd>
+    <dt>Current branch</dt>
+    <dd>
+      {{ upstream.branch or "detached" }}
+      {% if upstream.on_default_branch %}<span class="badge badge-info">on default</span>{% endif %}
+    </dd>
+    <dt>Upstream</dt><dd>{{ upstream.upstream or "none configured" }}</dd>
+    <dt>Ahead / behind</dt>
+    <dd>
+      {{ upstream.ahead if upstream.ahead is not none else "?" }} /
+      {{ upstream.behind if upstream.behind is not none else "?" }}
+    </dd>
+    <dt>Requires upstream</dt><dd>{{ "yes" if upstream.require_upstream else "no" }}</dd>
+    <dt>Result</dt>
+    <dd>
+      {% if upstream.violation %}
+        <span class="badge badge-error">BLOCKER</span>
+      {% else %}
+        <span class="badge badge-pass">PASS</span>
+      {% endif %}
+    </dd>
+  </dl>
+  {% if upstream.findings %}
+    <ul>
+      {% for finding in upstream.findings %}
+        <li>
+          <span class="badge badge-{{ finding.severity.value }}">{{ finding.severity.value|upper }}</span>
+          {{ finding.message }}
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+</section>
+
+<section aria-labelledby="staged-heading">
+  <h2 id="staged-heading">Staged / modified / untracked</h2>
+  <h3>Staged <span class="badge badge-info">{{ git_data.staged_entries|length }}</span></h3>
+  {% if git_data.staged_entries %}
+    <ul class="checklist">
+      {% for entry in git_data.staged_entries %}
+        <li class="mono">{{ entry.index_status }} {{ entry.path }}</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="empty-state">Nothing staged</p>
+  {% endif %}
+  <h3>Modified <span class="badge badge-info">{{ git_data.modified_entries|length }}</span></h3>
+  {% if git_data.modified_entries %}
+    <ul class="checklist">
+      {% for entry in git_data.modified_entries %}
+        <li class="mono">{{ entry.worktree_status }} {{ entry.path }}</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="empty-state">Nothing modified</p>
+  {% endif %}
+  <h3>Untracked <span class="badge badge-info">{{ git_data.untracked_entries|length }}</span></h3>
+  {% if git_data.untracked_entries %}
+    <ul class="checklist">
+      {% for entry in git_data.untracked_entries %}
+        <li class="mono">{{ entry.path }}</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="empty-state">Nothing untracked</p>
+  {% endif %}
+</section>
+
+<section aria-labelledby="commits-heading">
+  <h2 id="commits-heading">Recent commits</h2>
+  {% if git_data.commits %}
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>SHA</th><th>Author</th><th>Authored</th><th>Subject</th><th>Merge</th></tr>
+        </thead>
+        <tbody>
+          {% for commit in git_data.commits %}
+            <tr>
+              <td class="mono">{{ commit.abbreviated_sha }}</td>
+              <td>{{ commit.author_name }}</td>
+              <td>{{ commit.authored_at }}</td>
+              <td>{{ commit.subject }}</td>
+              <td>{% if commit.is_merge %}<span class="badge badge-info">MERGE</span>{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if git_data.commits_truncated %}
+      <p class="empty-state">Showing the most recent {{ git_data.commits|length }} commits only.</p>
+    {% endif %}
+  {% else %}
+    <p class="empty-state">No commits (unborn branch or unreadable log)</p>
+  {% endif %}
+</section>
+
+<section aria-labelledby="branches-heading">
+  <h2 id="branches-heading">Branches</h2>
+  {% if git_data.branches %}
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>Name</th><th>Upstream</th><th>SHA</th><th>HEAD</th><th>Remote</th><th>Merged into {{ upstream.default_branch }}</th></tr>
+        </thead>
+        <tbody>
+          {% for branch in git_data.branches %}
+            <tr>
+              <td>{{ branch.name }}</td>
+              <td>{{ branch.upstream or "—" }}</td>
+              <td class="mono">{{ branch.sha[:12] }}</td>
+              <td>{% if branch.is_head %}<span class="badge badge-info">HEAD</span>{% endif %}</td>
+              <td>{{ "yes" if branch.is_remote else "no" }}</td>
+              <td>
+                {% if branch.merged %}
+                  <span class="badge badge-pass">MERGED</span>
+                {% else %}
+                  <span class="badge badge-warning">UNMERGED</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="empty-state">No branches (unreadable)</p>
+  {% endif %}
+</section>
+
+<section aria-labelledby="tags-heading">
+  <h2 id="tags-heading">Tags</h2>
+  {% if git_data.tags %}
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Name</th><th>SHA</th><th>Target</th><th>Created</th></tr></thead>
+        <tbody>
+          {% for tag in git_data.tags %}
+            <tr>
+              <td>{{ tag.name }}</td>
+              <td class="mono">{{ tag.sha[:12] }}</td>
+              <td class="mono">{{ (tag.target_sha or "—")[:12] }}</td>
+              <td>{{ tag.created_at }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="empty-state">No tags</p>
+  {% endif %}
+</section>
+
+<section aria-labelledby="commit-badges-heading">
+  <h2 id="commit-badges-heading">
+    Doc-referenced commit resolution <span class="badge badge-info">TR-07</span>
+  </h2>
+  <p class="empty-state">
+    Every SHA named in `docs/DECISION_LOG.md` or `implementation-state.yaml`, resolved against
+    real Git.
+  </p>
+  {% if git_data.commit_badges %}
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Source</th><th>Field</th><th>Token</th><th>Result</th></tr></thead>
+        <tbody>
+          {% for badge in git_data.commit_badges %}
+            <tr>
+              <td>{{ badge.source }}:{{ badge.line }}</td>
+              <td>{{ badge.field }}</td>
+              <td class="mono">{{ badge.token[:12] }}</td>
+              <td>
+                {% if badge.resolvable %}
+                  <span class="badge badge-pass">VERIFIED</span>
+                {% else %}
+                  <span class="badge badge-error">UNRESOLVABLE</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="empty-state">No commit references found in governance documents</p>
+  {% endif %}
+</section>
+
+<section aria-labelledby="pr-heading">
+  <h2 id="pr-heading">
+    Pull-request references <span class="badge badge-warning">NON-AUTHORITATIVE (local)</span>
+  </h2>
+  <p class="empty-state">
+    Extracted from documentation prose only; never verified against GitHub (`OD-D7` deferred).
+  </p>
+  {% if git_data.pr_references %}
+    <ul>
+      {% for ref in git_data.pr_references %}
+        <li>
+          PR #{{ ref.number }} — <span class="badge badge-warning">UNVERIFIED</span>
+          {{ ref.source }}:{{ ref.line }} — {{ ref.context }}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="empty-state">No PR references found in documentation</p>
+  {% endif %}
+</section>
+{% endblock %}

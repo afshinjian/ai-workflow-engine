@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Consistency · AgentOS Dashboard{% endblock %}
+{% block content %}
+<h1>Consistency</h1>
+<p class="empty-state">Read-only against the repository: acknowledging a finding records a local note only (in-memory, lost on restart until DASH-008) and never edits, resolves, or auto-fixes the underlying documents (DR-120).</p>
+
+<section aria-labelledby="findings-heading">
+  <h2 id="findings-heading">Findings <span class="badge badge-info">{{ report.findings|length }}</span></h2>
+  {% if rows %}
+    {% for row in rows %}
+      <article class="card">
+        <p>
+          <span class="badge badge-{{ row.finding.severity.value }}">{{ row.finding.severity.value|upper }}</span>
+          <strong>{{ row.finding.rule }}</strong>
+        </p>
+        <p>{{ row.finding.message }}</p>
+        {% if row.finding.sources %}
+          <p class="empty-state">
+            Sources:
+            {% for source in row.finding.sources %}
+              <span class="mono">{{ source }}</span>{% if not loop.last %}, {% endif %}
+            {% endfor %}
+          </p>
+        {% endif %}
+        {% if row.acknowledgments %}
+          <div>
+            <h3>Acknowledgment history</h3>
+            <ul class="checklist">
+              {% for ack in row.acknowledgments %}
+                <li>{{ ack.acknowledged_at }} — {{ ack.note }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endif %}
+        <form class="ack-form" data-action="acknowledge-finding" data-fingerprint="{{ row.fingerprint }}">
+          <label>
+            Acknowledge with a local note
+            <textarea name="note" rows="2" maxlength="2000" required></textarea>
+          </label>
+          <button type="submit">Acknowledge</button>
+        </form>
+      </article>
+    {% endfor %}
+  {% else %}
+    <p class="empty-state">No consistency findings — repository mirrors agree</p>
+  {% endif %}
+</section>
+
+<section aria-labelledby="history-heading">
+  <h2 id="history-heading">All acknowledgments <span class="badge badge-info">{{ acknowledgments|length }}</span></h2>
+  {% if acknowledgments %}
+    <ul class="checklist">
+      {% for ack in acknowledgments %}
+        <li>{{ ack.acknowledged_at }} — <span class="mono">{{ ack.fingerprint[:12] }}</span> — {{ ack.note }}</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="empty-state">No acknowledgments recorded this session</p>
+  {% endif %}
+</section>
+{% endblock %}

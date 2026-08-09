@@ -28,5 +28,31 @@
     });
   }
 
+  function wireAcknowledgeForms() {
+    var forms = document.querySelectorAll("[data-action='acknowledge-finding']");
+    forms.forEach(function (form) {
+      form.addEventListener("submit", function (event) {
+        event.preventDefault();
+        var fingerprint = form.getAttribute("data-fingerprint") || "";
+        var note = form.querySelector("textarea[name='note']").value;
+        if (!note || !window.confirm("Record this local acknowledgment note?")) {
+          return;
+        }
+        fetch("/dash/api/v1/consistency/acknowledge", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-Token": readCookie("dash_csrf") || "",
+          },
+          credentials: "same-origin",
+          body: JSON.stringify({ fingerprint: fingerprint, note: note }),
+        }).then(function () {
+          window.location.reload();
+        });
+      });
+    });
+  }
+
   document.addEventListener("DOMContentLoaded", wireRefreshButton);
+  document.addEventListener("DOMContentLoaded", wireAcknowledgeForms);
 })();

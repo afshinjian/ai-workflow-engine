@@ -7,6 +7,16 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- DASH-006 (2026-08-09): implemented, Human-Owner-approved, and closed
+  `Current -> Done` in one local commit via scripts/workflow-approve.sh's automatic
+  task closeout (GOV-AUTO-03).
+- DASH-006 (2026-08-09): implemented and validated on the registered branch
+  `feature/dash-006-git-handover-views` — Git status/history/branches/tags, upstream
+  verification, doc-referenced commit resolution badges, a handover checksum viewer, and a
+  consistency findings page with local acknowledgment notes. Uncommitted, awaiting Human Owner
+  approval.
+- DASH-006 (2026-08-09): explicitly authorized by the Human Owner through the local
+  two-confirmation task gate; authorization commit and implementation remain separate.
 - DASH-005 (2026-08-08): implemented, Human-Owner-approved, and closed
   `Current -> Done` in one local commit via scripts/workflow-approve.sh's automatic
   task closeout (GOV-AUTO-03).

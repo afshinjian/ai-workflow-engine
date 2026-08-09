@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Handover · AgentOS Dashboard{% endblock %}
+{% block content %}
+<h1>Handover</h1>
+<p class="empty-state">Read-only: the manifest refresh procedure below is a manual, documented instruction — no refresh action exists on this page (OD-D6).</p>
+
+<section aria-labelledby="handover-findings-heading">
+  <h2 id="handover-findings-heading">Handover findings</h2>
+  {% if handover.stale %}
+    <p><span class="badge badge-stale">STALE</span> the narrative is older than a governance mirror it summarizes.</p>
+  {% endif %}
+  {% if handover.findings %}
+    <ul>
+      {% for finding in handover.findings %}
+        <li>
+          <span class="badge badge-{{ finding.severity.value }}">{{ finding.severity.value|upper }}</span>
+          {{ finding.rule }}: {{ finding.message }}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="empty-state">No handover findings — the manifest matches the real files</p>
+  {% endif %}
+</section>
+
+<section aria-labelledby="manifest-heading">
+  <h2 id="manifest-heading">Checksum manifest <span class="badge badge-info">{{ handover.manifest_path }}</span></h2>
+  {% if handover.records %}
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>Path</th><th>Claimed size</th><th>Actual size</th><th>Digest</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          {% for record in handover.records %}
+            <tr>
+              <td>{{ record.path }}</td>
+              <td>{{ record.claimed_size }}</td>
+              <td>{{ record.actual_size if record.actual_size is not none else "—" }}</td>
+              <td class="mono">{{ record.claimed_digest[:16] }}…</td>
+              <td>
+                {% if not record.exists %}
+                  <span class="badge badge-error">MISSING</span>
+                {% elif record.size_match and record.digest_match %}
+                  <span class="badge badge-pass">VERIFIED</span>
+                {% else %}
+                  <span class="badge badge-error">MISMATCH</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="empty-state">No manifest rows found</p>
+  {% endif %}
+</section>
+
+<section aria-labelledby="refresh-heading">
+  <h2 id="refresh-heading">Manual refresh procedure <span class="badge badge-warning">DEFERRED</span></h2>
+  {% if handover.manifest_instructions %}
+    <pre class="prose">{{ handover.manifest_instructions }}</pre>
+  {% else %}
+    <p class="empty-state">No documented refresh procedure found in the manifest</p>
+  {% endif %}
+</section>
+
+<section aria-labelledby="narrative-heading">
+  <h2 id="narrative-heading">Narrative <span class="badge badge-info">{{ handover.narrative_path }}</span></h2>
+  {% if handover.narrative_text is not none %}
+    {% if handover.narrative_truncated %}
+      <p class="empty-state">Truncated to the display cap; showing the first bytes only.</p>
+    {% endif %}
+    <pre class="prose">{{ handover.narrative_text }}</pre>
+  {% else %}
+    <p class="empty-state">Narrative document unavailable</p>
+  {% endif %}
+</section>
+{% endblock %}

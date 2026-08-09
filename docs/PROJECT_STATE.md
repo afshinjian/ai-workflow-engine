@@ -568,3 +568,21 @@ DASH-005 is implemented and validated on the registered branch
 `feature/dash-005-board-task-detail`, uncommitted, stopped for Human Owner approval.
 Implementation and approval remain separate phases. Report:
 `docs/reports/agentos-dashboard/STAGE-05-completion.md`.
+
+## Authorization update — 2026-08-09
+
+## DASH-006
+
+Status: Done
+
+The Human Owner explicitly authorized this single task through the local authorization gate.
+Implementation and approval remain separate phases.
+
+## DASH-006 implementation update — 2026-08-09
+
+Status: Current
+
+DASH-006 is implemented and validated on the registered branch
+`feature/dash-006-git-handover-views`, uncommitted, stopped for Human Owner approval.
+Implementation and approval remain separate phases. Report:
+`docs/reports/agentos-dashboard/STAGE-06-completion.md`.

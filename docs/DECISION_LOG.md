@@ -13,6 +13,58 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-08-09 — Human Owner approved and closed DASH-006
+
+**Decision:** The Human Owner reviewed the implementation diff for `DASH-006` on
+branch `feature/dash-006-git-handover-views` at base `5e55a0557fdf6be58ea16aa44a09428471c00d31`, typed the two exact `APPROVE` confirmations
+required by `scripts/workflow-approve.sh`, and approved the Conventional Commit
+message `feat(dashboard): add git, upstream, handover and consistency views (DASH-006)`. The script then performed the deterministic governance closeout
+(`DASH-006` moves `Current -> Done`) and staged the approved implementation
+together with the generated closeout records in one local commit.
+
+**Boundaries:** This decision approves and closes only `DASH-006`. It does not
+push, merge, authorize a successor task, change branches, alter upstream, or mutate
+stashes.
+
+## 2026-08-09 — Human Owner authorized a narrow DASH-006 scope amendment (`core/gitread.py`)
+
+**Context:** During DASH-006 implementation, the session extended
+`agentos_dashboard/core/gitread.py` with a new read-only function,
+`read_merged_branch_names(root, target)`, to satisfy DR-080's "branches with merged-into-target
+indication" — a file not named in `docs/agentos-dashboard/stage-prompts/DASH-006.md`'s Allowed
+list ("create git/handover/consistency services, routes (EP-09..EP-12), templates
+(PG-07/PG-09/PG-11), tests in `agentos_dashboard/**`; SSP documentation updates"). The session
+recorded this as `docs/agentos-dashboard/DECISIONS.md` DD-14 and reported it as a deviation in
+`docs/reports/agentos-dashboard/STAGE-06-completion.md`, but per the Standard Stage Protocol
+(`docs/agentos-dashboard/stage-prompts/README.md`: "Stay strictly inside the stage's allowed
+files ... unless the stage contract explicitly grants a path") and
+`docs/agentos-dashboard/STAGE_REGISTRY.md` §2 rule 2 ("Authorizer: only the Human Owner"), an
+agent's own decision record cannot lawfully authorize an expansion of its own granted file scope.
+The Human Owner was asked to rule on this before the change could be treated as authorized.
+
+**Decision:** The Human Owner ruled: "I authorize a narrowly bounded DASH-006 scope extension for
+exactly: `agentos_dashboard/core/gitread.py` and only for the addition of the read-only function:
+`read_merged_branch_names(root, target)` required to satisfy DASH-006 / DR-080's
+merged-into-target branch indication." The ruling explicitly states: "Because the implementation
+session touched this path before this Human Owner authorization existed, do not treat DD-14 as
+retroactive authorization" — the original implementation-time change was an unauthorized
+deviation, not merely an undocumented one; this entry, not DD-14, is the operative authorization,
+recorded per rule 3 before the change was re-applied under it.
+
+**Boundaries (Human Owner's exact terms):** "This authorization does not permit any other change
+under `agentos_dashboard/core/**`, does not add any mutating Git capability, does not authorize
+any new Git verb, and does not broaden DASH-006 beyond this exact function and its directly
+necessary tests." No push, merge, commit, or approval of any kind is authorized by this entry.
+
+## 2026-08-09 — Human Owner authorized DASH-006
+
+**Decision:** The Human Owner typed the two exact `AUTHORIZE` confirmations for
+`DASH-006`. The task moves `Planned → Current`; implementation remains separate.
+The authorization was recorded from branch `main` at `81ec25aec4490868557149db2599c347d1722647`.
+
+**Boundaries:** This decision authorizes only the named task. It authorizes no successor,
+push, merge, implementation approval, stash mutation, or automatic predecessor closure.
+
 ## 2026-08-08 — Human Owner approved and closed DASH-005
 
 **Decision:** The Human Owner reviewed the implementation diff for `DASH-005` on

@@ -5,7 +5,7 @@
 | **Title** | AgentOS Dashboard — Changelog |
 | **Purpose** | Append-only log of every approved change to the dashboard documentation set; the audit spine of `MASTER_PLAN.md` §8. |
 | **Status** | Draft |
-| **Version** | 1.5 |
+| **Version** | 1.6 |
 | **Owner** | Completing agent per stage · verified at review |
 | **Dependencies** | None |
 | **Related Documents** | `MASTER_PLAN.md` §7–§8 |
@@ -16,6 +16,29 @@ Entry ID `CL-YYYYMMDD-##`, newest first. Each entry: documents touched, versions
 before/after, authorizing task, approver. Entries are appended, never edited.
 
 ## Entries
+
+### CL-20260809-01 — DASH-006 implemented: Git, upstream, handover, and consistency views
+
+- **Documents:** `DECISIONS.md` (new DD-14), `STAGE_REGISTRY.md` §3 (state cell `AUTHORIZED` →
+  `IN_PROGRESS`) and §4 (new append-only preflight row), and the new report
+  `docs/reports/agentos-dashboard/STAGE-06-completion.md`.
+- **Versions:** `DECISIONS.md` 1.5 → **1.6**; `STAGE_REGISTRY.md` 5.0 → 5.0 (append-only log
+  growth and a state-cell update, neither of which §8 versions).
+- **Code delivered (outside this documentation set):** `agentos_dashboard/services/{git.py,
+  handover.py}` (the Git page's status/commits/branches/tags/upstream-check aggregate, TR-07
+  commit-badge resolution, DR-082 PR references, and the handover viewer's checksum
+  reconciliation and staleness detection), `agentos_dashboard/api/{git.py, handover.py,
+  consistency.py, acknowledgments.py}` (EP-09..EP-12, wired into `api/routes.py`, including the
+  local acknowledgment-note action), `agentos_dashboard/web/templates/{git.html, handover.html,
+  consistency.html}` (PG-07/PG-09/PG-11) plus a nav update to `base.html`/`style.css`/`app.js`,
+  and `agentos_dashboard/tests/**` (62 new tests) — the stage contract's Allowed list, plus one
+  narrow, justified extension to `core/gitread.py` (`read_merged_branch_names`, DD-14) — no new
+  dependency.
+- **Reason for change:** DASH-006's implementation.
+- **Authorizing task:** DASH-006, authorized by the Human Owner 2026-08-09 through
+  `scripts/workflow-authorize.sh` (`STAGE_REGISTRY.md` §4).
+- **Approver:** pending — the implementation is uncommitted and awaits Human Owner approval.
+- **Date:** 2026-08-09.
 
 ### CL-20260808-01 — DASH-005 implemented: workflow board and task detail
 
@@ -329,4 +352,20 @@ uncommitted, stopped for Human Owner approval. Registry state `AUTHORIZED` → `
 ## 2026-08-08 — DASH-005 closed
 
 The Human Owner approved and closed DASH-005 through the automatic task-closeout gate
+(`scripts/workflow-approve.sh`, GOV-AUTO-03). Registry state `COMPLETE`; task status `Done`.
+
+## 2026-08-09 — DASH-006 authorized
+
+The Human Owner authorized DASH-006 through the two-confirmation local gate. The stage is
+`AUTHORIZED`; implementation, approval, push, and merge remain separate.
+
+## 2026-08-09 — DASH-006 implemented
+
+Implemented and validated on the registered branch `feature/dash-006-git-handover-views`,
+uncommitted, stopped for Human Owner approval. Registry state `AUTHORIZED` → `IN_PROGRESS`. See
+`CL-20260809-01` above and `docs/reports/agentos-dashboard/STAGE-06-completion.md`.
+
+## 2026-08-09 — DASH-006 closed
+
+The Human Owner approved and closed DASH-006 through the automatic task-closeout gate
 (`scripts/workflow-approve.sh`, GOV-AUTO-03). Registry state `COMPLETE`; task status `Done`.

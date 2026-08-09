@@ -770,10 +770,40 @@ Human Owner approval. Report: `docs/reports/agentos-dashboard/STAGE-05-completio
 
 ## DASH-006 — Git, upstream, handover, and consistency views
 
-Status: Planned
+Status: Done
 
 Git status/history pages, upstream verification, handover checksum viewer, consistency page.
 Contract: `docs/agentos-dashboard/stage-prompts/DASH-006.md`.
+
+Authorized by the Human Owner on 2026-08-09; implemented and validated the same day on the
+registered branch `feature/dash-006-git-handover-views`. New services
+(`agentos_dashboard/services/{git,handover}.py`), API routes (EP-09..EP-12 in
+`agentos_dashboard/api/{git,handover,consistency,acknowledgments}.py`, wired into
+`api/routes.py`), and templates (PG-07 `git.html`, PG-09 `handover.html`, PG-11
+`consistency.html`) — read-only except the one local acknowledgment-note action PG-11's own
+contract authorizes (DR-120), which never touches the repository or Git. Upstream verification
+reproduces the engine's own `check_git` logic exactly; doc-referenced commit SHAs in
+`docs/DECISION_LOG.md` and `implementation-state.yaml` are resolved against real Git (TR-07); the
+handover viewer recomputes the checksum manifest and raises a staleness warning when the
+narrative is older than the governance mirrors it summarizes. One narrowly-scoped extension to
+`core/gitread.py` (`read_merged_branch_names`, reusing the already-allowlisted `branch`
+subcommand's `--merged` filter) was required to deliver DR-080's branch-merged indication —
+recorded and justified in `docs/reports/agentos-dashboard/STAGE-06-completion.md`. 62 new tests,
+all passing; engine suite collection and green status unaffected (`pytest tests` 2989 passed, 2
+deselected; `pytest tests agentos_workflow/tests` 5074 passed, 34 deselected). Stopped,
+uncommitted, for Human Owner approval. Report:
+`docs/reports/agentos-dashboard/STAGE-06-completion.md`.
+
+**Scope-amendment correction (2026-08-09):** the `core/gitread.py` extension described above was
+made outside DASH-006's Allowed list and was **not** lawfully authorized by the implementation
+session's own `DECISIONS.md` DD-14 entry — only the Human Owner may grant a path outside a
+stage's contracted scope (`STAGE_REGISTRY.md` §2 rule 2). The Human Owner subsequently reviewed
+this and issued an explicit written ruling authorizing exactly this one function
+(`docs/DECISION_LOG.md`, 2026-08-09, "Human Owner authorized a narrow DASH-006 scope amendment").
+The original diff was preserved as evidence, `core/gitread.py` was restored to HEAD, the
+authorization was recorded in `docs/DECISION_LOG.md` and `STAGE_REGISTRY.md` §4, and only then was
+`read_merged_branch_names` re-applied under that authorization. Full account:
+`docs/reports/agentos-dashboard/STAGE-06-completion.md`.
 
 ## DASH-007 — Stage registry and prompt generation
 
