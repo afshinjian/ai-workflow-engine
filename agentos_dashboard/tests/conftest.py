@@ -7,6 +7,7 @@ filesystem would prove nothing about the adapter that actually runs.
 
 from __future__ import annotations
 
+import hashlib
 import os
 import subprocess
 from collections.abc import Iterator
@@ -19,6 +20,8 @@ from agentos_dashboard.core.paths import RepositoryRoot
 from agentos_dashboard.main import create_app
 from agentos_dashboard.settings import DashboardSettings
 from agentos_dashboard.tests._asgi_client import AsgiTestClient
+from ai_workflow_engine.workflow import event_store
+from ai_workflow_engine.workflow.events import VERDICT_STAGES, Verdict, WorkflowEvent, WorkflowStage
 
 GIT_FIXTURE_ENV = {
     "PATH": os.environ.get("PATH", ""),
@@ -88,3 +91,60 @@ def dashboard_app(workspace: Path) -> FastAPI:
 def client(dashboard_app: FastAPI) -> AsgiTestClient:
     """A stateful ASGI test client (cookies persist across calls) for `dashboard_app`."""
     return AsgiTestClient(dashboard_app)
+
+
+@pytest.fixture
+def isolated_state_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Isolates `~` for `ai_workflow_engine.workflow.event_store` (DASH-005 remediation,
+    `services.legacy_workflow`), so a test never reads or writes the real operator's
+    `~/.ai-workflow-engine/workflow-runs/state/**` — the same isolation technique the engine's
+    own `tests/test_workflow_event_store.py` uses."""
+    home = tmp_path / "awe-home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    return home
+
+
+def write_self_governance(root: Path, project_id: str) -> Path:
+    """A minimal `self-governance.yaml` naming `project.id` — the one field
+    `services.legacy_workflow.read_project_id` extracts to address the engine's event store."""
+    return write(root, "self-governance.yaml", f"project:\n  id: {project_id}\n")
+
+
+def record_legacy_event(
+    *,
+    project_id: str,
+    task_id: str,
+    stage: WorkflowStage,
+    verdict: Verdict | None = None,
+    sequence: int,
+    parent_digest: str | None,
+    repository: str,
+    head: str = "a" * 40,
+    note: str = "",
+) -> WorkflowEvent:
+    """Append one real `ai_workflow_engine.workflow.event_store` event (never a dashboard-local
+    fake) under whatever `~` `isolated_state_home` currently points at, mirroring the engine's own
+    `tests/test_workflow_event_store.py::build_event` construction."""
+    action = "verdict" if stage in VERDICT_STAGES else "completed"
+    event = WorkflowEvent(
+        schema_version="1.0",
+        project_id=project_id,
+        task_id=task_id,
+        sequence=sequence,
+        parent_digest=parent_digest,
+        stage=stage,
+        action=action,
+        verdict=verdict,
+        prompt_id=None,
+        agent_run_id=None,
+        head=head,
+        note=note,
+    )
+    event_store.append(event, repository=repository)
+    return event
+
+
+def event_digest(event: WorkflowEvent) -> str:
+    """The parent-digest one more event in the same chain must carry."""
+    return hashlib.sha256(event_store._event_bytes(event)).hexdigest()

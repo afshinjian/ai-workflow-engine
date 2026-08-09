@@ -6,7 +6,12 @@ from __future__ import annotations
 from pathlib import Path
 
 from agentos_dashboard.tests._asgi_client import AsgiTestClient
-from agentos_dashboard.tests.conftest import write
+from agentos_dashboard.tests.conftest import (
+    event_digest,
+    record_legacy_event,
+    write,
+    write_self_governance,
+)
 
 
 def test_tasks_envelope_shape_with_no_governance_documents(client: AsgiTestClient) -> None:
@@ -109,9 +114,22 @@ def test_task_detail_envelope_shape(workspace: Path, client: AsgiTestClient) -> 
         "lifecycle_events",
         "stage_contract",
         "related_findings",
+        "legacy_workflow",
     ):
         assert key in data
     assert data["status"] == "Done"
+    for key in (
+        "project_id",
+        "available",
+        "error",
+        "has_history",
+        "current_stage",
+        "next_stage",
+        "terminal",
+        "latest_event",
+        "events",
+    ):
+        assert key in data["legacy_workflow"]
 
 
 def test_task_detail_unknown_id_returns_typed_404(client: AsgiTestClient) -> None:
@@ -147,16 +165,135 @@ def test_workflow_view_reports_per_task_transitions(
     assert task["status"] == "Current"
     assert task["next_status"] == "Done"
     assert task["allowed"] is True
+    assert "legacy_workflow" in task
+    assert task["legacy_workflow"]["has_history"] is False
+
+
+# ---- DASH-005 remediation: the board/task-detail/workflow endpoints expose the authoritative
+# per-task Legacy-workflow projection, distinct from the task-queue status above ------------
+
+
+def test_board_endpoint_card_exposes_legacy_workflow_projection(
+    workspace: Path, client: AsgiTestClient, isolated_state_home: Path
+) -> None:
+    write_self_governance(workspace, "proj")
+    record_legacy_event(
+        project_id="proj",
+        task_id="FIX-001",
+        stage="plan-review",
+        verdict="APPROVED",
+        sequence=1,
+        parent_digest=None,
+        repository=str(workspace),
+    )
+    write(
+        workspace,
+        "docs/TASK_QUEUE.md",
+        "## FIX-001 — has legacy history\n\nStatus: Planned\n\nBody.\n\n",
+    )
+    data = client.get("/dash/api/v1/tasks").json()["data"]
+    (card,) = data["planned"]
+    assert card["status"] == "Planned"  # queue status: unaffected by Legacy workflow state
+    legacy = card["legacy_workflow"]
+    assert legacy["available"] is True
+    assert legacy["has_history"] is True
+    assert legacy["current_stage"] == "implementation"
+    assert legacy["terminal"] is False
+    assert len(legacy["events"]) == 1
+    assert legacy["events"][0]["stage"] == "plan-review"
+    assert legacy["events"][0]["outcome"] == "APPROVED"
+    assert legacy["latest_event"]["stage"] == "plan-review"
+
+
+def test_task_detail_endpoint_exposes_terminal_legacy_workflow(
+    workspace: Path, client: AsgiTestClient, isolated_state_home: Path
+) -> None:
+    write_self_governance(workspace, "proj")
+    e1 = record_legacy_event(
+        project_id="proj",
+        task_id="FIX-001",
+        stage="plan-review",
+        verdict="APPROVED",
+        sequence=1,
+        parent_digest=None,
+        repository=str(workspace),
+    )
+    e2 = record_legacy_event(
+        project_id="proj",
+        task_id="FIX-001",
+        stage="implementation",
+        sequence=2,
+        parent_digest=event_digest(e1),
+        repository=str(workspace),
+    )
+    e3 = record_legacy_event(
+        project_id="proj",
+        task_id="FIX-001",
+        stage="implementation-review",
+        verdict="APPROVED",
+        sequence=3,
+        parent_digest=event_digest(e2),
+        repository=str(workspace),
+    )
+    e4 = record_legacy_event(
+        project_id="proj",
+        task_id="FIX-001",
+        stage="governance-closeout",
+        sequence=4,
+        parent_digest=event_digest(e3),
+        repository=str(workspace),
+    )
+    e5 = record_legacy_event(
+        project_id="proj",
+        task_id="FIX-001",
+        stage="governance-review",
+        verdict="APPROVED",
+        sequence=5,
+        parent_digest=event_digest(e4),
+        repository=str(workspace),
+    )
+    record_legacy_event(
+        project_id="proj",
+        task_id="FIX-001",
+        stage="push",
+        sequence=6,
+        parent_digest=event_digest(e5),
+        repository=str(workspace),
+    )
+    write(
+        workspace,
+        "docs/TASK_QUEUE.md",
+        "## FIX-001 — shipped\n\nStatus: Done\n\nBody.\n\n",
+    )
+    data = client.get("/dash/api/v1/tasks/FIX-001").json()["data"]
+    legacy = data["legacy_workflow"]
+    assert legacy["terminal"] is True
+    assert legacy["current_stage"] == "push"
+    assert legacy["next_stage"] is None
+    assert len(legacy["events"]) == 6
 
 
 def test_no_repository_write_in_board_module() -> None:
     """DR-023/DR-062: board/task-detail JSON is read-only, asserted by source scan."""
     import agentos_dashboard.api.board as module
     import agentos_dashboard.services.board as board_module
+    import agentos_dashboard.services.legacy_workflow as legacy_workflow_module
     import agentos_dashboard.services.tasks as tasks_module
 
-    for mod in (module, board_module, tasks_module):
+    for mod in (module, board_module, tasks_module, legacy_workflow_module):
         assert mod.__file__ is not None
         source = Path(mod.__file__).read_text(encoding="utf-8")
         for forbidden in ("subprocess", "shutil.", "open(", "Path.write", "os.remove", "os.system"):
             assert forbidden not in source
+
+
+def test_legacy_workflow_module_never_calls_the_engines_write_path() -> None:
+    """DASH-005 remediation, requirement 1/7: the dashboard reads the Legacy engine's workflow
+    event store (`load_history`/`derive_state`) but never appends to it -- it introduces no
+    second workflow authority and no write path of its own."""
+    import agentos_dashboard.services.legacy_workflow as legacy_workflow_module
+
+    assert legacy_workflow_module.__file__ is not None
+    source = Path(legacy_workflow_module.__file__).read_text(encoding="utf-8")
+    for forbidden in ("event_store.append(", "event_store.record_outcome("):
+        assert forbidden not in source

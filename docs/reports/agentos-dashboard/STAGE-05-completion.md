@@ -278,11 +278,11 @@ added or changed.
 | # | Criterion (from the stage contract) | Verdict | Evidence |
 |---|---|---|---|
 | 1 | Board with queue lanes for Planned/Current/Done | **PASS** | `services/board.py::build_board`; `test_services_board.py::test_cards_are_sorted_into_the_three_queue_lanes` |
-| 2 | Per-task workflow-stage strip driven by a coded mirror of the engine's seven stages and fixed transition table (display-only) | **PASS** | `services/workflow.py::WORKFLOW_STAGES`/`TRANSITIONS`; `web/templates/board.html` stage-strip section; `test_services_workflow.py::test_workflow_stages_are_the_engines_exact_seven_in_order`, `test_transition_table_matches_the_engines_fixed_graph`; `test_web_board.py::test_board_page_shows_engine_workflow_stage_strip` (design rationale for "display-only, not per-task-computed": DD-12) |
+| 2 | Per-task workflow-stage strip driven by a coded mirror of the engine's seven stages and fixed transition table (display-only) | **PASS** — remediated 2026-08-08, see "Remediation Addendum" below | `services/workflow.py::WORKFLOW_STAGES`/`TRANSITIONS` (now re-exported from the engine, not a hand-copy); `services/legacy_workflow.py` (the genuinely per-task, event-sourced position); `web/templates/board.html`/`_board_card.html`; `test_services_workflow.py::test_workflow_stages_are_the_engines_exact_seven_in_order`, `test_transition_table_matches_the_engines_fixed_graph`; `test_services_legacy_workflow.py`; `test_web_board.py::test_board_page_shows_engine_workflow_stage_strip` |
 | 3 | Visually separated program lane rendering ORCH stages from `implementation-state.yaml` (statuses, blockers, prerequisites) | **PASS** | `services/board.py::build_board` (independent ORCH read); `web/templates/board.html` `.orch-lane` section; `test_services_board.py::test_orch_stages_are_read_from_the_implementation_state_yaml` |
 | 4 | Unclassified lane + finding for unknown statuses | **PASS** | `services/board.py::_unclassified_records`; `test_services_board.py::test_unclassified_status_renders_in_its_own_lane_with_a_finding`, `test_missing_status_field_is_also_unclassified`; `test_api_board.py::test_unclassified_status_appears_on_the_board_endpoint` |
 | 5 | Card fields per `PRODUCT_SPEC.md` DR-020..DR-023 (id, title, program, dependencies, status, allowed/blocked next transitions with reasons, evidence-completeness) | **PASS** | `services/board.py::BoardCard`; `services/workflow.py::QueueTransition`; `test_services_board.py` (program/title/referenced-tasks/evidence tests); `test_api_board.py::test_tasks_lanes_reflect_the_queue` |
-| 6 | Task detail page: recorded scope, acceptance-criteria checklist, lifecycle history parsed from queue prose (and persisted workflow events where present) | **PASS** — queue-prose clause; persisted-events clause out of scope, see Known limitations | `services/tasks.py::build_task_detail`; `test_services_tasks.py` (scope/checklist/lifecycle tests); `OPEN_QUESTIONS.md` OD-D12 |
+| 6 | Task detail page: recorded scope, acceptance-criteria checklist, lifecycle history parsed from queue prose (and persisted workflow events where present) | **PASS** — both clauses now implemented, remediated 2026-08-08, see "Remediation Addendum" below | `services/tasks.py::build_task_detail`, `TaskDetail.legacy_workflow`; `services/legacy_workflow.py::load_legacy_workflow`; `test_services_tasks.py` (scope/checklist/lifecycle tests plus the new Legacy-workflow tests); `test_services_legacy_workflow.py`; `OPEN_QUESTIONS.md` OD-D12 (**Resolved**) |
 | 7 | Verified Git provenance badges | **PASS** | `services/tasks.py::TaskDetail.commit_references`, `services/_prose.py::extract_commit_references`; `test_services_tasks.py::test_commit_references_are_resolved_against_real_git`; `test_web_task_detail.py::test_task_detail_page_shows_git_provenance` |
 | 8 | Linked decision/report references | **PASS** | `services/tasks.py::TaskDetail.doc_references`/`stage_contract`; `test_services_tasks.py::test_doc_references_report_existence` |
 | 9 | Raw-source toggle showing the exact Markdown section | **PASS** | `web/templates/task_detail.html` `<details>` element; `test_web_task_detail.py::test_task_detail_page_has_a_raw_source_toggle` |
@@ -293,7 +293,15 @@ added or changed.
 
 ## Known limitations / risks / deviations from plan
 
-1. **DR-031's "persisted workflow events, where present" clause is not implemented.** The
+1. **RESOLVED 2026-08-08 (see "Remediation Addendum" below).** DR-031's "persisted workflow
+   events, where present" clause was not implemented at original completion; an independent
+   review subsequently found the stage `PARTIAL` on exactly this gap. It is now implemented:
+   `agentos_dashboard/services/legacy_workflow.py` reads the engine's persisted, event-sourced
+   workflow state directly via `ai_workflow_engine.workflow.event_store.derive_state`, and
+   `OPEN_QUESTIONS.md` OD-D12 is **Resolved**. The paragraph below is left as originally written
+   for the historical record of the reasoning at first completion.
+
+   ~~DR-031's "persisted workflow events, where present" clause is not implemented.~~ The
    engine's persisted workflow-event store lives under
    `~/.ai-workflow-engine/workflow-runs/state/<project_id>/<task_dir>/` — outside the repository
    working copy, and therefore outside every read-only adapter's `RepositoryRoot` confinement
@@ -305,8 +313,15 @@ added or changed.
    events exist under that path for this repository's own project id today, so every task detail
    page in the real repository still renders completely and correctly without it. Queue-prose
    lifecycle history (DR-031's first clause) is fully implemented.
-2. **The engine's seven-stage strip is a static reference diagram, not a per-task computed
-   position** (DD-12). This is a deliberate reading of the contract's own "(display-only)"
+2. **RESOLVED 2026-08-08 (see "Remediation Addendum" below).** ~~The engine's seven-stage strip
+   is a static reference diagram, not a per-task computed position~~ (DD-12) remains true only
+   for the *global* reference strip, which is intentionally still rendered identically on every
+   page as explanatory UI (remediation requirement 4). Each task's card and task-detail page now
+   additionally show that task's own genuinely per-task, event-sourced Legacy-workflow position
+   (`services.legacy_workflow`), read from the engine's persisted store rather than guessed from
+   prose. The original paragraph is left below for the historical record.
+
+   This is a deliberate reading of the contract's own "(display-only)"
    qualifier, chosen over a prose-keyword heuristic that would have had to guess a task's actual
    engine-stage position and could have presented a fabricated position as fact (forbidden by
    `SOURCE_OF_TRUTH.md` TR-04). If the Human Owner intended "per-task" to mean a genuinely
@@ -439,3 +454,210 @@ message `feat(dashboard): implement DASH-005 workflow board and task detail`. Th
 recorded in `docs/DECISION_LOG.md`'s matching entry and staged the approved implementation
 together with the generated closeout records in one local commit. This commit's hash, and any
 later publication or merge, are recorded separately — a commit cannot record its own hash.
+
+## Remediation Addendum (2026-08-08) — persisted Legacy workflow integration
+
+**Trigger.** An independent review found this stage **`PARTIAL`**: the dashboard did not consume
+the authoritative Legacy `ai_workflow_engine` event-sourced workflow store
+(`src/ai_workflow_engine/workflow/event_store.py`'s `load_history`/`derive_state`). The board
+exposed only a fixed global seven-stage reference strip, task lifecycle history was inferred from
+`docs/TASK_QUEUE.md` prose, and no per-task persisted workflow history, derived current stage, or
+terminal state existed anywhere in the dashboard. This addendum records the narrowly-scoped
+remediation session that closed that gap. It supersedes the "PASS — ... clause out of scope" and
+"static reference diagram, not a per-task computed position" language in the original report body
+above (left intact, and struck through in "Known limitations" items 1–2, for the historical
+record) and resolves `OPEN_QUESTIONS.md` OD-D12.
+
+Scope was held exactly to this remediation: no DASH-006 work was begun; the AgentOS 19-state
+workflow and Milestone Runner remain unintegrated and untouched; the Legacy engine's own
+transition table/event models were read, never redesigned or duplicated.
+
+### Architecture change
+
+**New module: `agentos_dashboard/services/legacy_workflow.py`.** The one, narrowly-scoped
+adapter DASH-005's own original report anticipated in "Known limitations" item 1 and
+`OPEN_QUESTIONS.md` OD-D12's recommendation. `load_legacy_workflow(root, task_id)`:
+
+1. Reads `self-governance.yaml`'s `project.id` through the existing root-confined
+   `core.files.read_text` adapter (`self-governance.yaml` was already a
+   `core.snapshot.WATCHED_FILES` entry — no new in-repo read surface).
+2. Calls `ai_workflow_engine.workflow.event_store.derive_state(project_id, task_id)` directly —
+   the real engine function, imported and invoked, not reimplemented. `derive_state` internally
+   calls `load_history`, which fully re-verifies canonical bytes, sequence contiguity, the
+   embedded identity, and the parent-digest chain before replaying the transition table
+   (`event_store.py`'s own module docstring) — that verification, and the engine's own fixed,
+   non-configurable confinement to
+   `~/.ai-workflow-engine/workflow-runs/state/<project_id>/<task_dir>/`, is relied upon directly
+   rather than reimplemented as a second `RepositoryRoot`-style adapter. No path outside that
+   fixed root is ever touched, and only `load_history`/`derive_state` are called — never
+   `append`/`record_outcome` (asserted by
+   `test_api_board.py::test_legacy_workflow_module_never_calls_the_engines_write_path`).
+3. Wraps the result in `LegacyWorkflowProjection` (`task_id`, `project_id`, `available`, `error`,
+   `has_history`, `current_stage`, `next_stage`, `terminal`, `events`, `latest_event`) and
+   `LegacyWorkflowEventView` (one persisted event, its engine-computed outcome via
+   `ai_workflow_engine.workflow.transitions.event_outcome`, and the transition it recorded via
+   `next_stage_after` — both engine functions, not dashboard reimplementations).
+
+`current_stage` is populated only when `has_history` is true (the last event's stage if
+terminal, else the engine's own `next_stage`); a task with zero persisted events gets
+`current_stage=None` explicitly, never a fabricated position. Any read/verification failure
+(`WorkflowStateError` and its subclasses — `StateCorrupt`, `SequenceConflict`,
+`StateIdentityMismatch`, `StateAddressingError` — plus `OSError`) degrades to
+`available=False, error=<message>`, never a raised exception and never mutated state, mirroring
+`core.snapshot.build_snapshot`'s SC-34 discipline.
+
+**`services/workflow.py` (the existing display-only reference constants).** `WORKFLOW_STAGES`,
+`VERDICT_STAGES`, and `INITIAL_STAGE` changed from hand-typed, by-value copies to direct
+re-exports of `ai_workflow_engine.prompt.models.WORKFLOW_STAGES`,
+`ai_workflow_engine.workflow.events.VERDICT_STAGES`, and
+`ai_workflow_engine.workflow.transitions.INITIAL_STAGE`; `TRANSITIONS` is now built at import
+time from the engine's own `ai_workflow_engine.workflow.transitions._TRANSITIONS`, plus the one
+explicit `push`-terminal row that table leaves implicit. This module's original "the engine is
+never imported" premise (`DASH-005.md` Stage-Specific Notes, written before this remediation's
+governing instructions explicitly required consuming the real engine) no longer holds anywhere in
+this package; the docstring was rewritten accordingly. The module remains what it always was — a
+fixed, explanatory reference diagram, rendered identically regardless of any task's real
+position — it still computes no per-task stage; `services.legacy_workflow` is the one place that
+does.
+
+**Board and task detail.** `BoardCard` and `TaskDetail` each gained a `legacy_workflow:
+LegacyWorkflowProjection` field, populated by `build_board`/`build_task_detail` calling
+`load_legacy_workflow` per record. The pre-existing `status`/`transition` fields (the task
+queue's own Planned/Current/Done lifecycle, `services.workflow.compute_queue_transitions`) are
+untouched and unrelated — the two concepts are asserted independent by
+`test_services_board.py::test_board_cards_expose_independent_queue_status_and_legacy_workflow_stage`
+and `test_services_tasks.py::test_task_detail_legacy_workflow_reflects_a_rejection_and_remediation_replay`.
+
+**Templates.** `_board_card.html` gained a "Legacy workflow" line per card (unavailable / no
+persisted history / terminal / in-progress-with-current-stage, each distinctly badged).
+`board.html`'s existing stage-strip section gained explanatory prose making explicit that it is a
+reference diagram never presented as any task's actual state, and that each task's real position
+is on its own card. `task_detail.html` gained a "Legacy workflow state" section (current/derived
+stage, terminal badge, full ordered persisted-event history with each event's outcome and
+resulting stage) and the existing Task Queue status line was labeled "Task Queue status:" to keep
+the two concepts visually distinct on the page. No new mutation affordance was added (no
+`<button>`, `<form>`, or non-`disabled` `<input>`).
+
+**API.** `api/board.py` gained `_legacy_workflow_to_json`/`_legacy_event_to_json` and wired
+`legacy_workflow` into `_card_to_json` (`GET /dash/api/v1/tasks`), `task_detail_to_json`
+(`GET /dash/api/v1/tasks/{id}`), and each task entry of `workflow_view_to_json`
+(`GET /dash/api/v1/workflow`). Every existing key on every endpoint is unchanged; `legacy_workflow`
+is purely additive, so no existing consumer of the queue-status fields is broken.
+
+### Files changed
+
+| File | Change |
+|---|---|
+| `agentos_dashboard/services/legacy_workflow.py` | **New.** The per-task Legacy-workflow adapter described above. |
+| `agentos_dashboard/services/workflow.py` | `WORKFLOW_STAGES`/`VERDICT_STAGES`/`INITIAL_STAGE`/`TRANSITIONS` now sourced from the engine instead of hand-copied; docstring rewritten. |
+| `agentos_dashboard/services/board.py` | `BoardCard.legacy_workflow` field + population; module docstring addendum. |
+| `agentos_dashboard/services/tasks.py` | `TaskDetail.legacy_workflow` field + population; module docstring addendum. |
+| `agentos_dashboard/api/board.py` | `legacy_workflow` JSON projection wired into all three DASH-005 endpoints. |
+| `agentos_dashboard/web/templates/board.html` | Reference-strip prose clarified. |
+| `agentos_dashboard/web/templates/_board_card.html` | Per-card Legacy workflow line. |
+| `agentos_dashboard/web/templates/task_detail.html` | New "Legacy workflow state" section; "Task Queue status" label. |
+| `agentos_dashboard/tests/conftest.py` | New `isolated_state_home` fixture and `write_self_governance`/`record_legacy_event`/`event_digest` helpers, built on the *real* `ai_workflow_engine.workflow.event_store`/`WorkflowEvent` (never a dashboard-local fake), mirroring `tests/test_workflow_event_store.py`'s own isolation technique. |
+| `agentos_dashboard/tests/test_services_legacy_workflow.py` | **New.** Unit coverage for `services.legacy_workflow` (remediation items A–F). |
+| `agentos_dashboard/tests/test_services_board.py` | New tests: unavailable/no-history/independent-of-queue-status board-card projections. |
+| `agentos_dashboard/tests/test_services_tasks.py` | New tests: no-history, rejection/remediation replay, unavailable-vs-no-history task-detail projections. |
+| `agentos_dashboard/tests/test_api_board.py` | New tests: `legacy_workflow` present and correct on all three endpoints; read-only source-scan extended to the new module. |
+| `agentos_dashboard/tests/test_web_board.py` | New tests: reference-strip labeling, per-card Legacy-workflow rendering (absent and present). |
+| `agentos_dashboard/tests/test_web_task_detail.py` | New tests: Legacy workflow section rendering (absent, in-progress, terminal). |
+| `docs/agentos-dashboard/OPEN_QUESTIONS.md` | OD-D12 moved `Open → Resolved`; version 1.3 → 1.4. |
+| `docs/reports/agentos-dashboard/STAGE-05-completion.md` | This addendum; acceptance-criteria rows 2/6 and Known-limitations items 1–2 annotated (original text struck through, not deleted). |
+
+No file under `src/`, `docs/implementation/orchestration/**`, `handover/**`, or
+`agentos_dashboard/{core,parsing,services/consistency.py}` was modified. `pyproject.toml` and
+`.pre-commit-config.yaml` were not modified — no new dependency was added (`yaml`/PyYAML was
+already a runtime dependency and already used by `agentos_dashboard.parsing.orchestration`).
+
+### Tests added
+
+26 new tests (`agentos_dashboard/tests` grew from 300 to 326):
+
+| Module | New tests | Covers remediation items |
+|---|---|---|
+| `test_services_legacy_workflow.py` | 11 | A (event history loaded), B (`derive_state` semantics reflected), C (different tasks, different stages), D (no history → no fabricated stage), E (rejection/remediation replay), F (terminal history), plus `read_project_id` and failure-handling coverage (corrupt store, missing `project.id`, invalid task id) |
+| `test_services_board.py` | 3 | C/G (board cards: unavailable, no-history, and queue-status-independent-of-Legacy-stage) |
+| `test_services_tasks.py` | 3 | E/G (task-detail: no-history, rejection/remediation replay, unavailable vs. no-history) |
+| `test_api_board.py` | 3 | H (`legacy_workflow` present/correct on `/tasks`, `/tasks/{id}`; terminal history over the API; read-only source-scan extended) |
+| `test_web_board.py` | 3 | I-equivalent for the board page (reference-strip labeling; per-card rendering absent/present) |
+| `test_web_task_detail.py` | 3 | I (task-detail page: absent, in-progress, terminal Legacy-workflow rendering) |
+
+Every fixture that exercises persisted events uses the **real** `ai_workflow_engine.workflow.
+event_store.append`/`WorkflowEvent` (via `conftest.record_legacy_event`), isolated to a temporary
+`HOME` per test (`conftest.isolated_state_home`) — the same isolation technique the engine's own
+`tests/test_workflow_event_store.py` uses — never a dashboard-specific fake event shape (per this
+remediation's requirement 8). J (existing-behavior compatibility) is satisfied structurally: no
+existing test constructs `BoardCard`/`TaskDetail` positionally, `legacy_workflow` is additive on
+every JSON endpoint, and the full pre-existing 300-test suite passes unchanged alongside the 26
+new tests (11 net-new in `test_services_legacy_workflow.py` + 3 each in the five modified test
+files, 11 + 5×3 = 26, matching 300 + 26 = 326 exactly).
+
+### Verification results
+
+All commands run through `conda run -n ai-workflow-engine` from the repository root.
+
+| Command | Result |
+|---|---|
+| `pytest agentos_dashboard/tests -q` | **326 passed** (300 pre-existing + 26 new — see note below) |
+| `pytest agentos_dashboard/tests/test_services_legacy_workflow.py agentos_dashboard/tests/test_services_board.py agentos_dashboard/tests/test_services_tasks.py agentos_dashboard/tests/test_api_board.py agentos_dashboard/tests/test_web_board.py agentos_dashboard/tests/test_web_task_detail.py -q` | focused remediation suite, all passing (included in the 326 above) |
+| `pytest tests -q` (Legacy engine suite, includes `test_workflow_event_store.py`) | **2989 passed, 2 deselected** on confirmation rerun (see flake note below for the one failure seen on the first run) |
+| `ruff check .` | **All checks passed!** |
+| `black --check .` | **All done! 287 files would be left unchanged** |
+| `mypy --no-incremental` (bare, per `[tool.mypy] files` in `pyproject.toml` — covers `src/ai_workflow_engine`, `agentos_workflow`, and `agentos_dashboard` together, the config this repository's own comments describe as the canonical invocation) | **Success: no issues found in 159 source files** |
+| `workflowctl verify --config self-governance.yaml` | **PASS** — git PASS, task-state PASS (0 Current, 53 Done, 5 Planned), governance PASS, registries PASS (26 stages/2 registries), handover PASS |
+| `git diff --check` | clean (exit 0) |
+
+Note: two pre-existing tests (`test_services_board.py`/`test_services_tasks.py`'s
+`test_the_real_repository_renders_gov_1_and_t_501_as_done`, run against the real repository root)
+now also exercise `load_legacy_workflow` as a side effect of `BoardCard`/`TaskDetail`
+construction, even though they were not rewritten — real-repository coverage of the remediation
+comes "for free" through them, in addition to the 26 dedicated new tests above.
+
+`pytest tests` flake note: `test_cli.py::test_successor_planning_publishes_once_and_is_idempotent`
+failed once in a full 2991-test run (`second["publication"]["created"]` was `None`-subscripted),
+then passed standalone, then passed again on a full confirmation rerun (**2989 passed, 2
+deselected**, zero failures). `git status`/`git diff` confirm `tests/` and `src/` are untouched by
+this remediation (this package's own changed-file list is `agentos_dashboard/**` plus the two
+governance documents in this table) — the flake is pre-existing test-ordering/shared-state
+sensitivity in the unrelated successor-planning CLI path, not a regression this session
+introduced, and not reproducible.
+
+`mypy` note: the original STAGE-05 report ran `mypy --no-incremental agentos_dashboard` (scoped
+to one package directory). That invocation now fails with `import-untyped` errors, because
+`agentos_dashboard/services/legacy_workflow.py` and `services/workflow.py` import
+`ai_workflow_engine`, and `src/ai_workflow_engine` carries no `py.typed` marker — when checked as
+an external package rather than as source, mypy correctly refuses to trust its types. The fix is
+not a code change: `pyproject.toml`'s own `[tool.mypy]` comment already names the authoritative
+invocation ("Listing them here instead of on the command line is what lets CI and pre-commit both
+run a bare `mypy` and check the identical set") — a bare `mypy`/`mypy --no-incremental` with no
+path argument, which checks `src/ai_workflow_engine` as source under the same run and passes
+cleanly. `.pre-commit-config.yaml`'s `mypy` hook already invokes bare `mypy` (verified by reading
+the hook's `args`), so CI and pre-commit were never affected by this — only an ad hoc,
+narrower-than-configured manual invocation would be.
+
+### Remaining DASH-005 limitations (post-remediation)
+
+1. Board-card and task-detail "evidence"/"document reference" extraction over queue prose remains
+   a tolerant, best-effort text scan (Known limitations item 3, unchanged by this remediation —
+   out of scope).
+2. The acceptance-criteria checklist's per-item checked state remains a single derived signal from
+   the task's overall recorded status (Known limitations item 4, unchanged — out of scope).
+3. `LegacyWorkflowEventView` carries no explicit timestamp: `ai_workflow_engine.workflow.
+   events.WorkflowEvent` records `head` (the Git commit at record time), `sequence`,
+   `prompt_id`/`agent_run_id`, and `note` as its provenance fields, but no wall-clock timestamp —
+   the dashboard surfaces exactly the provenance fields the engine's own event schema defines and
+   invents none.
+4. No independent security/architecture review was performed for this remediation session
+   specifically; DASH-009 remains the program's mandatory independent security review gate.
+
+### Confirmation
+
+DASH-006 was **not** started, selected, or prepared. The AgentOS 19-state workflow and Milestone
+Runner were not integrated, referenced as a data source, or redesigned. No commit, push, pull
+request, merge, tag, branch operation, rebase, reset, upstream change, or stash operation was
+performed by this remediation session.
+
+DASH-005 REMEDIATION: COMPLETE
+SAFE_TO_PROCEED_TO_DASH-006: YES

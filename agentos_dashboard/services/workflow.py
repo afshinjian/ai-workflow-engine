@@ -1,31 +1,32 @@
-"""EN-07/EN-08 (`DATA_MODEL.md`): a coded, display-only mirror of the engine's seven workflow
-stages and fixed transition table (`DASH-005.md`: "a per-task workflow-stage strip driven by a
-coded mirror of the engine's seven workflow stages and fixed transition table (display-only)"),
-plus the task queue's own three-status lifecycle (Planned/Current/Done) and the sole-`Current`
-transition rule `self-governance.yaml`'s `maximum_current_tasks` already enforces
+"""EN-07/EN-08 (`DATA_MODEL.md`): the engine's seven workflow stages and fixed transition table
+as an explanatory, display-only reference diagram, plus the task queue's own three-status
+lifecycle (Planned/Current/Done) and the sole-`Current` transition rule
+`self-governance.yaml`'s `maximum_current_tasks` already enforces
 (`services.consistency.DEFAULT_MAXIMUM_CURRENT_TASKS`).
 
-`WORKFLOW_STAGES`/`VERDICT_STAGES`/`TRANSITIONS` are literal copies of
+**DASH-005 remediation (`OPEN_QUESTIONS.md` OD-D12, resolved):** `WORKFLOW_STAGES`,
+`VERDICT_STAGES`, and `INITIAL_STAGE` are now re-exports of the engine's own
 `ai_workflow_engine.prompt.models.WORKFLOW_STAGES`,
 `ai_workflow_engine.workflow.events.VERDICT_STAGES`, and
-`ai_workflow_engine.workflow.transitions._TRANSITIONS` **by value only** — this package never
-imports the engine (`DASH-005.md` Stage-Specific Notes: "read as prior art only, never imported
-or modified"; `agentos_dashboard/__init__.py`). Keeping this table in sync with the engine's own
-on a future engine change is a documented risk (see the stage completion report), the same
-trade-off `parsing.models.TaskStatus` already accepts for the task queue's three statuses.
+`ai_workflow_engine.workflow.transitions.INITIAL_STAGE` -- not hand-copies -- and `TRANSITIONS`
+is built from the engine's own transition table (`ai_workflow_engine.workflow.transitions`) at
+import time. This module never reproduces transition rules; it reads the engine's one fixed
+graph and adds only the explicit `push` terminal row that module leaves implicit as a special
+case in `next_stage_after` ("if event.stage == 'push': return None"), so `TRANSITIONS` is
+complete on its own rather than depending on an undocumented special case at every call site that
+walks it.
 
-This module intentionally does **not** attempt to compute which of the seven engine stages a
-given task-queue task is "currently at": that fact lives in the engine's own persisted,
-event-sourced workflow state (`ai_workflow_engine.workflow.event_store`), which is stored under
-the operator's home directory (`~/.ai-workflow-engine/workflow-runs/state/**`) — outside the
-repository root every adapter in this package is confined to (`SECURITY_MODEL.md` SC-06..SC-08).
-Reading outside that confinement is a scope decision no dashboard document has authorized (see
-`OPEN_QUESTIONS.md` OD-D12); guessing a task's stage from prose keywords instead would risk
-presenting a fabricated position as fact, which `SOURCE_OF_TRUTH.md` TR-04 forbids. The seven-
-stage strip is therefore rendered identically on every task as a fixed reference diagram of the
-engine's pipeline, never as a per-task computed position. What *is* genuinely per-task and
-prose-derived is the task-queue status transition below, and the free-text lifecycle history
-`services.tasks` extracts (DR-031).
+**What this module is *not*:** a per-task stage computation. Which of the seven engine stages a
+given task is "currently at" is never guessed from prose keywords here (`SOURCE_OF_TRUTH.md`
+TR-04 forbids presenting a fabricated position as fact) -- it is read from the engine's own
+persisted, event-sourced workflow state (`ai_workflow_engine.workflow.event_store`) by
+`services.legacy_workflow.load_legacy_workflow`, the one authoritative source for a task's actual
+Legacy-workflow position. `WORKFLOW_STAGES`/`TRANSITIONS` below remain a fixed reference diagram
+of the engine's pipeline shape, rendered identically regardless of any task's real position --
+useful as explanatory UI, never a substitute for `services.legacy_workflow`'s per-task output.
+What *is* genuinely per-task and prose-derived here is the task-queue status transition below (a
+distinct concept from the Legacy workflow stage -- see `services.legacy_workflow`'s module
+docstring), and the free-text lifecycle history `services.tasks` extracts (DR-031).
 """
 
 from __future__ import annotations
@@ -35,6 +36,10 @@ from dataclasses import dataclass
 from agentos_dashboard.parsing.models import TaskStatus
 from agentos_dashboard.parsing.task_queue import TaskRecord
 from agentos_dashboard.services.consistency import DEFAULT_MAXIMUM_CURRENT_TASKS
+from ai_workflow_engine.prompt.models import WORKFLOW_STAGES as WORKFLOW_STAGES
+from ai_workflow_engine.workflow.events import VERDICT_STAGES as VERDICT_STAGES
+from ai_workflow_engine.workflow.transitions import _TRANSITIONS as _ENGINE_TRANSITIONS
+from ai_workflow_engine.workflow.transitions import INITIAL_STAGE as INITIAL_STAGE
 
 __all__ = [
     "INITIAL_STAGE",
@@ -48,25 +53,6 @@ __all__ = [
     "outcomes_for",
 ]
 
-# Verbatim copy of `ai_workflow_engine.prompt.models.WORKFLOW_STAGES`.
-WORKFLOW_STAGES: tuple[str, ...] = (
-    "plan-review",
-    "implementation",
-    "implementation-review",
-    "remediation",
-    "governance-closeout",
-    "governance-review",
-    "push",
-)
-
-# Verbatim copy of `ai_workflow_engine.workflow.transitions.INITIAL_STAGE`.
-INITIAL_STAGE = "plan-review"
-
-# Verbatim copy of `ai_workflow_engine.workflow.events.VERDICT_STAGES`.
-VERDICT_STAGES: frozenset[str] = frozenset(
-    {"plan-review", "implementation-review", "governance-review"}
-)
-
 
 @dataclass(frozen=True)
 class StageTransition:
@@ -77,23 +63,18 @@ class StageTransition:
     next_stage: str | None
 
 
-# Verbatim copy of `ai_workflow_engine.workflow.transitions._TRANSITIONS`, with one addition:
-# the `push` "completed" row that module leaves implicit as a special case in
-# `next_stage_after` ("if event.stage == 'push': return None") is spelled out here as an
-# explicit terminal edge, so this table is complete on its own rather than depending on an
-# undocumented special case at every call site that walks it.
-TRANSITIONS: tuple[StageTransition, ...] = (
-    StageTransition("plan-review", "APPROVED", "implementation"),
-    StageTransition("plan-review", "REJECTED", "plan-review"),
-    StageTransition("implementation", "completed", "implementation-review"),
-    StageTransition("implementation-review", "APPROVED", "governance-closeout"),
-    StageTransition("implementation-review", "REJECTED", "remediation"),
-    StageTransition("remediation", "completed", "implementation-review"),
-    StageTransition("governance-closeout", "completed", "governance-review"),
-    StageTransition("governance-review", "APPROVED", "push"),
-    StageTransition("governance-review", "REJECTED", "governance-closeout"),
-    StageTransition("push", "completed", None),
-)
+def _build_transitions() -> tuple[StageTransition, ...]:
+    """`_ENGINE_TRANSITIONS` (the engine's own fixed graph) plus the explicit `push` terminal
+    edge -- see the module docstring for why that edge is spelled out here."""
+    edges = [
+        StageTransition(stage, outcome, next_stage)
+        for (stage, outcome), next_stage in _ENGINE_TRANSITIONS.items()
+    ]
+    edges.append(StageTransition("push", "completed", None))
+    return tuple(edges)
+
+
+TRANSITIONS: tuple[StageTransition, ...] = _build_transitions()
 
 
 def is_verdict_stage(stage: str) -> bool:
@@ -108,7 +89,7 @@ def outcomes_for(stage: str) -> tuple[str, ...]:
 @dataclass(frozen=True)
 class QueueTransition:
     """DR-021's "allowed/blocked next workflow transition, with reason" for one task-queue
-    record — the queue's own three-status lifecycle (Planned -> Current -> Done), never the
+    record -- the queue's own three-status lifecycle (Planned -> Current -> Done), never the
     engine's seven-stage machine above. Display-only (DR-023): the board renders this, it never
     acts on it.
     """

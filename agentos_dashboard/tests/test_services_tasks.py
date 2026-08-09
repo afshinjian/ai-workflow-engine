@@ -9,7 +9,13 @@ from agentos_dashboard.core.paths import RepositoryRoot
 from agentos_dashboard.core.snapshot import build_snapshot
 from agentos_dashboard.parsing.models import TaskStatus
 from agentos_dashboard.services.tasks import build_task_detail
-from agentos_dashboard.tests.conftest import git, write
+from agentos_dashboard.tests.conftest import (
+    event_digest,
+    git,
+    record_legacy_event,
+    write,
+    write_self_governance,
+)
 
 
 def test_unknown_task_id_returns_none(root: RepositoryRoot) -> None:
@@ -216,3 +222,77 @@ def test_the_real_repository_renders_gov_1_and_t_501_as_done() -> None:
     t_501 = build_task_detail(snapshot, "T-501")
     assert gov_1 is not None and gov_1.status is TaskStatus.DONE
     assert t_501 is not None and t_501.status is TaskStatus.DONE
+
+
+# ---- DASH-005 remediation: per-task Legacy workflow projection (`services.legacy_workflow`) --
+
+
+def test_task_detail_legacy_workflow_has_no_history_without_persisted_events(
+    workspace: Path, root: RepositoryRoot, isolated_state_home: Path
+) -> None:
+    write_self_governance(workspace, "proj")
+    write(workspace, "docs/TASK_QUEUE.md", "## FIX-001 — a\n\nStatus: Planned\n\nBody.\n\n")
+    detail = build_task_detail(build_snapshot(root), "FIX-001")
+    assert detail is not None
+    assert detail.legacy_workflow.available is True
+    assert detail.legacy_workflow.has_history is False
+    assert detail.legacy_workflow.current_stage is None
+
+
+def test_task_detail_legacy_workflow_reflects_a_rejection_and_remediation_replay(
+    workspace: Path, root: RepositoryRoot, isolated_state_home: Path
+) -> None:
+    write_self_governance(workspace, "proj")
+    write(workspace, "docs/TASK_QUEUE.md", "## FIX-001 — a\n\nStatus: Current\n\nBody.\n\n")
+    e1 = record_legacy_event(
+        project_id="proj",
+        task_id="FIX-001",
+        stage="plan-review",
+        verdict="APPROVED",
+        sequence=1,
+        parent_digest=None,
+        repository=str(workspace),
+    )
+    e2 = record_legacy_event(
+        project_id="proj",
+        task_id="FIX-001",
+        stage="implementation",
+        sequence=2,
+        parent_digest=event_digest(e1),
+        repository=str(workspace),
+    )
+    record_legacy_event(
+        project_id="proj",
+        task_id="FIX-001",
+        stage="implementation-review",
+        verdict="REJECTED",
+        sequence=3,
+        parent_digest=event_digest(e2),
+        repository=str(workspace),
+    )
+
+    detail = build_task_detail(build_snapshot(root), "FIX-001")
+    assert detail is not None
+    # Task Queue status and Legacy workflow position are independent facts.
+    assert detail.status is TaskStatus.CURRENT
+    assert detail.legacy_workflow.has_history is True
+    assert detail.legacy_workflow.current_stage == "remediation"
+    assert detail.legacy_workflow.terminal is False
+    assert len(detail.legacy_workflow.events) == 3
+    rejected = [e for e in detail.legacy_workflow.events if e.outcome == "REJECTED"]
+    assert len(rejected) == 1
+    assert rejected[0].stage == "implementation-review"
+    assert rejected[0].resulting_stage == "remediation"
+
+
+def test_task_detail_legacy_workflow_unavailable_is_distinct_from_no_history(
+    workspace: Path, root: RepositoryRoot
+) -> None:
+    """No `self-governance.yaml` at all -> `available=False` (an explicit error), never
+    conflated with the legitimate "no persisted events yet" (`has_history=False`) state."""
+    write(workspace, "docs/TASK_QUEUE.md", "## FIX-001 — a\n\nStatus: Planned\n\nBody.\n\n")
+    detail = build_task_detail(build_snapshot(root), "FIX-001")
+    assert detail is not None
+    assert detail.legacy_workflow.available is False
+    assert detail.legacy_workflow.has_history is False
+    assert detail.legacy_workflow.error is not None

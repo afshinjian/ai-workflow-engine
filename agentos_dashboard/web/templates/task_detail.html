@@ -11,6 +11,7 @@
   <h1>{{ detail.task_id }} — {{ detail.title }}</h1>
   <p>
     <span class="badge badge-info">{{ detail.program }}</span>
+    Task Queue status:
     <span class="badge badge-{{ 'pass' if detail.status.value == 'Done' else 'info' }}">{{ detail.status.value|upper }}</span>
     <a href="/board">back to board</a>
   </p>
@@ -91,6 +92,53 @@
       </ul>
     {% else %}
       <p class="empty-state">No recognizable review/completion/merge milestones in the recorded prose</p>
+    {% endif %}
+  </section>
+
+  <section aria-labelledby="legacy-workflow-heading">
+    <h2 id="legacy-workflow-heading">
+      Legacy workflow state <span class="badge badge-info">authoritative, event-sourced</span>
+    </h2>
+    <p class="empty-state">
+      Read directly from the Legacy engine's persisted workflow-event store
+      (<code>ai_workflow_engine.workflow.event_store</code>), replayed with the engine's own
+      transition rules — independent of, and never inferred from, the Task Queue status above or
+      this task's recorded prose.
+    </p>
+    {% if not detail.legacy_workflow.available %}
+      <p><span class="badge badge-error">UNAVAILABLE</span> {{ detail.legacy_workflow.error }}</p>
+    {% elif not detail.legacy_workflow.has_history %}
+      <p class="empty-state">No persisted Legacy workflow events exist for this task.</p>
+    {% else %}
+      <p>
+        <span class="badge badge-{{ 'pass' if detail.legacy_workflow.terminal else 'info' }}">
+          {{ "TERMINAL" if detail.legacy_workflow.terminal else "IN PROGRESS" }}
+        </span>
+        current stage: <code>{{ detail.legacy_workflow.current_stage }}</code>
+        {% if detail.legacy_workflow.next_stage %}
+          — next expected: <code>{{ detail.legacy_workflow.next_stage }}</code>
+        {% endif %}
+      </p>
+      <h3>Persisted event history <span class="badge badge-info">{{ detail.legacy_workflow.events|length }} event{{ "s" if detail.legacy_workflow.events|length != 1 else "" }}</span></h3>
+      <ol class="legacy-event-history">
+        {% for event in detail.legacy_workflow.events %}
+          <li>
+            <span class="badge badge-info">#{{ event.sequence }}</span>
+            <code>{{ event.stage }}</code>
+            <span class="badge badge-{{ 'pass' if event.outcome == 'APPROVED' else ('error' if event.outcome == 'REJECTED' else 'info') }}">
+              {{ event.outcome|upper }}
+            </span>
+            {% if event.resulting_stage %}
+              → next: <code>{{ event.resulting_stage }}</code>
+            {% else %}
+              <span class="badge badge-pass">TERMINAL</span>
+            {% endif %}
+            <span class="empty-state">
+              head <code>{{ event.head }}</code>{% if event.note %} — {{ event.note }}{% endif %}
+            </span>
+          </li>
+        {% endfor %}
+      </ol>
     {% endif %}
   </section>
 

@@ -10,7 +10,7 @@ from agentos_dashboard.core.snapshot import build_snapshot
 from agentos_dashboard.parsing.models import TaskStatus
 from agentos_dashboard.services.board import EvidenceState, build_board
 from agentos_dashboard.services.workflow import WORKFLOW_STAGES
-from agentos_dashboard.tests.conftest import write
+from agentos_dashboard.tests.conftest import record_legacy_event, write, write_self_governance
 
 
 def test_board_is_empty_with_no_governance_documents(root: RepositoryRoot) -> None:
@@ -174,3 +174,66 @@ def test_the_real_repository_renders_gov_1_and_t_501_as_done() -> None:
     assert "T-501" in done_ids
     dash_001 = next(card for card in board.done if card.task_id == "DASH-001")
     assert dash_001.status is TaskStatus.DONE
+
+
+# ---- DASH-005 remediation: per-task Legacy workflow projection (`services.legacy_workflow`) --
+
+
+def test_board_card_legacy_workflow_is_unavailable_without_self_governance_yaml(
+    workspace: Path, root: RepositoryRoot
+) -> None:
+    write(workspace, "docs/TASK_QUEUE.md", "## FIX-001 — a\n\nStatus: Planned\n\nBody.\n\n")
+    board = build_board(build_snapshot(root))
+    (card,) = board.planned
+    assert card.legacy_workflow.available is False
+    assert card.legacy_workflow.error is not None
+
+
+def test_board_card_legacy_workflow_has_no_history_when_none_persisted(
+    workspace: Path, root: RepositoryRoot, isolated_state_home: Path
+) -> None:
+    write_self_governance(workspace, "proj")
+    write(workspace, "docs/TASK_QUEUE.md", "## FIX-001 — a\n\nStatus: Planned\n\nBody.\n\n")
+    board = build_board(build_snapshot(root))
+    (card,) = board.planned
+    assert card.legacy_workflow.available is True
+    assert card.legacy_workflow.has_history is False
+    assert card.legacy_workflow.current_stage is None
+
+
+def test_board_cards_expose_independent_queue_status_and_legacy_workflow_stage(
+    workspace: Path, root: RepositoryRoot, isolated_state_home: Path
+) -> None:
+    """DR-020/DR-023 (remediation item 2): the queue's Planned/Current/Done status and the
+    Legacy engine's own event-sourced stage are two separate facts, never merged -- a Planned
+    task can already have Legacy workflow history, and a Done task can have none recorded."""
+    write_self_governance(workspace, "proj")
+    record_legacy_event(
+        project_id="proj",
+        task_id="FIX-001",
+        stage="plan-review",
+        verdict="APPROVED",
+        sequence=1,
+        parent_digest=None,
+        repository=str(workspace),
+    )
+    write(
+        workspace,
+        "docs/TASK_QUEUE.md",
+        "## FIX-001 — has legacy history\n\nStatus: Planned\n\nBody.\n\n"
+        "## FIX-002 — no legacy history\n\nStatus: Done\n\nBody.\n\n",
+    )
+    board = build_board(build_snapshot(root))
+    (planned_card,) = board.planned
+    (done_card,) = board.done
+
+    assert planned_card.status is TaskStatus.PLANNED
+    assert planned_card.legacy_workflow.has_history is True
+    assert planned_card.legacy_workflow.current_stage == "implementation"
+
+    assert done_card.status is TaskStatus.DONE
+    assert done_card.legacy_workflow.has_history is False
+    assert done_card.legacy_workflow.current_stage is None
+
+    # Different tasks, different actual Legacy-workflow positions.
+    assert planned_card.legacy_workflow.current_stage != done_card.legacy_workflow.current_stage

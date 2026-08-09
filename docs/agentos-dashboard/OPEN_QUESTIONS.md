@@ -5,7 +5,7 @@
 | **Title** | AgentOS Dashboard — Open Questions |
 | **Purpose** | Owner-decision register (OD-D#) with dispositions and the requirement IDs each question blocks. |
 | **Status** | Draft |
-| **Version** | 1.3 |
+| **Version** | 1.4 |
 | **Owner** | Documentation & Governance session · Human Owner (dispositions) |
 | **Dependencies** | `MASTER_PLAN.md` §11 |
 | **Related Documents** | `STAGE_REGISTRY.md` (preconditions cite entries here) |
@@ -16,6 +16,10 @@ Each entry: question, recommendation, disposition, date, blocked IDs. Entries mo
 Resolved append-only; they are never deleted.
 
 ## Open
+
+None currently open.
+
+## Resolved
 
 ### OD-D12 — Reading the engine's persisted workflow-event store from the task detail page
 
@@ -33,14 +37,18 @@ Resolved append-only; they are never deleted.
   exactly `~/.ai-workflow-engine/workflow-runs/state/<this repo's project_id>/**`, read-only,
   with its own SC-06-equivalent containment tests, gated on its own Human Owner decision before
   any DASH stage reads it.
-- **Disposition:** Open. DASH-005 implements DR-031's queue-prose clause in full and leaves the
-  persisted-workflow-events clause unimplemented rather than expanding read scope unilaterally;
-  every task detail page in the current repository state renders correctly without it, since
-  `~/.ai-workflow-engine/workflow-runs/state/` holds no events for this repository's own project
-  id today (verified at implementation time).
-- **Blocked:** the persisted-workflow-events half of DR-031 for every DASH stage, until resolved.
-
-## Resolved
+- **Disposition:** **Resolved 2026-08-08** by the DASH-005 remediation session (independent
+  review found DASH-005 `PARTIAL` for not consuming the authoritative Legacy event store; see
+  `docs/reports/agentos-dashboard/STAGE-05-completion.md`'s "Remediation Addendum"). Implemented
+  exactly the recommended shape: `agentos_dashboard/services/legacy_workflow.py` reads
+  `self-governance.yaml`'s `project.id` (already an in-repo watched file) and calls the engine's
+  own `ai_workflow_engine.workflow.event_store.load_history`/`derive_state` directly — the
+  engine's fixed, non-configurable state-root confinement and verified replay are relied on as
+  the containment guarantee, rather than a second `RepositoryRoot`-style adapter reimplementing
+  it. Read-only: only `load_history`/`derive_state` are called, never `append`/`record_outcome`
+  (asserted by `agentos_dashboard/tests/test_api_board.py::
+  test_legacy_workflow_module_never_calls_the_engines_write_path`).
+- **Blocked:** none remaining.
 
 ### OD-D9 — Web-framework dependency for the serving layer
 

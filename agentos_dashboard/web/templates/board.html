@@ -6,8 +6,14 @@
 
 <section aria-labelledby="stage-strip-heading">
   <h2 id="stage-strip-heading">
-    Engine workflow stages <span class="badge badge-info">reference, display-only</span>
+    Engine workflow stages <span class="badge badge-info">reference diagram, display-only</span>
   </h2>
+  <p class="empty-state">
+    This is the Legacy engine's fixed seven-stage pipeline shape, shown identically regardless of
+    any task's real position — it is never a per-task computed state. Each task's own actual,
+    persisted Legacy-workflow position (where recorded) is shown on its card below and on its
+    task detail page.
+  </p>
   <ol class="stage-strip">
     {% for stage in board.workflow_stages %}
       <li>{{ stage }}</li>

@@ -1,5 +1,14 @@
 """EP-04/EP-05/EP-06 (`API_SPEC.md` §2): the board, task-detail, and workflow-machine JSON
-views DASH-005 delivers."""
+views DASH-005 delivers.
+
+**DASH-005 remediation (`OPEN_QUESTIONS.md` OD-D12, resolved):** every JSON view below keeps the
+task queue's own `status` (Planned/Current/Done) and the Legacy engine's authoritative,
+event-sourced `legacy_workflow` projection as two separate keys — never merged, never presented
+as the same fact (`services.legacy_workflow`'s module docstring). `legacy_workflow` carries the
+persisted events and the derived current/next/terminal state exactly as
+`services.legacy_workflow.load_legacy_workflow` computed them; this module performs no further
+derivation over it.
+"""
 
 from __future__ import annotations
 
@@ -9,6 +18,10 @@ from agentos_dashboard.core.snapshot import RepositorySnapshot
 from agentos_dashboard.parsing.orchestration import OrchestrationStage
 from agentos_dashboard.services.board import BoardCard, UnclassifiedCard, build_board
 from agentos_dashboard.services.consistency import ConsistencyFinding
+from agentos_dashboard.services.legacy_workflow import (
+    LegacyWorkflowEventView,
+    LegacyWorkflowProjection,
+)
 from agentos_dashboard.services.tasks import TaskDetail
 from agentos_dashboard.services.workflow import (
     TRANSITIONS,
@@ -18,6 +31,43 @@ from agentos_dashboard.services.workflow import (
 )
 
 __all__ = ["board_to_json", "task_detail_to_json", "workflow_view_to_json"]
+
+
+def _legacy_event_to_json(event: LegacyWorkflowEventView) -> dict[str, Any]:
+    return {
+        "sequence": event.sequence,
+        "stage": event.stage,
+        "action": event.action,
+        "verdict": event.verdict,
+        "outcome": event.outcome,
+        "resulting_stage": event.resulting_stage,
+        "parent_digest": event.parent_digest,
+        "prompt_id": event.prompt_id,
+        "agent_run_id": event.agent_run_id,
+        "head": event.head,
+        "note": event.note,
+    }
+
+
+def _legacy_workflow_to_json(projection: LegacyWorkflowProjection) -> dict[str, Any]:
+    """EN-07/EN-08 remediation: the authoritative per-task Legacy-workflow projection, read via
+    `ai_workflow_engine.workflow.event_store` (`services.legacy_workflow`) -- never a second,
+    dashboard-computed stage."""
+    return {
+        "project_id": projection.project_id,
+        "available": projection.available,
+        "error": projection.error,
+        "has_history": projection.has_history,
+        "current_stage": projection.current_stage,
+        "next_stage": projection.next_stage,
+        "terminal": projection.terminal,
+        "latest_event": (
+            _legacy_event_to_json(projection.latest_event)
+            if projection.latest_event is not None
+            else None
+        ),
+        "events": [_legacy_event_to_json(event) for event in projection.events],
+    }
 
 
 def _finding_to_json(finding: ConsistencyFinding) -> dict[str, Any]:
@@ -41,6 +91,7 @@ def _card_to_json(card: BoardCard) -> dict[str, Any]:
         "next_status": card.transition.next_status.value if card.transition.next_status else None,
         "transition_allowed": card.transition.allowed,
         "transition_reason": card.transition.reason,
+        "legacy_workflow": _legacy_workflow_to_json(card.legacy_workflow),
         "source": card.source,
         "line": card.line,
     }
@@ -138,12 +189,16 @@ def task_detail_to_json(detail: TaskDetail) -> dict[str, Any]:
             else None
         ),
         "related_findings": [_finding_to_json(finding) for finding in detail.related_findings],
+        "legacy_workflow": _legacy_workflow_to_json(detail.legacy_workflow),
     }
 
 
 def workflow_view_to_json(snapshot: RepositorySnapshot) -> dict[str, Any]:
-    """EP-06: the engine's coded workflow-stage machine plus per-task queue-status transitions
-    (`API_SPEC.md` EP-06: "workflow-stage machine + per-task allowed/blocked transitions")."""
+    """EP-06: the engine's reference workflow-stage diagram, per-task queue-status transitions,
+    and (DASH-005 remediation) each task's authoritative Legacy-workflow projection
+    (`API_SPEC.md` EP-06). `stages`/`transitions` remain the fixed, explanatory diagram
+    (`services.workflow`); `tasks[].legacy_workflow` is the one per-task authoritative source,
+    never derived from `stages`/`transitions` here."""
     board = build_board(snapshot)
     all_cards = board.planned + board.current + board.done
     return {
@@ -168,6 +223,7 @@ def workflow_view_to_json(snapshot: RepositorySnapshot) -> dict[str, Any]:
                 ),
                 "allowed": card.transition.allowed,
                 "reason": card.transition.reason,
+                "legacy_workflow": _legacy_workflow_to_json(card.legacy_workflow),
             }
             for card in all_cards
         ],
