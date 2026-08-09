@@ -770,7 +770,7 @@ Human Owner approval. Report: `docs/reports/agentos-dashboard/STAGE-05-completio
 
 ## DASH-006 — Git, upstream, handover, and consistency views
 
-Status: Planned
+Status: Current
 
 Git status/history pages, upstream verification, handover checksum viewer, consistency page.
 Contract: `docs/agentos-dashboard/stage-prompts/DASH-006.md`.

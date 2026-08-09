@@ -130,7 +130,7 @@ every later roadmap phase remain unauthorized. Completion report:
 
 | Task | Title | Status |
 |---|---|---|
-| DASH-006 | Git, upstream, handover, and consistency views | Planned |
+| DASH-006 | Git, upstream, handover, and consistency views | Current |
 | DASH-007 | Stage registry and prompt generation | Planned |
 | DASH-008 | Run records, evidence, and audit timeline | Planned |
 | DASH-009 | Security hardening and failure handling | Planned |

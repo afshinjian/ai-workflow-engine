@@ -7,4 +7,4 @@ manifest (recompute size + `sha256sum`) rather than treating a legitimate edit a
 
 | Relative path | Size (bytes) | Last modified | SHA-256 (prefix) |
 |---|---|---|---|
-| handover/PROJECT_HANDOVER.md | 65762 | 2026-08-08 | 23b0747d063b9fc822c7344fd32a4c9b6c4131b4e1388ec1f0e1a2569bec86ae |
+| handover/PROJECT_HANDOVER.md | 66112 | 2026-08-09 | 7e1aaeb82f969aa96349141a88ad3678dc6dffc906d11809a3ca41b546085029 |
