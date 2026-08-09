@@ -17,6 +17,7 @@ import pytest
 from agentos_dashboard.core.paths import RepositoryRoot
 from agentos_dashboard.parsing.handover import parse_checksum_manifest
 from agentos_dashboard.services.consistency import (
+    CURRENT_TASK_PATH,
     ConsistencySeverity,
     run_consistency_checks,
 )
@@ -304,6 +305,67 @@ def test_degraded_parse_produces_a_warning_finding(git_repo: Path) -> None:
     findings = [f for f in report.findings if f.rule == "parse_degraded"]
     assert any(f.sources == ("docs/PROJECT_STATE.md",) for f in findings)
     assert all(f.severity is ConsistencySeverity.WARNING for f in findings)
+
+
+def test_empty_current_task_mirror_produces_no_parser_finding(git_repo: Path) -> None:
+    """REC-001: a legal, recognized zero-Current declaration in `docs/current_task.md` must not
+    produce a `parse_failed`/`parse_degraded` finding, and the empty mirror must agree with an
+    also-empty queue Current set (no `current_task_mismatch` either)."""
+    no_current_queue = TASK_QUEUE.replace("Status: Current", "Status: Done")
+    empty_current_task = """\
+# Current Task
+
+## No task is currently active
+
+FAKE-001 was closed `Current -> Done`. The Current set is therefore empty.
+"""
+    no_current_remaining = REMAINING_TASKS.replace("| FAKE-001 | Current |", "| FAKE-001 | Done |")
+    _populate(
+        git_repo,
+        task_queue=no_current_queue,
+        current_task=empty_current_task,
+        remaining_tasks=no_current_remaining,
+    )
+    git(git_repo, "add", "--all")
+    git(git_repo, "commit", "--quiet", "-m", "empty current set")
+    report = run_consistency_checks(RepositoryRoot.from_path(git_repo))
+    rules = {finding.rule for finding in report.findings}
+    assert "parse_failed" not in rules
+    assert "parse_degraded" not in rules
+    assert "current_task_mismatch" not in rules
+
+
+def test_empty_declaration_plus_malformed_heading_still_fails_closed(git_repo: Path) -> None:
+    """REC001-REV-001, at the consistency-engine level: a `docs/current_task.md` that carries the
+    empty declaration *and* a genuinely malformed task-shaped heading must still produce a
+    `parse_failed` finding — the declaration never overrides that diagnostic."""
+    current_task_with_bad_heading = """\
+# Current Task
+
+## No task is currently active
+
+## FAKE-999 — Missing status
+
+Scope only, no Status field.
+"""
+    _populate(git_repo, current_task=current_task_with_bad_heading)
+    git(git_repo, "add", "--all")
+    git(git_repo, "commit", "--quiet", "-m", "empty declaration plus malformed heading")
+    report = run_consistency_checks(RepositoryRoot.from_path(git_repo))
+    findings = [f for f in report.findings if f.sources == (CURRENT_TASK_PATH,)]
+    assert any(f.rule == "parse_failed" for f in findings), report.findings
+
+
+def test_real_repository_current_task_has_no_false_parser_finding() -> None:
+    """REC-001 acceptance: run the consistency checker against the real, live repository (whose
+    `docs/current_task.md` currently declares zero Current tasks) and prove the previous false
+    finding is gone."""
+    real_repo = Path(__file__).resolve().parents[2]
+    root = RepositoryRoot.from_path(real_repo)
+    report = run_consistency_checks(root)
+    for finding in report.findings:
+        assert "docs/current_task.md" not in finding.sources, finding.message
+        assert "docs/remaining_tasks.md" not in finding.sources, finding.message
 
 
 def test_real_repository_handover_checksum_recomputation_matches() -> None:
