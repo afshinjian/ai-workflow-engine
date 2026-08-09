@@ -458,14 +458,17 @@ def test_another_artifact_parked_at_this_address_is_refused(
     assert final.read_bytes() == serialize_artifact(other)
 
 
-def test_a_republication_differing_only_in_the_unhashed_envelope_is_refused(
+def test_a_republication_differing_only_in_the_unhashed_envelope_is_idempotent(
     artifact_home: Path, repository_root: Path
 ) -> None:
-    """Section 17.2's no-clobber rule compares whole documents, byte for byte.
+    """Section 18's idempotency governs this, not section 17.2's byte-for-byte no-clobber rule.
 
     Two invocations over identical evidence at different wall-clock times share one content
-    address -- `generation_metadata` is excluded from the digest (section 16.3) -- yet their
-    documents differ. The literal rule refuses that, never overwrites, and says exactly why.
+    address -- `generation_metadata` is excluded from the digest (section 16.3) -- so their
+    canonical payloads and `proposal_id` are identical even though their documents differ. That
+    is exactly the case section 18 requires to converge on one artifact rather than fail: the
+    republish succeeds, `created` is `False`, and the artifact already on disk is preserved
+    untouched rather than compared byte-for-byte against this invocation's own envelope.
     """
     first = build_artifact(repository_root)
     second = build_artifact(
@@ -475,15 +478,106 @@ def test_a_republication_differing_only_in_the_unhashed_envelope_is_refused(
         ),
     )
     assert first.proposal_id == second.proposal_id
+    original = serialize_artifact(first)
 
-    publish(first, REPOSITORY_ID)
-    with pytest.raises(PublicationConflict) as failure:
-        publish(second, REPOSITORY_ID)
+    first_published = publish(first, REPOSITORY_ID)
+    second_published = publish(second, REPOSITORY_ID)
 
-    assert failure.value.digest_collision is False
-    assert "generation_metadata" in str(failure.value)
+    assert first_published.created is True
+    assert second_published is not None
+    assert second_published.created is False
+    assert second_published.proposal_id == first.proposal_id
+    assert second_published.path == first_published.path
     store = ArtifactStore.pin(REPOSITORY_ID, repository_root)
-    assert store.path_for(first.proposal_id).read_bytes() == serialize_artifact(first)
+    assert store.published_artifact_paths() == [first_published.path]
+    assert store.path_for(first.proposal_id).read_bytes() == original
+
+
+def test_republishing_across_a_generated_at_second_boundary_is_deterministic(
+    artifact_home: Path, repository_root: Path
+) -> None:
+    """A repeated invocation must converge on one artifact regardless of whether the two
+    `generated_at` timestamps land in the same second or cross a second boundary, and repeating
+    it must never be flaky: `generation_metadata` is excluded from the digest (section 16.3), so
+    only the canonical payload ever governs idempotency, never the wall clock.
+    """
+    first = build_artifact(repository_root)
+    same_second = build_artifact(
+        repository_root,
+        generation_metadata=GenerationMetadata(
+            generated_at="2026-08-04T06:06:16Z", tool_version="1.0.0"
+        ),
+    )
+    next_second = build_artifact(
+        repository_root,
+        generation_metadata=GenerationMetadata(
+            generated_at="2026-08-04T06:06:17Z", tool_version="1.0.0"
+        ),
+    )
+    assert first.proposal_id == same_second.proposal_id == next_second.proposal_id
+    original = serialize_artifact(first)
+
+    initial = publish(first, REPOSITORY_ID)
+    assert initial.created is True
+
+    for repeat in (same_second, next_second, same_second, next_second):
+        republished = publish(repeat, REPOSITORY_ID)
+        assert republished is not None
+        assert republished.created is False
+        assert republished.proposal_id == first.proposal_id
+        assert republished.path == initial.path
+
+    store = ArtifactStore.pin(REPOSITORY_ID, repository_root)
+    assert store.published_artifact_paths() == [initial.path]
+    assert store.path_for(first.proposal_id).read_bytes() == original
+
+
+def test_a_genuine_canonical_payload_collision_still_refuses_publication(
+    artifact_home: Path, repository_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Section 16.2's severe marker is for a real SHA-256 collision: a document that re-derives
+    to this very address while carrying a genuinely different canonical payload.
+
+    No input this process can construct actually collides, so -- exactly as this suite already
+    reproduces OS-level events it cannot cause on demand by replacing `os.rename` -- the collision
+    itself is reproduced by making `hashlib.sha256` report the forged digest a real collision
+    would produce, with every other line of `_reconcile_existing` running unmodified. This proves
+    the idempotency fix above did not weaken the genuine-conflict path it sits beside.
+    """
+    artifact = build_artifact(repository_root)
+    colliding = build_artifact(
+        repository_root, generated_prompt=f"{PROMPT}\nGenuinely different canonical payload.\n"
+    )
+    assert colliding.proposal_id != artifact.proposal_id
+    colliding_document = serialize_artifact(colliding)
+    colliding_payload = canonical_payload_bytes(colliding)
+
+    store = ArtifactStore.pin(REPOSITORY_ID, repository_root)
+    final = store.path_for(artifact.proposal_id)
+    final.write_bytes(colliding_document)
+    os.chmod(final, FILE_MODE)
+
+    real_sha256 = hashlib.sha256
+
+    class _ForgedDigest:
+        def __init__(self, hexdigest: str) -> None:
+            self._hexdigest = hexdigest
+
+        def hexdigest(self) -> str:
+            return self._hexdigest
+
+    def forging_sha256(data: bytes) -> Any:
+        if data == colliding_payload:
+            return _ForgedDigest(artifact.proposal_id)
+        return real_sha256(data)
+
+    monkeypatch.setattr(store_module.hashlib, "sha256", forging_sha256)
+
+    with pytest.raises(PublicationConflict) as failure:
+        store.publish(artifact)
+
+    assert failure.value.digest_collision is True
+    assert final.read_bytes() == colliding_document
 
 
 # --------------------------------------------------------------------------------------
