@@ -6,7 +6,12 @@ from __future__ import annotations
 from pathlib import Path
 
 from agentos_dashboard.tests._asgi_client import AsgiTestClient
-from agentos_dashboard.tests.conftest import write
+from agentos_dashboard.tests.conftest import (
+    event_digest,
+    record_legacy_event,
+    write,
+    write_self_governance,
+)
 
 
 def test_task_detail_page_renders(workspace: Path, client: AsgiTestClient) -> None:
@@ -89,6 +94,116 @@ def test_hostile_prose_is_escaped_not_executed(workspace: Path, client: AsgiTest
     assert "<script>alert" not in response.text
     assert "<img src=x onerror" not in response.text
     assert "&lt;script&gt;alert" in response.text
+
+
+def test_task_detail_page_shows_no_persisted_legacy_history(
+    workspace: Path, client: AsgiTestClient
+) -> None:
+    write(workspace, "docs/TASK_QUEUE.md", "## FIX-001 — a\n\nStatus: Planned\n\nBody.\n\n")
+    response = client.get("/tasks/FIX-001")
+    assert "Legacy workflow state" in response.text
+    assert (
+        "No persisted Legacy workflow events exist" in response.text
+        or "UNAVAILABLE" in response.text
+    )
+
+
+def test_task_detail_page_shows_persisted_legacy_workflow_history(
+    workspace: Path, client: AsgiTestClient, isolated_state_home: Path
+) -> None:
+    write_self_governance(workspace, "proj")
+    e1 = record_legacy_event(
+        project_id="proj",
+        task_id="FIX-001",
+        stage="plan-review",
+        verdict="APPROVED",
+        sequence=1,
+        parent_digest=None,
+        repository=str(workspace),
+    )
+    record_legacy_event(
+        project_id="proj",
+        task_id="FIX-001",
+        stage="implementation",
+        sequence=2,
+        parent_digest=event_digest(e1),
+        repository=str(workspace),
+    )
+    write(
+        workspace,
+        "docs/TASK_QUEUE.md",
+        "## FIX-001 — in progress\n\nStatus: Current\n\nBody.\n\n",
+    )
+    response = client.get("/tasks/FIX-001")
+    assert response.status == 200
+    assert "Legacy workflow state" in response.text
+    assert "IN PROGRESS" in response.text
+    assert "implementation-review" in response.text  # the derived current stage
+    assert "2 events" in response.text
+    # Both facts appear, independently labeled.
+    assert "Task Queue status" in response.text
+
+
+def test_task_detail_page_shows_terminal_legacy_workflow(
+    workspace: Path, client: AsgiTestClient, isolated_state_home: Path
+) -> None:
+    write_self_governance(workspace, "proj")
+    e1 = record_legacy_event(
+        project_id="proj",
+        task_id="FIX-001",
+        stage="plan-review",
+        verdict="APPROVED",
+        sequence=1,
+        parent_digest=None,
+        repository=str(workspace),
+    )
+    e2 = record_legacy_event(
+        project_id="proj",
+        task_id="FIX-001",
+        stage="implementation",
+        sequence=2,
+        parent_digest=event_digest(e1),
+        repository=str(workspace),
+    )
+    e3 = record_legacy_event(
+        project_id="proj",
+        task_id="FIX-001",
+        stage="implementation-review",
+        verdict="APPROVED",
+        sequence=3,
+        parent_digest=event_digest(e2),
+        repository=str(workspace),
+    )
+    e4 = record_legacy_event(
+        project_id="proj",
+        task_id="FIX-001",
+        stage="governance-closeout",
+        sequence=4,
+        parent_digest=event_digest(e3),
+        repository=str(workspace),
+    )
+    e5 = record_legacy_event(
+        project_id="proj",
+        task_id="FIX-001",
+        stage="governance-review",
+        verdict="APPROVED",
+        sequence=5,
+        parent_digest=event_digest(e4),
+        repository=str(workspace),
+    )
+    record_legacy_event(
+        project_id="proj",
+        task_id="FIX-001",
+        stage="push",
+        sequence=6,
+        parent_digest=event_digest(e5),
+        repository=str(workspace),
+    )
+    write(workspace, "docs/TASK_QUEUE.md", "## FIX-001 — shipped\n\nStatus: Done\n\nBody.\n\n")
+    response = client.get("/tasks/FIX-001")
+    assert response.status == 200
+    assert "TERMINAL" in response.text
+    assert "6 events" in response.text
 
 
 def test_dash_task_stage_contract_is_shown() -> None:

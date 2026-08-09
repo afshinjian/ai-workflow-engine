@@ -17,5 +17,18 @@
     </span>
     {{ card.transition.reason }}
   </p>
+  <p class="legacy-workflow">
+    Legacy workflow:
+    {% if not card.legacy_workflow.available %}
+      <span class="badge badge-error">UNAVAILABLE</span> {{ card.legacy_workflow.error }}
+    {% elif not card.legacy_workflow.has_history %}
+      <span class="badge badge-info">NO PERSISTED HISTORY</span>
+    {% elif card.legacy_workflow.terminal %}
+      <span class="badge badge-pass">TERMINAL</span> at <code>{{ card.legacy_workflow.current_stage }}</code>
+    {% else %}
+      <span class="badge badge-info">{{ card.legacy_workflow.current_stage }}</span>
+      ({{ card.legacy_workflow.events|length }} persisted event{{ "s" if card.legacy_workflow.events|length != 1 else "" }})
+    {% endif %}
+  </p>
   <p class="empty-state">{{ card.source }}:{{ card.line }}</p>
 </article>

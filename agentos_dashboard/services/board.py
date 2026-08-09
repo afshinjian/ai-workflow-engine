@@ -13,6 +13,15 @@ what "unclassified" means — this module treats "recognized by `parse_task_reco
 single source of truth: a `## <ID>` heading (found via the same public `TASK_ID` regex
 `parsing._common` already exports) whose id is not in that parser's result set is unclassified,
 full stop, never a second independent status judgement.
+
+**DASH-005 remediation (`OPEN_QUESTIONS.md` OD-D12, resolved).** Each `BoardCard` now also
+carries `legacy_workflow`: the task's authoritative Legacy-engine workflow projection from
+`services.legacy_workflow.load_legacy_workflow`, read via the engine's own `event_store` — never
+inferred from queue prose, and never the same thing as `status` (the queue's own
+Planned/Current/Done lifecycle). A task with no persisted Legacy events renders that fact
+explicitly (`legacy_workflow.has_history is False`); the global `workflow_stages` reference strip
+on `BoardData` remains a fixed, explanatory diagram, never presented as any task's actual
+position (`services.workflow`'s module docstring).
 """
 
 from __future__ import annotations
@@ -38,6 +47,10 @@ from agentos_dashboard.services.consistency import (
     TASK_QUEUE_PATH,
     ConsistencyFinding,
     ConsistencySeverity,
+)
+from agentos_dashboard.services.legacy_workflow import (
+    LegacyWorkflowProjection,
+    load_legacy_workflow,
 )
 from agentos_dashboard.services.workflow import (
     WORKFLOW_STAGES,
@@ -83,6 +96,7 @@ class BoardCard:
     evidence: EvidenceState
     evidence_notes: tuple[str, ...]
     transition: QueueTransition
+    legacy_workflow: LegacyWorkflowProjection
     source: str
     line: int
 
@@ -155,6 +169,7 @@ def _build_card(root: RepositoryRoot, record: TaskRecord, transition: QueueTrans
         evidence=evidence,
         evidence_notes=notes,
         transition=transition,
+        legacy_workflow=load_legacy_workflow(root, record.task_id),
         source=record.source,
         line=record.line,
     )

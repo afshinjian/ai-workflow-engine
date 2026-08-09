@@ -6,7 +6,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from agentos_dashboard.tests._asgi_client import AsgiTestClient
-from agentos_dashboard.tests.conftest import write
+from agentos_dashboard.tests.conftest import record_legacy_event, write, write_self_governance
 
 
 def test_board_page_renders(client: AsgiTestClient) -> None:
@@ -89,3 +89,39 @@ def test_unclassified_status_value_is_escaped(workspace: Path, client: AsgiTestC
     response = client.get("/board")
     assert response.status == 200
     assert "<script>alert" not in response.text
+
+
+def test_board_page_stage_strip_is_labeled_reference_only(client: AsgiTestClient) -> None:
+    """DASH-005 remediation item 4: the global seven-stage strip must not read as any task's
+    actual state."""
+    response = client.get("/board")
+    assert "reference diagram" in response.text
+    assert "never a per-task computed state" in response.text
+    assert "shown on its card below" in response.text
+
+
+def test_board_card_shows_no_persisted_history_without_legacy_events(
+    workspace: Path, client: AsgiTestClient
+) -> None:
+    write(workspace, "docs/TASK_QUEUE.md", "## FIX-001 — a\n\nStatus: Planned\n\nBody.\n\n")
+    response = client.get("/board")
+    assert "Legacy workflow" in response.text
+    assert "NO PERSISTED HISTORY" in response.text or "UNAVAILABLE" in response.text
+
+
+def test_board_card_shows_its_own_derived_legacy_stage(
+    workspace: Path, client: AsgiTestClient, isolated_state_home: Path
+) -> None:
+    write_self_governance(workspace, "proj")
+    record_legacy_event(
+        project_id="proj",
+        task_id="FIX-001",
+        stage="plan-review",
+        verdict="APPROVED",
+        sequence=1,
+        parent_digest=None,
+        repository=str(workspace),
+    )
+    write(workspace, "docs/TASK_QUEUE.md", "## FIX-001 — a\n\nStatus: Planned\n\nBody.\n\n")
+    response = client.get("/board")
+    assert "implementation" in response.text

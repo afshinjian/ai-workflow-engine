@@ -1,7 +1,7 @@
 """DR-030..033 (`PRODUCT_SPEC.md`): the task detail view — the full recorded task record,
-lifecycle history parsed from queue prose (DR-031's persisted-workflow-events clause is out of
-scope, see `OPEN_QUESTIONS.md` OD-D12 and `services.workflow`'s module docstring), Git
-provenance badges (DR-032), and links to related documents (DR-033).
+lifecycle history parsed from queue prose plus, where present, the engine's persisted Legacy
+workflow events (DR-031, `OPEN_QUESTIONS.md` OD-D12 resolved — see `services.legacy_workflow`'s
+module docstring), Git provenance badges (DR-032), and links to related documents (DR-033).
 
 `docs/TASK_QUEUE.md` prose has no uniform per-field structure (`parsing.task_queue`'s module
 docstring), so every field below is an honestly-labeled, tolerant extraction over the recorded
@@ -44,6 +44,10 @@ from agentos_dashboard.services.consistency import (
     TASK_QUEUE_PATH,
     ConsistencyFinding,
     run_consistency_checks,
+)
+from agentos_dashboard.services.legacy_workflow import (
+    LegacyWorkflowProjection,
+    load_legacy_workflow,
 )
 
 __all__ = [
@@ -115,6 +119,7 @@ class TaskDetail:
     lifecycle_events: tuple[LifecycleEvent, ...]
     stage_contract: StageContractRef | None
     related_findings: tuple[ConsistencyFinding, ...]
+    legacy_workflow: LegacyWorkflowProjection
 
 
 def _title_from_detail(detail_text: str, fallback: str) -> str:
@@ -193,4 +198,5 @@ def build_task_detail(snapshot: RepositorySnapshot, task_id: str) -> TaskDetail 
         lifecycle_events=_lifecycle_events(clauses),
         stage_contract=_stage_contract_reference(root, record.task_id),
         related_findings=related_findings,
+        legacy_workflow=load_legacy_workflow(root, record.task_id),
     )
