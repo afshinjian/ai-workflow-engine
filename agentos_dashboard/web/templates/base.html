@@ -28,13 +28,13 @@
         <li><a href="/board" {% if active_nav == "board" %}aria-current="page"{% endif %}>Board</a></li>
         <li class="disabled" aria-disabled="true" title="Not yet available">Tasks</li>
         <li><a href="/stages" {% if active_nav == "stages" %}aria-current="page"{% endif %}>Stages &amp; Prompts</a></li>
-        <li class="disabled" aria-disabled="true" title="Not yet available">Runs</li>
-        <li class="disabled" aria-disabled="true" title="Not yet available">Evidence</li>
+        <li><a href="/runs" {% if active_nav == "runs" %}aria-current="page"{% endif %}>Runs</a></li>
+        <li><a href="/evidence" {% if active_nav == "evidence" %}aria-current="page"{% endif %}>Evidence</a></li>
         <li><a href="/git" {% if active_nav == "git" %}aria-current="page"{% endif %}>Git</a></li>
         <li><a href="/governance" {% if active_nav == "governance" %}aria-current="page"{% endif %}>Governance</a></li>
-        <li class="disabled" aria-disabled="true" title="Not yet available">Orchestration</li>
+        <li class="disabled" aria-disabled="true" title="Renders inside the Board's program lane (EP-18); no separate page">Orchestration</li>
         <li><a href="/handover" {% if active_nav == "handover" %}aria-current="page"{% endif %}>Handover</a></li>
-        <li class="disabled" aria-disabled="true" title="Not yet available">Audit</li>
+        <li><a href="/audit" {% if active_nav == "audit" %}aria-current="page"{% endif %}>Audit</a></li>
         <li><a href="/consistency" {% if active_nav == "consistency" %}aria-current="page"{% endif %}>Consistency</a></li>
         <li class="disabled" aria-disabled="true" title="Not yet available">Settings</li>
       </ul>

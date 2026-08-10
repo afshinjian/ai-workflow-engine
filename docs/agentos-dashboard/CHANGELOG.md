@@ -5,7 +5,7 @@
 | **Title** | AgentOS Dashboard — Changelog |
 | **Purpose** | Append-only log of every approved change to the dashboard documentation set; the audit spine of `MASTER_PLAN.md` §8. |
 | **Status** | Draft |
-| **Version** | 1.7 |
+| **Version** | 1.9 |
 | **Owner** | Completing agent per stage · verified at review |
 | **Dependencies** | None |
 | **Related Documents** | `MASTER_PLAN.md` §7–§8 |
@@ -16,6 +16,66 @@ Entry ID `CL-YYYYMMDD-##`, newest first. Each entry: documents touched, versions
 before/after, authorizing task, approver. Entries are appended, never edited.
 
 ## Entries
+
+### CL-20260810-03 — DASH-008 final machine-review corrections
+
+- **Documents:** this append-only entry and
+  `docs/reports/agentos-dashboard/STAGE-08-completion.md`.
+- **Versions:** this file 1.8 → **1.9**; the completion report remains unversioned and was
+  corrected in place before approval.
+- **Corrections:** fail-closed exact schema validation and SQL immutability triggers; conflict-
+  safe, restart-safe, DB-unique idempotency; an explicit DB/JSONL reconciliation model with
+  rollback and divergence tests; bounded stable evidence hashing and symlink refusal; strict API
+  validation and typed conflicts; local-only approval semantics and transient-Git handling; and
+  correct bounded audit/note filtering; and a whole-HTTP-path EP-18 proof that makes no Git/
+  subprocess call. Focused regressions were added for each correction.
+- **Scope:** all corrections remain inside DASH-008's authorized storage, service, API, page,
+  test, and closeout-document surfaces. `services/evidence.py` and `api/evidence.py` are recorded
+  as the necessary implied subdivision of expressly authorized EP-17, with no new entity,
+  persistence source, adapter, or capability. No DASH-009 implementation was added.
+- **Reason for change:** one bounded independent final review before Human Owner approval.
+- **Authorizing task:** DASH-008, already authorized and still `IN_PROGRESS`.
+- **Approver:** pending — the corrected implementation remains uncommitted and awaits Human
+  Owner approval.
+- **Date:** 2026-08-10.
+
+### CL-20260810-02 — DASH-008 implemented: run records, evidence, and audit timeline
+
+- **Documents:** `STAGE_REGISTRY.md` §3 (state cell `AUTHORIZED` → `IN_PROGRESS`) and §4 (new
+  append-only preflight row), and the new report
+  `docs/reports/agentos-dashboard/STAGE-08-completion.md`.
+- **Versions:** `STAGE_REGISTRY.md` 5.1 → 5.1 (append-only log growth and a state-cell update,
+  neither of which §8 versions); this file 1.7 → **1.8**.
+- **Code delivered (outside this documentation set):** `agentos_dashboard/storage/{__init__.py,
+  db.py}` (stdlib `sqlite3` `dashboard.db`, `PRAGMA user_version = 1`, foreign keys on, the eight
+  `DATA_MODEL.md` §3 tables, and the JSONL audit-log mirror path); `agentos_dashboard/services/
+  {runs.py, approvals.py, findings.py, notes.py, audit.py, evidence.py, orchestration.py}` (EN-11
+  `StageRun`/EN-16 `ValidationRun` with live report-path verification, EN-14 `Approval` drafts with
+  automatic Git-reconciliation-divergence findings, EN-15 `Finding` and EN-29 `UserNote` drafts,
+  the append-only EN-26 `AuditEvent` log and its merged local+repository timeline, the EP-17
+  verified-vs-claimed evidence aggregate, and the read-only EP-18 ORCH feature-state view);
+  `agentos_dashboard/api/{runs.py, drafts.py, audit.py, evidence.py, orchestration.py}` (EP-15,
+  EP-16, EP-17, EP-18, EP-22, EP-23, wired into `api/routes.py`); `agentos_dashboard/web/templates/
+  {runs.html, run_detail.html, evidence.html, audit.html}` (PG-05/PG-06/PG-10) plus a nav update to
+  `base.html`/`app.js`; and `agentos_dashboard/tests/**` (79 new tests, including the append-only
+  source-scan proof, the `dashboard.db`-deletion-safety proof, and EP-18's zero-write/zero-Git/
+  zero-subprocess negative proofs). `.gitignore` gained the narrowest rule covering the new
+  `data/agentos_dashboard/` runtime directory (allowed modification per the stage contract). No
+  new dependency; stdlib `sqlite3` only, as `DATA_MODEL.md` §3 requires.
+- **Scope note:** `services/evidence.py` and `api/evidence.py` are not literally named in the
+  stage contract's Allowed-files prose ("run/approval/finding/note/audit/orchestration
+  services"), but EP-17 (`GET /evidence/{ref}`) is an explicitly Allowed route and needs a
+  data-shaping module; the module is a thin aggregate entirely over `services.runs`'s
+  already-in-scope `StageRunView`/`ValidationEntry` (no new persistence, no new adapter). Recorded
+  here rather than silently included. `generated_prompts` and `consistency_history` tables exist
+  in the schema (per `DATA_MODEL.md` §3's full table list) but have no writer yet:
+  `services/prompts.py` and `services/consistency.py` are DASH-007/DASH-006 files outside this
+  stage's Allowed list, so migrating either onto `dashboard.db` is left to a future stage.
+- **Reason for change:** DASH-008's implementation.
+- **Authorizing task:** DASH-008, authorized by the Human Owner 2026-08-10 through
+  `scripts/workflow-authorize.sh` (`STAGE_REGISTRY.md` §4).
+- **Approver:** pending — the implementation is uncommitted and awaits Human Owner approval.
+- **Date:** 2026-08-10.
 
 ### CL-20260810-01 — PLAN-001: requirement-to-stage ownership correction (governance-only)
 
@@ -411,4 +471,20 @@ The Human Owner authorized DASH-007 through the two-confirmation local gate. The
 ## 2026-08-10 — DASH-007 closed
 
 The Human Owner approved and closed DASH-007 through the automatic task-closeout gate
+(`scripts/workflow-approve.sh`, GOV-AUTO-03). Registry state `COMPLETE`; task status `Done`.
+
+## 2026-08-10 — DASH-008 authorized
+
+The Human Owner authorized DASH-008 through the two-confirmation local gate. The stage is
+`AUTHORIZED`; implementation, approval, push, and merge remain separate.
+
+## 2026-08-10 — DASH-008 implemented
+
+Implemented and validated on the registered branch `feature/dash-008-runs-evidence-audit`,
+uncommitted, stopped for Human Owner approval. Registry state `AUTHORIZED` → `IN_PROGRESS`. See
+`CL-20260810-02` above and `docs/reports/agentos-dashboard/STAGE-08-completion.md`.
+
+## 2026-08-10 — DASH-008 closed
+
+The Human Owner approved and closed DASH-008 through the automatic task-closeout gate
 (`scripts/workflow-approve.sh`, GOV-AUTO-03). Registry state `COMPLETE`; task status `Done`.

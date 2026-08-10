@@ -213,7 +213,118 @@
     });
   }
 
+  function postJson(path, body) {
+    return fetch(path, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": readCookie("dash_csrf") || "",
+      },
+      credentials: "same-origin",
+      body: JSON.stringify(body),
+    }).then(function (response) {
+      return response.json().then(function (parsed) {
+        return { response: response, body: parsed };
+      });
+    });
+  }
+
+  function errorMessage(body) {
+    return body && body.error && body.error.message
+      ? body.error.message
+      : "the server rejected the request";
+  }
+
+  function wireCreateRunForm() {
+    var form = document.querySelector("[data-action='create-run']");
+    if (!form) {
+      return;
+    }
+    form.addEventListener("submit", function (event) {
+      event.preventDefault();
+      if (!window.confirm("Record this run locally (dashboard.db, non-authoritative)?")) {
+        return;
+      }
+      var status = document.getElementById("create-run-status");
+      var data = new FormData(form);
+      var payload = { client_token: clientToken() };
+      ["stage_id", "tool", "started_at", "reported_result", "prompt_hash", "report_path",
+        "validation_summary", "findings_text", "notes", "external_reference"].forEach(function (name) {
+        var value = data.get(name);
+        if (value) {
+          payload[name] = value;
+        }
+      });
+      postJson("/dash/api/v1/runs", payload).then(function (result) {
+        if (result.response.ok && result.body && result.body.ok && result.body.data) {
+          window.location.href = "/runs/" + result.body.data.uuid;
+        } else if (status) {
+          status.textContent = "Failed to record run: " + errorMessage(result.body);
+        }
+      }).catch(function () {
+        if (status) {
+          status.textContent = "Failed to record run — no request completed.";
+        }
+      });
+    });
+  }
+
+  function wireAddNoteForms() {
+    var forms = document.querySelectorAll("[data-action='add-note']");
+    forms.forEach(function (form) {
+      form.addEventListener("submit", function (event) {
+        event.preventDefault();
+        var text = form.querySelector("textarea[name='text']").value;
+        var targetRef = form.getAttribute("data-target-ref") || "";
+        if (!text || !window.confirm("Add this note locally?")) {
+          return;
+        }
+        postJson("/dash/api/v1/notes", { client_token: clientToken(), target_ref: targetRef, text: text })
+          .then(function (result) {
+            if (result.response.ok && result.body && result.body.ok) {
+              window.location.reload();
+            } else {
+              var status = document.getElementById("add-note-status");
+              if (status) {
+                status.textContent = "Failed to add note: " + errorMessage(result.body);
+              }
+            }
+          }).catch(function () {
+            var status = document.getElementById("add-note-status");
+            if (status) {
+              status.textContent = "Failed to add note — no request completed.";
+            }
+          });
+      });
+    });
+  }
+
+  function wireCopyTimelineButton() {
+    var button = document.querySelector("[data-action='copy-timeline']");
+    var table = document.getElementById("audit-timeline-table");
+    if (!button || !table) {
+      return;
+    }
+    button.addEventListener("click", function () {
+      var status = document.getElementById("copy-timeline-status");
+      copyToClipboard(table.innerText)
+        .then(function () {
+          if (status) {
+            status.textContent = "Copied the visible timeline rows to the clipboard.";
+          }
+        })
+        .catch(function () {
+          if (status) {
+            status.textContent = "Copy failed — nothing was copied.";
+          }
+        });
+    });
+  }
+
   document.addEventListener("DOMContentLoaded", wireRefreshButton);
   document.addEventListener("DOMContentLoaded", wireAcknowledgeForms);
   document.addEventListener("DOMContentLoaded", wireGeneratePromptButtons);
+  document.addEventListener("DOMContentLoaded", wireCreateRunForm);
+  document.addEventListener("DOMContentLoaded", wireAddNoteForms);
+  document.addEventListener("DOMContentLoaded", wireCopyTimelineButton);
 })();

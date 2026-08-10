@@ -7,17 +7,27 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 
 from agentos_dashboard.api.acknowledgments import AcknowledgmentStore
+from agentos_dashboard.api.audit import timeline_entry_to_json
 from agentos_dashboard.api.board import board_to_json, task_detail_to_json, workflow_view_to_json
 from agentos_dashboard.api.consistency import (
     AcknowledgeRequest,
     acknowledgment_to_json,
     consistency_report_to_json,
 )
+from agentos_dashboard.api.drafts import (
+    CreateApprovalRequest,
+    CreateFindingRequest,
+    CreateNoteRequest,
+    approval_to_json,
+    finding_to_json,
+    note_to_json,
+)
 from agentos_dashboard.api.envelope import ok
 from agentos_dashboard.api.errors import ApiErrorCode, DashboardAPIError
+from agentos_dashboard.api.evidence import evidence_view_to_json
 from agentos_dashboard.api.git import (
     git_branches_to_json,
     git_commits_to_json,
@@ -32,17 +42,28 @@ from agentos_dashboard.api.governance import (
 )
 from agentos_dashboard.api.handover import handover_view_to_json
 from agentos_dashboard.api.lock import ExecutionLock
+from agentos_dashboard.api.orchestration import orchestration_view_to_json
 from agentos_dashboard.api.overview import build_overview, overview_to_json
 from agentos_dashboard.api.prompts import (
     GeneratePromptRequest,
     generated_prompt_to_json,
     unmet_precondition_message,
 )
+from agentos_dashboard.api.runs import CreateRunRequest, run_view_to_json
 from agentos_dashboard.api.snapshot_cache import SnapshotBuildInProgress, SnapshotCache
 from agentos_dashboard.api.stages import stage_registry_to_json
 from agentos_dashboard.core import utc_now
+from agentos_dashboard.core.gitread import GitFailure
 from agentos_dashboard.core.snapshot import RepositorySnapshot
+from agentos_dashboard.services.approvals import (
+    InvalidApprovalPayload,
+    ReconciliationUnavailable,
+    create_approval,
+)
+from agentos_dashboard.services.audit import build_audit_timeline
 from agentos_dashboard.services.consistency import run_consistency_checks
+from agentos_dashboard.services.evidence import build_evidence_view
+from agentos_dashboard.services.findings import InvalidFindingPayload, create_finding
 from agentos_dashboard.services.git import build_upstream_check
 from agentos_dashboard.services.governance import (
     GovernanceQueryRefused,
@@ -51,15 +72,25 @@ from agentos_dashboard.services.governance import (
     search_governance,
 )
 from agentos_dashboard.services.handover import build_handover_view
+from agentos_dashboard.services.notes import InvalidNotePayload, create_note
+from agentos_dashboard.services.orchestration import build_orchestration_view
 from agentos_dashboard.services.prompts import (
     PromptAuditLog,
     PromptStore,
     UnknownStageError,
     generate_stage_prompt,
 )
+from agentos_dashboard.services.runs import (
+    InvalidRunPayload,
+    create_run,
+    get_run,
+    list_runs,
+    to_view,
+)
 from agentos_dashboard.services.stages import PreconditionReport
 from agentos_dashboard.services.tasks import build_task_detail
 from agentos_dashboard.settings import DashboardSettings
+from agentos_dashboard.storage.db import DashboardDatabase
 
 __all__ = ["build_router"]
 
@@ -90,6 +121,7 @@ def build_router(
     acknowledgments_store: AcknowledgmentStore | None = None,
     prompt_store: PromptStore | None = None,
     prompt_audit_log: PromptAuditLog | None = None,
+    database: DashboardDatabase | None = None,
 ) -> APIRouter:
     """The `/dash/api/v1` router, closed over this process's cache and lock (no global state)."""
     router = APIRouter(prefix="/dash/api/v1")
@@ -248,5 +280,167 @@ def build_router(
                 ],
             }
         )
+
+    def _require_database() -> DashboardDatabase:
+        if database is None:
+            raise DashboardAPIError(ApiErrorCode.INTERNAL, "local database is not configured")
+        return database
+
+    @router.get("/runs")
+    async def runs_list(
+        limit: int = Query(default=100, ge=1, le=200),
+        offset: int = Query(default=0, ge=0, le=1_000_000),
+    ) -> dict[str, Any]:
+        db = _require_database()
+        root = cache.get().root
+        with db.connection() as conn:
+            runs = [
+                run_view_to_json(to_view(root, run))
+                for run in list_runs(conn, limit=limit, offset=offset)
+            ]
+        return ok({"runs": runs})
+
+    @router.get("/runs/{run_uuid}")
+    async def run_detail(run_uuid: UUID) -> dict[str, Any]:
+        db = _require_database()
+        root = cache.get().root
+        with db.connection() as conn:
+            run = get_run(conn, str(run_uuid))
+            if run is None:
+                raise DashboardAPIError(
+                    ApiErrorCode.NOT_FOUND, f"unknown run uuid: {str(run_uuid)!r}"
+                )
+            return ok(run_view_to_json(to_view(root, run)))
+
+    @router.post("/runs")
+    async def create_run_record(payload: CreateRunRequest) -> dict[str, Any]:
+        db = _require_database()
+        root = cache.get().root
+        with db.connection() as conn:
+            try:
+                view = create_run(
+                    root,
+                    conn,
+                    db.audit_log_path,
+                    stage_id=payload.stage_id,
+                    tool=payload.tool,
+                    started_at=payload.started_at,
+                    reported_result=payload.reported_result,
+                    client_token=str(payload.client_token),
+                    prompt_hash=payload.prompt_hash,
+                    ended_at=payload.ended_at,
+                    report_path=payload.report_path,
+                    validation_entries=[entry.to_input() for entry in payload.validation],
+                    validation_summary=payload.validation_summary,
+                    findings_text=payload.findings_text,
+                    notes=payload.notes,
+                    external_reference=payload.external_reference,
+                )
+            except InvalidRunPayload as exc:
+                raise DashboardAPIError(ApiErrorCode.VALIDATION_ERROR, str(exc)) from exc
+        return ok(run_view_to_json(view))
+
+    @router.get("/evidence/{run_uuid}")
+    async def evidence_detail(run_uuid: UUID) -> dict[str, Any]:
+        db = _require_database()
+        root = cache.get().root
+        with db.connection() as conn:
+            view = build_evidence_view(root, conn, str(run_uuid))
+            if view is None:
+                raise DashboardAPIError(
+                    ApiErrorCode.NOT_FOUND, f"unknown run uuid: {str(run_uuid)!r}"
+                )
+            return ok(evidence_view_to_json(view))
+
+    @router.get("/audit")
+    async def audit_timeline(
+        task: str | None = Query(default=None, max_length=64),
+        kind: str | None = Query(default=None, max_length=64),
+        limit: int = Query(default=200, ge=1, le=200),
+        offset: int = Query(default=0, ge=0, le=1_000_000),
+    ) -> dict[str, Any]:
+        db = _require_database()
+        root = cache.get().root
+        with db.connection() as conn:
+            entries = build_audit_timeline(
+                root,
+                conn,
+                task_id=task,
+                kind=kind,
+                audit_log_path=db.audit_log_path,
+                limit=limit,
+                offset=offset,
+            )
+        return ok({"entries": [timeline_entry_to_json(entry) for entry in entries]})
+
+    @router.get("/orchestration")
+    async def orchestration_view() -> dict[str, Any]:
+        # EP-18 requires zero Git *calls*, not merely zero mutation.  `cache.get()` performs a
+        # read-only Git staleness check, so this endpoint deliberately uses the cache's immutable
+        # repository binding directly.
+        return ok(orchestration_view_to_json(build_orchestration_view(cache.root)))
+
+    @router.post("/approvals")
+    async def create_approval_draft(payload: CreateApprovalRequest) -> dict[str, Any]:
+        db = _require_database()
+        root = cache.get().root
+        with db.connection() as conn:
+            try:
+                approval = create_approval(
+                    root,
+                    conn,
+                    db.audit_log_path,
+                    layer=payload.layer,
+                    verdict=payload.verdict,
+                    client_token=str(payload.client_token),
+                    run_uuid=str(payload.run_uuid) if payload.run_uuid is not None else None,
+                    target_hash=payload.target_hash,
+                    target_commit=payload.target_commit,
+                    notes=payload.notes,
+                )
+            except InvalidApprovalPayload as exc:
+                raise DashboardAPIError(ApiErrorCode.VALIDATION_ERROR, str(exc)) from exc
+            except ReconciliationUnavailable as exc:
+                code = (
+                    ApiErrorCode.GIT_TIMEOUT
+                    if exc.failure is GitFailure.TIMEOUT
+                    else ApiErrorCode.INTERNAL
+                )
+                raise DashboardAPIError(code, "live Git reconciliation is unavailable") from exc
+        return ok(approval_to_json(approval))
+
+    @router.post("/findings")
+    async def create_finding_draft(payload: CreateFindingRequest) -> dict[str, Any]:
+        db = _require_database()
+        with db.connection() as conn:
+            try:
+                finding = create_finding(
+                    conn,
+                    db.audit_log_path,
+                    severity=payload.severity,
+                    text=payload.text,
+                    client_token=str(payload.client_token),
+                    run_uuid=str(payload.run_uuid) if payload.run_uuid is not None else None,
+                    disposition=payload.disposition,
+                )
+            except InvalidFindingPayload as exc:
+                raise DashboardAPIError(ApiErrorCode.VALIDATION_ERROR, str(exc)) from exc
+        return ok(finding_to_json(finding))
+
+    @router.post("/notes")
+    async def create_user_note(payload: CreateNoteRequest) -> dict[str, Any]:
+        db = _require_database()
+        with db.connection() as conn:
+            try:
+                note = create_note(
+                    conn,
+                    db.audit_log_path,
+                    target_ref=payload.target_ref,
+                    text=payload.text,
+                    client_token=str(payload.client_token),
+                )
+            except InvalidNotePayload as exc:
+                raise DashboardAPIError(ApiErrorCode.VALIDATION_ERROR, str(exc)) from exc
+        return ok(note_to_json(note))
 
     return router
