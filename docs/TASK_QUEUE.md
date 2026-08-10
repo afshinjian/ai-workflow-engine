@@ -868,7 +868,7 @@ authorized action.
 
 ## DASH-010 — Integration testing, documentation, and release readiness
 
-Status: Planned
+Status: Current
 
 End-to-end tests, operator manual, bounded read-only PG-12 Settings/About surface, final
 DR-121/DR-122 cross-page evidence, and MVP closure recommendation to the Human Owner. Contract:

@@ -568,3 +568,8 @@ approval. Registry state `AUTHORIZED` → `IN_PROGRESS`. See `CL-20260810-04` ab
 
 The Human Owner approved and closed DASH-009 through the automatic task-closeout gate
 (`scripts/workflow-approve.sh`, GOV-AUTO-03). Registry state `COMPLETE`; task status `Done`.
+
+## 2026-08-11 — DASH-010 authorized
+
+The Human Owner authorized DASH-010 through the two-confirmation local gate. The stage is
+`AUTHORIZED`; implementation, approval, push, and merge remain separate.

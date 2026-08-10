@@ -160,7 +160,7 @@ Report paths: `docs/reports/agentos-dashboard/STAGE-XX-completion.md`.
 | DASH-007 | Stage registry and prompt generation | Dashboard implementation session | COMPLETE | `feature/dash-007-prompt-generation` | `stage-prompts/DASH-007.md` |
 | DASH-008 | Run records, evidence, audit timeline | Dashboard implementation session | COMPLETE | `feature/dash-008-runs-evidence-audit` | `stage-prompts/DASH-008.md` |
 | DASH-009 | Security hardening and failure handling | Dashboard implementation session (+ mandatory independent security review) | COMPLETE | `fix/dash-009-security-hardening` | `stage-prompts/DASH-009.md` |
-| DASH-010 | Integration testing, documentation, release readiness | Dashboard implementation session | NOT_STARTED | `feature/dash-010-release-readiness` | `stage-prompts/DASH-010.md` |
+| DASH-010 | Integration testing, documentation, release readiness | Dashboard implementation session | AUTHORIZED | `feature/dash-010-release-readiness` | `stage-prompts/DASH-010.md` |
 
 ## 4. Authorization Log (append-only)
 
@@ -221,6 +221,8 @@ Report paths: `docs/reports/agentos-dashboard/STAGE-XX-completion.md`.
 | 2026-08-10 | DASH-009 (mandatory fresh-session independent security review completed) | Independent security reviewer/corrector completed the contract's one bounded pass against branch `fix/dash-009-security-hardening` at authorization HEAD `ca5bf64` with the implementation uncommitted. Four substantive findings were found and corrected inside authorized DASH-009 scope: incomplete redaction across storage/audit/display/error boundaries; no whole-request body cap; stale PID-lock read/unlink race; and unbounded audit-row retrieval. Each correction has regression tests. SC-01..SC-36 were independently reconciled; DD-17's byte-exact primitive rationale was retained and its unsafe narrow caller list superseded by DD-18; OD-D13 defers only a nonexistent future logging capability and blocks no current control. Dashboard: 707 passed/one baseline-only live-governance fixture failure, reproduced on a clean archive of `ca5bf64` as 623 passed/the identical failure. Engine: 2991 passed/2 deselected. Workflow: 2085 passed/32 deselected. No unresolved BLOCKER/HIGH/MEDIUM finding, no DASH-010 implementation, no Git mutation. Registry remains `IN_PROGRESS` pending Human Owner approval. Report: `docs/reports/agentos-dashboard/STAGE-09-completion.md`. | Mandatory fresh-session independent security reviewer/corrector |
 
 | 2026-08-10 | DASH-009 (Human Owner approval and closure) | Human Owner supplied both exact `APPROVE` confirmations through `scripts/workflow-approve.sh`, which performed the deterministic governance closeout on branch `fix/dash-009-security-hardening` in the same commit as the approved implementation. Registry state moves to `COMPLETE`; task status moves `Current -> Done`. This closure authorizes no successor. | Human Owner |
+
+| 2026-08-11 | DASH-010 | Human Owner supplied both exact `AUTHORIZE` confirmations through `scripts/workflow-authorize.sh`. Preconditions passed on the default-branch baseline at `aec4e893b0d60ac4d058b39bdcc2d5f29c4912bc`. Registry moves `NOT_STARTED → AUTHORIZED`; implementation has not started. | Human Owner |
 
 ## 5. Stage→Requirement Map
 
