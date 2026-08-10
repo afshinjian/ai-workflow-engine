@@ -16,6 +16,7 @@ from typing import Any
 
 from agentos_dashboard.core.files import FileAccessError, read_text
 from agentos_dashboard.core.paths import PathRefusedError, RepositoryRoot
+from agentos_dashboard.core.redact import redact_secrets
 from agentos_dashboard.core.snapshot import RepositorySnapshot
 from agentos_dashboard.parsing.models import TaskStatus
 from agentos_dashboard.parsing.orchestration import parse_implementation_state
@@ -144,9 +145,9 @@ def build_overview(snapshot: RepositorySnapshot) -> OverviewData:
         status = snapshot.git_status
         git = GitOverview(
             head=status.head,
-            branch=status.branch,
+            branch=redact_secrets(status.branch) if status.branch is not None else None,
             detached=status.detached,
-            upstream=status.upstream,
+            upstream=redact_secrets(status.upstream) if status.upstream is not None else None,
             ahead=status.ahead,
             behind=status.behind,
             clean=status.clean,
@@ -156,12 +157,20 @@ def build_overview(snapshot: RepositorySnapshot) -> OverviewData:
 
     return OverviewData(
         version=project_state.version_fact if project_state is not None else None,
-        summary=project_state.summary if project_state is not None else None,
+        summary=(
+            redact_secrets(project_state.summary)
+            if project_state is not None and project_state.summary is not None
+            else None
+        ),
         current_task_id=current_task_id,
-        current_task_summary=current_task_summary,
+        current_task_summary=redact_secrets(current_task_summary),
         task_counts=counts,
-        blockers=(tuple(entry.text for entry in project_state.blockers) if project_state else ()),
-        orch_blockers=orch_blockers,
+        blockers=(
+            tuple(redact_secrets(entry.text) for entry in project_state.blockers)
+            if project_state
+            else ()
+        ),
+        orch_blockers=tuple(redact_secrets(blocker) for blocker in orch_blockers),
         git=git,
         consistency_findings=consistency.findings,
         last_event_summary=NO_RECORDED_EVENTS_MESSAGE,

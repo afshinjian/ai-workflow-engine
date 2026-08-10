@@ -3,6 +3,7 @@ source-scan proof for `audit_events` (`DATA_MODEL.md` §3/§4; DASH-008 acceptan
 
 from __future__ import annotations
 
+import os
 import sqlite3
 from pathlib import Path
 
@@ -182,3 +183,72 @@ def test_runtime_parent_symlink_escape_is_rejected(tmp_path: Path) -> None:
     (repo / "data").symlink_to(outside, target_is_directory=True)
     with pytest.raises(storage_db.DatabaseSchemaError):
         storage_db.DashboardDatabase(repo)
+
+
+def test_corrupt_database_header_fails_without_recreation(tmp_path: Path) -> None:
+    db_path = tmp_path / "dashboard.db"
+    original = b"not a sqlite database\x00preserve-me"
+    db_path.write_bytes(original)
+    with pytest.raises(sqlite3.DatabaseError):
+        storage_db.connect(db_path)
+    assert db_path.read_bytes() == original
+
+
+def test_database_path_that_is_a_directory_fails_without_replacement(tmp_path: Path) -> None:
+    db_path = tmp_path / "dashboard.db"
+    db_path.mkdir()
+    with pytest.raises(sqlite3.OperationalError):
+        storage_db.connect(db_path)
+    assert db_path.is_dir()
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root bypasses filesystem write permissions")
+def test_read_only_database_fails_and_reopens_after_permissions_restore(tmp_path: Path) -> None:
+    database = storage_db.DashboardDatabase(tmp_path)
+    with database.connection():
+        pass
+    runtime_dir = database.db_path.parent
+    runtime_files = tuple(path for path in runtime_dir.iterdir() if path.is_file())
+    for path in runtime_files:
+        path.chmod(0o400)
+    runtime_dir.chmod(0o500)
+    try:
+        with pytest.raises(sqlite3.OperationalError):
+            with database.connection() as conn:
+                conn.execute(
+                    "INSERT INTO user_notes "
+                    "(uuid, client_token, request_hash, target_ref, text, created_at) "
+                    "VALUES ('readonly', 'readonly-token', 'h', 'run:x', 'no write', 'z')"
+                )
+    finally:
+        runtime_dir.chmod(0o700)
+        for path in runtime_files:
+            path.chmod(0o600)
+    with database.connection() as conn:
+        assert conn.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+
+
+def test_database_lock_fails_without_partial_write_and_reopens(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(storage_db, "BUSY_TIMEOUT_MS", 20)
+    database = storage_db.DashboardDatabase(tmp_path)
+    with database.connection():
+        pass
+    holder = sqlite3.connect(database.db_path)
+    holder.execute("BEGIN IMMEDIATE")
+    try:
+        with pytest.raises(sqlite3.OperationalError):
+            with database.connection() as conn:
+                conn.execute(
+                    "INSERT INTO user_notes "
+                    "(uuid, client_token, request_hash, target_ref, text, created_at) "
+                    "VALUES ('locked', 'locked-token', 'h', 'run:x', 'no partial', 'z')"
+                )
+    finally:
+        holder.rollback()
+        holder.close()
+    with database.connection() as conn:
+        assert (
+            conn.execute("SELECT COUNT(*) FROM user_notes WHERE uuid = 'locked'").fetchone()[0] == 0
+        )

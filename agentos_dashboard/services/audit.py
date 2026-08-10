@@ -32,6 +32,7 @@ from uuid import uuid4
 
 from agentos_dashboard.core import utc_now
 from agentos_dashboard.core.paths import RepositoryRoot
+from agentos_dashboard.core.redact import redact_mapping, redact_secrets
 from agentos_dashboard.services.legacy_workflow import load_legacy_workflow
 from agentos_dashboard.storage.db import queue_audit_line
 
@@ -107,11 +108,16 @@ def record_audit_event(
 ) -> AuditEvent:
     """Append one `AuditEvent` to `audit_events` and to the JSONL mirror. Never updates, never
     deletes — the only statement this function issues against `audit_events` is `INSERT`."""
+    redacted_payload = redact_mapping(payload)
     event = AuditEvent(
-        uuid=str(uuid4()), ts=now().isoformat(), actor=actor, kind=kind, payload=payload
+        uuid=str(uuid4()),
+        ts=now().isoformat(),
+        actor=redact_secrets(actor),
+        kind=kind,
+        payload=redacted_payload,
     )
     payload_json = json.dumps(
-        dict(payload), sort_keys=True, separators=(",", ":"), ensure_ascii=True
+        redacted_payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True
     )
     conn.execute(
         "INSERT INTO audit_events (uuid, ts, actor, kind, payload) VALUES (?, ?, ?, ?, ?)",
@@ -123,7 +129,7 @@ def record_audit_event(
             "ts": event.ts,
             "actor": event.actor,
             "kind": event.kind,
-            "payload": dict(payload),
+            "payload": redacted_payload,
         },
         sort_keys=True,
         separators=(",", ":"),
@@ -214,19 +220,37 @@ def inspect_audit_mirror(conn: Connection, audit_log_path: Path) -> AuditMirrorS
     return AuditMirrorStatus(not issues, len(expected), len(seen), issues)
 
 
-def list_audit_events(conn: Connection, *, kind: str | None = None) -> tuple[AuditEvent, ...]:
-    """All recorded local audit events, newest first."""
+def list_audit_events(
+    conn: Connection,
+    *,
+    kind: str | None = None,
+    limit: int = 200,
+    offset: int = 0,
+) -> tuple[AuditEvent, ...]:
+    """A bounded page of recorded local audit events, newest first."""
+    if limit < 1 or limit > 200 or offset < 0:
+        raise ValueError("audit pagination must use limit 1..200 and offset >= 0")
     if kind is None:
         rows = conn.execute(
-            "SELECT uuid, ts, actor, kind, payload FROM audit_events ORDER BY ts DESC, rowid DESC"
+            "SELECT uuid, ts, actor, kind, payload FROM audit_events "
+            "ORDER BY ts DESC, rowid DESC LIMIT ? OFFSET ?",
+            (limit, offset),
         ).fetchall()
     else:
         rows = conn.execute(
             "SELECT uuid, ts, actor, kind, payload FROM audit_events "
-            "WHERE kind = ? ORDER BY ts DESC, rowid DESC",
-            (kind,),
+            "WHERE kind = ? ORDER BY ts DESC, rowid DESC LIMIT ? OFFSET ?",
+            (kind, limit, offset),
         ).fetchall()
     return tuple(_row_to_event(row) for row in rows)
+
+
+def _audit_event_count(conn: Connection, kind: str | None) -> int:
+    if kind is None:
+        row = conn.execute("SELECT COUNT(*) FROM audit_events").fetchone()
+    else:
+        row = conn.execute("SELECT COUNT(*) FROM audit_events WHERE kind = ?", (kind,)).fetchone()
+    return int(row[0])
 
 
 _LOCAL_SUMMARIES: Mapping[str, str] = {
@@ -302,11 +326,11 @@ def build_audit_timeline(
     entries, flagged `contradiction=True`."""
     if limit < 1 or limit > 200 or offset < 0:
         raise ValueError("timeline pagination must use limit 1..200 and offset >= 0")
-    local_entries = tuple(_local_entry(event) for event in list_audit_events(conn, kind=kind))
+    synthetic_entries: tuple[TimelineEntry, ...] = ()
     if audit_log_path is not None:
         mirror = inspect_audit_mirror(conn, audit_log_path)
         if not mirror.coherent and kind in (None, "audit_mirror_divergence"):
-            local_entries = (
+            synthetic_entries = (
                 TimelineEntry(
                     origin="local",
                     kind="audit_mirror_divergence",
@@ -317,9 +341,24 @@ def build_audit_timeline(
                     contradiction=True,
                     payload={"issues": list(mirror.issues)},
                 ),
-                *local_entries,
             )
-    repository_entries = (
-        _repository_entries(root, task_id) if task_id and kind in (None, "workflow_event") else ()
-    )
-    return (local_entries + repository_entries)[offset : offset + limit]
+
+    result: list[TimelineEntry] = []
+    if offset < len(synthetic_entries):
+        result.extend(synthetic_entries[offset : offset + limit])
+    remaining = limit - len(result)
+
+    database_count = _audit_event_count(conn, kind)
+    database_offset = max(0, offset - len(synthetic_entries))
+    if remaining and database_offset < database_count:
+        result.extend(
+            _local_entry(event)
+            for event in list_audit_events(conn, kind=kind, limit=remaining, offset=database_offset)
+        )
+        remaining = limit - len(result)
+
+    if remaining and task_id and kind in (None, "workflow_event"):
+        repository_offset = max(0, offset - len(synthetic_entries) - database_count)
+        repository_entries = _repository_entries(root, task_id)
+        result.extend(repository_entries[repository_offset : repository_offset + remaining])
+    return tuple(result)

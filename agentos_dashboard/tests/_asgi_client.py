@@ -49,6 +49,7 @@ class AsgiTestClient:
     app: ASGIApp
     host: str = "127.0.0.1"
     port: int = 8642
+    raise_server_exceptions: bool = False
     _cookies: dict[str, str] = field(default_factory=dict)
 
     def get(self, path: str, *, headers: Mapping[str, str] | None = None) -> AsgiResponse:
@@ -89,6 +90,8 @@ class AsgiTestClient:
             raw_headers.append((b"cookie", cookie_header.encode()))
         for key, value in caller_headers.items():
             raw_headers.append((key.encode(), value.encode()))
+        if body and not any(name == b"content-length" for name, _ in raw_headers):
+            raw_headers.append((b"content-length", str(len(body)).encode()))
 
         query = ""
         if "?" in path:
@@ -123,7 +126,18 @@ class AsgiTestClient:
         async def send(message: MutableMapping[str, Any]) -> None:
             messages.append(message)
 
-        await self.app(scope, receive, send)
+        try:
+            await self.app(scope, receive, send)
+        except Exception:
+            # `starlette.middleware.errors.ServerErrorMiddleware` always re-raises after invoking
+            # the registered 500 handler and sending its response, so a real ASGI server (Uvicorn)
+            # can log the error — the client already received the correct response by then. A
+            # real server swallows this at the protocol layer; this client must do the same, or
+            # every test of graceful degradation on an unexpected exception would itself crash
+            # instead of observing the response. Only swallow it once a response was actually
+            # sent: an exception before `http.response.start` is a genuine failure to surface.
+            if self.raise_server_exceptions or not messages:
+                raise
 
         status = 500
         resp_headers: list[tuple[str, str]] = []

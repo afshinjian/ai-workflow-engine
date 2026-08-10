@@ -93,6 +93,16 @@ def test_partial_document_degrades_to_low_confidence_but_keeps_what_it_found() -
     assert len(parsed.notes) == 2
 
 
+def test_empty_document_degrades_without_crashing() -> None:
+    """SC-34: a truncated-to-empty `PROJECT_STATE.md` must degrade to a reported condition, not
+    raise, and must not be mistaken for a well-formed document with nothing in it."""
+    parsed = parse_project_state("", "docs/PROJECT_STATE.md")
+    assert parsed.confidence is Confidence.NONE
+    assert parsed.value is None
+    assert parsed.raw_text == ""
+    assert parsed.notes
+
+
 def test_real_repository_project_state_parses_at_high_confidence() -> None:
     """Guards against the parser being too strict for this repository's actual document."""
     real_path = Path(__file__).resolve().parents[2] / "docs" / "PROJECT_STATE.md"

@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from typing import Any, TypedDict
 
+from agentos_dashboard.core.redact import redact_mapping, redact_secrets
+
 __all__ = ["Envelope", "EnvelopeErrorBody", "err", "ok"]
 
 
@@ -30,8 +32,15 @@ def ok(data: Any) -> dict[str, Any]:
     documented shape) — a dependency this stage does not add. The dict this returns still has
     exactly `Envelope`'s shape; only the static type of the helper differs from it.
     """
-    return {"ok": True, "data": data, "error": None}
+    # Every JSON success response is a display/export boundary. Services still redact before
+    # persistence where required; this recursive final guard catches repository-derived fields
+    # that are deliberately kept raw for integrity checks inside their service.
+    return {"ok": True, "data": redact_mapping({"value": data})["value"], "error": None}
 
 
 def err(code: str, message: str) -> dict[str, Any]:
-    return {"ok": False, "data": None, "error": {"code": code, "message": message}}
+    return {
+        "ok": False,
+        "data": None,
+        "error": {"code": code, "message": redact_secrets(message)},
+    }

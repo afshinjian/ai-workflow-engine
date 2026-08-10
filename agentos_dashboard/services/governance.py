@@ -17,6 +17,15 @@ Markdown library is outside this stage's authorization. Every text fragment is e
 `html.escape` before assembly; nothing from repository content is ever passed through as trusted
 HTML (`SECURITY_MODEL.md` SC-04). A render that raises degrades to the raw-source fallback plus a
 finding, never a crash (SC-34).
+
+The text this module displays — `raw_text`, the source fed to the renderer, and the SC-35 tail
+excerpt below — is passed through `core.redact.redact_secrets` (SC-09) before rendering. This is
+a display-only transformation of a copy: `services/consistency.py` and the other governance-fact
+consumers (`services/tasks.py`, `services/board.py`, ...) each call `core.files.read_text`
+independently for their own byte-exact comparisons and never see this module's redacted copy, so
+redacting here cannot corrupt a contradiction check or a checksum. `read_head_tail` (not
+`read_text`) is used whenever a document was truncated, so the operator can see the *end* of a
+large document — the newest entries in a chronological log — and not only its head (SC-35).
 """
 
 from __future__ import annotations
@@ -27,8 +36,9 @@ import re
 from dataclasses import dataclass
 
 from agentos_dashboard.core import DEFAULT_MAX_READ_BYTES, DashboardError
-from agentos_dashboard.core.files import FileAccessError, read_text
+from agentos_dashboard.core.files import FileAccessError, read_head_tail, read_text
 from agentos_dashboard.core.paths import PathRefusedError, RepositoryRoot
+from agentos_dashboard.core.redact import redact_secrets
 from agentos_dashboard.services.consistency import ConsistencyFinding, ConsistencySeverity
 
 __all__ = [
@@ -154,6 +164,7 @@ class RenderedDocument:
     truncated: bool
     degraded: bool
     findings: tuple[ConsistencyFinding, ...]
+    tail_excerpt: str | None = None
 
 
 @dataclass(frozen=True)
@@ -374,10 +385,12 @@ def render_document(root: RepositoryRoot, doc_id: str) -> RenderedDocument | Non
             ),
         )
 
+    redacted_text = redact_secrets(read.text)
+
     try:
         if read.decoded_with_replacement:
             raise ValueError("document contains malformed UTF-8")
-        rendered_html, headings = _render_body(read.text, doc.path)
+        rendered_html, headings = _render_body(redacted_text, doc.path)
         degraded = False
         findings: tuple[ConsistencyFinding, ...] = ()
     except ValueError as exc:
@@ -393,17 +406,28 @@ def render_document(root: RepositoryRoot, doc_id: str) -> RenderedDocument | Non
             ),
         )
 
+    # SC-35: a truncated document only shows its head via `read_text`'s cap; fetch the tail too
+    # so a chronological log's newest (bottom) entries remain visible rather than silently cut.
+    tail_excerpt: str | None = None
+    if read.truncated:
+        try:
+            head_tail = read_head_tail(root, doc.path)
+            tail_excerpt = redact_secrets(head_tail.tail)
+        except (FileAccessError, PathRefusedError):
+            tail_excerpt = None
+
     return RenderedDocument(
         doc_id=doc.doc_id,
         title=doc.title,
         authority=doc.authority,
         path=doc.path,
-        raw_text=read.text,
+        raw_text=redacted_text,
         rendered_html=rendered_html,
         headings=headings,
         truncated=read.truncated,
         degraded=degraded,
         findings=findings,
+        tail_excerpt=tail_excerpt,
     )
 
 
@@ -458,7 +482,7 @@ def search_governance(root: RepositoryRoot, query: str) -> GovernanceSearch:
                         doc_id=doc.doc_id,
                         title=doc.title,
                         line=line_number,
-                        snippet=line.strip()[:300],
+                        snippet=redact_secrets(line.strip()[:300]),
                     )
                 )
                 if len(results) >= MAX_SEARCH_RESULTS:

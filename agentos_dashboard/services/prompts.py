@@ -33,6 +33,7 @@ from agentos_dashboard.core import DashboardError, utc_now
 from agentos_dashboard.core.files import FileAccessError, read_text
 from agentos_dashboard.core.gitread import GitReadError, read_status
 from agentos_dashboard.core.paths import PathRefusedError, RepositoryRoot
+from agentos_dashboard.core.redact import redact_secrets
 from agentos_dashboard.core.snapshot import RepositorySnapshot
 from agentos_dashboard.prompt_templates.placeholders import substitute
 from agentos_dashboard.prompt_templates.schema import STAGE_SCHEMA_BY_ID, StageSchema
@@ -178,11 +179,11 @@ def _render_markdown(
     date: str,
 ) -> str:
     raw_values = {
-        "branch": branch or "(none)",
+        "branch": redact_secrets(branch or "(none)"),
         "head_sha": head_sha or "(unborn)",
-        "tree_state": tree_state,
+        "tree_state": redact_secrets(tree_state),
         "date": date,
-        "precondition_report": _format_precondition_report(report),
+        "precondition_report": redact_secrets(_format_precondition_report(report)),
     }
 
     def data_block(label: str, value: str) -> str:
@@ -249,7 +250,7 @@ def generate_stage_prompt(
                 kind="refused",
                 stage_id=stage_id,
                 at=now().isoformat(),
-                detail="; ".join(f"{r.name}: {r.detail}" for r in report.unmet),
+                detail=redact_secrets("; ".join(f"{r.name}: {r.detail}" for r in report.unmet)),
             )
         )
         return report
@@ -259,10 +260,10 @@ def generate_stage_prompt(
     # Source completeness is a precondition, so these reads cannot silently turn a missing or
     # truncated contract into an empty prompt.  Re-read after the gate to render the exact bytes
     # currently present; a raced-away source is refused by the second precondition evaluation.
-    readme_text = _read_or_none(root, _SSP_README_PATH) or ""
+    readme_text = redact_secrets(_read_or_none(root, _SSP_README_PATH) or "")
     ssp_text = _extract_section(readme_text, _SSP_HEADING, "\n## ")
     stage_prompt_path = f"docs/agentos-dashboard/{schema.prompt_path}"
-    stage_text = _read_or_none(root, stage_prompt_path) or ""
+    stage_text = redact_secrets(_read_or_none(root, stage_prompt_path) or "")
     template_version = _template_version(stage_text)
 
     final_report = evaluate_preconditions(snapshot, stage_id)

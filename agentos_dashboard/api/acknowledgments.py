@@ -16,6 +16,7 @@ import hashlib
 from dataclasses import dataclass
 
 from agentos_dashboard.core import utc_now
+from agentos_dashboard.core.redact import redact_secrets
 from agentos_dashboard.services.consistency import ConsistencyFinding
 
 __all__ = ["AcknowledgmentRecord", "AcknowledgmentStore", "finding_fingerprint"]
@@ -47,7 +48,9 @@ class AcknowledgmentStore:
 
     def add(self, *, fingerprint: str, note: str) -> AcknowledgmentRecord:
         record = AcknowledgmentRecord(
-            fingerprint=fingerprint, note=note, acknowledged_at=utc_now().isoformat()
+            fingerprint=fingerprint,
+            note=redact_secrets(note),
+            acknowledged_at=utc_now().isoformat(),
         )
         self._records.append(record)
         return record

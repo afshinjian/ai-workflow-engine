@@ -41,6 +41,7 @@ from agentos_dashboard.core.gitread import (
     resolve_revision,
 )
 from agentos_dashboard.core.paths import PathRefusedError, RepositoryRoot
+from agentos_dashboard.core.redact import redact_secrets
 from agentos_dashboard.core.snapshot import RepositorySnapshot
 from agentos_dashboard.parsing.decision_log import parse_decision_log
 from agentos_dashboard.services._prose import extract_commit_references
@@ -378,18 +379,102 @@ def build_git_page(snapshot: RepositorySnapshot) -> GitPageData:
     commit_badges = _decision_log_commit_badges(root) + _orchestration_commit_badges(root)
     pr_references = _pr_references(root)
 
+    # Git identities and repository prose are untrusted display text. Preserve raw values for
+    # all comparisons above, then redact only the view model returned to HTML/JSON callers.
+    def safe_entry(entry: GitStatusEntry) -> GitStatusEntry:
+        return GitStatusEntry(
+            index_status=entry.index_status,
+            worktree_status=entry.worktree_status,
+            path=redact_secrets(entry.path),
+        )
+
+    status = snapshot.git_status
+    safe_status = (
+        GitStatus(
+            head=status.head,
+            branch=redact_secrets(status.branch) if status.branch is not None else None,
+            detached=status.detached,
+            upstream=(redact_secrets(status.upstream) if status.upstream is not None else None),
+            ahead=status.ahead,
+            behind=status.behind,
+            entries=tuple(safe_entry(entry) for entry in status.entries),
+        )
+        if status is not None
+        else None
+    )
+    safe_commits = tuple(
+        GitCommit(
+            sha=commit.sha,
+            abbreviated_sha=commit.abbreviated_sha,
+            author_name=redact_secrets(commit.author_name),
+            authored_at=commit.authored_at,
+            parents=commit.parents,
+            subject=redact_secrets(commit.subject),
+        )
+        for commit in commits
+    )
+    safe_branches = tuple(
+        BranchInfo(
+            name=redact_secrets(branch.name),
+            upstream=(redact_secrets(branch.upstream) if branch.upstream is not None else None),
+            sha=branch.sha,
+            is_head=branch.is_head,
+            is_remote=branch.is_remote,
+            merged=branch.merged,
+        )
+        for branch in branches
+    )
+    safe_tags = tuple(
+        TagRef(
+            name=redact_secrets(tag.name),
+            sha=tag.sha,
+            target_sha=tag.target_sha,
+            created_at=tag.created_at,
+        )
+        for tag in tags
+    )
+    safe_badges = tuple(
+        CommitBadge(
+            source=badge.source,
+            line=badge.line,
+            field=redact_secrets(badge.field),
+            token=badge.token,
+            resolved_sha=badge.resolved_sha,
+            resolvable=badge.resolvable,
+        )
+        for badge in commit_badges
+    )
+    safe_pr_references = tuple(
+        PrReference(
+            number=ref.number,
+            source=ref.source,
+            line=ref.line,
+            context=redact_secrets(ref.context),
+        )
+        for ref in pr_references
+    )
+    safe_findings = tuple(
+        ConsistencyFinding(
+            rule=finding.rule,
+            severity=finding.severity,
+            message=redact_secrets(finding.message),
+            sources=finding.sources,
+        )
+        for finding in findings
+    )
+
     return GitPageData(
-        status=snapshot.git_status,
-        staged_entries=staged,
-        modified_entries=modified,
-        untracked_entries=untracked,
-        commits=commits,
+        status=safe_status,
+        staged_entries=tuple(safe_entry(entry) for entry in staged),
+        modified_entries=tuple(safe_entry(entry) for entry in modified),
+        untracked_entries=tuple(safe_entry(entry) for entry in untracked),
+        commits=safe_commits,
         commits_truncated=len(commits) == MAX_COMMITS,
-        branches=branches,
-        tags=tags,
-        commit_badges=commit_badges,
-        pr_references=pr_references,
-        findings=tuple(findings),
+        branches=safe_branches,
+        tags=safe_tags,
+        commit_badges=safe_badges,
+        pr_references=safe_pr_references,
+        findings=safe_findings,
     )
 
 
@@ -440,11 +525,19 @@ def build_upstream_check(snapshot: RepositorySnapshot) -> UpstreamCheck:
     return UpstreamCheck(
         default_branch=DEFAULT_BRANCH,
         require_upstream=REQUIRE_UPSTREAM,
-        branch=status.branch,
+        branch=redact_secrets(status.branch) if status.branch is not None else None,
         on_default_branch=status.branch == DEFAULT_BRANCH,
-        upstream=status.upstream,
+        upstream=redact_secrets(status.upstream) if status.upstream is not None else None,
         ahead=status.ahead,
         behind=status.behind,
         violation=violation,
-        findings=tuple(findings),
+        findings=tuple(
+            ConsistencyFinding(
+                rule=finding.rule,
+                severity=finding.severity,
+                message=redact_secrets(finding.message),
+                sources=finding.sources,
+            )
+            for finding in findings
+        ),
     )

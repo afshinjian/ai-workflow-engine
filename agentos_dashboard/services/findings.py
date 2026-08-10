@@ -22,6 +22,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from agentos_dashboard.core import DashboardError, utc_now
+from agentos_dashboard.core.redact import redact_secrets
 from agentos_dashboard.services.audit import record_audit_event
 from agentos_dashboard.storage.db import IdempotencyConflict, canonical_request_hash
 
@@ -131,6 +132,8 @@ def create_finding(
             raise InvalidFindingPayload("run_uuid must be a UUID") from exc
         if conn.execute("SELECT 1 FROM stage_runs WHERE uuid = ?", (run_uuid,)).fetchone() is None:
             raise InvalidFindingPayload("run_uuid does not identify a recorded run")
+    text = redact_secrets(text)
+    disposition = redact_secrets(disposition) if disposition is not None else None
     request_hash = canonical_request_hash(
         {
             "severity": severity.value,

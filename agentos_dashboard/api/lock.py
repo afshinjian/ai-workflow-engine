@@ -10,6 +10,7 @@ two servers against one repository.
 
 from __future__ import annotations
 
+import fcntl
 import hashlib
 import os
 import tempfile
@@ -41,15 +42,18 @@ def lock_path_for(repo_root: Path) -> Path:
 class ExecutionLock:
     """An acquired PID lockfile, released by `close()` or on context-manager exit."""
 
-    def __init__(self, info: LockInfo) -> None:
+    def __init__(self, info: LockInfo, fd: int) -> None:
         self.info = info
+        self._fd: int | None = fd
 
     def close(self) -> None:
+        fd, self._fd = self._fd, None
+        if fd is None:
+            return
         try:
-            if self.info.path.read_text(encoding="utf-8").strip() == str(self.info.pid):
-                self.info.path.unlink()
-        except OSError:
-            pass
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        finally:
+            os.close(fd)
 
     def __enter__(self) -> ExecutionLock:
         return self
@@ -58,56 +62,40 @@ class ExecutionLock:
         self.close()
 
 
-def _living_pid(path: Path) -> int | None:
-    """The PID recorded in `path` if that process still exists, else `None` (stale lockfile)."""
-    try:
-        raw = path.read_text(encoding="utf-8").strip()
-    except OSError:
-        return None
-    if not raw.isdigit():
-        return None
-    pid = int(raw)
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return None
-    except PermissionError:
-        return pid  # exists, owned by another user — still alive
-    return pid
-
-
-def _create_exclusive(path: Path, pid: int) -> None:
-    fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
-    with os.fdopen(fd, "w", encoding="utf-8") as handle:
-        handle.write(str(pid))
-
-
 def acquire_lock(repo_root: Path) -> ExecutionLock:
     """Acquire the single-instance lock for `repo_root`, or raise `LockAcquisitionError`.
 
-    A lockfile left behind by a process that no longer exists (a crash, `kill -9`) is reclaimed
-    automatically: `os.kill(pid, 0)` proves liveness without sending a real signal, so a stale PID
-    never permanently wedges the dashboard (SC-26 — restart recovers all derived state).
+    The PID file is a persistent temp-directory sentinel; live ownership is an advisory lock on
+    its open descriptor. The kernel releases that ownership on normal close *and* abrupt process
+    exit, so recovery has no read/unlink race and a stale or malformed PID string cannot wedge a
+    restart (SC-26). The file is intentionally not unlinked at close: unlinking a locked inode can
+    let a third process create and lock a second inode while a waiting process acquires the first.
     """
     path = lock_path_for(repo_root)
     pid = os.getpid()
     try:
-        _create_exclusive(path, pid)
-    except FileExistsError:
-        existing_pid = _living_pid(path)
-        if existing_pid is not None:
+        flags = os.O_CREAT | os.O_RDWR | getattr(os, "O_CLOEXEC", 0)
+        flags |= getattr(os, "O_NOFOLLOW", 0)
+        fd = os.open(path, flags, 0o600)
+    except OSError as exc:
+        raise LockAcquisitionError(f"could not open the dashboard lock at {path}") from exc
+    try:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            os.lseek(fd, 0, os.SEEK_SET)
+            holder = os.read(fd, 64).decode("ascii", errors="replace").strip()
+            label = f"pid {holder}" if holder.isdigit() else "unknown pid"
             raise LockAcquisitionError(
-                f"another dashboard process (pid {existing_pid}) already holds the lock for "
+                f"another dashboard process ({label}) already holds the lock for "
                 f"this repository root: {path}"
-            ) from None
-        try:
-            path.unlink()
-        except OSError:
-            pass
-        try:
-            _create_exclusive(path, pid)
-        except FileExistsError as exc:
-            raise LockAcquisitionError(
-                f"could not acquire lock at {path}: lost the race with another process"
             ) from exc
-    return ExecutionLock(LockInfo(path=path, acquired_at=utc_now(), pid=pid))
+        os.fchmod(fd, 0o600)
+        os.ftruncate(fd, 0)
+        os.lseek(fd, 0, os.SEEK_SET)
+        os.write(fd, str(pid).encode("ascii"))
+        os.fsync(fd)
+        return ExecutionLock(LockInfo(path=path, acquired_at=utc_now(), pid=pid), fd)
+    except BaseException:
+        os.close(fd)
+        raise

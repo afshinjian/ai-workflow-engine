@@ -6,8 +6,12 @@ does not validate that the referenced entity exists, since a note may legitimate
 before or after the entity it discusses is otherwise recorded, and this table is never
 authoritative over anything it references (`DR-062`). Rendering escapes `text` by Jinja2's default
 autoescaping, never by this module — EN-29's own "escaped on render" note is a rendering-layer
-property, not a storage-layer transformation, so what is stored is always the caller's literal
-text.
+property, not a storage-layer transformation.
+
+`text` is passed through `core.redact.redact_secrets` before it is ever written (SC-09): an
+operator pasting a credential into a note must not have it persist in `dashboard.db`, appear in
+any API/web response, or be included in the idempotency request-hash's identity of what a caller
+"said" — redaction happens first, so the hash and the stored row agree with what is ever shown.
 """
 
 from __future__ import annotations
@@ -21,6 +25,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from agentos_dashboard.core import DashboardError, utc_now
+from agentos_dashboard.core.redact import redact_secrets
 from agentos_dashboard.services.audit import record_audit_event
 from agentos_dashboard.storage.db import IdempotencyConflict, canonical_request_hash
 
@@ -110,6 +115,8 @@ def create_note(
         client_token = str(UUID(client_token))
     except ValueError as exc:
         raise InvalidNotePayload("client_token must be a UUID") from exc
+    target_ref = redact_secrets(target_ref)
+    text = redact_secrets(text)
     request_hash = canonical_request_hash({"target_ref": target_ref, "text": text})
 
     existing = get_note_by_token(conn, client_token)

@@ -10,6 +10,14 @@ even if a report file is created or removed after the run record itself was writ
 `report_path` string is `stage.py`'s own field (`DATA_MODEL.md` EN-11), the *claim*, and
 `report_path_verified` is the one field on `StageRunView` that is always repo-derived
 (`SOURCE_OF_TRUTH.md` TR-02: the split `PRODUCT_SPEC.md` DR-051 requires).
+
+Every free-text field an operator types — including `tool`, `reported_result`, `notes`,
+`findings_text`, `validation_summary`, `external_reference`, and each validation entry's
+`command`/`origin`/count names — is passed through
+`core.redact.redact_secrets` before the idempotency hash is computed or anything is written
+(SC-09), for the same reason `services/notes.py` does: a pasted credential must not survive into
+`dashboard.db` or any later response. `report_path` itself is never redacted — it is a path, not
+free text, and is validated by `core.paths`/`core.files` on every read instead.
 """
 
 from __future__ import annotations
@@ -28,6 +36,7 @@ from uuid import UUID, uuid4
 from agentos_dashboard.core import DashboardError, utc_now
 from agentos_dashboard.core.files import FileAccessError, digest_file, stat_file
 from agentos_dashboard.core.paths import PathRefusedError, RepositoryRoot
+from agentos_dashboard.core.redact import redact_secrets
 from agentos_dashboard.services.audit import record_audit_event
 from agentos_dashboard.storage.db import IdempotencyConflict, canonical_request_hash
 
@@ -349,6 +358,33 @@ def create_run(
             raise InvalidRunPayload(
                 "validation counts require bounded names and non-negative values"
             )
+
+    stage_id = redact_secrets(stage_id)
+    tool = redact_secrets(tool)
+    reported_result = redact_secrets(reported_result)
+    if report_path is not None and redact_secrets(report_path) != report_path:
+        raise InvalidRunPayload("report_path contains credential-shaped content")
+    notes = redact_secrets(notes) if notes is not None else None
+    findings_text = redact_secrets(findings_text) if findings_text is not None else None
+    validation_summary = (
+        redact_secrets(validation_summary) if validation_summary is not None else None
+    )
+    external_reference = (
+        redact_secrets(external_reference) if external_reference is not None else None
+    )
+    validation_entries = tuple(
+        ValidationEntryInput(
+            command=redact_secrets(entry.command),
+            result=entry.result,
+            origin=redact_secrets(entry.origin),
+            counts=(
+                {redact_secrets(key): value for key, value in entry.counts.items()}
+                if entry.counts is not None
+                else None
+            ),
+        )
+        for entry in validation_entries
+    )
 
     request_hash = _request_identity(
         stage_id=stage_id,

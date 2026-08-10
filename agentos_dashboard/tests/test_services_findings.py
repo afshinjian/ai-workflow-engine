@@ -33,6 +33,30 @@ def test_create_finding_persists_fields(workspace: Path) -> None:
     assert finding.disposition == "open"
 
 
+def test_finding_text_and_disposition_are_redacted_before_persistence(workspace: Path) -> None:
+    database = DashboardDatabase(workspace)
+    secret = "sk-cccccccccccccccccccccccc"
+    with database.connection() as conn:
+        finding = create_finding(
+            conn,
+            database.audit_log_path,
+            severity=FindingSeverity.MAJOR,
+            text=f"failure used api_key={secret}",
+            client_token="11111111-1111-4111-8111-111111111112",
+            disposition="Authorization: Basic dXNlcjpwYXNz",
+        )
+        row = conn.execute(
+            "SELECT text, disposition FROM findings WHERE uuid = ?", (finding.uuid,)
+        ).fetchone()
+    assert secret not in finding.text
+    assert "dXNlcjpwYXNz" not in (finding.disposition or "")
+    assert row["text"] == finding.text
+    assert row["disposition"] == finding.disposition
+    persisted = database.db_path.read_bytes() + database.audit_log_path.read_bytes()
+    assert secret.encode() not in persisted
+    assert b"dXNlcjpwYXNz" not in persisted
+
+
 def test_create_finding_rejects_empty_text(workspace: Path) -> None:
     database = DashboardDatabase(workspace)
     with database.connection() as conn, pytest.raises(InvalidFindingPayload):

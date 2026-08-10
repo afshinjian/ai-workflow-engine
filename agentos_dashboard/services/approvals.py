@@ -28,6 +28,7 @@ from uuid import UUID, uuid4
 from agentos_dashboard.core import DashboardError, utc_now
 from agentos_dashboard.core.gitread import GitFailure, GitReadError, resolve_revision
 from agentos_dashboard.core.paths import RepositoryRoot
+from agentos_dashboard.core.redact import redact_secrets
 from agentos_dashboard.services.audit import record_audit_event
 from agentos_dashboard.storage.db import IdempotencyConflict, canonical_request_hash
 
@@ -183,6 +184,9 @@ def create_approval(
             raise InvalidApprovalPayload("run_uuid does not identify a recorded run")
     if target_hash is not None and re.fullmatch(r"[0-9a-fA-F]{64}", target_hash) is None:
         raise InvalidApprovalPayload("target_hash must be a 64-character SHA-256 hex digest")
+    if target_commit is not None and redact_secrets(target_commit) != target_commit:
+        raise InvalidApprovalPayload("target_commit contains credential-shaped content")
+    notes = redact_secrets(notes) if notes is not None else None
     request_hash = canonical_request_hash(
         {
             "layer": layer.value,

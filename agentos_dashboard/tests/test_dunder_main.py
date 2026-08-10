@@ -90,4 +90,5 @@ def test_port_already_in_use_is_refused_with_a_clean_error_and_releases_the_lock
         assert "Traceback" not in err
     finally:
         blocker.close()
-    assert not lock_path_for(workspace).exists()
+    replacement = acquire_lock(workspace)
+    replacement.close()

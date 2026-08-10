@@ -5,7 +5,7 @@
 | **Title** | AgentOS Dashboard — Changelog |
 | **Purpose** | Append-only log of every approved change to the dashboard documentation set; the audit spine of `MASTER_PLAN.md` §8. |
 | **Status** | Draft |
-| **Version** | 1.9 |
+| **Version** | 2.1 |
 | **Owner** | Completing agent per stage · verified at review |
 | **Dependencies** | None |
 | **Related Documents** | `MASTER_PLAN.md` §7–§8 |
@@ -16,6 +16,69 @@ Entry ID `CL-YYYYMMDD-##`, newest first. Each entry: documents touched, versions
 before/after, authorizing task, approver. Entries are appended, never edited.
 
 ## Entries
+
+### CL-20260810-05 — DASH-009 mandatory independent security review corrections
+
+- **Documents:** `SECURITY_MODEL.md` §7 (final reviewed SC-01..SC-36 evidence), `DECISIONS.md`
+  (DD-18/DD-19), `OPEN_QUESTIONS.md` (OD-D13 scope clarified), `STAGE_REGISTRY.md` §4,
+  `docs/TASK_QUEUE.md`, and `docs/reports/agentos-dashboard/STAGE-09-completion.md`.
+- **Versions:** `SECURITY_MODEL.md` 1.1 → **1.2**; `DECISIONS.md` 1.9 → **2.0**;
+  `OPEN_QUESTIONS.md` 1.5 → **1.6**; this file 2.0 → **2.1**; registry remains version 5.2
+  because its append-only log grew without a control-rule/state-model change.
+- **Corrections:** the bounded fresh-session reviewer found and corrected four substantive gaps:
+  incomplete recognizable-secret redaction across persistence/audit/display/error boundaries;
+  no whole-request body cap before framework parsing; a stale-PID lockfile read/unlink race that
+  could permit two writers; and audit pagination that bounded output only after loading all DB
+  rows. Every correction has adversarial regression coverage.
+- **Evidence:** final Dashboard result 707 passed/1 known baseline governance-fixture failure;
+  clean archived authorization HEAD 623 passed/the identical failure; engine 2991 passed/2
+  deselected; workflow 2085 passed/32 deselected. Full commands and remaining quality/governance
+  results are recorded in the completion report.
+- **Scope:** only `agentos_dashboard/**` and DASH-009 evidence/governance documents changed. No
+  dependency, repository mutation capability, DASH-010 code, or Git operation was added.
+- **Reason for change:** the mandatory one-pass independent security review required by the
+  DASH-009 stage contract before Human Owner approval.
+- **Authorizing task:** DASH-009, already authorized and still `IN_PROGRESS`.
+- **Approver:** pending — review completed; working tree remains uncommitted for Human Owner.
+- **Date:** 2026-08-10.
+
+### CL-20260810-04 — DASH-009 implemented: security hardening and failure handling
+
+- **Documents:** `SECURITY_MODEL.md` §7 (Reconciliation Log populated for every SC-01..SC-36
+  row), `DECISIONS.md` (new `DD-17`), `OPEN_QUESTIONS.md` (new `OD-D13`, resolved/deferred),
+  `STAGE_REGISTRY.md` §3 (state cell `AUTHORIZED` → `IN_PROGRESS`) and §4 (two new append-only
+  log rows), and the new report `docs/reports/agentos-dashboard/STAGE-09-completion.md`.
+- **Versions:** `SECURITY_MODEL.md` 1.0 → **1.1**; `DECISIONS.md` 1.8 → **1.9**;
+  `OPEN_QUESTIONS.md` 1.4 → **1.5**; this file 1.9 → **2.0**; `STAGE_REGISTRY.md` 5.1 → **5.2**.
+- **Implementation:** the adversarial security test corpus and failure-handling hardening the
+  stage contract requires. Three real defects were found and fixed: (1) SC-09 (secret-shaped-
+  substring redaction) did not exist anywhere in the codebase — new `agentos_dashboard/core/
+  redact.py`, wired into `services/notes.py`/`services/runs.py` (redact before the idempotency
+  hash is computed, so a pasted credential never reaches `dashboard.db`) and `services/
+  governance.py`/`services/handover.py` (redact the display-only copy of repository text,
+  deliberately not the shared `core.files.read_text` primitive other services rely on for
+  byte-exact comparison — `DD-17`); (2) `core.files.read_head_tail` (SC-35) existed but was
+  called from nowhere outside its own unit test — now wired into `services/governance.py::
+  render_document`, surfacing a redacted tail excerpt whenever a document is truncated; (3)
+  Starlette's `ServerErrorMiddleware` always wraps outside `SecurityMiddleware`, so an unhandled
+  exception's response never received CSP/no-sniff/no-store headers or the CSRF cookie —
+  `apply_security_headers`/`ensure_csrf_cookie` are now module-level functions in `api/
+  security.py`, applied both by the middleware and by `main.py`'s `Exception` handler, which now
+  also renders a themed `web/templates/error.html` page for browser-facing routes instead of a
+  raw JSON envelope. A related test-infrastructure gap was fixed in `agentos_dashboard/tests/
+  _asgi_client.py` so the dependency-free ASGI test client tolerates Starlette's documented
+  send-then-re-raise behavior on an unhandled exception, matching a real ASGI server. Also added:
+  a genuine cross-process lockfile-contention test (SC-24) and two parser empty-document
+  degradation tests (SC-34).
+- **Scope:** all changes remain inside `agentos_dashboard/**` and the stage's named documentation
+  paths. No file under `src/`, `tests/`, `scripts/`, `agentos_workflow/**`, `pyproject.toml`, or
+  `docs/implementation/orchestration/**` was touched.
+- **Reason for change:** DASH-009's mandatory security-hardening and failure-handling pass, with
+  a mandatory independent security review still required before Human Owner approval.
+- **Authorizing task:** DASH-009, authorized 2026-08-10.
+- **Approver:** pending — implementation is uncommitted, awaiting the mandatory independent
+  security review and then Human Owner approval.
+- **Date:** 2026-08-10.
 
 ### CL-20260810-03 — DASH-008 final machine-review corrections
 
@@ -487,4 +550,21 @@ uncommitted, stopped for Human Owner approval. Registry state `AUTHORIZED` → `
 ## 2026-08-10 — DASH-008 closed
 
 The Human Owner approved and closed DASH-008 through the automatic task-closeout gate
+(`scripts/workflow-approve.sh`, GOV-AUTO-03). Registry state `COMPLETE`; task status `Done`.
+
+## 2026-08-10 — DASH-009 authorized
+
+The Human Owner authorized DASH-009 through the two-confirmation local gate. The stage is
+`AUTHORIZED`; implementation, approval, push, and merge remain separate.
+
+## 2026-08-10 — DASH-009 implemented
+
+Implemented and validated on the registered branch `fix/dash-009-security-hardening`,
+uncommitted, stopped for the mandatory independent security review and then Human Owner
+approval. Registry state `AUTHORIZED` → `IN_PROGRESS`. See `CL-20260810-04` above and
+`docs/reports/agentos-dashboard/STAGE-09-completion.md`.
+
+## 2026-08-10 — DASH-009 closed
+
+The Human Owner approved and closed DASH-009 through the automatic task-closeout gate
 (`scripts/workflow-approve.sh`, GOV-AUTO-03). Registry state `COMPLETE`; task status `Done`.

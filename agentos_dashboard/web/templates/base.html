@@ -12,9 +12,9 @@
     <div class="brand">AgentOS Dashboard</div>
     <div class="status-strip" aria-label="Repository status">
       {% if snapshot %}
-        <span>branch: {{ snapshot.git_status.branch if snapshot.git_status else "unknown" }}</span>
+        <span>branch: {{ ((snapshot.git_status.branch or "detached") if snapshot.git_status else "unknown")|redact_secrets }}</span>
         <span>HEAD: {{ (snapshot.head or "unborn")[:12] }}</span>
-        <span>upstream: {{ (snapshot.git_status.upstream if snapshot.git_status else none) or "none" }}</span>
+        <span>upstream: {{ ((snapshot.git_status.upstream if snapshot.git_status else none) or "none")|redact_secrets }}</span>
         {% if snapshot.is_stale() %}
           <span class="badge badge-stale" role="status">STALE — refresh to update</span>
         {% endif %}

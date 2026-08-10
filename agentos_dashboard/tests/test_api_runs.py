@@ -115,6 +115,38 @@ def test_create_run_rejects_unexpected_fields_and_malformed_json(client: AsgiTes
     assert malformed.status == 422
 
 
+def test_create_run_rejects_incorrect_content_type(client: AsgiTestClient) -> None:
+    headers = _csrf_headers(client)
+    headers["Content-Type"] = "text/plain"
+    response = client.post("/dash/api/v1/runs", headers=headers, body=_create_run_body())
+    assert response.status == 422
+    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
+def test_create_run_rejects_invalid_timestamps_hashes_and_overlong_text_without_state(
+    client: AsgiTestClient,
+) -> None:
+    headers = _csrf_headers(client)
+    probes = (
+        _create_run_body(
+            client_token="10000000-0000-4000-8000-000000000011", started_at="not-a-time"
+        ),
+        _create_run_body(
+            client_token="10000000-0000-4000-8000-000000000012", prompt_hash="not-a-hash"
+        ),
+        _create_run_body(
+            client_token="10000000-0000-4000-8000-000000000013",
+            reported_result="x" * 2001,
+        ),
+    )
+    for body in probes:
+        response = client.post("/dash/api/v1/runs", headers=headers, body=body)
+        assert response.status == 422
+        assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+        assert "Traceback" not in response.text
+    assert client.get("/dash/api/v1/runs").json()["data"]["runs"] == []
+
+
 def test_run_endpoint_rejects_unsupported_method_with_typed_envelope(
     client: AsgiTestClient,
 ) -> None:

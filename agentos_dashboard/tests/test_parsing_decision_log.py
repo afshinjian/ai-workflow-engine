@@ -55,6 +55,15 @@ def test_a_lexically_date_shaped_but_impossible_date_is_skipped() -> None:
     assert any("skipped" in note for note in parsed.notes)
 
 
+def test_empty_document_degrades_without_crashing() -> None:
+    """SC-34: a truncated-to-empty `DECISION_LOG.md` must degrade to a reported condition, not
+    raise."""
+    parsed = parse_decision_log("", "docs/DECISION_LOG.md")
+    assert parsed.confidence is Confidence.NONE
+    assert parsed.value is None
+    assert parsed.raw_text == ""
+
+
 def test_real_decision_log_parses_at_high_confidence() -> None:
     real_path = Path(__file__).resolve().parents[2] / "docs" / "DECISION_LOG.md"
     text = real_path.read_text(encoding="utf-8")

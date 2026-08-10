@@ -125,6 +125,43 @@ def test_create_approval_idempotent_replay_returns_original(git_repo: Path) -> N
         )
 
 
+def test_approval_notes_are_redacted_before_hash_database_and_audit(workspace: Path) -> None:
+    root = RepositoryRoot.from_path(workspace)
+    database = DashboardDatabase(workspace)
+    token = "44444444-4444-4444-8444-444444444445"
+    secret_a = "sk-aaaaaaaaaaaaaaaaaaaaaaaa"
+    secret_b = "sk-bbbbbbbbbbbbbbbbbbbbbbbb"
+    with database.connection() as conn:
+        first = create_approval(
+            root,
+            conn,
+            database.audit_log_path,
+            layer=ApprovalLayer.HUMAN_APPROVAL,
+            verdict=ApprovalVerdict.APPROVED,
+            client_token=token,
+            notes=f"Authorization: Bearer {secret_a}",
+        )
+        replay = create_approval(
+            root,
+            conn,
+            database.audit_log_path,
+            layer=ApprovalLayer.HUMAN_APPROVAL,
+            verdict=ApprovalVerdict.APPROVED,
+            client_token=token,
+            notes=f"Authorization: Bearer {secret_b}",
+        )
+        row = conn.execute(
+            "SELECT notes, request_hash FROM approvals WHERE uuid = ?", (first.uuid,)
+        ).fetchone()
+    assert first.uuid == replay.uuid
+    assert first.notes == "Authorization: Bearer [REDACTED]"
+    assert row["notes"] == first.notes
+    assert secret_a not in str(row["request_hash"])
+    persisted = database.db_path.read_bytes() + database.audit_log_path.read_bytes()
+    assert secret_a.encode() not in persisted
+    assert secret_b.encode() not in persisted
+
+
 def test_transient_git_failure_creates_no_approval_finding_or_audit(
     git_repo: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

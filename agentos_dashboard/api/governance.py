@@ -41,6 +41,7 @@ def rendered_document_to_json(document: RenderedDocument) -> dict[str, Any]:
         ],
         "truncated": document.truncated,
         "degraded": document.degraded,
+        "tail_excerpt": document.tail_excerpt,
         "findings": [
             {
                 "rule": f.rule,

@@ -11,6 +11,7 @@ from agentos_dashboard.api.acknowledgments import AcknowledgmentStore, finding_f
 from agentos_dashboard.api.overview import build_overview
 from agentos_dashboard.api.snapshot_cache import SnapshotCache
 from agentos_dashboard.api.stages import stage_registry_to_json
+from agentos_dashboard.core.redact import redact_secrets
 from agentos_dashboard.services.audit import TimelineEntry, build_audit_timeline
 from agentos_dashboard.services.board import build_board
 from agentos_dashboard.services.consistency import run_consistency_checks
@@ -70,7 +71,7 @@ def build_router(
             "task_detail.html",
             {
                 "detail": detail,
-                "requested_task_id": task_id,
+                "requested_task_id": redact_secrets(task_id),
                 "snapshot": snapshot,
                 "active_nav": "board",
             },
@@ -161,7 +162,7 @@ def build_router(
             "governance.html",
             {
                 "documents": list_governance_documents(),
-                "query": query,
+                "query": redact_secrets(query),
                 "results": results,
                 "search_findings": search_findings,
                 "query_error": query_error,
@@ -213,7 +214,7 @@ def build_router(
             {
                 "view": view,
                 "notes": notes,
-                "requested_run_uuid": run_uuid,
+                "requested_run_uuid": redact_secrets(run_uuid),
                 "snapshot": snapshot,
                 "active_nav": "runs",
             },
@@ -255,8 +256,8 @@ def build_router(
             "audit.html",
             {
                 "entries": entries,
-                "task": task,
-                "kind": kind,
+                "task": redact_secrets(task),
+                "kind": redact_secrets(kind),
                 "snapshot": snapshot,
                 "active_nav": "audit",
             },
