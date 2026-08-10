@@ -33,6 +33,7 @@ from agentos_dashboard.api.routes import build_router as build_api_router
 from agentos_dashboard.api.security import SecurityMiddleware
 from agentos_dashboard.api.snapshot_cache import SnapshotCache
 from agentos_dashboard.core.paths import RepositoryRoot
+from agentos_dashboard.services.prompts import PromptAuditLog, PromptStore
 from agentos_dashboard.settings import DashboardSettings
 from agentos_dashboard.web.routes import build_router as build_web_router
 
@@ -45,6 +46,8 @@ def create_app(settings: DashboardSettings, *, lock: ExecutionLock | None = None
     root = RepositoryRoot(path=settings.repo_root)
     cache = SnapshotCache(root)
     acknowledgments = AcknowledgmentStore()
+    prompt_store = PromptStore()
+    prompt_audit_log = PromptAuditLog()
 
     app = FastAPI(title="AgentOS Dashboard", docs_url=None, redoc_url=None, openapi_url=None)
     # Exposed for introspection (tests, `--check`) only; every route closes over `cache`
@@ -57,7 +60,12 @@ def create_app(settings: DashboardSettings, *, lock: ExecutionLock | None = None
 
     app.include_router(
         build_api_router(
-            settings=settings, cache=cache, lock=lock, acknowledgments_store=acknowledgments
+            settings=settings,
+            cache=cache,
+            lock=lock,
+            acknowledgments_store=acknowledgments,
+            prompt_store=prompt_store,
+            prompt_audit_log=prompt_audit_log,
         )
     )
     app.include_router(

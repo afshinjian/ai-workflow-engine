@@ -27,11 +27,11 @@
         <li><a href="/" {% if active_nav == "overview" %}aria-current="page"{% endif %}>Overview</a></li>
         <li><a href="/board" {% if active_nav == "board" %}aria-current="page"{% endif %}>Board</a></li>
         <li class="disabled" aria-disabled="true" title="Not yet available">Tasks</li>
-        <li class="disabled" aria-disabled="true" title="Not yet available">Stages &amp; Prompts</li>
+        <li><a href="/stages" {% if active_nav == "stages" %}aria-current="page"{% endif %}>Stages &amp; Prompts</a></li>
         <li class="disabled" aria-disabled="true" title="Not yet available">Runs</li>
         <li class="disabled" aria-disabled="true" title="Not yet available">Evidence</li>
         <li><a href="/git" {% if active_nav == "git" %}aria-current="page"{% endif %}>Git</a></li>
-        <li class="disabled" aria-disabled="true" title="Not yet available">Governance</li>
+        <li><a href="/governance" {% if active_nav == "governance" %}aria-current="page"{% endif %}>Governance</a></li>
         <li class="disabled" aria-disabled="true" title="Not yet available">Orchestration</li>
         <li><a href="/handover" {% if active_nav == "handover" %}aria-current="page"{% endif %}>Handover</a></li>
         <li class="disabled" aria-disabled="true" title="Not yet available">Audit</li>

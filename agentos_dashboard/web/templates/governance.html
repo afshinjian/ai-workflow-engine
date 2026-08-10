@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Governance · AgentOS Dashboard{% endblock %}
+{% block content %}
+<h1>Governance</h1>
+<p class="empty-state">Read-only browser over a fixed, coded document allowlist (DR-090); no editing affordance exists anywhere on this page.</p>
+
+<form method="get" action="/governance" role="search">
+  <label>
+    Search governance documents
+    <input type="search" name="q" value="{{ query or '' }}" maxlength="200">
+  </label>
+  <button type="submit">Search</button>
+</form>
+
+{% if query %}
+<section aria-labelledby="search-results-heading">
+  <h2 id="search-results-heading">Results for &ldquo;{{ query }}&rdquo; <span class="badge badge-info">{{ results|length }}</span></h2>
+  {% if query_error %}
+    <p class="empty-state">{{ query_error }}</p>
+  {% elif search_findings %}
+    {% for finding in search_findings %}
+      <p><span class="badge badge-{{ finding.severity.value }}">{{ finding.severity.value|upper }}</span> {{ finding.message }}</p>
+    {% endfor %}
+  {% endif %}
+  {% if not query_error %}
+    {% if results %}
+      <ul class="checklist">
+        {% for result in results %}
+          <li><a href="/governance/{{ result.doc_id }}">{{ result.title }}:{{ result.line }}</a> — {{ result.snippet }}</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="empty-state">No matches</p>
+    {% endif %}
+  {% endif %}
+</section>
+{% endif %}
+
+<section aria-labelledby="documents-heading">
+  <h2 id="documents-heading">Documents</h2>
+  <ul class="checklist">
+    {% for doc in documents %}
+      <li><a href="/governance/{{ doc.doc_id }}">{{ doc.title }}</a> — <span class="badge badge-info">{{ doc.authority }}</span></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

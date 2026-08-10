@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}{% if document %}{{ document.title }} · {% endif %}Governance · AgentOS Dashboard{% endblock %}
+{% block content %}
+{% if document %}
+  <h1>{{ document.title }} <span class="badge badge-info">{{ document.authority }}</span></h1>
+  <p>
+    <a href="/governance">&larr; Back to Governance</a> · <span class="mono">{{ document.path }}</span>
+    {% if raw %}
+      · <a href="/governance/{{ document.doc_id }}">Rendered view</a>
+    {% else %}
+      · <a href="/governance/{{ document.doc_id }}?raw=1">Raw source</a>
+    {% endif %}
+  </p>
+
+  {% if document.truncated %}<p class="empty-state">Truncated — document exceeds the display cap.</p>{% endif %}
+  {% for finding in document.findings %}
+    <p><span class="badge badge-{{ finding.severity.value }}">{{ finding.severity.value|upper }}</span> {{ finding.message }}</p>
+  {% endfor %}
+
+  {% if document.headings %}
+    <nav aria-label="In-page headings">
+      <ul>
+        {% for heading in document.headings %}
+          <li><a href="#{{ heading.anchor }}">{{ heading.text }}</a></li>
+        {% endfor %}
+      </ul>
+    </nav>
+  {% endif %}
+
+  {% if raw or document.degraded or not document.rendered_html %}
+    <pre class="mono">{{ document.raw_text }}</pre>
+  {% else %}
+    <div class="governance-doc">{{ document.rendered_html | safe }}</div>
+  {% endif %}
+{% else %}
+  <h1>Document not found</h1>
+  <p class="empty-state">No governance document is registered under this identifier.</p>
+{% endif %}
+{% endblock %}

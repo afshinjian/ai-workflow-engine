@@ -807,7 +807,7 @@ authorization was recorded in `docs/DECISION_LOG.md` and `STAGE_REGISTRY.md` §4
 
 ## DASH-007 — Stage registry and prompt generation
 
-Status: Planned
+Status: Done
 
 Registry loader, precondition engine, hash-recorded gated prompt generation with refusal path,
 plus the bounded read-only Governance browser/search surface (DR-090/DR-091, EP-07/EP-08,
