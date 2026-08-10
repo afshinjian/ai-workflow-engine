@@ -824,7 +824,7 @@ Contract: `docs/agentos-dashboard/stage-prompts/DASH-008.md`.
 
 ## DASH-009 — Security hardening and failure handling
 
-Status: Planned
+Status: Current
 
 Adversarial security test corpus and failure-handling hardening, with mandatory independent
 fresh-session security review. Contract: `docs/agentos-dashboard/stage-prompts/DASH-009.md`.

@@ -130,7 +130,7 @@ every later roadmap phase remain unauthorized. Completion report:
 
 | Task | Title | Status |
 |---|---|---|
-| DASH-009 | Security hardening and failure handling | Planned |
+| DASH-009 | Security hardening and failure handling | Current |
 | DASH-010 | Integration testing, documentation, and release readiness | Planned |
 
 **DASH-006 implementation update (2026-08-09):** implemented and validated on branch
