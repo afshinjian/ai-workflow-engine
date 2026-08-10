@@ -5,6 +5,7 @@ aggregate, and the manual snapshot-rebuild action — the read surface DASH-004 
 from __future__ import annotations
 
 from typing import Any
+from uuid import UUID
 
 from fastapi import APIRouter
 
@@ -24,15 +25,39 @@ from agentos_dashboard.api.git import (
     git_tags_to_json,
     upstream_check_to_json,
 )
+from agentos_dashboard.api.governance import (
+    document_list_to_json,
+    rendered_document_to_json,
+    search_result_to_json,
+)
 from agentos_dashboard.api.handover import handover_view_to_json
 from agentos_dashboard.api.lock import ExecutionLock
 from agentos_dashboard.api.overview import build_overview, overview_to_json
+from agentos_dashboard.api.prompts import (
+    GeneratePromptRequest,
+    generated_prompt_to_json,
+    unmet_precondition_message,
+)
 from agentos_dashboard.api.snapshot_cache import SnapshotBuildInProgress, SnapshotCache
+from agentos_dashboard.api.stages import stage_registry_to_json
 from agentos_dashboard.core import utc_now
 from agentos_dashboard.core.snapshot import RepositorySnapshot
 from agentos_dashboard.services.consistency import run_consistency_checks
 from agentos_dashboard.services.git import build_upstream_check
+from agentos_dashboard.services.governance import (
+    GovernanceQueryRefused,
+    GovernanceQueryTooLong,
+    render_document,
+    search_governance,
+)
 from agentos_dashboard.services.handover import build_handover_view
+from agentos_dashboard.services.prompts import (
+    PromptAuditLog,
+    PromptStore,
+    UnknownStageError,
+    generate_stage_prompt,
+)
+from agentos_dashboard.services.stages import PreconditionReport
 from agentos_dashboard.services.tasks import build_task_detail
 from agentos_dashboard.settings import DashboardSettings
 
@@ -63,6 +88,8 @@ def build_router(
     cache: SnapshotCache,
     lock: ExecutionLock | None,
     acknowledgments_store: AcknowledgmentStore | None = None,
+    prompt_store: PromptStore | None = None,
+    prompt_audit_log: PromptAuditLog | None = None,
 ) -> APIRouter:
     """The `/dash/api/v1` router, closed over this process's cache and lock (no global state)."""
     router = APIRouter(prefix="/dash/api/v1")
@@ -150,5 +177,76 @@ def build_router(
             raise DashboardAPIError(ApiErrorCode.INTERNAL, "acknowledgment store is not configured")
         record = acknowledgments_store.add(fingerprint=payload.fingerprint, note=payload.note)
         return ok(acknowledgment_to_json(record))
+
+    @router.get("/stages")
+    async def stages() -> dict[str, Any]:
+        return ok(stage_registry_to_json(cache.get()))
+
+    @router.post("/prompts/generate")
+    async def generate_prompt(payload: GeneratePromptRequest) -> dict[str, Any]:
+        if prompt_store is None or prompt_audit_log is None:
+            raise DashboardAPIError(ApiErrorCode.INTERNAL, "prompt store is not configured")
+        try:
+            result = generate_stage_prompt(
+                cache.get(),
+                payload.stage_id,
+                store=prompt_store,
+                audit_log=prompt_audit_log,
+                client_token=str(payload.client_token),
+            )
+        except UnknownStageError as exc:
+            raise DashboardAPIError(ApiErrorCode.NOT_FOUND, str(exc)) from exc
+        if isinstance(result, PreconditionReport):
+            raise DashboardAPIError(
+                ApiErrorCode.VALIDATION_ERROR, unmet_precondition_message(result)
+            )
+        return ok(generated_prompt_to_json(result))
+
+    @router.get("/prompts/{prompt_uuid}/export")
+    async def export_prompt(prompt_uuid: UUID) -> dict[str, Any]:
+        if prompt_store is None:
+            raise DashboardAPIError(ApiErrorCode.INTERNAL, "prompt store is not configured")
+        prompt_uuid_text = str(prompt_uuid)
+        record = prompt_store.get(prompt_uuid_text)
+        if record is None:
+            raise DashboardAPIError(
+                ApiErrorCode.NOT_FOUND, f"unknown prompt uuid: {prompt_uuid_text!r}"
+            )
+        return ok(generated_prompt_to_json(record))
+
+    @router.get("/governance/docs")
+    async def governance_docs() -> dict[str, Any]:
+        return ok(document_list_to_json())
+
+    @router.get("/governance/docs/{doc_id}")
+    async def governance_doc(doc_id: str) -> dict[str, Any]:
+        rendered = render_document(cache.get().root, doc_id)
+        if rendered is None:
+            raise DashboardAPIError(
+                ApiErrorCode.NOT_FOUND, f"unknown governance document: {doc_id!r}"
+            )
+        return ok(rendered_document_to_json(rendered))
+
+    @router.get("/governance/search")
+    async def governance_search(q: str = "") -> dict[str, Any]:
+        try:
+            search = search_governance(cache.get().root, q)
+        except (GovernanceQueryTooLong, GovernanceQueryRefused) as exc:
+            raise DashboardAPIError(ApiErrorCode.VALIDATION_ERROR, str(exc)) from exc
+        return ok(
+            {
+                "query": q,
+                "results": [search_result_to_json(r) for r in search.results],
+                "findings": [
+                    {
+                        "rule": finding.rule,
+                        "severity": finding.severity.value,
+                        "message": finding.message,
+                        "sources": list(finding.sources),
+                    }
+                    for finding in search.findings
+                ],
+            }
+        )
 
     return router

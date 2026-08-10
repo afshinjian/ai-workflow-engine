@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Stages &amp; Prompts · AgentOS Dashboard{% endblock %}
+{% block content %}
+<h1>Stages &amp; Prompts</h1>
+<p class="empty-state">Generation only assembles the tracked SSP and stage-contract text with live repository facts embedded as data (DR-042); it never writes to the repository and never invokes an agent (DR-062).</p>
+
+{% if registry.findings %}
+<section aria-labelledby="registry-findings-heading">
+  <h2 id="registry-findings-heading">Registry/schema findings <span class="badge badge-info">{{ registry.findings|length }}</span></h2>
+  {% for finding in registry.findings %}
+    <p><span class="badge badge-{{ finding.severity }}">{{ finding.severity|upper }}</span> {{ finding.message }}</p>
+  {% endfor %}
+</section>
+{% endif %}
+
+<section aria-labelledby="registry-heading">
+  <h2 id="registry-heading">Stage registry</h2>
+  {% for stage in registry.stages %}
+    <article class="card">
+      <h3>{{ stage.stage_id }} — {{ stage.title }}</h3>
+      <p>
+        {{ stage.role }} · branch <span class="mono">{{ stage.branch }}</span> · registry state
+        <span class="badge {% if stage.registry_state == 'COMPLETE' %}badge-info{% elif stage.registry_state in ('AUTHORIZED', 'IN_PROGRESS', 'SELF_REVIEW', 'REVIEW', 'APPROVAL') %}badge-warning{% else %}badge-error{% endif %}">{{ stage.registry_state or "UNKNOWN" }}</span>
+      </p>
+      {% if stage.precondition_report %}
+        <ul class="checklist">
+          {% for result in stage.precondition_report.results %}
+            <li>{{ "PASS" if result.passed else "FAIL" }} — <strong>{{ result.name }}</strong>: {{ result.detail }}</li>
+          {% endfor %}
+        </ul>
+        <button type="button" data-action="generate-prompt" data-stage-id="{{ stage.stage_id }}"
+          {% if not stage.precondition_report.all_passed %}disabled{% endif %}>
+          Generate prompt
+        </button>
+        {% if not stage.precondition_report.all_passed %}
+          <p class="empty-state">Disabled — unmet:
+            {% for result in stage.precondition_report.results if not result.passed %}{{ result.name }}{% if not loop.last %}, {% endif %}{% endfor %}
+          </p>
+        {% endif %}
+      {% endif %}
+    </article>
+  {% endfor %}
+</section>
+
+<section aria-labelledby="prompt-result-heading">
+  <h2 id="prompt-result-heading">Generated prompt (this session)</h2>
+  <div id="prompt-result" class="empty-state">No prompt generated yet — pick an eligible stage above.</div>
+</section>
+{% endblock %}

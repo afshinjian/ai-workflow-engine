@@ -363,3 +363,28 @@ th {
   background: var(--bg);
   color: var(--fg);
 }
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: transparent;
+  color: var(--muted);
+  border-color: var(--border);
+}
+
+#prompt-result pre,
+.governance-doc pre {
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.75rem;
+  background: var(--bg);
+}
+
+.governance-doc code {
+  background: var(--border);
+  border-radius: 4px;
+  padding: 0.1rem 0.3rem;
+}

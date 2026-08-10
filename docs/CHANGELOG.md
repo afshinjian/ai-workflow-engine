@@ -7,6 +7,9 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- DASH-007 (2026-08-10): implemented, Human-Owner-approved, and closed
+  `Current -> Done` in one local commit via scripts/workflow-approve.sh's automatic
+  task closeout (GOV-AUTO-03).
 - DASH-007 (2026-08-10): explicitly authorized by the Human Owner through the local
   two-confirmation task gate; authorization commit and implementation remain separate.
 - PLAN-001 (2026-08-10): governance/documentation-only correction of Dashboard MVP

@@ -10,9 +10,17 @@ from fastapi.templating import Jinja2Templates
 from agentos_dashboard.api.acknowledgments import AcknowledgmentStore, finding_fingerprint
 from agentos_dashboard.api.overview import build_overview
 from agentos_dashboard.api.snapshot_cache import SnapshotCache
+from agentos_dashboard.api.stages import stage_registry_to_json
 from agentos_dashboard.services.board import build_board
 from agentos_dashboard.services.consistency import run_consistency_checks
 from agentos_dashboard.services.git import build_git_page, build_upstream_check
+from agentos_dashboard.services.governance import (
+    GovernanceQueryRefused,
+    GovernanceQueryTooLong,
+    list_governance_documents,
+    render_document,
+    search_governance,
+)
 from agentos_dashboard.services.handover import build_handover_view
 from agentos_dashboard.services.tasks import build_task_detail
 
@@ -114,6 +122,62 @@ def build_router(
                 "snapshot": snapshot,
                 "active_nav": "consistency",
             },
+        )
+
+    @router.get("/stages", response_class=HTMLResponse)
+    async def stages_page(request: Request) -> HTMLResponse:
+        snapshot = cache.get()
+        registry = stage_registry_to_json(snapshot)
+        return templates.TemplateResponse(
+            request,
+            "stages.html",
+            {"registry": registry, "snapshot": snapshot, "active_nav": "stages"},
+        )
+
+    @router.get("/governance", response_class=HTMLResponse)
+    async def governance_index_page(request: Request, q: str = "") -> HTMLResponse:
+        snapshot = cache.get()
+        query = q.strip()
+        results: tuple[object, ...] = ()
+        search_findings: tuple[object, ...] = ()
+        query_error: str | None = None
+        if query:
+            try:
+                search = search_governance(snapshot.root, query)
+                results = search.results
+                search_findings = search.findings
+            except GovernanceQueryTooLong:
+                query_error = "Query too long — 200 characters maximum."
+            except GovernanceQueryRefused:
+                query_error = "Traversal-shaped queries are not allowed."
+        return templates.TemplateResponse(
+            request,
+            "governance.html",
+            {
+                "documents": list_governance_documents(),
+                "query": query,
+                "results": results,
+                "search_findings": search_findings,
+                "query_error": query_error,
+                "snapshot": snapshot,
+                "active_nav": "governance",
+            },
+        )
+
+    @router.get("/governance/{doc_id}", response_class=HTMLResponse)
+    async def governance_doc_page(request: Request, doc_id: str, raw: int = 0) -> HTMLResponse:
+        snapshot = cache.get()
+        document = render_document(snapshot.root, doc_id)
+        return templates.TemplateResponse(
+            request,
+            "governance_doc.html",
+            {
+                "document": document,
+                "raw": bool(raw),
+                "snapshot": snapshot,
+                "active_nav": "governance",
+            },
+            status_code=200 if document is not None else 404,
         )
 
     return router
