@@ -16,6 +16,7 @@ from dataclasses import dataclass
 
 from agentos_dashboard.core.files import FileAccessError, digest_file, read_text, stat_file
 from agentos_dashboard.core.paths import PathRefusedError, RepositoryRoot
+from agentos_dashboard.core.redact import redact_secrets
 from agentos_dashboard.core.snapshot import RepositorySnapshot
 from agentos_dashboard.parsing.handover import parse_checksum_manifest
 from agentos_dashboard.services.consistency import (
@@ -202,7 +203,10 @@ def build_handover_view(snapshot: RepositorySnapshot) -> HandoverData:
     narrative_mtime: int | None = None
     try:
         narrative_read = read_text(root, HANDOVER_NARRATIVE_PATH)
-        narrative_text = narrative_read.text
+        # SC-09: display-only copy — the checksum reconciliation above reads/digests each
+        # manifest record's raw bytes independently, so redacting this narrative copy cannot
+        # affect DR-100's checksum verification.
+        narrative_text = redact_secrets(narrative_read.text)
         narrative_truncated = narrative_read.truncated
         narrative_mtime = stat_file(root, HANDOVER_NARRATIVE_PATH).mtime_ns
     except (FileAccessError, PathRefusedError):
@@ -246,14 +250,34 @@ def build_handover_view(snapshot: RepositorySnapshot) -> HandoverData:
 
     return HandoverData(
         manifest_path=HANDOVER_MANIFEST_PATH,
-        manifest_instructions=instructions,
+        manifest_instructions=redact_secrets(instructions),
         narrative_path=HANDOVER_NARRATIVE_PATH,
         narrative_text=narrative_text,
         narrative_truncated=narrative_truncated,
-        records=tuple(records),
+        records=tuple(
+            HandoverRecord(
+                path=redact_secrets(record.path),
+                claimed_size=record.claimed_size,
+                claimed_digest=record.claimed_digest,
+                exists=record.exists,
+                actual_size=record.actual_size,
+                actual_digest=record.actual_digest,
+                size_match=record.size_match,
+                digest_match=record.digest_match,
+            )
+            for record in records
+        ),
         narrative_mtime_ns=narrative_mtime,
         newest_governance_mtime_ns=newest_governance_mtime,
         newest_governance_path=newest_governance_path,
         stale=stale,
-        findings=tuple(findings),
+        findings=tuple(
+            ConsistencyFinding(
+                rule=finding.rule,
+                severity=finding.severity,
+                message=redact_secrets(finding.message),
+                sources=finding.sources,
+            )
+            for finding in findings
+        ),
     )

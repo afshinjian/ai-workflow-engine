@@ -13,6 +13,19 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-08-10 — Human Owner approved and closed DASH-009
+
+**Decision:** The Human Owner reviewed the implementation diff for `DASH-009` on
+branch `fix/dash-009-security-hardening` at base `ca5bf64f905d435b4b56f9a125c8c7c78eaba145`, typed the two exact `APPROVE` confirmations
+required by `scripts/workflow-approve.sh`, and approved the Conventional Commit
+message `test(dashboard): harden security and failure handling (DASH-009)`. The script then performed the deterministic governance closeout
+(`DASH-009` moves `Current -> Done`) and staged the approved implementation
+together with the generated closeout records in one local commit.
+
+**Boundaries:** This decision approves and closes only `DASH-009`. It does not
+push, merge, authorize a successor task, change branches, alter upstream, or mutate
+stashes.
+
 ## 2026-08-10 — Human Owner authorized DASH-009
 
 **Decision:** The Human Owner typed the two exact `AUTHORIZE` confirmations for

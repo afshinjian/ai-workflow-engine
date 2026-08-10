@@ -91,3 +91,19 @@ def test_acknowledge_rejects_an_empty_note(client: AsgiTestClient) -> None:
         body=json.dumps({"fingerprint": "abc", "note": ""}).encode("utf-8"),
     )
     assert response.status == 422
+
+
+def test_acknowledgment_note_is_redacted_before_in_memory_storage(
+    client: AsgiTestClient,
+) -> None:
+    response = client.post(
+        "/dash/api/v1/consistency/acknowledge",
+        headers=_csrf_headers(client),
+        body=json.dumps({"fingerprint": "abc", "note": "Authorization: Basic dXNlcjpwYXNz"}).encode(
+            "utf-8"
+        ),
+    )
+    assert response.status == 200
+    assert response.json()["data"]["note"] == "Authorization: Basic [REDACTED]"
+    history = client.get("/dash/api/v1/consistency").json()["data"]["acknowledgment_history"]
+    assert history[0]["note"] == "Authorization: Basic [REDACTED]"

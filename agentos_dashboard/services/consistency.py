@@ -43,6 +43,7 @@ from agentos_dashboard.core import utc_now
 from agentos_dashboard.core.files import FileAccessError, digest_file, read_text, stat_file
 from agentos_dashboard.core.gitread import GitReadError, resolve_revision
 from agentos_dashboard.core.paths import PathRefusedError, RepositoryRoot
+from agentos_dashboard.core.redact import redact_secrets
 from agentos_dashboard.parsing.decision_log import DecisionEntry, parse_decision_log
 from agentos_dashboard.parsing.handover import ManifestRecord, parse_checksum_manifest
 from agentos_dashboard.parsing.models import Confidence, ParsedDocument, TaskStatus
@@ -504,4 +505,17 @@ def run_consistency_checks(root: RepositoryRoot) -> ConsistencyReport:
     if orchestration_parse is not None:
         _check_orchestration_schema(orchestration_parse, findings)
 
-    return ConsistencyReport(generated_at=utc_now(), findings=tuple(findings))
+    # Findings are display objects. Keep all comparisons above byte-faithful, then redact only
+    # their human-readable messages at the return boundary (DD-17/SC-09).
+    return ConsistencyReport(
+        generated_at=utc_now(),
+        findings=tuple(
+            ConsistencyFinding(
+                rule=finding.rule,
+                severity=finding.severity,
+                message=redact_secrets(finding.message),
+                sources=finding.sources,
+            )
+            for finding in findings
+        ),
+    )

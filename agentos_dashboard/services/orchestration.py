@@ -18,6 +18,7 @@ from dataclasses import dataclass
 
 from agentos_dashboard.core.files import FileAccessError, read_text
 from agentos_dashboard.core.paths import PathRefusedError, RepositoryRoot
+from agentos_dashboard.core.redact import redact_secrets
 from agentos_dashboard.parsing.orchestration import OrchestrationStage, parse_implementation_state
 from agentos_dashboard.services.consistency import IMPLEMENTATION_STATE_PATH
 
@@ -75,10 +76,26 @@ def build_orchestration_view(root: RepositoryRoot) -> OrchestrationView:
     return OrchestrationView(
         available=True,
         source=IMPLEMENTATION_STATE_PATH,
-        notes=parsed.notes,
-        feature_id=view.feature_id,
-        current_stage=view.current_stage,
-        next_eligible_stage=view.next_eligible_stage,
-        delivery_order=view.delivery_order,
-        stages=view.stages,
+        notes=tuple(redact_secrets(note) for note in parsed.notes),
+        feature_id=redact_secrets(view.feature_id) if view.feature_id is not None else None,
+        current_stage=(
+            redact_secrets(view.current_stage) if view.current_stage is not None else None
+        ),
+        next_eligible_stage=(
+            redact_secrets(view.next_eligible_stage)
+            if view.next_eligible_stage is not None
+            else None
+        ),
+        delivery_order=tuple(redact_secrets(value) for value in view.delivery_order),
+        stages=tuple(
+            OrchestrationStage(
+                stage_id=redact_secrets(stage.stage_id),
+                title=redact_secrets(stage.title) if stage.title is not None else None,
+                status=redact_secrets(stage.status) if stage.status is not None else None,
+                prerequisites=tuple(redact_secrets(value) for value in stage.prerequisites),
+                blockers=tuple(redact_secrets(value) for value in stage.blockers),
+                evidence=tuple(redact_secrets(value) for value in stage.evidence),
+            )
+            for stage in view.stages
+        ),
     )

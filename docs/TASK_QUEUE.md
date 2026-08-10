@@ -824,10 +824,47 @@ Contract: `docs/agentos-dashboard/stage-prompts/DASH-008.md`.
 
 ## DASH-009 — Security hardening and failure handling
 
-Status: Current
+Status: Done
 
 Adversarial security test corpus and failure-handling hardening, with mandatory independent
 fresh-session security review. Contract: `docs/agentos-dashboard/stage-prompts/DASH-009.md`.
+
+Authorized by the Human Owner on 2026-08-10 and implemented on the registered branch
+`fix/dash-009-security-hardening`, **uncommitted**. The required bounded fresh-session independent
+security review was completed the same day. It found and corrected four additional substantive
+gaps entirely inside authorized scope: incomplete secret-redaction/storage/display boundaries,
+an absent whole-request body cap, a stale-PID lockfile read/unlink race, and unbounded audit-row
+retrieval. Regression tests accompany every correction. No BLOCKER/HIGH/MEDIUM finding remains;
+the stage is ready for Human Owner approval while remaining `Current`/`IN_PROGRESS`.
+
+Three real defects were found and fixed while building the required adversarial test corpus:
+SC-09 (secret-shaped-substring redaction) did not exist anywhere in the codebase and is now
+`agentos_dashboard/core/redact.py`, wired into `services/notes.py`/`services/runs.py` (redacted
+before the idempotency hash, so a pasted credential never reaches `dashboard.db`) and
+`services/governance.py`/`services/handover.py` (the display-only copy of repository text,
+deliberately not the shared `core.files.read_text` primitive other services rely on for
+byte-exact comparison — `docs/agentos-dashboard/DECISIONS.md` DD-17); `core.files.read_head_tail`
+(SC-35) existed but was unreachable dead code and is now wired into the governance document
+viewer's tail-excerpt display; and an unhandled exception's response never received
+`SecurityMiddleware`'s CSP/no-sniff/no-store headers or CSRF cookie, because Starlette's
+`ServerErrorMiddleware` always wraps outside it — both surfaces now apply them directly, and
+browser-facing routes get a themed HTML error page instead of a raw JSON envelope. Also added: a
+genuine cross-process lockfile-contention test (SC-24) and two parser empty-document tests
+(SC-34). `docs/agentos-dashboard/SECURITY_MODEL.md` §7 now records implementation status and test
+evidence for every SC-01..SC-36 row.
+
+The original implementation-session counts below are superseded by the independent review's
+final result: 707 dashboard tests pass; the one dashboard-suite failure —
+`test_real_current_task_is_recognized_as_a_valid_empty_state`, which expects zero `Current` tasks
+in `docs/current_task.md` — reproduces on a clean archive of authorization HEAD `ca5bf64`
+(623 passed, the same one failure), because DASH-009 itself is `Current`. Engine `tests` are
+2991 passed/2 deselected and `agentos_workflow` is 2085 passed/32 deselected. The complete
+SC-01..SC-36 matrix and final quality/governance results are in the report:
+`docs/reports/agentos-dashboard/STAGE-09-completion.md`.
+
+The independent review changed no Core/governance authority semantics, DASH-008 data model,
+external dependency, Git state, or DASH-010 surface. Human Owner approval remains the only next
+authorized action.
 
 ## DASH-010 — Integration testing, documentation, and release readiness
 

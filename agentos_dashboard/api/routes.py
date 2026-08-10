@@ -92,7 +92,9 @@ from agentos_dashboard.services.tasks import build_task_detail
 from agentos_dashboard.settings import DashboardSettings
 from agentos_dashboard.storage.db import DashboardDatabase
 
-__all__ = ["build_router"]
+__all__ = ["API_PREFIX", "build_router"]
+
+API_PREFIX = "/dash/api/v1"
 
 
 def _snapshot_payload(snapshot: RepositorySnapshot) -> dict[str, Any]:
@@ -124,7 +126,7 @@ def build_router(
     database: DashboardDatabase | None = None,
 ) -> APIRouter:
     """The `/dash/api/v1` router, closed over this process's cache and lock (no global state)."""
-    router = APIRouter(prefix="/dash/api/v1")
+    router = APIRouter(prefix=API_PREFIX)
 
     @router.get("/health")
     async def health() -> dict[str, Any]:

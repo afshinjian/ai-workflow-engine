@@ -5,7 +5,7 @@
 | **Title** | AgentOS Dashboard — Decisions |
 | **Purpose** | Append-only record of dashboard-program decisions (DD-##). Subordinate to `docs/DECISION_LOG.md`; cross-posted there when repository governance requires. |
 | **Status** | Draft |
-| **Version** | 1.8 |
+| **Version** | 2.0 |
 | **Owner** | Documentation & Governance session (append) · Human Owner (approval) |
 | **Dependencies** | `MASTER_PLAN.md` §8 |
 | **Related Documents** | `docs/DECISION_LOG.md` |
@@ -442,11 +442,83 @@ appended, never rewritten; supersessions are explicit.
   stage's own authorization narrows/widens the bounds this entry sets for PG-08/PG-12's read-only
   posture.
 
+## DD-17 — SC-09 secret redaction is scoped to display-only text, never the shared `core.files.read_text` choke point
+
+- **Status:** Accepted (DASH-009 implementation, 2026-08-10).
+- **Context:** DASH-009's contract requires a secret-redaction filter "on logs, errors, and
+  displayed evidence" (SC-09), which did not exist at all before this stage. `core/files.py`'s
+  `read_text` is the single shared primitive nearly every service calls to read repository text —
+  including `services/consistency.py`'s byte-exact contradiction checks across governance mirrors
+  and `services/handover.py`'s checksum reconciliation against `PROJECT_CHECKSUM.md`. Redacting
+  inside `read_text` itself would give every consumer secret-safety "for free," but would also
+  silently rewrite the bytes those consumers compare or hash — corrupting SC-30's faithful-mirror
+  guarantee (and potentially a checksum verification) to buy a broader SC-09 win.
+- **Decision:** `core.redact.redact_secrets` is applied only at genuinely display-only or
+  operator-authored boundaries: `services/notes.py::create_note` and
+  `services/runs.py::create_run` redact free-text fields *before* the idempotency hash is computed
+  or anything is written, so a pasted credential never persists in `dashboard.db`; the
+  governance-document browser (`services/governance.py`) and the handover narrative
+  (`services/handover.py`) redact their own independent, display-only read of the same paths,
+  never the shared `read_text` result other services rely on for byte-exact comparison.
+  `core/files.py` itself is untouched. This codebase has no application-level `logging` usage
+  (confirmed by source scan), so SC-09's "logs" clause has no target yet; a future stage adding
+  one must route it through `redact_secrets` too (recorded as OD-D13, `OPEN_QUESTIONS.md`).
+- **Consequences:** A secret pasted into a note or a run's free-text fields cannot survive into
+  `dashboard.db`, an API response, or an audit line. A secret already present in tracked
+  repository content (e.g. accidentally committed into `DECISION_LOG.md`) is redacted wherever the
+  governance/handover viewers display it, but **not** wherever `services/consistency.py`,
+  `services/tasks.py`, `services/board.py`, or any other byte-exact consumer reads the same file —
+  those paths were never in scope for a redaction filter and remain exactly as faithful as before.
+  A future stage that wants broader repository-content redaction must add it call-site-by-call-site
+  at each display boundary, the same way this stage did, rather than at the shared primitive.
+- **Reconsider when:** a future stage adds application-level diagnostic logging (OD-D13), or a
+  Human Owner decision explicitly widens SC-09's scope to cover byte-exact consumers, accepting
+  the fidelity trade-off this decision declined to make.
+
+## DD-18 — Redact at every storage and presentation boundary while preserving byte-exact reads
+
+- **Status:** Accepted (DASH-009 mandatory independent security review, 2026-08-10); clarifies
+  and supersedes DD-17's narrow call-site list, without changing its `read_text` decision.
+- **Context:** The independent review confirmed DD-17's central invariant but found its initial
+  consequence unsafe: tasks, board, approvals, findings, acknowledgments, audit payloads, Git,
+  orchestration, prompts, and legacy-workflow views can all carry operator- or repository-derived
+  text without being byte-exact integrity consumers. Leaving those presentation/storage paths raw
+  would make SC-09 incomplete even though the shared primitive correctly remained unmodified.
+- **Decision:** Keep `core.files.read_text` byte exact. Apply `redact_secrets` before hashing and
+  persistence for all operator-authored free text and audit fields, reject credential-shaped
+  identity fields that cannot safely change identity, and independently redact every final
+  presentation/API boundary for repository, Git, governance, and legacy-derived text. The audit
+  DB and JSONL mirror store the same intentionally redacted value. No escaped/redacted value is
+  ever promoted to trusted HTML.
+- **Consequences:** Checksums, contradiction detection, and authoritative file bytes remain
+  faithful; known secret shapes cannot persist through the local storage/audit paths or appear
+  through known dashboard presentation paths. The intentionally shape-based policy does not
+  become generic entropy detection and therefore does not mask ordinary SHAs, UUIDs, hashes,
+  paths, or identifiers.
+- **Reconsider when:** a new storage, display, or application-logging boundary is added, or the
+  Human Owner changes the recognizable-shape policy.
+
+## DD-19 — Hold a kernel advisory lock; never reclaim a PID sentinel by unlinking it
+
+- **Status:** Accepted (DASH-009 mandatory independent security review, 2026-08-10).
+- **Context:** The original `O_EXCL` PID-file implementation read a stale PID and then unlinked
+  the path. Between those operations another process could replace/acquire the file; unlinking
+  that replacement creates two lock inodes and allows two dashboard writers.
+- **Decision:** Open a persistent 0600 sentinel with `O_NOFOLLOW`, acquire a nonblocking POSIX
+  `flock`, write the current PID only after acquisition, and hold the descriptor for process
+  lifetime. Do not unlink the sentinel on release; kernel lock release on close/exit is the
+  authority, while persistent content remains diagnostic only.
+- **Consequences:** Stale/malformed PID text is harmless, abrupt process exit releases the lock,
+  symlink sentinels fail closed, and the read/unlink replacement race is eliminated. This is a
+  POSIX-local design consistent with the repository's supported runtime.
+- **Reconsider when:** the dashboard gains a supported non-POSIX runtime or multi-host storage.
+
 ## Decision References
 Repository decisions binding this program are recorded in `docs/DECISION_LOG.md` (2026-07-23
 entry for program enrollment; 2026-07-29 entry for GOV-AUTO-04's OD-D10/OD-D11 resolution;
 2026-07-29 entry for the OD-D9 serving-stack decision; 2026-08-10 entry for DD-16's
-requirement-to-stage ownership correction, PLAN-001).
+requirement-to-stage ownership correction, PLAN-001; 2026-08-10 entry for DASH-009's security
+hardening, covering DD-17..DD-19).
 
 ## Open Questions
 None held here; see `OPEN_QUESTIONS.md`.

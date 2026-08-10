@@ -63,6 +63,58 @@ def test_create_run_persists_all_dr050_fields(workspace: Path) -> None:
     assert view.validation_entries[0].result is ValidationResult.PASS
 
 
+def test_create_run_redacts_secret_shaped_free_text_fields(workspace: Path) -> None:
+    """SC-09: pasted credentials in any operator-authored free-text field must not persist in
+    `dashboard.db` or survive into the returned view."""
+    root = _root(workspace)
+    database = DashboardDatabase(workspace)
+    with database.connection() as conn:
+        view = create_run(
+            root,
+            conn,
+            database.audit_log_path,
+            stage_id="DASH-009",
+            tool="claude",
+            started_at=_START,
+            reported_result="COMPLETED",
+            client_token="11111111-1111-4111-8111-111111111119",
+            validation_entries=[
+                ValidationEntryInput(
+                    command="curl -H 'Authorization: Bearer abcDEF012345secretpart'",
+                    result=ValidationResult.PASS,
+                    origin="token=zzzz9999yyyy8888",
+                )
+            ],
+            validation_summary="api_key=abcd1234efgh5678wxyz all green",
+            findings_text="password=hunter2-not-a-real-password",
+            notes="token=zzzz9999yyyy8888needle",
+            external_reference="secret=abcd1234efgh5678wxyz",
+        )
+    for field in (
+        view.validation_summary,
+        view.findings_text,
+        view.notes,
+        view.external_reference,
+        view.validation_entries[0].command,
+        view.validation_entries[0].origin,
+    ):
+        assert field is not None
+        assert "abcd1234efgh5678wxyz" not in field
+        assert "zzzz9999yyyy8888" not in field
+        assert "hunter2-not-a-real-password" not in field
+        assert "abcDEF012345secretpart" not in field
+
+    with database.connection() as conn:
+        row = conn.execute(
+            "SELECT notes, findings_text, validation_summary, external_reference "
+            "FROM stage_runs WHERE uuid = ?",
+            (view.uuid,),
+        ).fetchone()
+    for value in row:
+        assert "abcd1234efgh5678wxyz" not in value
+        assert "zzzz9999yyyy8888" not in value
+
+
 def test_report_path_verified_true_for_existing_file(workspace: Path) -> None:
     (workspace / "README.md").write_text("hello\n", encoding="utf-8")
     root = _root(workspace)

@@ -40,6 +40,7 @@ import yaml
 
 from agentos_dashboard.core.files import FileAccessError, read_text
 from agentos_dashboard.core.paths import PathRefusedError, RepositoryRoot
+from agentos_dashboard.core.redact import redact_secrets
 from ai_workflow_engine.prompt.context import normalize_text
 from ai_workflow_engine.prompt.models import WorkflowStage
 from ai_workflow_engine.workflow import event_store
@@ -103,9 +104,9 @@ class LegacyWorkflowProjection:
 def _unavailable(*, task_id: str, project_id: str | None, error: str) -> LegacyWorkflowProjection:
     return LegacyWorkflowProjection(
         task_id=task_id,
-        project_id=project_id,
+        project_id=redact_secrets(project_id) if project_id is not None else None,
         available=False,
-        error=error,
+        error=redact_secrets(error),
         has_history=False,
         current_stage=None,
         next_stage=None,
@@ -148,10 +149,12 @@ def _event_view(event: WorkflowEvent) -> LegacyWorkflowEventView:
         outcome=event_outcome(event),
         resulting_stage=next_stage_after(event),
         parent_digest=event.parent_digest,
-        prompt_id=event.prompt_id,
-        agent_run_id=event.agent_run_id,
+        prompt_id=redact_secrets(event.prompt_id) if event.prompt_id is not None else None,
+        agent_run_id=(
+            redact_secrets(event.agent_run_id) if event.agent_run_id is not None else None
+        ),
         head=event.head,
-        note=event.note,
+        note=redact_secrets(event.note),
     )
 
 
@@ -194,7 +197,7 @@ def load_legacy_workflow(root: RepositoryRoot, task_id: str) -> LegacyWorkflowPr
         current_stage = state.events[-1].stage if state.terminal else state.next_stage
     return LegacyWorkflowProjection(
         task_id=normalized_task_id,
-        project_id=project_id,
+        project_id=redact_secrets(project_id),
         available=True,
         error=None,
         has_history=has_history,

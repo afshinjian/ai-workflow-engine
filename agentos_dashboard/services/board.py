@@ -32,6 +32,7 @@ from enum import StrEnum
 
 from agentos_dashboard.core.files import FileAccessError, read_text
 from agentos_dashboard.core.paths import PathRefusedError, RepositoryRoot
+from agentos_dashboard.core.redact import redact_secrets
 from agentos_dashboard.core.snapshot import RepositorySnapshot
 from agentos_dashboard.parsing._common import TASK_ID
 from agentos_dashboard.parsing.models import TaskStatus
@@ -162,7 +163,7 @@ def _build_card(root: RepositoryRoot, record: TaskRecord, transition: QueueTrans
     evidence, notes = _evidence_state(doc_refs)
     return BoardCard(
         task_id=record.task_id,
-        title=_title_from_detail(record.detail_text, record.task_id),
+        title=redact_secrets(_title_from_detail(record.detail_text, record.task_id)),
         program=record.task_id.split("-", 1)[0],
         status=record.status,
         referenced_tasks=extract_task_references(record.detail_text, exclude=record.task_id),
@@ -195,8 +196,12 @@ def _unclassified_records(
         cards.append(
             UnclassifiedCard(
                 task_id=task_id,
-                title=_title_from_detail(heading.group(2)[id_match.end() :], task_id),
-                raw_status=status_match.group(1).strip() if status_match else None,
+                title=redact_secrets(
+                    _title_from_detail(heading.group(2)[id_match.end() :], task_id)
+                ),
+                raw_status=(
+                    redact_secrets(status_match.group(1).strip()) if status_match else None
+                ),
                 source=source,
                 line=_line_number(text, heading.start()),
             )
@@ -225,7 +230,21 @@ def build_board(snapshot: RepositorySnapshot) -> BoardData:
         if orch_text is not None
         else None
     )
-    orch_stages = orch_view.stages if orch_view is not None else ()
+    orch_stages = (
+        tuple(
+            OrchestrationStage(
+                stage_id=redact_secrets(stage.stage_id),
+                title=redact_secrets(stage.title) if stage.title is not None else None,
+                status=redact_secrets(stage.status) if stage.status is not None else None,
+                prerequisites=tuple(redact_secrets(value) for value in stage.prerequisites),
+                blockers=tuple(redact_secrets(value) for value in stage.blockers),
+                evidence=tuple(redact_secrets(value) for value in stage.evidence),
+            )
+            for stage in orch_view.stages
+        )
+        if orch_view is not None
+        else ()
+    )
 
     queue_text = _read_or_none(root, TASK_QUEUE_PATH)
     if queue_text is None:

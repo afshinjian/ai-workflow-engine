@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from agentos_dashboard.core.redact import redact_mapping
 from agentos_dashboard.core.snapshot import RepositorySnapshot
 from agentos_dashboard.prompt_templates.schema import STAGE_SCHEMA
 from agentos_dashboard.services.consistency import ConsistencyFinding
@@ -61,4 +62,6 @@ def stage_registry_to_json(snapshot: RepositorySnapshot) -> dict[str, Any]:
                 ),
             }
         )
-    return {"stages": stages, "findings": [_finding_to_json(f) for f in view.findings]}
+    return redact_mapping(
+        {"stages": stages, "findings": [_finding_to_json(f) for f in view.findings]}
+    )

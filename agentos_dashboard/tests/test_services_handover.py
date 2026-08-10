@@ -47,6 +47,33 @@ def test_handover_view_verifies_a_matching_manifest_row(workspace: Path) -> None
     assert data.narrative_text == narrative
 
 
+def test_handover_view_redacts_narrative_but_checksum_verification_still_uses_raw_bytes(
+    workspace: Path,
+) -> None:
+    """SC-09: the displayed narrative redacts secret-shaped content, but this is a display-only
+    copy — `digest_match` is still computed from the file's real, unredacted bytes (DR-100), so
+    a genuine narrative checksum still verifies even though the narrative it summarizes happened
+    to contain a pasted credential."""
+    narrative = "# Handover\n\napi_key=abcd1234efgh5678wxyz was rotated.\n"
+    write(workspace, "handover/PROJECT_HANDOVER.md", narrative)
+    digest = _digest(narrative)
+    write(
+        workspace,
+        "handover/PROJECT_CHECKSUM.md",
+        "Recompute size + sha256sum to refresh this manifest.\n\n"
+        "| Relative path | Size (bytes) | Last modified | SHA-256 (prefix) |\n"
+        "|---|---|---|---|\n"
+        f"| handover/PROJECT_HANDOVER.md | {len(narrative.encode('utf-8'))} | 2026-01-01 | "
+        f"{digest} |\n",
+    )
+    root = RepositoryRoot.from_path(workspace)
+    data = build_handover_view(build_snapshot(root))
+    assert data.records[0].digest_match is True
+    assert data.narrative_text is not None
+    assert "abcd1234efgh5678wxyz" not in data.narrative_text
+    assert "[REDACTED]" in data.narrative_text
+
+
 def test_handover_view_reports_a_missing_referenced_file(workspace: Path) -> None:
     write(
         workspace,

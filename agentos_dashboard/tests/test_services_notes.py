@@ -26,6 +26,25 @@ def test_create_note_persists_fields(workspace: Path) -> None:
     assert note.text == "hello"
 
 
+def test_create_note_redacts_secret_shaped_text_before_storing(workspace: Path) -> None:
+    """SC-09: a pasted credential must not persist in `dashboard.db` at all, so a later replay
+    with the same client_token still matches on the *redacted* payload."""
+    database = DashboardDatabase(workspace)
+    with database.connection() as conn:
+        note = create_note(
+            conn,
+            database.audit_log_path,
+            target_ref="run:abc",
+            text="see api_key=abcd1234efgh5678wxyz for context",
+            client_token="11111111-1111-4111-8111-111111111112",
+        )
+    assert "abcd1234efgh5678wxyz" not in note.text
+    assert "[REDACTED]" in note.text
+    with database.connection() as conn:
+        row = conn.execute("SELECT text FROM user_notes WHERE uuid = ?", (note.uuid,)).fetchone()
+    assert "abcd1234efgh5678wxyz" not in row["text"]
+
+
 @pytest.mark.parametrize("target_ref,text", [("", "hello"), ("run:abc", "   ")])
 def test_create_note_rejects_empty_fields(workspace: Path, target_ref: str, text: str) -> None:
     database = DashboardDatabase(workspace)

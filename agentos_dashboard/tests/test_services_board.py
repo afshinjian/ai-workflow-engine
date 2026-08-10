@@ -51,6 +51,21 @@ def test_card_program_is_derived_from_the_task_id_prefix(
     assert card.title == "Workflow board"
 
 
+def test_board_card_redacts_secret_shaped_repository_title(
+    workspace: Path, root: RepositoryRoot
+) -> None:
+    secret = "sk-ffffffffffffffffffffffff"
+    write(
+        workspace,
+        "docs/TASK_QUEUE.md",
+        f"## FIX-001 — token={secret}\n\nStatus: Current\n\nWork.\n\n",
+    )
+    board = build_board(build_snapshot(root))
+    (card,) = board.current
+    assert secret not in card.title
+    assert "[REDACTED]" in card.title
+
+
 def test_card_title_falls_back_to_task_id_when_the_heading_has_no_suffix(
     workspace: Path, root: RepositoryRoot
 ) -> None:

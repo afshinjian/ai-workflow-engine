@@ -29,6 +29,7 @@ from dataclasses import dataclass
 
 from agentos_dashboard.core.files import FileAccessError, read_text
 from agentos_dashboard.core.paths import PathRefusedError, RepositoryRoot
+from agentos_dashboard.core.redact import redact_secrets
 from agentos_dashboard.core.snapshot import RepositorySnapshot
 from agentos_dashboard.parsing.models import TaskStatus
 from agentos_dashboard.parsing.task_queue import parse_task_records
@@ -152,7 +153,7 @@ def _stage_contract_reference(root: RepositoryRoot, task_id: str) -> StageContra
     except (FileAccessError, PathRefusedError):
         return None
     match = _ALLOWED_FIELD.search(content)
-    allowed_text = " ".join(match.group(1).split()) if match else None
+    allowed_text = redact_secrets(" ".join(match.group(1).split())) if match else None
     return StageContractRef(path=path, allowed_text=allowed_text)
 
 
@@ -180,22 +181,32 @@ def build_task_detail(snapshot: RepositorySnapshot, task_id: str) -> TaskDetail 
 
     return TaskDetail(
         task_id=record.task_id,
-        title=_title_from_detail(record.detail_text, record.task_id),
+        title=redact_secrets(_title_from_detail(record.detail_text, record.task_id)),
         status=record.status,
         program=record.task_id.split("-", 1)[0],
         source=record.source,
         line=record.line,
-        raw_text=record.detail_text,
+        raw_text=redact_secrets(record.detail_text),
         referenced_tasks=extract_task_references(record.detail_text, exclude=record.task_id),
         acceptance_items=tuple(
-            AcceptanceItem(text=clause, done=record.status is TaskStatus.DONE) for clause in clauses
+            AcceptanceItem(text=redact_secrets(clause), done=record.status is TaskStatus.DONE)
+            for clause in clauses
         ),
-        validation_notes=_keyword_clauses(clauses, _VALIDATION_KEYWORDS),
-        rollback_notes=_keyword_clauses(clauses, _ROLLBACK_KEYWORDS),
-        documentation_notes=_keyword_clauses(clauses, _DOCUMENTATION_KEYWORDS),
+        validation_notes=tuple(
+            redact_secrets(value) for value in _keyword_clauses(clauses, _VALIDATION_KEYWORDS)
+        ),
+        rollback_notes=tuple(
+            redact_secrets(value) for value in _keyword_clauses(clauses, _ROLLBACK_KEYWORDS)
+        ),
+        documentation_notes=tuple(
+            redact_secrets(value) for value in _keyword_clauses(clauses, _DOCUMENTATION_KEYWORDS)
+        ),
         doc_references=extract_doc_references(root, record.detail_text),
         commit_references=extract_commit_references(root, record.detail_text),
-        lifecycle_events=_lifecycle_events(clauses),
+        lifecycle_events=tuple(
+            LifecycleEvent(kind=event.kind, text=redact_secrets(event.text))
+            for event in _lifecycle_events(clauses)
+        ),
         stage_contract=_stage_contract_reference(root, record.task_id),
         related_findings=related_findings,
         legacy_workflow=load_legacy_workflow(root, record.task_id),

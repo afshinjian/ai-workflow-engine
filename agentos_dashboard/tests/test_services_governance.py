@@ -3,6 +3,8 @@ added to DASH-007 by PLAN-001)."""
 
 from __future__ import annotations
 
+import pytest
+
 from agentos_dashboard.core.paths import RepositoryRoot
 from agentos_dashboard.services.governance import (
     GOVERNANCE_DOCUMENTS,
@@ -87,6 +89,31 @@ def test_render_document_escapes_hostile_script_content(root: RepositoryRoot) ->
     assert "<script>" not in rendered
     assert "&lt;script&gt;" in rendered
     assert "<img" not in rendered
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        '<img src=x onerror="alert(1)">',
+        '<svg onload="alert(1)"></svg>',
+        '<a href="javascript:alert(1)">click</a>',
+        "&lt;script&gt;alert(1)&lt;/script&gt;",
+        "[click](javascript:alert(1))",
+        "```html\n<img src=x onerror=alert(1)>\n```",
+    ],
+)
+def test_renderer_keeps_html_entities_attributes_links_and_code_inert(
+    root: RepositoryRoot, payload: str
+) -> None:
+    write(root.path, "docs/AGENT_PROTOCOL.md", f"# Probe\n\n{payload}\n")
+    document = render_document(root, "agent-protocol")
+    assert document is not None
+    rendered = document.rendered_html or ""
+    assert "<img" not in rendered
+    assert "<svg" not in rendered
+    assert 'href="javascript:' not in rendered
+    assert "onerror=" not in rendered or "&lt;img" in rendered
+    assert "onload=" not in rendered or "&lt;svg" in rendered
 
 
 def test_render_document_degrades_on_unterminated_code_fence(root: RepositoryRoot) -> None:
@@ -188,3 +215,57 @@ def test_search_governance_reports_unreadable_allowlisted_documents(root: Reposi
         finding.rule == "document_missing" and "docs/AGENT_PROTOCOL.md" in finding.sources
         for finding in search.findings
     )
+
+
+def test_render_document_redacts_secret_shaped_content_in_raw_and_rendered_text(
+    root: RepositoryRoot,
+) -> None:
+    """SC-09: a fixture secret embedded in tracked repository content must not survive into
+    either the raw or rendered view."""
+    write(
+        root.path,
+        "docs/AGENT_PROTOCOL.md",
+        "# Title\n\napi_key=abcd1234efgh5678wxyz in prose.\n",
+    )
+    write(root.path, "docs/CONTEXT.md", "# Context\n")
+    document = render_document(root, "agent-protocol")
+    assert document is not None
+    assert "abcd1234efgh5678wxyz" not in document.raw_text
+    assert "abcd1234efgh5678wxyz" not in (document.rendered_html or "")
+    assert "[REDACTED]" in document.raw_text
+
+
+def test_search_governance_redacts_secret_shaped_snippets(root: RepositoryRoot) -> None:
+    write(root.path, "README.md", "token=zzzz9999yyyy8888needle line\n")
+    results = search_governance(root, "needle").results
+    assert len(results) == 1
+    assert "zzzz9999yyyy8888" not in results[0].snippet
+    assert "[REDACTED]" in results[0].snippet
+
+
+def test_render_document_truncated_document_surfaces_a_redacted_tail_excerpt(
+    root: RepositoryRoot,
+) -> None:
+    """SC-35: a document too large for the display cap still shows its tail (the newest entries
+    in a chronological log), not only its head; the tail is redacted like everything else."""
+    from agentos_dashboard.core import DEFAULT_MAX_READ_BYTES
+
+    padding = "x" * (DEFAULT_MAX_READ_BYTES + 1024)
+    content = f"# Log\n\n{padding}\n\ntoken=zzzz9999yyyy8888 at the very end\n"
+    write(root.path, "docs/DECISION_LOG.md", content)
+    document = render_document(root, "decision-log")
+    assert document is not None
+    assert document.truncated is True
+    assert document.tail_excerpt is not None
+    assert "at the very end" in document.tail_excerpt
+    assert "zzzz9999yyyy8888" not in document.tail_excerpt
+    assert "[REDACTED]" in document.tail_excerpt
+
+
+def test_render_document_small_document_has_no_tail_excerpt(root: RepositoryRoot) -> None:
+    write(root.path, "docs/AGENT_PROTOCOL.md", "# Title\n\nshort content\n")
+    write(root.path, "docs/CONTEXT.md", "# Context\n")
+    document = render_document(root, "agent-protocol")
+    assert document is not None
+    assert document.truncated is False
+    assert document.tail_excerpt is None

@@ -5,7 +5,7 @@
 | **Title** | AgentOS Dashboard — Open Questions |
 | **Purpose** | Owner-decision register (OD-D#) with dispositions and the requirement IDs each question blocks. |
 | **Status** | Draft |
-| **Version** | 1.4 |
+| **Version** | 1.6 |
 | **Owner** | Documentation & Governance session · Human Owner (dispositions) |
 | **Dependencies** | `MASTER_PLAN.md` §11 |
 | **Related Documents** | `STAGE_REGISTRY.md` (preconditions cite entries here) |
@@ -20,6 +20,23 @@ Resolved append-only; they are never deleted.
 None currently open.
 
 ## Resolved
+
+### OD-D13 — Secret redaction for a future application-logging subsystem
+
+- **Question:** DASH-009 implements SC-09 at all current local-storage/audit and presentation
+  boundaries (`SECURITY_MODEL.md` §7; DD-17/DD-18). It also contains unhandled exceptions inside
+  the security middleware without formatting exception text, preventing framework/server crash
+  logging from receiving those route exceptions. The package still has no application-level
+  diagnostic `logging` calls or log files. Should any future logging subsystem be required to
+  route every potentially sensitive field through `core.redact.redact_secrets` before emission?
+- **Recommendation:** yes — any future logging subsystem must redact before writing, following
+  the same shape-based-denylist approach `core/redact.py` already establishes, not a new
+  mechanism.
+- **Disposition:** Deferred — no formal application-log target exists. This does not defer any
+  current SC-09 requirement: storage, JSONL, API/UI/error output, and the reachable unhandled-route
+  server-error boundary are covered and tested. The entry constrains a future capability only and
+  is not a blocker for Human Owner approval or any currently `Planned` stage.
+- **Blocked:** none currently; applies only to a not-yet-authorized future stage.
 
 ### OD-D12 — Reading the engine's persisted workflow-event store from the task detail page
 

@@ -48,6 +48,19 @@ def test_recorded_scope_is_the_raw_prose_verbatim(workspace: Path, root: Reposit
     assert detail.raw_text == "— do the thing\n\nStatus: Current\n\nDo the thing carefully."
 
 
+def test_task_repository_text_is_redacted_only_in_the_display_model(
+    workspace: Path, root: RepositoryRoot
+) -> None:
+    secret = "sk-eeeeeeeeeeeeeeeeeeeeeeee"
+    source = f"## FIX-001 — api_key={secret}\n\nStatus: Current\n\nBearer {secret}.\n\n"
+    write(workspace, "docs/TASK_QUEUE.md", source)
+    detail = build_task_detail(build_snapshot(root), "FIX-001")
+    assert detail is not None
+    assert secret not in detail.title
+    assert secret not in detail.raw_text
+    assert (workspace / "docs/TASK_QUEUE.md").read_text(encoding="utf-8") == source
+
+
 def test_acceptance_checklist_items_are_checked_only_when_the_task_is_done(
     workspace: Path, root: RepositoryRoot
 ) -> None:

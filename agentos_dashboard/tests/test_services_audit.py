@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import sqlite3
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
@@ -16,7 +17,11 @@ from agentos_dashboard.services.audit import (
     record_audit_event,
 )
 from agentos_dashboard.services.notes import create_note
-from agentos_dashboard.storage.db import AuditMirrorWriteError, DashboardDatabase
+from agentos_dashboard.storage.db import (
+    AuditMirrorWriteError,
+    DashboardDatabase,
+    DatabaseSchemaError,
+)
 from agentos_dashboard.tests.conftest import (
     event_digest,
     record_legacy_event,
@@ -37,6 +42,27 @@ def test_record_audit_event_writes_row_and_jsonl_line(workspace: Path) -> None:
     assert event.uuid in lines[0]
 
 
+def test_audit_payload_is_recursively_redacted_before_database_and_jsonl(workspace: Path) -> None:
+    database = DashboardDatabase(workspace)
+    secret = "sk-dddddddddddddddddddddddd"
+    with database.connection() as conn:
+        event = record_audit_event(
+            conn,
+            database.audit_log_path,
+            kind="security_probe",
+            payload={"nested": {"message": f"api_key={secret}"}, "items": ["token=gone"]},
+            actor="Authorization: Basic dXNlcjpwYXNz",
+        )
+        row = conn.execute(
+            "SELECT actor, payload FROM audit_events WHERE uuid = ?", (event.uuid,)
+        ).fetchone()
+    assert event.payload["nested"]["message"] == "api_key=[REDACTED]"
+    assert row["actor"] == "Authorization: Basic [REDACTED]"
+    persisted = database.db_path.read_bytes() + database.audit_log_path.read_bytes()
+    assert secret.encode() not in persisted
+    assert b"dXNlcjpwYXNz" not in persisted
+
+
 def test_list_audit_events_filters_by_kind(workspace: Path) -> None:
     database = DashboardDatabase(workspace)
     with database.connection() as conn:
@@ -45,6 +71,23 @@ def test_list_audit_events_filters_by_kind(workspace: Path) -> None:
         only_notes = list_audit_events(conn, kind="note_created")
     assert len(only_notes) == 1
     assert only_notes[0].kind == "note_created"
+
+
+def test_audit_query_and_timeline_apply_pagination_inside_the_database(workspace: Path) -> None:
+    database = DashboardDatabase(workspace)
+    root = RepositoryRoot.from_path(workspace)
+    with database.connection() as conn:
+        for index in range(205):
+            record_audit_event(
+                conn, database.audit_log_path, kind="bounded", payload={"index": index}
+            )
+    with database.connection() as conn:
+        first_page = list_audit_events(conn, kind="bounded")
+        final_page = list_audit_events(conn, kind="bounded", limit=10, offset=200)
+        timeline_final = build_audit_timeline(root, conn, kind="bounded", limit=10, offset=200)
+    assert len(first_page) == 200
+    assert len(final_page) == 5
+    assert len(timeline_final) == 5
 
 
 def test_build_audit_timeline_without_task_id_returns_only_local_entries(workspace: Path) -> None:
@@ -234,6 +277,64 @@ def test_truncated_existing_line_is_preserved_and_detected(workspace: Path) -> N
         status = inspect_audit_mirror(conn, database.audit_log_path)
     assert status.coherent is False
     assert any("malformed" in issue for issue in status.issues)
+
+
+def test_duplicate_orphan_missing_and_malformed_mirror_records_are_all_reported(
+    workspace: Path,
+) -> None:
+    database = DashboardDatabase(workspace)
+    with database.connection() as conn:
+        first = record_audit_event(conn, database.audit_log_path, kind="first", payload={})
+        second = record_audit_event(conn, database.audit_log_path, kind="second", payload={})
+    first_line = database.audit_log_path.read_text(encoding="utf-8").splitlines()[0]
+    database.audit_log_path.write_text(
+        first_line
+        + "\n"
+        + first_line
+        + "\n"
+        + '{"uuid":"orphan","ts":"x","actor":"x","kind":"x","payload":{}}\n'
+        + "malformed\n",
+        encoding="utf-8",
+    )
+    with database.connection() as conn:
+        status = inspect_audit_mirror(conn, database.audit_log_path)
+    assert status.coherent is False
+    assert any(first.uuid in issue and "duplicated" in issue for issue in status.issues)
+    assert any(second.uuid in issue and "missing" in issue for issue in status.issues)
+    assert any("orphan" in issue and "no committed" in issue for issue in status.issues)
+    assert any("malformed" in issue for issue in status.issues)
+
+
+def test_symlinked_mirror_is_refused_without_touching_target(
+    workspace: Path, tmp_path: Path
+) -> None:
+    database = DashboardDatabase(workspace)
+    database.audit_log_path.parent.mkdir(parents=True, exist_ok=True)
+    target = tmp_path / "outside.jsonl"
+    target.write_text("preserved\n", encoding="utf-8")
+    database.audit_log_path.symlink_to(target)
+    with pytest.raises((DatabaseSchemaError, AuditMirrorWriteError)):
+        with database.connection() as conn:
+            record_audit_event(conn, database.audit_log_path, kind="probe", payload={})
+    assert target.read_text(encoding="utf-8") == "preserved\n"
+
+
+def test_concurrent_audit_appends_remain_complete_and_coherent(workspace: Path) -> None:
+    database = DashboardDatabase(workspace)
+
+    def write_event(index: int) -> None:
+        with database.connection() as conn:
+            record_audit_event(
+                conn, database.audit_log_path, kind="concurrent", payload={"index": index}
+            )
+
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        list(executor.map(write_event, range(8)))
+    with database.connection() as conn:
+        status = inspect_audit_mirror(conn, database.audit_log_path)
+    assert status.coherent is True
+    assert status.database_events == 8
+    assert status.mirror_events == 8
 
 
 def test_audit_and_idempotency_survive_reopen(workspace: Path) -> None:

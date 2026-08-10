@@ -32,6 +32,11 @@
   {% else %}
     <div class="governance-doc">{{ document.rendered_html | safe }}</div>
   {% endif %}
+
+  {% if document.tail_excerpt %}
+    <h2>Tail of document (last bytes, since the document is truncated)</h2>
+    <pre class="mono">{{ document.tail_excerpt }}</pre>
+  {% endif %}
 {% else %}
   <h1>Document not found</h1>
   <p class="empty-state">No governance document is registered under this identifier.</p>
