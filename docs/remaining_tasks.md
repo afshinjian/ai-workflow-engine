@@ -130,7 +130,7 @@ every later roadmap phase remain unauthorized. Completion report:
 
 | Task | Title | Status |
 |---|---|---|
-| DASH-007 | Stage registry and prompt generation | Planned |
+| DASH-007 | Stage registry and prompt generation | Current |
 | DASH-008 | Run records, evidence, and audit timeline | Planned |
 | DASH-009 | Security hardening and failure handling | Planned |
 | DASH-010 | Integration testing, documentation, and release readiness | Planned |

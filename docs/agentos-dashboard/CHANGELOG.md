@@ -402,3 +402,8 @@ uncommitted, stopped for Human Owner approval. Registry state `AUTHORIZED` → `
 
 The Human Owner approved and closed DASH-006 through the automatic task-closeout gate
 (`scripts/workflow-approve.sh`, GOV-AUTO-03). Registry state `COMPLETE`; task status `Done`.
+
+## 2026-08-10 — DASH-007 authorized
+
+The Human Owner authorized DASH-007 through the two-confirmation local gate. The stage is
+`AUTHORIZED`; implementation, approval, push, and merge remain separate.
