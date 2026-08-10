@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Evidence · AgentOS Dashboard{% endblock %}
+{% block content %}
+<h1>Evidence</h1>
+<p class="empty-state">Gate matrix per recorded run (DR-070/DR-071): validation results are the operator's own claim (tri-state PASS/FAIL/UNKNOWN); report-path existence is the one field verified live against the repository. No re-run action exists here — the dashboard never invokes `workflowctl`, an agent, or a subprocess (DR-912).</p>
+
+{% if views %}
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr><th>Run</th><th>Stage</th><th>Report path</th><th>PASS</th><th>FAIL</th><th>UNKNOWN</th></tr>
+      </thead>
+      <tbody>
+        {% for evidence in views %}
+          <tr>
+            <td><a href="/runs/{{ evidence.run.uuid }}">{{ evidence.run.uuid[:8] }}…</a></td>
+            <td>{{ evidence.run.stage_id }}</td>
+            <td>
+              {% if evidence.run.report_path %}
+                <span class="mono">{{ evidence.run.report_path }}</span>
+                {% if evidence.run.report_path_verified %}
+                  <span class="badge badge-pass">VERIFIED</span>
+                  {% if evidence.run.report_hash_verified %}
+                    <span class="mono">sha256: {{ evidence.run.report_sha256 }}</span>
+                    <span>({{ evidence.run.report_size_bytes }} bytes)</span>
+                  {% else %}
+                    <span class="badge badge-warning">HASH UNAVAILABLE OR UNSTABLE</span>
+                  {% endif %}
+                {% else %}
+                  <span class="badge badge-error">MISSING</span>
+                {% endif %}
+              {% else %}
+                <span class="empty-state">not recorded</span>
+              {% endif %}
+            </td>
+            <td><span class="badge badge-pass">{{ evidence.pass_count }}</span></td>
+            <td><span class="badge badge-error">{{ evidence.fail_count }}</span></td>
+            <td><span class="badge badge-warning">{{ evidence.unknown_count }}</span></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <p class="empty-state">No runs recorded yet — record one from the Runs page first</p>
+{% endif %}
+{% endblock %}

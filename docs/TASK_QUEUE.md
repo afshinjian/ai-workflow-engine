@@ -816,7 +816,7 @@ Contract: `docs/agentos-dashboard/stage-prompts/DASH-007.md`.
 
 ## DASH-008 — Run records, evidence, and audit timeline
 
-Status: Current
+Status: Done
 
 Non-authoritative local SQLite store, append-only audit trail, run/evidence/audit pages, and the
 explicit read-only EP-18 orchestration view over DASH-003's existing parser/state source.

@@ -1,5 +1,6 @@
 """The application factory (`ARCHITECTURE.md` §2): wires settings, the snapshot cache, the
-security middleware, the JSON API, and the HTML pages into one FastAPI app.
+local `dashboard.db` (`storage.db.DashboardDatabase`), the security middleware, the JSON API, and
+the HTML pages into one FastAPI app.
 
 `create_app` is the single place that constructs a `FastAPI` instance. `__main__.py` calls it
 after acquiring the process lock; tests call it directly with `lock=None`, since a lockfile has
@@ -35,6 +36,7 @@ from agentos_dashboard.api.snapshot_cache import SnapshotCache
 from agentos_dashboard.core.paths import RepositoryRoot
 from agentos_dashboard.services.prompts import PromptAuditLog, PromptStore
 from agentos_dashboard.settings import DashboardSettings
+from agentos_dashboard.storage.db import DashboardDatabase, IdempotencyConflict
 from agentos_dashboard.web.routes import build_router as build_web_router
 
 __all__ = ["WEB_ROOT", "create_app"]
@@ -48,11 +50,13 @@ def create_app(settings: DashboardSettings, *, lock: ExecutionLock | None = None
     acknowledgments = AcknowledgmentStore()
     prompt_store = PromptStore()
     prompt_audit_log = PromptAuditLog()
+    database = DashboardDatabase(settings.repo_root)
 
     app = FastAPI(title="AgentOS Dashboard", docs_url=None, redoc_url=None, openapi_url=None)
     # Exposed for introspection (tests, `--check`) only; every route closes over `cache`
     # directly rather than reading it back from here.
     app.state.snapshot_cache = cache
+    app.state.dashboard_database = database
     app.add_middleware(SecurityMiddleware, allowed_host_headers=settings.allowed_host_headers)
 
     app.mount("/static", StaticFiles(directory=str(WEB_ROOT / "static")), name="static")
@@ -66,10 +70,16 @@ def create_app(settings: DashboardSettings, *, lock: ExecutionLock | None = None
             acknowledgments_store=acknowledgments,
             prompt_store=prompt_store,
             prompt_audit_log=prompt_audit_log,
+            database=database,
         )
     )
     app.include_router(
-        build_web_router(cache=cache, templates=templates, acknowledgments_store=acknowledgments)
+        build_web_router(
+            cache=cache,
+            templates=templates,
+            acknowledgments_store=acknowledgments,
+            database=database,
+        )
     )
 
     _install_exception_handlers(app)
@@ -77,6 +87,15 @@ def create_app(settings: DashboardSettings, *, lock: ExecutionLock | None = None
 
 
 def _install_exception_handlers(app: FastAPI) -> None:
+    @app.exception_handler(IdempotencyConflict)
+    async def _handle_idempotency_conflict(
+        request: Request, exc: IdempotencyConflict
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=status_code_for(ApiErrorCode.IDEMPOTENCY_CONFLICT),
+            content=err(ApiErrorCode.IDEMPOTENCY_CONFLICT.value, str(exc)),
+        )
+
     @app.exception_handler(DashboardAPIError)
     async def _handle_api_error(request: Request, exc: DashboardAPIError) -> JSONResponse:
         return JSONResponse(status_code=exc.status_code, content=err(exc.code.value, exc.message))
@@ -87,12 +106,19 @@ def _install_exception_handlers(app: FastAPI) -> None:
     ) -> JSONResponse:
         return JSONResponse(
             status_code=status_code_for(ApiErrorCode.VALIDATION_ERROR),
-            content=err(ApiErrorCode.VALIDATION_ERROR.value, str(exc)),
+            # Pydantic's rendered exception can include endpoint reprs and local source paths.
+            # The stable envelope needs only the typed failure, never those implementation facts.
+            content=err(ApiErrorCode.VALIDATION_ERROR.value, "request validation failed"),
         )
 
     @app.exception_handler(StarletteHTTPException)
     async def _handle_http_exception(request: Request, exc: StarletteHTTPException) -> JSONResponse:
-        code = ApiErrorCode.NOT_FOUND if exc.status_code == 404 else ApiErrorCode.INTERNAL
+        if exc.status_code == 404:
+            code = ApiErrorCode.NOT_FOUND
+        elif exc.status_code == 405:
+            code = ApiErrorCode.VALIDATION_ERROR
+        else:
+            code = ApiErrorCode.INTERNAL
         detail = exc.detail if isinstance(exc.detail, str) else code.value
         return JSONResponse(status_code=exc.status_code, content=err(code.value, detail))
 

@@ -18,5 +18,9 @@ workflow-runs/
 worktrees/
 *.log
 
+# DASH-008: the dashboard's local, non-authoritative SQLite store and audit-log mirror
+# (`docs/agentos-dashboard/DATA_MODEL.md` §3, OD-D5). Never repository content.
+/data/agentos_dashboard/
+
 .idea/
 .vscode/

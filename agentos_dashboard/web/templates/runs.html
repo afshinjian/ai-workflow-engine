@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Runs · AgentOS Dashboard{% endblock %}
+{% block content %}
+<h1>Runs</h1>
+<p class="empty-state">Manual records only (DR-050): stage, tool, reported result, and report path — recorded locally in <span class="mono">dashboard.db</span>, non-authoritative (DR-062). Report-path existence is verified live against the repository; every other field is the operator's own claim.</p>
+
+<section aria-labelledby="runs-heading">
+  <h2 id="runs-heading">Recorded runs <span class="badge badge-info">{{ runs|length }}</span></h2>
+  {% if runs %}
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>Stage</th><th>Tool</th><th>Reported result</th><th>Report path</th><th>Created</th></tr>
+        </thead>
+        <tbody>
+          {% for view in runs %}
+            <tr>
+              <td><a href="/runs/{{ view.uuid }}">{{ view.stage_id }}</a></td>
+              <td>{{ view.tool }}</td>
+              <td>{{ view.reported_result }}</td>
+              <td>
+                {% if view.report_path %}
+                  <span class="mono">{{ view.report_path }}</span>
+                  {% if view.report_path_verified %}
+                    <span class="badge badge-pass">VERIFIED</span>
+                  {% else %}
+                    <span class="badge badge-error">MISSING</span>
+                  {% endif %}
+                {% else %}
+                  <span class="empty-state">not recorded</span>
+                {% endif %}
+              </td>
+              <td>{{ view.created_at }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="empty-state">No runs recorded yet — expected before any stage has been manually logged</p>
+  {% endif %}
+</section>
+
+<section aria-labelledby="create-run-heading">
+  <h2 id="create-run-heading">Record a run</h2>
+  <form id="create-run-form" data-action="create-run">
+    <label>Stage id
+      <input type="text" name="stage_id" maxlength="32" required>
+    </label>
+    <label>Tool
+      <input type="text" name="tool" maxlength="100" required placeholder="claude | codex">
+    </label>
+    <label>Started at (ISO 8601)
+      <input type="text" name="started_at" maxlength="64" required>
+    </label>
+    <label>Reported result
+      <textarea name="reported_result" rows="2" maxlength="2000" required></textarea>
+    </label>
+    <label>Prompt hash (sha256, optional)
+      <input type="text" name="prompt_hash" maxlength="128">
+    </label>
+    <label>Report path (repository-relative, optional)
+      <input type="text" name="report_path" maxlength="1000">
+    </label>
+    <label>Validation summary (optional)
+      <textarea name="validation_summary" rows="3" maxlength="5000"></textarea>
+    </label>
+    <label>Findings (optional)
+      <textarea name="findings_text" rows="2" maxlength="5000"></textarea>
+    </label>
+    <label>Notes (optional)
+      <textarea name="notes" rows="2" maxlength="5000"></textarea>
+    </label>
+    <label>External reference (optional)
+      <input type="text" name="external_reference" maxlength="500">
+    </label>
+    <button type="submit">Record run</button>
+  </form>
+  <p id="create-run-status" role="status" aria-live="polite"></p>
+</section>
+{% endblock %}

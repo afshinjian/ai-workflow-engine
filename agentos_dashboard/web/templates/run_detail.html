@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Run {{ requested_run_uuid }} · AgentOS Dashboard{% endblock %}
+{% block content %}
+{% if view %}
+  <h1>Run <span class="mono">{{ view.uuid }}</span></h1>
+  <p><a href="/runs">&larr; All runs</a></p>
+  <dl>
+    <dt>Stage</dt><dd>{{ view.stage_id }}</dd>
+    <dt>Tool</dt><dd>{{ view.tool }}</dd>
+    <dt>Started</dt><dd>{{ view.started_at }}</dd>
+    <dt>Ended</dt><dd>{{ view.ended_at or "—" }}</dd>
+    <dt>Reported result</dt><dd>{{ view.reported_result }}</dd>
+    <dt>Prompt hash</dt>
+    <dd>
+      {% if view.prompt_hash %}<span class="mono">{{ view.prompt_hash }}</span> <span class="badge badge-info">CLAIMED</span>{% else %}<span class="empty-state">not recorded</span>{% endif %}
+    </dd>
+    <dt>Report path</dt>
+    <dd>
+      {% if view.report_path %}
+        <span class="mono">{{ view.report_path }}</span>
+        {% if view.report_path_verified %}
+          <span class="badge badge-pass">VERIFIED</span>
+          {% if view.report_hash_verified %}
+            <span class="mono">sha256: {{ view.report_sha256 }}</span>
+            <span>({{ view.report_size_bytes }} bytes)</span>
+          {% else %}
+            <span class="badge badge-warning">HASH UNAVAILABLE OR UNSTABLE</span>
+          {% endif %}
+        {% else %}
+          <span class="badge badge-error">MISSING</span>
+        {% endif %}
+      {% else %}
+        <span class="empty-state">not recorded</span>
+      {% endif %}
+    </dd>
+    <dt>Validation summary</dt><dd>{{ view.validation_summary or "—" }} <span class="badge badge-info">CLAIMED</span></dd>
+    <dt>Findings</dt><dd>{{ view.findings_text or "—" }} <span class="badge badge-info">CLAIMED</span></dd>
+    <dt>Notes</dt><dd>{{ view.notes or "—" }}</dd>
+    <dt>External reference</dt><dd>{{ view.external_reference or "—" }}</dd>
+    <dt>Recorded</dt><dd>{{ view.created_at }}</dd>
+  </dl>
+
+  <section aria-labelledby="validation-heading">
+    <h2 id="validation-heading">Validation matrix <span class="badge badge-info">CLAIMED</span></h2>
+    {% if view.validation_entries %}
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Command</th><th>Result</th><th>Origin</th><th>Counts</th><th>Recorded</th></tr></thead>
+          <tbody>
+            {% for entry in view.validation_entries %}
+              <tr>
+                <td class="mono">{{ entry.command }}</td>
+                <td>
+                  {% if entry.result.value == "PASS" %}<span class="badge badge-pass">PASS</span>
+                  {% elif entry.result.value == "FAIL" %}<span class="badge badge-error">FAIL</span>
+                  {% else %}<span class="badge badge-warning">UNKNOWN</span>{% endif %}
+                </td>
+                <td>{{ entry.origin }}</td>
+                <td>{{ entry.counts or "—" }}</td>
+                <td>{{ entry.recorded_at }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="empty-state">No validation-matrix lines recorded for this run</p>
+    {% endif %}
+  </section>
+
+  <section aria-labelledby="notes-heading">
+    <h2 id="notes-heading">Notes <span class="badge badge-info">{{ notes|length }}</span></h2>
+    {% if notes %}
+      <ul class="checklist">
+        {% for note in notes %}
+          <li>{{ note.created_at }} — {{ note.text }}</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="empty-state">No notes recorded for this run</p>
+    {% endif %}
+    <form data-action="add-note" data-target-ref="run:{{ view.uuid }}">
+      <label>Add a note
+        <textarea name="text" rows="2" maxlength="5000" required></textarea>
+      </label>
+      <button type="submit">Add note</button>
+    </form>
+    <p class="empty-state">This note is LOCAL and NON-AUTHORITATIVE; it grants no approval or workflow transition.</p>
+    <p id="add-note-status" role="status" aria-live="polite"></p>
+  </section>
+{% else %}
+  <h1>Run not found</h1>
+  <p class="empty-state">No recorded run matches <span class="mono">{{ requested_run_uuid }}</span>.</p>
+  <p><a href="/runs">&larr; All runs</a></p>
+{% endif %}
+{% endblock %}
