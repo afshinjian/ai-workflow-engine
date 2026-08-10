@@ -5,7 +5,7 @@
 | **Title** | AgentOS Dashboard — Stage Registry |
 | **Purpose** | Live status of DASH-001..010, stage-state model, master stage-control rules, and the append-only authorization log. A *view* of the `docs/TASK_QUEUE.md` lifecycle, never a competing workflow. |
 | **Status** | Draft |
-| **Version** | 5.0 |
+| **Version** | 5.1 |
 | **Owner** | Documentation & Governance session · Human Owner (approval and stage authorization) |
 | **Dependencies** | `MASTER_PLAN.md` §4; `MVP_SCOPE.md`; `TEST_STRATEGY.md` |
 | **Related Documents** | `stage-prompts/README.md`, `docs/AGENT_PROTOCOL.md`, `self-governance.yaml` |
@@ -202,14 +202,46 @@ Report paths: `docs/reports/agentos-dashboard/STAGE-XX-completion.md`.
 
 ## 5. Stage→Requirement Map
 
+**Revised 2026-08-10 (PLAN-001).** Superseded the prior prose-range form below, which hid
+individual IDs (most visibly: DR-090/DR-091/EP-07/EP-08/PG-08 had no stage at all; DR-121/DR-122
+had no final owner; EP-18/PG-12 were never mapped). Every DR/EP/PG in this table has **exactly
+one** normative delivery/evidence owner, except where explicitly marked `foundation` (an earlier
+stage's infrastructure contribution, not final ownership) or `final` (the stage that owns
+cross-page verification/evidence closure, distinct from — and not contradicted by — the
+page-delivering stages that implement the underlying control locally as they build each page).
+Rationale: `DECISIONS.md` DD-16; `docs/DECISION_LOG.md` 2026-08-10 entry.
+
+| Stage | Delivery/evidence-owned requirements |
+|---|---|
+| DASH-002 | adapters underpinning all DRs (no requirement IDs of its own — read-only Git/file adapters, snapshot builder) |
+| DASH-003 | none as final owner — `foundation` only for DR-120, DR-121, DR-122 (tolerant parsers + consistency engine v1; final ownership below) |
+| DASH-004 | DR-010, DR-011, DR-012, DR-013, DR-123 · EP-01, EP-02, EP-03, EP-20 · PG-01 |
+| DASH-005 | DR-020, DR-021, DR-022, DR-023, DR-030, DR-031, DR-032, DR-033 · EP-04, EP-05, EP-06 · PG-02, PG-03 |
+| DASH-006 | DR-080, DR-081, DR-082, DR-083, DR-100, DR-101, DR-102, **DR-120 (sole delivery owner)** · EP-09, EP-10, EP-11, EP-12 · PG-07, PG-09, PG-11 |
+| DASH-007 | DR-040, DR-041, DR-042, DR-043, **DR-090, DR-091** · EP-13, EP-14, EP-21, **EP-07, EP-08** · PG-04, **PG-08** |
+| DASH-008 | DR-050, DR-051, DR-052, DR-060, DR-061, DR-062, DR-070, DR-071, DR-110, DR-111 · EP-15, EP-16, EP-17, EP-22, EP-23, **EP-18** · PG-05, PG-06, PG-10 |
+| DASH-009 | SC-01..SC-36 final reconciliation/verification (each stage above implements its own baseline controls in-line; DASH-009 owns the mandatory independent adversarial reconciliation) |
+| DASH-010 | **DR-121 (final: staleness/banner behavior across every delivered page), DR-122 (final: file/line provenance and raw fallback across every delivered page)** · **PG-12** · MVP acceptance |
+
+Bold marks the DR-090/DR-091/EP-07/EP-08/PG-08 → DASH-007, EP-18 → DASH-008, and DR-121/DR-122/
+PG-12 → DASH-010 corrections made by PLAN-001. Every other assignment preserves either the
+prior DR mapping or the pre-PLAN stage contracts; the explicit EP/PG rows make those existing
+contract assignments visible in this registry for the first time. Deferred, outside MVP, no stage
+owner: DR-900..DR-912 (`../PRODUCT_SPEC.md` §4) — unchanged, no scope silently deferred by this
+revision.
+
+<details><summary>Prior form (superseded 2026-08-10, retained for audit trail)</summary>
+
 DASH-002 → adapters underpinning all DRs · DASH-003 → DR-120..122 foundations · DASH-004 →
 DR-010..013, DR-123 (formerly blocked on OD-D9; resolved 2026-07-29) · DASH-005 → DR-020..033 ·
 DASH-006 → DR-080..083,
 DR-100..102, DR-120 · DASH-007 → DR-040..043 · DASH-008 → DR-050..071, DR-110..111 ·
 DASH-009 → SC-01..36 verification · DASH-010 → MVP acceptance.
 
+</details>
+
 ## 6. Decision References
-DD-01, DD-02, DD-03.
+DD-01, DD-02, DD-03, DD-16 (§5 requirement-ownership correction, PLAN-001).
 
 ## 7. Open Questions
 OD-D1 is resolved (see `OPEN_QUESTIONS.md`). OD-D9, which had to be resolved before DASH-004

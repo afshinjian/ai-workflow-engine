@@ -809,14 +809,17 @@ authorization was recorded in `docs/DECISION_LOG.md` and `STAGE_REGISTRY.md` §4
 
 Status: Planned
 
-Registry loader, precondition engine, hash-recorded gated prompt generation with refusal path.
+Registry loader, precondition engine, hash-recorded gated prompt generation with refusal path,
+plus the bounded read-only Governance browser/search surface (DR-090/DR-091, EP-07/EP-08,
+PG-08) assigned by PLAN-001.
 Contract: `docs/agentos-dashboard/stage-prompts/DASH-007.md`.
 
 ## DASH-008 — Run records, evidence, and audit timeline
 
 Status: Planned
 
-Non-authoritative local SQLite store, append-only audit trail, run/evidence/audit pages.
+Non-authoritative local SQLite store, append-only audit trail, run/evidence/audit pages, and the
+explicit read-only EP-18 orchestration view over DASH-003's existing parser/state source.
 Contract: `docs/agentos-dashboard/stage-prompts/DASH-008.md`.
 
 ## DASH-009 — Security hardening and failure handling
@@ -830,7 +833,8 @@ fresh-session security review. Contract: `docs/agentos-dashboard/stage-prompts/D
 
 Status: Planned
 
-End-to-end tests, operator manual, MVP closure recommendation to the Human Owner. Contract:
+End-to-end tests, operator manual, bounded read-only PG-12 Settings/About surface, final
+DR-121/DR-122 cross-page evidence, and MVP closure recommendation to the Human Owner. Contract:
 `docs/agentos-dashboard/stage-prompts/DASH-010.md`.
 
 ## GOV-AUTO-04 — Automatic registered-branch preparation and canonical completion-report naming
@@ -1840,3 +1844,86 @@ pre-existing non-blocking OD-6, OD-7, OD-10, OD-11, OD-12 and D-14 through D-16.
 moved `IN_PROGRESS → COMPLETE`; task status moved `Current → Done`. This closure authorizes no
 successor — AUTO-017 and every later roadmap phase remain unauthorized and `Planned`. Human Owner
 approved and closed AUTO-016.
+
+## PLAN-001 — Close dashboard requirement-to-stage coverage gaps
+
+Status: Done
+
+Documentation/governance-only correction task (non-AUTO/non-DASH-family — carries no
+`docs/agentos-dashboard/STAGE_REGISTRY.md` §3 registry row, following the GOV-2/GOV-3/GOV-4/
+GOV-AUTO-0x precedent for an ordinary governance task). Registered and, in the same written
+directive, authorized by the Human Owner on 2026-08-10, who accepted an independent PLAN-001
+planning recommendation: "PLAN-001 is authorized as a governance/documentation-only correction to
+close Dashboard MVP requirement-to-stage ownership gaps." This authorization explicitly does
+**not** authorize DASH-007 implementation. The `Current` set was empty beforehand; predecessor
+DASH-006 is `COMPLETE`/`Done`.
+
+**Preflight verified before any change:** branch `main`, HEAD `b791883` == `origin/main`, 0/0
+ahead/behind, clean working tree, no staged or untracked files; `docs/current_task.md` showed no
+active task; `workflowctl verify --config self-governance.yaml` full PASS (`git`, `task-state` at
+`0 Current, 54 Done, 4 Planned`, `governance`, `registries` at 26 stages across 2 registries,
+`handover`); `python -m agentos_dashboard --check` PASS; DASH-001..006 `COMPLETE`/`Done`,
+DASH-007..010 `NOT_STARTED`/`Planned`. `PRODUCT_SPEC.md`, `API_SPEC.md`, `UI_SPEC.md`,
+`MVP_SCOPE.md`, `TEST_STRATEGY.md`, and `MASTER_PLAN.md` were inspected and confirmed to already
+define DR-090, DR-091, DR-120..122, EP-07, EP-08, EP-18, PG-08, and PG-12 exactly as PLAN-001
+assumes; none of those six normative documents required a correction, so none was touched.
+
+**Corrected ownership mapping** (`docs/agentos-dashboard/STAGE_REGISTRY.md` §5;
+`stage-prompts/DASH-007.md`, `DASH-008.md`, `DASH-010.md`; full rationale
+`docs/agentos-dashboard/DECISIONS.md` DD-16):
+
+    DR-090 -> DASH-007        DR-120 -> DASH-006 (sole; already correct)
+    DR-091 -> DASH-007        DR-121 -> DASH-010 (final cross-page closure)
+    EP-07  -> DASH-007        DR-122 -> DASH-010 (final cross-page closure)
+    EP-08  -> DASH-007        EP-18  -> DASH-008 (explicit, not just allowlisted)
+    PG-08  -> DASH-007        PG-12  -> DASH-010
+
+DASH-003 remains an infrastructure/foundation contributor for DR-120..122 (its own already-`Done`
+completion record is unchanged, per registry rule 8); it was never, and is not now, their final
+normative delivery/evidence owner. DASH-006 is confirmed the sole delivery owner of DR-120 (the
+registry map already stated this correctly; no change was needed there). SC-01..SC-36 final
+reconciliation ownership remains DASH-009's, unchanged. DR-900..DR-912 remain explicitly
+deferred/outside MVP, unchanged. No DASH-011 was created. No MVP requirement was silently
+deferred. The stage sequence remains DASH-007 → DASH-008 → DASH-009 → DASH-010, unchanged.
+
+**Stage contract amendments made (documentation only — nothing implemented):**
+- `stage-prompts/DASH-007.md` (1.0 → 1.1): a bounded, read-only Governance browser/search Build
+  clause (DR-090, DR-091, EP-07, EP-08, PG-08) — fixed document allowlist, bounded search
+  (`q <= 200`), rendered view with raw fallback, authority labels, anchors, repo-relative
+  cross-reference resolution, escaping, unknown/malformed-document and traversal-shaped-input
+  refusal, zero repository writes; explicitly no arbitrary repository browser, no arbitrary path
+  access, no database, no search index, no DASH-008 persistence dependency, no governance
+  mutation, no agent execution, no Git mutation. Baseline security is this stage's own
+  responsibility; final adversarial security reconciliation remains DASH-009's, unchanged.
+- `stage-prompts/DASH-008.md` (1.0 → 1.1): EP-18 made an explicit Build/Acceptance/evidence
+  responsibility (still the same read-only orchestration endpoint over the existing DASH-003
+  parser/state source; no new page — it renders inside PG-02's program lane per `../UI_SPEC.md`
+  §3), not merely a bare mention inside its `EP-15..EP-18` allowlist range.
+- `stage-prompts/DASH-010.md` (1.0 → 1.1): PG-12 (bounded read-only Settings/About — repo root
+  display, bind/port, caps, lock status, about, browser-side copy-config only; editable runtime
+  configuration, persistent user preferences, governance editing, repository switching,
+  agent/provider configuration, secret editing, and authoritative writes all explicitly excluded)
+  and the final DR-121 (staleness/banner behavior) and DR-122 (file/line provenance and raw
+  fallback) cross-page verification responsibility, evidenced per-page in that stage's report.
+
+**Registry reconciliation:** `docs/agentos-dashboard/STAGE_REGISTRY.md` §5 (5.0 → 5.1) rewritten
+from prose ranges that hid individual IDs into an explicit per-requirement table, so every
+included DR/EP/PG has exactly one normative delivery/evidence owner (or is explicitly marked
+`foundation`/`final`); the prior form is retained in a collapsed block for the audit trail.
+
+**Files changed:** `docs/agentos-dashboard/STAGE_REGISTRY.md`,
+`docs/agentos-dashboard/stage-prompts/{DASH-007.md, DASH-008.md, DASH-010.md}`,
+`docs/agentos-dashboard/DECISIONS.md` (new DD-16), `docs/agentos-dashboard/CHANGELOG.md` (new
+CL-20260810-01), `docs/DECISION_LOG.md` (new 2026-08-10 entry), `docs/TASK_QUEUE.md` (this entry),
+`docs/current_task.md`, `docs/remaining_tasks.md`, `docs/PROJECT_STATE.md`, `docs/CHANGELOG.md`.
+No file under `src/`, `tests/`, `agentos_workflow/`, or `agentos_dashboard/` (runtime) was created,
+modified, or deleted; no dependency changed; no code for any amended clause (Governance
+browser/search, EP-18 evidence, PG-12, DR-121/122 final verification) was written.
+
+**Closed `Current -> Done` on 2026-08-10** in the same session (documentation-only correction,
+following the GOV-AUTO-08/GOV-AUTO-10 precedent under which a documentation-only governance task
+authors its own closed final governance state in one pass; the actual commit is left for a
+separate Human Owner review, since this session held no commit authority under its own
+git-safety bound). The `Current` set is empty again. This closure authorizes no successor:
+DASH-007, DASH-008, DASH-009, and DASH-010 all remain `Planned`/`NOT_STARTED` and explicitly
+unauthorized. It does not begin, authorize, or start DASH-007 implementation.

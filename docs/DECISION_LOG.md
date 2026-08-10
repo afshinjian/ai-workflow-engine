@@ -13,6 +13,80 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-08-10 — Human Owner authorized and closed PLAN-001 (requirement-to-stage ownership correction)
+
+**Decision:** The Human Owner accepted an independent PLAN-001 planning recommendation and
+authorized a narrowly scoped governance/documentation-only correction: "PLAN-001 is authorized as
+a governance/documentation-only correction to close Dashboard MVP requirement-to-stage ownership
+gaps." This authorization explicitly does **not** authorize DASH-007 implementation.
+
+**Preflight verified before any change:** branch `main`, HEAD `b791883` == `origin/main`, 0/0
+ahead/behind, clean working tree; `docs/current_task.md` showed no active task; `workflowctl
+verify --config self-governance.yaml` full PASS (`git`, `task-state` at `0 Current, 54 Done, 4
+Planned`, `governance`, `registries` at 26 stages across 2 registries, `handover`); `python -m
+agentos_dashboard --check` PASS; DASH-001..006 `COMPLETE`/`Done`, DASH-007..010
+`NOT_STARTED`/`Planned`; `PRODUCT_SPEC.md`, `API_SPEC.md`, `UI_SPEC.md`, `MVP_SCOPE.md`,
+`TEST_STRATEGY.md`, `MASTER_PLAN.md` inspected and confirmed to already define DR-090, DR-091,
+DR-120..122, EP-07, EP-08, EP-18, PG-08, and PG-12 exactly as PLAN-001 assumes — none of those six
+normative documents required a correction, so none was touched.
+
+**Corrected ownership mapping** (full rationale: `docs/agentos-dashboard/DECISIONS.md` DD-16):
+
+    DR-090 -> DASH-007        DR-120 -> DASH-006 (sole; already correct)
+    DR-091 -> DASH-007        DR-121 -> DASH-010 (final cross-page closure)
+    EP-07  -> DASH-007        DR-122 -> DASH-010 (final cross-page closure)
+    EP-08  -> DASH-007        EP-18  -> DASH-008 (explicit, not just allowlisted)
+    PG-08  -> DASH-007        PG-12  -> DASH-010
+
+DASH-003 remains an infrastructure/foundation contributor for DR-120..122, never their final
+normative delivery owner; its own already-`Done` completion record is unchanged. SC-01..SC-36
+final reconciliation ownership remains DASH-009's, unchanged. DR-900..DR-912 remain explicitly
+deferred/outside MVP, unchanged. No DASH-011 was created. No MVP requirement was silently
+deferred. The stage sequence remains DASH-007 → DASH-008 → DASH-009 → DASH-010, unchanged.
+
+**Stage contract amendments (documentation only — nothing implemented):**
+`docs/agentos-dashboard/stage-prompts/DASH-007.md` (1.0 → 1.1) gains a bounded, read-only
+Governance browser/search Build clause (DR-090, DR-091, EP-07, EP-08, PG-08) — fixed document
+allowlist, bounded search (`q <= 200`), rendered view with raw fallback, authority labels,
+anchors, repo-relative cross-reference resolution, escaping, unknown/malformed-document and
+traversal-shaped-input refusal, zero repository writes; no arbitrary repository browser, no
+database, no search index, no DASH-008 persistence dependency, no governance mutation, no agent
+execution, no Git mutation; baseline security owned here, final adversarial reconciliation still
+DASH-009's. `docs/agentos-dashboard/stage-prompts/DASH-008.md` (1.0 → 1.1) makes EP-18 an explicit
+Build/Acceptance/evidence responsibility (still the same read-only orchestration endpoint over the
+existing DASH-003 parser/state source; no new page), not merely a mention inside its
+`EP-15..EP-18` allowlist range. `docs/agentos-dashboard/stage-prompts/DASH-010.md` (1.0 → 1.1)
+gains PG-12 (bounded read-only Settings/About: repo root, bind/port, caps, lock status, about,
+browser-side copy-config only; editable config, persistent preferences, governance editing,
+repository switching, agent/provider configuration, secret editing, and authoritative writes all
+explicitly excluded) and the final DR-121 (staleness/banner) and DR-122 (file/line provenance +
+raw fallback) cross-page verification responsibility.
+
+**Registry reconciliation:** `docs/agentos-dashboard/STAGE_REGISTRY.md` §5 (5.0 → 5.1) is
+rewritten from prose ranges that hid individual IDs into an explicit per-requirement table, so
+every included DR/EP/PG has exactly one normative delivery/evidence owner (or is explicitly
+marked `foundation`/`final`); the prior form is retained in a collapsed block for audit trail.
+
+**PLAN-001 lifecycle:** registered directly in `docs/TASK_QUEUE.md` as a governance task carrying
+no `STAGE_REGISTRY.md` §3 registry row — the same non-AUTO/DASH-family shape as GOV-2, GOV-3,
+GOV-4, and the GOV-AUTO-0x series. Promoted `(none) -> Current -> Done` within this one session,
+following the GOV-AUTO-08/GOV-AUTO-10 precedent for a documentation-only governance task that
+authors its own closed final state in one pass, leaving the actual commit for a separate Human
+Owner review (this session held no commit authority, per its own git-safety bound). The `Current`
+set is empty both before and after. This closure authorizes no successor: DASH-007, DASH-008,
+DASH-009, and DASH-010 all remain `Planned`/`NOT_STARTED` and explicitly unauthorized. It does not
+begin, authorize, or start DASH-007.
+
+**Boundaries:** Files changed are exactly `docs/agentos-dashboard/STAGE_REGISTRY.md`,
+`docs/agentos-dashboard/stage-prompts/{DASH-007.md, DASH-008.md, DASH-010.md}`,
+`docs/agentos-dashboard/DECISIONS.md`, `docs/agentos-dashboard/CHANGELOG.md`, this file,
+`docs/TASK_QUEUE.md`, `docs/current_task.md`, `docs/remaining_tasks.md`, `docs/PROJECT_STATE.md`,
+and `docs/CHANGELOG.md`. `PRODUCT_SPEC.md`, `API_SPEC.md`, `UI_SPEC.md`, `MVP_SCOPE.md`,
+`TEST_STRATEGY.md`, and `MASTER_PLAN.md` were inspected and confirmed to need no change. No file
+under `src/`, `tests/`, `agentos_workflow/`, or `agentos_dashboard/` (runtime) was created,
+modified, or deleted; no dependency changed; no branch, commit, push, PR, or merge was performed
+by this session.
+
 ## 2026-08-09 — Human Owner approved and closed DASH-006
 
 **Decision:** The Human Owner reviewed the implementation diff for `DASH-006` on
