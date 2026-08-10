@@ -412,3 +412,8 @@ The Human Owner authorized DASH-007 through the two-confirmation local gate. The
 
 The Human Owner approved and closed DASH-007 through the automatic task-closeout gate
 (`scripts/workflow-approve.sh`, GOV-AUTO-03). Registry state `COMPLETE`; task status `Done`.
+
+## 2026-08-10 — DASH-008 authorized
+
+The Human Owner authorized DASH-008 through the two-confirmation local gate. The stage is
+`AUTHORIZED`; implementation, approval, push, and merge remain separate.
