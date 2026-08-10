@@ -5,7 +5,7 @@
 | **Title** | AgentOS Dashboard — Changelog |
 | **Purpose** | Append-only log of every approved change to the dashboard documentation set; the audit spine of `MASTER_PLAN.md` §8. |
 | **Status** | Draft |
-| **Version** | 1.6 |
+| **Version** | 1.7 |
 | **Owner** | Completing agent per stage · verified at review |
 | **Dependencies** | None |
 | **Related Documents** | `MASTER_PLAN.md` §7–§8 |
@@ -16,6 +16,39 @@ Entry ID `CL-YYYYMMDD-##`, newest first. Each entry: documents touched, versions
 before/after, authorizing task, approver. Entries are appended, never edited.
 
 ## Entries
+
+### CL-20260810-01 — PLAN-001: requirement-to-stage ownership correction (governance-only)
+
+- **Documents:** `STAGE_REGISTRY.md` §5 (rewritten as an explicit per-requirement table; prior
+  prose-range form retained in a collapsed audit-trail block) and §6; `DECISIONS.md` (new DD-16);
+  `stage-prompts/DASH-007.md`, `DASH-008.md`, `DASH-010.md` (each amended and bumped to
+  documentation-only `1.1`); `docs/DECISION_LOG.md` (new 2026-08-10 entry); `docs/TASK_QUEUE.md`,
+  `docs/current_task.md`, `docs/remaining_tasks.md`, `docs/PROJECT_STATE.md`, `docs/CHANGELOG.md`
+  (PLAN-001 task record and mirrors; the DASH-007/DASH-008/DASH-010 queue summaries are
+  reconciled with their amended contracts).
+- **Versions:** `STAGE_REGISTRY.md` 5.0 → **5.1**; `DECISIONS.md` 1.7 → **1.8**; this file 1.6 →
+  **1.7**; `stage-prompts/DASH-007.md` 1.0 → **1.1**; `stage-prompts/DASH-008.md` 1.0 → **1.1**;
+  `stage-prompts/DASH-010.md` 1.0 → **1.1**.
+- **Authorizing task:** PLAN-001 — Close dashboard requirement-to-stage coverage gaps. Human
+  Owner: "PLAN-001 is authorized as a governance/documentation-only correction to close Dashboard
+  MVP requirement-to-stage ownership gaps." Explicitly does **not** authorize DASH-007
+  implementation.
+- **Correction, in one line each:** DR-090/DR-091/EP-07/EP-08/PG-08 → DASH-007 (new: a bounded
+  read-only Governance browser/search surface); DR-120 → DASH-006 sole owner (confirmed, already
+  correct); DR-121/DR-122 → DASH-010 final cross-page delivery/evidence closure (new); EP-18 →
+  DASH-008, made an explicit Build/Acceptance/evidence responsibility rather than a bare allowlist
+  mention; PG-12 → DASH-010 (new: a bounded read-only Settings/About surface, explicitly excluding
+  editable config, preferences, governance editing, repository switching, agent/provider config,
+  secrets, and any authoritative write). DASH-003 confirmed a foundation-only contributor for
+  DR-120..122, never their final normative owner. No DASH-011 created; no MVP requirement
+  deferred; sequence DASH-007 → DASH-008 → DASH-009 → DASH-010 unchanged.
+- **Code delivered:** none. This is a contract-amendment-only correction — no file under `src/`,
+  `tests/`, `agentos_workflow/`, or `agentos_dashboard/` (runtime) changed, and no code for any of
+  the amended clauses (Governance browser/search, EP-18 evidence, PG-12, DR-121/122 final
+  verification) was written. DASH-007 remains `Planned`/`NOT_STARTED` and unauthorized; this
+  closure does not begin, authorize, or start DASH-007.
+- **Approver:** Human Owner (authorization recorded above; commit/closeout left for separate
+  Human Owner review per this session's git-safety bound).
 
 ### CL-20260809-01 — DASH-006 implemented: Git, upstream, handover, and consistency views
 

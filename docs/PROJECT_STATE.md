@@ -7,7 +7,57 @@ so keep the version line's wording exact if you edit it.
 
 Current Version: 1.0.0
 
-## Latest governance activity — AUTO-016 closed
+## Latest governance activity — PLAN-001 closed
+
+PLAN-001 — Close dashboard requirement-to-stage coverage gaps — was registered and, in the same
+written directive, authorized by the Human Owner on 2026-08-10: "PLAN-001 is authorized as a
+governance/documentation-only correction to close Dashboard MVP requirement-to-stage ownership
+gaps." This authorization explicitly does **not** authorize DASH-007 implementation. The `Current`
+set was empty beforehand; predecessor DASH-006 is `COMPLETE`/`Done`.
+
+It corrects `docs/agentos-dashboard/STAGE_REGISTRY.md` §5's Stage→Requirement Map, and the
+DASH-007/DASH-008/DASH-010 stage contracts, so every included requirement has exactly one
+normative delivery/evidence owner: DR-090, DR-091, EP-07, EP-08, and PG-08 become explicit
+DASH-007 responsibilities (a bounded, read-only Governance browser/search surface — fixed document
+allowlist, bounded search `q <= 200`, escaping, traversal refusal, zero repository writes; no
+database, no search index, no DASH-008 persistence dependency, no governance mutation, no agent or
+Git mutation; baseline security owned here, final adversarial reconciliation still DASH-009's);
+EP-18 becomes an explicit DASH-008 Build/Acceptance/evidence responsibility rather than a bare
+mention inside its `EP-15..EP-18` allowlist range (still the same read-only orchestration endpoint
+over the existing DASH-003 parser; no new page); and DR-121, DR-122, and PG-12 become explicit
+DASH-010 responsibilities (final cross-page verification of the staleness banner and the
+file/line-provenance-with-raw-fallback behavior every page-delivering stage already builds
+in-line, plus a bounded read-only Settings/About page explicitly excluding editable config,
+persistent preferences, governance editing, repository switching, agent/provider configuration,
+secrets, and any authoritative write). DASH-003 remains an infrastructure/foundation contributor
+for DR-120..122, never their final normative owner (its own already-`Done` record is unchanged);
+DASH-006 is confirmed the sole delivery owner of DR-120 (already correct, unchanged). SC-01..36
+final reconciliation stays DASH-009's; DR-900..912 remain deferred/outside MVP. No DASH-011 was
+created, no MVP requirement was deferred, and the stage sequence
+`DASH-007 → DASH-008 → DASH-009 → DASH-010` is unchanged. Full rationale:
+`docs/agentos-dashboard/DECISIONS.md` DD-16; `docs/DECISION_LOG.md`, 2026-08-10 entry.
+
+**Scope: documentation/governance only.** `docs/agentos-dashboard/STAGE_REGISTRY.md` (§5 rewritten
+as an explicit per-requirement table, 5.0 → 5.1), `stage-prompts/{DASH-007.md, DASH-008.md,
+DASH-010.md}` (each 1.0 → 1.1, contract amendments only — nothing implemented),
+`docs/agentos-dashboard/DECISIONS.md` (new DD-16), `docs/agentos-dashboard/CHANGELOG.md` (new
+CL-20260810-01), and this repository's own governance mirrors (`docs/TASK_QUEUE.md`,
+`docs/current_task.md`, `docs/remaining_tasks.md`, this file, `docs/DECISION_LOG.md`,
+`docs/CHANGELOG.md`) were the only files touched. `PRODUCT_SPEC.md`, `API_SPEC.md`, `UI_SPEC.md`,
+`MVP_SCOPE.md`, `TEST_STRATEGY.md`, and `MASTER_PLAN.md` were inspected and confirmed to need no
+change. No file under `src/`, `tests/`, `agentos_workflow/`, or `agentos_dashboard/` (runtime) was
+created, modified, or deleted; no dependency changed; no branch, commit, push, PR, or merge was
+performed.
+
+**Closed `Current -> Done` on 2026-08-10** in the same session, following the GOV-AUTO-08/
+GOV-AUTO-10 precedent for a documentation-only governance task that authors its own closed final
+governance state in one pass, leaving the actual commit for a separate Human Owner review (this
+session held no commit authority under its own git-safety bound). The `Current` set is empty
+again. This closure authorizes no successor: DASH-007, DASH-008, DASH-009, and DASH-010 all remain
+`Planned`/`NOT_STARTED` and explicitly unauthorized. It does not begin, authorize, or start
+DASH-007.
+
+## Prior governance activity — AUTO-016 closed
 
 AUTO-016 — Integrated Milestone Automation Runner — was registered and authorized by the Human Owner
 on 2026-08-05: "I authorize AUTO-016 implementation under the finalized AUTO-016 contract and its
@@ -106,6 +156,11 @@ approval-gated controlled commit and push. All four milestones are implemented. 
 plan to 1.0, and `docs/architecture.md` for the pipeline shapes.
 
 ## Completed
+- PLAN-001 (closed 2026-08-10): governance/documentation-only correction of the Dashboard MVP
+  requirement-to-stage ownership gaps — DR-090/091, EP-07/08, PG-08 to DASH-007; EP-18 explicit in
+  DASH-008; DR-121/122 final closure and PG-12 to DASH-010. `STAGE_REGISTRY.md` §5 rewritten as an
+  explicit per-requirement table. No code changed; DASH-007 remains unauthorized. See "Latest
+  governance activity" above and `docs/agentos-dashboard/DECISIONS.md` DD-16.
 - GOV-AUTO-03 (closed 2026-07-28): implemented, Human-Owner-approved, and
   closed via scripts/workflow-approve.sh's automatic task closeout (GOV-AUTO-03).
 
@@ -568,6 +623,17 @@ DASH-005 is implemented and validated on the registered branch
 `feature/dash-005-board-task-detail`, uncommitted, stopped for Human Owner approval.
 Implementation and approval remain separate phases. Report:
 `docs/reports/agentos-dashboard/STAGE-05-completion.md`.
+
+## Authorization update — 2026-08-10
+
+## PLAN-001
+
+Status: Done
+
+The Human Owner explicitly authorized this governance/documentation-only correction through a
+written directive; it was implemented, validated, and closed `Current -> Done` in the same
+session, uncommitted, awaiting a separate Human Owner review. See "Latest governance activity —
+PLAN-001 closed" above.
 
 ## Authorization update — 2026-08-09
 

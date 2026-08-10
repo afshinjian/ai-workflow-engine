@@ -5,7 +5,7 @@
 | **Title** | AgentOS Dashboard — Decisions |
 | **Purpose** | Append-only record of dashboard-program decisions (DD-##). Subordinate to `docs/DECISION_LOG.md`; cross-posted there when repository governance requires. |
 | **Status** | Draft |
-| **Version** | 1.7 |
+| **Version** | 1.8 |
 | **Owner** | Documentation & Governance session (append) · Human Owner (approval) |
 | **Dependencies** | `MASTER_PLAN.md` §8 |
 | **Related Documents** | `docs/DECISION_LOG.md` |
@@ -394,10 +394,59 @@ appended, never rewritten; supersessions are explicit.
 - **Reconsider when:** never — this is a standing correction to how DD-14 is read, not a
   provisional judgment.
 
+## DD-16 — PLAN-001 requirement-to-stage ownership correction (DR-090/091, DR-120..122, EP-07/08/18, PG-08/12)
+
+- **Status:** Accepted (Human Owner authorization, 2026-08-10; PLAN-001, a governance/
+  documentation-only correction task — no stage-registry entry, following the GOV-2/GOV-3/GOV-4/
+  GOV-AUTO-0x precedent for ordinary non-AUTO/DASH-family governance tasks).
+- **Context:** An independent planning audit found that `STAGE_REGISTRY.md` §5's Stage→Requirement
+  Map, and the DASH-007/DASH-008/DASH-010 stage contracts it should agree with, left several
+  Dashboard MVP requirements unmapped or ambiguously owned: DR-090, DR-091 (Governance viewer),
+  EP-07, EP-08 (`../API_SPEC.md`), and PG-08 (`../UI_SPEC.md`) appeared in the normative specs but
+  in no stage's Reference/Allowed list at all; DR-121 and DR-122 (`Cross-cutting`) had a
+  foundation contributor (DASH-003) but no stage carrying final cross-page delivery/evidence
+  closure; EP-18 was present only inside DASH-008's `EP-15..EP-18` allowlist range, never called
+  out in that stage's Build/Acceptance clauses; and PG-12 (Settings) appeared in `UI_SPEC.md` but
+  in no stage's Allowed list at all, including DASH-010's own.
+- **Decision:** DR-090, DR-091, EP-07, EP-08, and PG-08 become explicit DASH-007 responsibilities,
+  bounded to a read-only Governance browser/search surface (fixed document allowlist, bounded
+  search, escaping, traversal refusal, zero repository writes; baseline security owned by
+  DASH-007, final adversarial reconciliation still DASH-009's). EP-18 becomes an explicit DASH-008
+  Build/Acceptance/evidence responsibility (still the same read-only orchestration endpoint over
+  the existing DASH-003 parser, still no new page). DR-121 and DR-122 gain DASH-010 as their final
+  cross-page delivery/evidence-closure owner, on top of DASH-010's existing MVP-acceptance role;
+  the page-delivering stages that implement the underlying per-page behavior as they build each
+  page are unaffected and keep their own already-recorded (or, for DASH-007/008, contracted)
+  work — DASH-010's role is closure verification, not re-implementation. PG-12 becomes an explicit
+  DASH-010 responsibility, strictly bounded to a read-only Settings/About surface (repo root
+  display, bind/port, caps, lock status, about, browser-side copy-config only) with editable
+  config, persistent preferences, governance editing, repository switching, agent/provider
+  configuration, secret editing, and authoritative writes all explicitly excluded. DASH-003
+  remains an infrastructure/foundation contributor for DR-120..122, never their final normative
+  owner; DASH-006 is confirmed the sole delivery owner of DR-120 (already true in the prior map).
+  `STAGE_REGISTRY.md` §5 is rewritten from prose ranges that hid individual IDs into an explicit
+  per-requirement table so this class of gap is visible on inspection. No DASH-011 was created, no
+  MVP requirement was deferred, and the DASH-007 → DASH-008 → DASH-009 → DASH-010 sequence is
+  unchanged. This decision amends only the three stages' *future* execution contracts
+  (`stage-prompts/DASH-007.md`, `DASH-008.md`, `DASH-010.md`, each bumped to a documentation-only
+  1.1) and the registry map; it implements none of it, and DASH-007 remains `Planned`/`NOT_STARTED`
+  and unauthorized.
+- **Consequences:** A future DASH-007 authorization now carries the Governance browser/search
+  scope explicitly; a future DASH-008 authorization now must deliver and evidence EP-18, not just
+  allowlist it; a future DASH-010 authorization now must deliver PG-12 and the DR-121/DR-122 final
+  verification evidence. Historical DASH-003/DASH-005/DASH-006 completion records, and every
+  already-`COMPLETE` stage's registry row, are unchanged (rule 8) — this decision corrects only
+  living reference documents, not completed-stage history.
+- **Reconsider when:** a future authoritative `PRODUCT_SPEC.md`/`API_SPEC.md`/`UI_SPEC.md`
+  revision adds, removes, or renumbers any of the requirement IDs this entry maps, or a future
+  stage's own authorization narrows/widens the bounds this entry sets for PG-08/PG-12's read-only
+  posture.
+
 ## Decision References
 Repository decisions binding this program are recorded in `docs/DECISION_LOG.md` (2026-07-23
 entry for program enrollment; 2026-07-29 entry for GOV-AUTO-04's OD-D10/OD-D11 resolution;
-2026-07-29 entry for the OD-D9 serving-stack decision).
+2026-07-29 entry for the OD-D9 serving-stack decision; 2026-08-10 entry for DD-16's
+requirement-to-stage ownership correction, PLAN-001).
 
 ## Open Questions
 None held here; see `OPEN_QUESTIONS.md`.

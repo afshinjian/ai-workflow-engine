@@ -7,6 +7,17 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- PLAN-001 (2026-08-10): governance/documentation-only correction of Dashboard MVP
+  requirement-to-stage ownership gaps. `docs/agentos-dashboard/STAGE_REGISTRY.md` §5 rewritten
+  from prose ranges into an explicit per-requirement table; DR-090, DR-091, EP-07, EP-08, and
+  PG-08 made explicit DASH-007 responsibilities (a bounded read-only Governance browser/search
+  surface); EP-18 made an explicit DASH-008 Build/Acceptance/evidence responsibility rather than a
+  bare allowlist mention; DR-121, DR-122 (final cross-page verification), and PG-12 (a bounded
+  read-only Settings/About surface) made explicit DASH-010 responsibilities. DASH-003 confirmed
+  foundation-only for DR-120..122; DASH-006 confirmed sole owner of DR-120. Registered and closed
+  `Current -> Done` in the same session (no `STAGE_REGISTRY.md` §3 registry row, per the
+  GOV-2/GOV-3/GOV-4/GOV-AUTO-0x precedent); explicitly does not authorize DASH-007
+  implementation. No code changed. Decision: `docs/agentos-dashboard/DECISIONS.md` DD-16.
 - DASH-006 (2026-08-09): implemented, Human-Owner-approved, and closed
   `Current -> Done` in one local commit via scripts/workflow-approve.sh's automatic
   task closeout (GOV-AUTO-03).

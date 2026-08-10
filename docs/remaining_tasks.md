@@ -208,3 +208,23 @@ as the single `Current` task — implemented and validated the same day on its r
 `feature/dash-005-board-task-detail` (the queue-lane board, the coded workflow-stage strip, the
 ORCH program lane, the unclassified lane, and the task detail page), stopped, uncommitted, for
 Human Owner approval; report: `docs/reports/agentos-dashboard/STAGE-05-completion.md`.
+
+## PLAN-001 closure — 2026-08-10
+
+**PLAN-001 — Close dashboard requirement-to-stage coverage gaps** was registered and authorized
+by the Human Owner on 2026-08-10 as a governance/documentation-only correction: "PLAN-001 is
+authorized as a governance/documentation-only correction to close Dashboard MVP
+requirement-to-stage ownership gaps." It does **not** authorize DASH-007 implementation. It
+corrected `docs/agentos-dashboard/STAGE_REGISTRY.md` §5 and the DASH-007/DASH-008/DASH-010 stage
+contracts so DR-090, DR-091, EP-07, EP-08, and PG-08 are explicit DASH-007 responsibilities
+(a bounded read-only Governance browser/search surface), EP-18 is an explicit DASH-008
+Build/Acceptance/evidence responsibility rather than a bare allowlist mention, and DR-121, DR-122,
+and PG-12 are explicit DASH-010 responsibilities (final cross-page verification and a bounded
+read-only Settings/About surface). No code was written for any of it. Carrying no
+`STAGE_REGISTRY.md` §3 registry row (the same non-AUTO/DASH-family governance-task shape as
+GOV-2/GOV-3/GOV-4/GOV-AUTO-0x), it was closed `Current -> Done` in the same session, following the
+GOV-AUTO-08/GOV-AUTO-10 precedent, leaving the diff uncommitted for a separate Human Owner review.
+The `Current` set is empty both before and after. Rationale: `docs/agentos-dashboard/DECISIONS.md`
+DD-16; `docs/DECISION_LOG.md`, 2026-08-10 entry. DASH-007..DASH-010 all remain `Planned` and
+unauthorized in the table above — this closure authorizes no successor and does not begin,
+authorize, or start DASH-007.
