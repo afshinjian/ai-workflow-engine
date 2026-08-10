@@ -218,3 +218,36 @@ def test_dash_task_stage_contract_is_shown() -> None:
     response = client.get("/tasks/DASH-001")
     assert response.status == 200
     assert "stage-prompts/DASH-001.md" in response.text
+
+
+def test_dash_task_stage_contract_is_shown_from_detached_head(git_repo: Path) -> None:
+    from agentos_dashboard.main import create_app
+    from agentos_dashboard.settings import DashboardSettings
+    from agentos_dashboard.tests.conftest import git
+
+    write(
+        git_repo,
+        "docs/TASK_QUEUE.md",
+        "## DASH-001 — planning foundation\n\nStatus: Done\n\nHistorical task.\n\n",
+    )
+    write(
+        git_repo,
+        "docs/agentos-dashboard/stage-prompts/DASH-001.md",
+        "# DASH-001\n\n**Allowed**: `docs/agentos-dashboard/**`\n",
+    )
+    git(git_repo, "add", "docs")
+    git(git_repo, "commit", "--quiet", "-m", "add historical task")
+    git(git_repo, "checkout", "--quiet", "--detach", "HEAD")
+
+    settings = DashboardSettings.from_env({"AWED_REPO_ROOT": str(git_repo)})
+    app = create_app(settings)
+    response = AsgiTestClient(app).get("/tasks/DASH-001")
+
+    git_status = app.state.snapshot_cache.get().git_status
+    assert git_status is not None
+    assert git_status.detached is True
+    assert git_status.branch is None
+    assert response.status == 200
+    assert "branch: detached" in response.text
+    assert "stage-prompts/DASH-001.md" in response.text
+    assert "docs/agentos-dashboard/**" in response.text
