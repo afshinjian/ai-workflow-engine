@@ -1,8 +1,8 @@
 """The in-process cache the API layer serves every read from (`ARCHITECTURE.md` §4).
 
-One `RepositorySnapshot` is kept per running dashboard process. `get()` rebuilds lazily —
-lock-free reads that only take the lock when nothing cached exists yet or the cached snapshot
-has gone stale (`RepositorySnapshot.is_stale`, DASH-002). `refresh()` is EP-20's forced rebuild:
+One `RepositorySnapshot` is kept per running dashboard process. `get()` builds lazily and then
+keeps serving that immutable snapshot even after its fingerprint diverges, so TR-05/DR-121 can
+surface the stale state instead of silently hiding it. `refresh()` is EP-20's forced rebuild:
 it never blocks behind a concurrent build, because a caller waiting on `SNAPSHOT_BUILDING` wants
 to know a build is already under way, not to queue behind it (`API_SPEC.md` EP-20: "409 while
 building").
@@ -35,9 +35,13 @@ class SnapshotCache:
         return self._root
 
     def get(self) -> RepositorySnapshot:
-        """The current snapshot, building or rebuilding it first if necessary."""
+        """The held snapshot, building it once if necessary.
+
+        A stale snapshot remains held until an explicit ``refresh()``. This is intentional:
+        TR-05 requires divergence to produce the persistent banner rather than a silent refresh.
+        """
         with self._lock:
-            if self._snapshot is None or self._snapshot.is_stale():
+            if self._snapshot is None:
                 self._snapshot = build_snapshot(self._root)
             return self._snapshot
 
@@ -45,7 +49,7 @@ class SnapshotCache:
         """Force an unconditional rebuild.
 
         Raises `SnapshotBuildInProgress` instead of waiting if another build (a concurrent
-        `refresh()`, or a `get()` racing to fill an empty/stale cache) already holds the lock.
+        `refresh()`, or a `get()` racing to fill an empty cache) already holds the lock.
         """
         if not self._lock.acquire(blocking=False):
             raise SnapshotBuildInProgress()

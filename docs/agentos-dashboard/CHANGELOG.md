@@ -5,7 +5,7 @@
 | **Title** | AgentOS Dashboard — Changelog |
 | **Purpose** | Append-only log of every approved change to the dashboard documentation set; the audit spine of `MASTER_PLAN.md` §8. |
 | **Status** | Draft |
-| **Version** | 2.1 |
+| **Version** | 2.3 |
 | **Owner** | Completing agent per stage · verified at review |
 | **Dependencies** | None |
 | **Related Documents** | `MASTER_PLAN.md` §7–§8 |
@@ -16,6 +16,59 @@ Entry ID `CL-YYYYMMDD-##`, newest first. Each entry: documents touched, versions
 before/after, authorizing task, approver. Entries are appended, never edited.
 
 ## Entries
+
+### CL-20260811-02 — DASH-010 final independent review corrections
+
+- **Documents:** `OPERATIONS.md` (accurate lock smoke check, explicit-refresh staleness behavior,
+  SQLite troubleshooting, and a checksum procedure that excludes the manifest's self-row);
+  `MVP_SCOPE.md` §5 (recommendation remains explicitly pending Human Owner acceptance);
+  `STAGE_REGISTRY.md` §4, `docs/TASK_QUEUE.md`, and
+  `docs/reports/agentos-dashboard/STAGE-10-completion.md` (reviewed evidence superseding the
+  implementation-session counts and sampled DR-121/DR-122 claims).
+- **Versions:** this file 2.2 → **2.3**. `OPERATIONS.md` remains 1.0 because the corrections make
+  its first unapproved draft accurate rather than changing an approved operating contract.
+- **Code corrected (inside DASH-010's allowed `agentos_dashboard/**` surface):** `--check` now
+  acquires/releases the real execution lock and reports lock, filesystem, malformed/incompatible
+  SQLite, repository, and configuration failures without tracebacks; snapshot caching now retains
+  stale state until explicit refresh so DR-121 is observable; Overview, Board, Stages,
+  Orchestration, Handover, and Consistency now deliver the missing DR-122 provenance/raw fallback;
+  Overview now integrates required summary, handover, validation-gate, and audit-event state; and
+  E2E/golden/regression coverage now tests semantic content across all delivered pages without
+  coupling to the transient identity of the live `Current` task.
+- **Reason for change:** the Human Owner requested exactly one final bounded independent
+  reviewer/corrector pass before DASH-010 approval and MVP closure.
+- **Authorizing task:** DASH-010; every correction is inside its explicit final integration,
+  E2E/golden, DR-121/DR-122, operations, and local-readiness scope.
+- **Approver:** pending — review is complete, the tree is uncommitted, and no Human Owner
+  acceptance is claimed.
+
+### CL-20260811-01 — DASH-010 implemented: integration testing, documentation, and release readiness
+
+- **Documents:** new `OPERATIONS.md` (start/stop, `AWED_*` configuration, the manual handover
+  manifest-refresh procedure per OD-D6, `dashboard.db` backup/disposal, troubleshooting, and the
+  restated `SECURITY_MODEL.md` §5 prohibited-operations list); `MVP_SCOPE.md` §5 (Closure Record
+  populated — a recommendation to the Human Owner, not a self-declared acceptance);
+  `STAGE_REGISTRY.md` §3 (state cell `AUTHORIZED` → `IN_PROGRESS`) and §4 (two new append-only
+  rows: initial-start preflight and implementation-complete); `docs/TASK_QUEUE.md`; and the new
+  report `docs/reports/agentos-dashboard/STAGE-10-completion.md`.
+- **Versions:** `OPERATIONS.md` new at **1.0**; `MVP_SCOPE.md` 1.0 → 1.0 (its §5 placeholder
+  populated, not a scope change — §8 reserves version bumps for scope changes only);
+  `STAGE_REGISTRY.md` 5.2 → 5.2 (append-only log growth and a state-cell update, neither of which
+  §8 versions); this file 2.1 → **2.2**.
+- **Code delivered (outside this documentation set):** `agentos_dashboard/services/settings_view.py`,
+  `web/templates/settings.html`, and the `/settings` route (PG-12 Settings/About — read-only,
+  reusing existing settings/lock data, per PLAN-001/`DECISIONS.md` DD-16's explicit bound: no new
+  adapter, no new API endpoint, zero mutation affordance); an enhanced `python -m agentos_dashboard
+  --check` that now builds the repository snapshot and opens one local-database connection;
+  `agentos_dashboard/tests/e2e/` (TC-16 full page-set walks against a constructed fixture
+  repository and, read-only, against this real repository; TC-10 byte-exact golden-file snapshots
+  of the Board and Handover pages; the DR-121/DR-122 final cross-page verification suite) — the
+  stage contract's Allowed list, no new dependency.
+- **Reason for change:** DASH-010's implementation — the program's final stage.
+- **Authorizing task:** DASH-010, authorized by the Human Owner 2026-08-11 through
+  `scripts/workflow-authorize.sh` (`STAGE_REGISTRY.md` §4).
+- **Approver:** pending — the implementation is uncommitted and awaits Human Owner approval.
+- **Date:** 2026-08-11.
 
 ### CL-20260810-05 — DASH-009 mandatory independent security review corrections
 
@@ -573,3 +626,14 @@ The Human Owner approved and closed DASH-009 through the automatic task-closeout
 
 The Human Owner authorized DASH-010 through the two-confirmation local gate. The stage is
 `AUTHORIZED`; implementation, approval, push, and merge remain separate.
+
+## 2026-08-11 — DASH-010 implemented
+
+Implemented and validated on the registered branch `feature/dash-010-release-readiness`,
+uncommitted, stopped for Human Owner approval. Registry state `AUTHORIZED` → `IN_PROGRESS`. See
+`CL-20260811-01` above and `docs/reports/agentos-dashboard/STAGE-10-completion.md`.
+
+## 2026-08-11 — DASH-010 closed
+
+The Human Owner approved and closed DASH-010 through the automatic task-closeout gate
+(`scripts/workflow-approve.sh`, GOV-AUTO-03). Registry state `COMPLETE`; task status `Done`.

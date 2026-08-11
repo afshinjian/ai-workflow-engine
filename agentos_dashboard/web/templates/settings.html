@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Settings &amp; About · AgentOS Dashboard{% endblock %}
+{% block content %}
+<h1>Settings &amp; About</h1>
+<p class="empty-state">Read-only: no runtime configuration, preference, credential, or governance
+document can be changed from this page, and repository switching is not supported (PG-12,
+`DECISIONS.md` DD-16).</p>
+
+{% if view is none %}
+  <p class="empty-state">Settings are not available in this context.</p>
+{% else %}
+  <section aria-labelledby="repository-heading">
+    <h2 id="repository-heading">Repository</h2>
+    <dl>
+      <dt>Root</dt>
+      <dd class="mono">{{ view.repo_root|redact_secrets }}</dd>
+    </dl>
+  </section>
+
+  <section aria-labelledby="bind-heading">
+    <h2 id="bind-heading">Bind address</h2>
+    <dl>
+      <dt>Host</dt>
+      <dd class="mono">{{ view.host }}</dd>
+      <dt>Port</dt>
+      <dd class="mono">{{ view.port }}</dd>
+      <dt>URL</dt>
+      <dd class="mono">{{ view.display_url }}</dd>
+      <dt>Accepted Host headers</dt>
+      <dd class="mono">{{ view.allowed_host_headers|join(", ") }}</dd>
+    </dl>
+  </section>
+
+  <section aria-labelledby="caps-heading">
+    <h2 id="caps-heading">Configured caps</h2>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>Cap</th><th>Value</th><th>Purpose</th></tr>
+        </thead>
+        <tbody>
+          {% for cap in view.caps %}
+            <tr>
+              <td>{{ cap.name }}</td>
+              <td class="mono">{{ cap.value }} {{ cap.unit }}</td>
+              <td>{{ cap.description }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="lock-heading">
+    <h2 id="lock-heading">Process lock</h2>
+    {% if view.lock.held %}
+      <p><span class="badge badge-pass">HELD</span> pid {{ view.lock.pid }} · <span class="mono">{{ view.lock.path }}</span></p>
+    {% else %}
+      <p><span class="badge badge-warning">NOT HELD</span> this web context was constructed without a single-instance lock (normal server startup and `--check` both acquire it)</p>
+    {% endif %}
+  </section>
+
+  <section aria-labelledby="about-heading">
+    <h2 id="about-heading">About</h2>
+    <dl>
+      <dt>AgentOS Dashboard</dt>
+      <dd class="mono">{{ view.dashboard_version }}</dd>
+    </dl>
+  </section>
+
+  <section aria-labelledby="copy-heading">
+    <h2 id="copy-heading">Copy configuration</h2>
+    <p class="empty-state">Copies the values above to the clipboard only — no server request is made and nothing is written anywhere.</p>
+    <pre id="copy-config-payload" hidden>{{ [
+      "repo_root=" ~ view.repo_root,
+      "host=" ~ view.host,
+      "port=" ~ view.port|string,
+      "display_url=" ~ view.display_url,
+      "dashboard_version=" ~ view.dashboard_version,
+    ]|join("\n")|redact_secrets }}</pre>
+    <button type="button" data-action="copy-config">Copy config</button>
+    <p id="copy-config-status" role="status" aria-live="polite"></p>
+  </section>
+{% endif %}
+{% endblock %}

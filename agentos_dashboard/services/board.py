@@ -35,7 +35,7 @@ from agentos_dashboard.core.paths import PathRefusedError, RepositoryRoot
 from agentos_dashboard.core.redact import redact_secrets
 from agentos_dashboard.core.snapshot import RepositorySnapshot
 from agentos_dashboard.parsing._common import TASK_ID
-from agentos_dashboard.parsing.models import TaskStatus
+from agentos_dashboard.parsing.models import Confidence, TaskStatus
 from agentos_dashboard.parsing.orchestration import OrchestrationStage, parse_implementation_state
 from agentos_dashboard.parsing.task_queue import TaskRecord, parse_task_records
 from agentos_dashboard.services._prose import (
@@ -122,6 +122,9 @@ class BoardData:
     orch_stages: tuple[OrchestrationStage, ...]
     workflow_stages: tuple[str, ...]
     findings: tuple[ConsistencyFinding, ...]
+    orch_source: str
+    orch_raw_text: str | None
+    orch_degraded: bool
 
 
 def _read_or_none(root: RepositoryRoot, relative: str) -> str | None:
@@ -225,11 +228,12 @@ def build_board(snapshot: RepositorySnapshot) -> BoardData:
     # (`implementation-state.yaml`, TR-09) and must render even when `docs/TASK_QUEUE.md` itself
     # is missing or unparsable, exactly as the two lanes are visually separated on the page.
     orch_text = _read_or_none(root, IMPLEMENTATION_STATE_PATH)
-    orch_view = (
-        parse_implementation_state(orch_text, IMPLEMENTATION_STATE_PATH).value
+    orch_parse = (
+        parse_implementation_state(orch_text, IMPLEMENTATION_STATE_PATH)
         if orch_text is not None
         else None
     )
+    orch_view = orch_parse.value if orch_parse is not None else None
     orch_stages = (
         tuple(
             OrchestrationStage(
@@ -239,6 +243,8 @@ def build_board(snapshot: RepositorySnapshot) -> BoardData:
                 prerequisites=tuple(redact_secrets(value) for value in stage.prerequisites),
                 blockers=tuple(redact_secrets(value) for value in stage.blockers),
                 evidence=tuple(redact_secrets(value) for value in stage.evidence),
+                source=stage.source,
+                line=stage.line,
             )
             for stage in orch_view.stages
         )
@@ -264,6 +270,9 @@ def build_board(snapshot: RepositorySnapshot) -> BoardData:
             orch_stages=orch_stages,
             workflow_stages=WORKFLOW_STAGES,
             findings=tuple(findings),
+            orch_source=IMPLEMENTATION_STATE_PATH,
+            orch_raw_text=redact_secrets(orch_text) if orch_text is not None else None,
+            orch_degraded=orch_parse is None or orch_parse.confidence is not Confidence.HIGH,
         )
 
     parsed = parse_task_records(queue_text, TASK_QUEUE_PATH)
@@ -308,4 +317,7 @@ def build_board(snapshot: RepositorySnapshot) -> BoardData:
         orch_stages=orch_stages,
         workflow_stages=WORKFLOW_STAGES,
         findings=tuple(findings),
+        orch_source=IMPLEMENTATION_STATE_PATH,
+        orch_raw_text=redact_secrets(orch_text) if orch_text is not None else None,
+        orch_degraded=orch_parse is None or orch_parse.confidence is not Confidence.HIGH,
     )

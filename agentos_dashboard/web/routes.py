@@ -1,5 +1,6 @@
 """PG-01 (Overview), PG-02 (Board), PG-03 (Task detail), PG-05 (Run detail), PG-06 (Evidence),
-PG-07 (Git), PG-09 (Handover), PG-10 (Audit), and PG-11 (Consistency) — `UI_SPEC.md` §3."""
+PG-07 (Git), PG-09 (Handover), PG-10 (Audit), PG-11 (Consistency), and PG-12 (Settings/About) —
+`UI_SPEC.md` §3."""
 
 from __future__ import annotations
 
@@ -8,7 +9,8 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from agentos_dashboard.api.acknowledgments import AcknowledgmentStore, finding_fingerprint
-from agentos_dashboard.api.overview import build_overview
+from agentos_dashboard.api.lock import ExecutionLock
+from agentos_dashboard.api.overview import build_overview, enrich_overview_from_local_state
 from agentos_dashboard.api.snapshot_cache import SnapshotCache
 from agentos_dashboard.api.stages import stage_registry_to_json
 from agentos_dashboard.core.redact import redact_secrets
@@ -27,7 +29,9 @@ from agentos_dashboard.services.governance import (
 from agentos_dashboard.services.handover import build_handover_view
 from agentos_dashboard.services.notes import UserNote, list_notes
 from agentos_dashboard.services.runs import StageRunView, get_run, list_runs, to_view
+from agentos_dashboard.services.settings_view import build_settings_view
 from agentos_dashboard.services.tasks import build_task_detail
+from agentos_dashboard.settings import DashboardSettings
 from agentos_dashboard.storage.db import DashboardDatabase
 
 __all__ = ["build_router"]
@@ -39,6 +43,8 @@ def build_router(
     templates: Jinja2Templates,
     acknowledgments_store: AcknowledgmentStore | None = None,
     database: DashboardDatabase | None = None,
+    settings: DashboardSettings | None = None,
+    lock: ExecutionLock | None = None,
 ) -> APIRouter:
     router = APIRouter()
 
@@ -46,6 +52,9 @@ def build_router(
     async def overview_page(request: Request) -> HTMLResponse:
         snapshot = cache.get()
         overview = build_overview(snapshot)
+        if database is not None and database.db_path.exists():
+            with database.connection() as conn:
+                overview = enrich_overview_from_local_state(overview, conn)
         return templates.TemplateResponse(
             request,
             "overview.html",
@@ -261,6 +270,16 @@ def build_router(
                 "snapshot": snapshot,
                 "active_nav": "audit",
             },
+        )
+
+    @router.get("/settings", response_class=HTMLResponse)
+    async def settings_page(request: Request) -> HTMLResponse:
+        snapshot = cache.get()
+        view = build_settings_view(settings, lock) if settings is not None else None
+        return templates.TemplateResponse(
+            request,
+            "settings.html",
+            {"view": view, "snapshot": snapshot, "active_nav": "settings"},
         )
 
     return router

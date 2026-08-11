@@ -64,6 +64,8 @@ class OrchestrationStage:
     prerequisites: tuple[str, ...]
     blockers: tuple[str, ...]
     evidence: tuple[str, ...]
+    source: str
+    line: int
 
 
 @dataclass(frozen=True)
@@ -93,6 +95,34 @@ def _blocker_summaries(value: Any) -> tuple[str, ...]:
     return tuple(summaries)
 
 
+def _stage_line_numbers(text: str) -> dict[str, int]:
+    """Best-effort YAML source lines for direct children of the top-level ``stages`` map.
+
+    PyYAML's constructed dictionaries intentionally discard node marks. The implementation-state
+    contract fixes ``stages`` as a top-level mapping, so a small indentation-aware scan retains
+    honest stage-level provenance without changing YAML parsing semantics.
+    """
+    result: dict[str, int] = {}
+    in_stages = False
+    stages_indent = 0
+    for line_number, line in enumerate(text.splitlines(), start=1):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        indent = len(line) - len(line.lstrip(" "))
+        if not in_stages:
+            if stripped == "stages:":
+                in_stages = True
+                stages_indent = indent
+            continue
+        if indent <= stages_indent:
+            break
+        if indent == stages_indent + 2 and stripped.endswith(":"):
+            stage_id = stripped[:-1].strip().strip("'\"")
+            result.setdefault(stage_id, line_number)
+    return result
+
+
 def parse_implementation_state(text: str, source: str) -> ParsedDocument[OrchestrationStateView]:
     try:
         data = yaml.load(text, Loader=_NoDuplicateKeySafeLoader)
@@ -115,6 +145,7 @@ def parse_implementation_state(text: str, source: str) -> ParsedDocument[Orchest
         )
 
     notes: list[str] = []
+    stage_lines = _stage_line_numbers(text)
     raw_stages = data.get("stages")
     stages: list[OrchestrationStage] = []
     if isinstance(raw_stages, dict):
@@ -130,6 +161,8 @@ def parse_implementation_state(text: str, source: str) -> ParsedDocument[Orchest
                     prerequisites=_string_tuple(stage_data.get("prerequisites")),
                     blockers=_blocker_summaries(stage_data.get("blockers")),
                     evidence=_string_tuple(stage_data.get("evidence")),
+                    source=source,
+                    line=stage_lines.get(str(stage_id), 1),
                 )
             )
     else:

@@ -91,6 +91,19 @@ _VERSION_NUMBER = re.compile(r"\d+\.\d+\.\d+")
 _COMMIT_TOKEN = re.compile(r"`([0-9a-f]{7,40})`")
 
 
+def _source(path: str, line: int | None = None) -> str:
+    return f"{path}:{line}" if line is not None else path
+
+
+def _line_number(text: str, position: int) -> int:
+    return text.count("\n", 0, position) + 1
+
+
+def _yaml_key_line(text: str, key: str) -> int:
+    match = re.search(rf"^(?:\s*){re.escape(key)}\s*:", text, re.MULTILINE)
+    return _line_number(text, match.start()) if match is not None else 1
+
+
 class ConsistencySeverity(StrEnum):
     INFO = "info"
     WARNING = "warning"
@@ -164,6 +177,12 @@ def _status_map(parse: ParsedDocument[tuple[TaskRecord, ...]] | None) -> dict[st
     return {record.task_id: record.status for record in parse.value}
 
 
+def _record_map(parse: ParsedDocument[tuple[TaskRecord, ...]] | None) -> dict[str, TaskRecord]:
+    if parse is None or parse.value is None:
+        return {}
+    return {record.task_id: record for record in parse.value}
+
+
 def _current_set(parse: ParsedDocument[tuple[TaskRecord, ...]] | None) -> set[str]:
     return {
         task_id for task_id, status in _status_map(parse).items() if status is TaskStatus.CURRENT
@@ -180,6 +199,7 @@ def _check_task_mirrors(
     only `docs/current_task.md` is required to hold the *exact* Current set (`remaining_tasks.md`
     legitimately mirrors Current+Planned, so it is checked per-record only, same as the engine)."""
     authority = _status_map(queue_parse)
+    authority_records = _record_map(queue_parse)
     authority_current = {tid for tid, status in authority.items() if status is TaskStatus.CURRENT}
 
     if current_parse is not None and current_parse.value is not None:
@@ -193,7 +213,23 @@ def _check_task_mirrors(
                         f"Task queue Current set {sorted(authority_current)} differs from "
                         f"{CURRENT_TASK_PATH} {sorted(mirror_current)}"
                     ),
-                    sources=(TASK_QUEUE_PATH, CURRENT_TASK_PATH),
+                    sources=tuple(
+                        dict.fromkeys(
+                            (
+                                *(
+                                    _source(record.source, record.line)
+                                    for record in queue_parse.value or ()
+                                    if record.status is TaskStatus.CURRENT
+                                ),
+                                *(
+                                    _source(record.source, record.line)
+                                    for record in current_parse.value
+                                    if record.status is TaskStatus.CURRENT
+                                ),
+                            )
+                        )
+                    )
+                    or (TASK_QUEUE_PATH, CURRENT_TASK_PATH),
                 )
             )
 
@@ -211,7 +247,13 @@ def _check_task_mirrors(
                             f"{record.task_id} is {record.status} in {mirror_parse.source} but "
                             f"{expected} in {TASK_QUEUE_PATH}"
                         ),
-                        sources=(TASK_QUEUE_PATH, mirror_parse.source),
+                        sources=(
+                            _source(
+                                TASK_QUEUE_PATH,
+                                authority_records[record.task_id].line,
+                            ),
+                            _source(record.source, record.line),
+                        ),
                     )
                 )
 
@@ -229,7 +271,11 @@ def _check_sole_current(
                     f"Found {current_count} Current tasks; maximum is "
                     f"{DEFAULT_MAXIMUM_CURRENT_TASKS}"
                 ),
-                sources=(TASK_QUEUE_PATH,),
+                sources=tuple(
+                    _source(record.source, record.line)
+                    for record in queue_parse.value or ()
+                    if record.status is TaskStatus.CURRENT
+                ),
             )
         )
 
@@ -241,6 +287,9 @@ def _check_version_fact(
 ) -> None:
     view = project_state_parse.value
     pyproject_match = _PYPROJECT_VERSION.search(pyproject_text)
+    pyproject_line = (
+        _line_number(pyproject_text, pyproject_match.start()) if pyproject_match else None
+    )
     pyproject_version = pyproject_match.group(1) if pyproject_match else None
     state_version_raw = view.version_fact if view is not None else None
     state_match = _VERSION_NUMBER.search(state_version_raw) if state_version_raw else None
@@ -252,7 +301,13 @@ def _check_version_fact(
                 rule="version_fact_missing",
                 severity=ConsistencySeverity.ERROR,
                 message="version fact missing from pyproject.toml or docs/PROJECT_STATE.md",
-                sources=(PYPROJECT_PATH, PROJECT_STATE_PATH),
+                sources=(
+                    _source(PYPROJECT_PATH, pyproject_line),
+                    _source(
+                        PROJECT_STATE_PATH,
+                        view.version_fact_line if view is not None else None,
+                    ),
+                ),
             )
         )
         return
@@ -265,7 +320,10 @@ def _check_version_fact(
                     f"version differs: {PYPROJECT_PATH}={pyproject_version!r} vs "
                     f"{PROJECT_STATE_PATH}={state_version_raw!r}"
                 ),
-                sources=(PYPROJECT_PATH, PROJECT_STATE_PATH),
+                sources=(
+                    _source(PYPROJECT_PATH, pyproject_line),
+                    _source(PROJECT_STATE_PATH, view.version_fact_line if view else None),
+                ),
             )
         )
 
@@ -279,6 +337,7 @@ def _check_project_state_vs_task_queue(
     if view is None:
         return
     authority = _status_map(queue_parse)
+    authority_records = _record_map(queue_parse)
     for ref in view.completed_task_refs:
         actual = authority.get(ref.task_id)
         if actual is not None and actual is not TaskStatus.DONE:
@@ -290,7 +349,10 @@ def _check_project_state_vs_task_queue(
                         f"{PROJECT_STATE_PATH}:{ref.line} lists {ref.task_id} under "
                         f"'## Completed' but {TASK_QUEUE_PATH} says {actual}"
                     ),
-                    sources=(PROJECT_STATE_PATH, TASK_QUEUE_PATH),
+                    sources=(
+                        _source(PROJECT_STATE_PATH, ref.line),
+                        _source(TASK_QUEUE_PATH, authority_records[ref.task_id].line),
+                    ),
                 )
             )
 
@@ -320,7 +382,7 @@ def _check_doc_named_commits(
                             f"commit reference {token!r} named in {decision_parse.source}:"
                             f"{entry.line} could not be resolved: {exc}"
                         ),
-                        sources=(decision_parse.source,),
+                        sources=(_source(decision_parse.source, entry.line),),
                     )
                 )
 
@@ -345,7 +407,7 @@ def _check_handover_checksum(
                     message=(
                         f"{record.path} named in {manifest_parse.source} could not be read: {exc}"
                     ),
-                    sources=(manifest_parse.source, record.path),
+                    sources=(_source(manifest_parse.source, record.line), record.path),
                 )
             )
             continue
@@ -358,7 +420,7 @@ def _check_handover_checksum(
                         f"{record.path}: manifest size {record.size} != actual "
                         f"{facts.size_bytes}"
                     ),
-                    sources=(manifest_parse.source, record.path),
+                    sources=(_source(manifest_parse.source, record.line), _source(record.path, 1)),
                 )
             )
         if not actual_digest.startswith(record.digest):
@@ -367,7 +429,7 @@ def _check_handover_checksum(
                     rule="handover_checksum_mismatch",
                     severity=ConsistencySeverity.ERROR,
                     message=f"{record.path}: SHA-256 digest does not match {manifest_parse.source}",
-                    sources=(manifest_parse.source, record.path),
+                    sources=(_source(manifest_parse.source, record.line), _source(record.path, 1)),
                 )
             )
 
@@ -389,7 +451,9 @@ def _check_orchestration_schema(
                 rule="orchestration_delivery_order_unknown_stage",
                 severity=ConsistencySeverity.ERROR,
                 message=f"delivery_order references stage(s) not in 'stages': {unknown_in_order}",
-                sources=(source,),
+                sources=(
+                    _source(source, _yaml_key_line(orchestration_parse.raw_text, "delivery_order")),
+                ),
             )
         )
     if view.current_stage is not None and view.current_stage not in stage_ids:
@@ -398,7 +462,9 @@ def _check_orchestration_schema(
                 rule="orchestration_current_stage_unknown",
                 severity=ConsistencySeverity.ERROR,
                 message=f"current_stage {view.current_stage!r} is not a known stage",
-                sources=(source,),
+                sources=(
+                    _source(source, _yaml_key_line(orchestration_parse.raw_text, "current_stage")),
+                ),
             )
         )
     if view.next_eligible_stage is not None and view.next_eligible_stage not in stage_ids:
@@ -407,7 +473,11 @@ def _check_orchestration_schema(
                 rule="orchestration_next_eligible_unknown",
                 severity=ConsistencySeverity.ERROR,
                 message=f"next_eligible_stage {view.next_eligible_stage!r} is not a known stage",
-                sources=(source,),
+                sources=(
+                    _source(
+                        source, _yaml_key_line(orchestration_parse.raw_text, "next_eligible_stage")
+                    ),
+                ),
             )
         )
     for stage in view.stages:
@@ -418,7 +488,7 @@ def _check_orchestration_schema(
                     rule="orchestration_prerequisite_unknown",
                     severity=ConsistencySeverity.WARNING,
                     message=f"{stage.stage_id} lists unknown prerequisite(s): {unknown_prereqs}",
-                    sources=(source,),
+                    sources=(_source(stage.source, stage.line),),
                 )
             )
 

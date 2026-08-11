@@ -95,6 +95,8 @@ def build_orchestration_view(root: RepositoryRoot) -> OrchestrationView:
                 prerequisites=tuple(redact_secrets(value) for value in stage.prerequisites),
                 blockers=tuple(redact_secrets(value) for value in stage.blockers),
                 evidence=tuple(redact_secrets(value) for value in stage.evidence),
+                source=stage.source,
+                line=stage.line,
             )
             for stage in view.stages
         ),

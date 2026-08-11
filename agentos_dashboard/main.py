@@ -113,6 +113,14 @@ def create_app(settings: DashboardSettings, *, lock: ExecutionLock | None = None
     app.state.dashboard_database = database
     app.mount("/static", StaticFiles(directory=str(WEB_ROOT / "static")), name="static")
     templates = Jinja2Templates(directory=str(WEB_ROOT / "templates"))
+    # Golden snapshots compare the complete response bytes. Preserve the template files' final
+    # newline so stored fixtures remain ordinary reviewable text files rather than EOF-special
+    # blobs whose last byte is silently discarded by Jinja's default.
+    templates.env.keep_trailing_newline = True
+    # Jinja otherwise preserves the indentation preceding control-only ``{% ... %}`` lines as
+    # trailing spaces on empty rendered lines. Strip only that block indentation so canonical
+    # HTML remains byte-stable and acceptable to Git's whitespace checks.
+    templates.env.lstrip_blocks = True
     # A plain-string filter: Jinja retains its normal autoescaping after redaction. This is used
     # for the one raw snapshot object shared by every base template, never with ``|safe``.
     templates.env.filters["redact_secrets"] = redact_secrets
@@ -141,6 +149,8 @@ def create_app(settings: DashboardSettings, *, lock: ExecutionLock | None = None
             templates=templates,
             acknowledgments_store=acknowledgments,
             database=database,
+            settings=settings,
+            lock=lock,
         )
     )
 

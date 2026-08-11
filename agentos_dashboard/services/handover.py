@@ -62,6 +62,8 @@ class HandoverRecord:
     actual_digest: str | None
     size_match: bool
     digest_match: bool
+    source: str
+    line: int
 
 
 @dataclass(frozen=True)
@@ -70,6 +72,7 @@ class HandoverData:
 
     manifest_path: str
     manifest_instructions: str
+    manifest_raw_text: str | None
     narrative_path: str
     narrative_text: str | None
     narrative_truncated: bool
@@ -95,7 +98,12 @@ def _manifest_instructions(text: str) -> str:
 
 
 def _reconcile_record(
-    root: RepositoryRoot, path: str, claimed_size: int, claimed_digest: str
+    root: RepositoryRoot,
+    path: str,
+    claimed_size: int,
+    claimed_digest: str,
+    source: str,
+    line: int,
 ) -> tuple[HandoverRecord, ConsistencyFinding | None]:
     try:
         facts = stat_file(root, path)
@@ -111,6 +119,8 @@ def _reconcile_record(
                 actual_digest=None,
                 size_match=False,
                 digest_match=False,
+                source=source,
+                line=line,
             ),
             ConsistencyFinding(
                 rule="handover_file_missing",
@@ -147,6 +157,8 @@ def _reconcile_record(
             actual_digest=actual_digest,
             size_match=size_match,
             digest_match=digest_match,
+            source=source,
+            line=line,
         ),
         finding,
     )
@@ -192,7 +204,12 @@ def build_handover_view(snapshot: RepositorySnapshot) -> HandoverData:
         else:
             for manifest_record in parsed.value:
                 record, finding = _reconcile_record(
-                    root, manifest_record.path, manifest_record.size, manifest_record.digest
+                    root,
+                    manifest_record.path,
+                    manifest_record.size,
+                    manifest_record.digest,
+                    manifest_record.source,
+                    manifest_record.line,
                 )
                 records.append(record)
                 if finding is not None:
@@ -251,6 +268,7 @@ def build_handover_view(snapshot: RepositorySnapshot) -> HandoverData:
     return HandoverData(
         manifest_path=HANDOVER_MANIFEST_PATH,
         manifest_instructions=redact_secrets(instructions),
+        manifest_raw_text=(redact_secrets(manifest_text) if manifest_text is not None else None),
         narrative_path=HANDOVER_NARRATIVE_PATH,
         narrative_text=narrative_text,
         narrative_truncated=narrative_truncated,
@@ -264,6 +282,8 @@ def build_handover_view(snapshot: RepositorySnapshot) -> HandoverData:
                 actual_digest=record.actual_digest,
                 size_match=record.size_match,
                 digest_match=record.digest_match,
+                source=record.source,
+                line=record.line,
             )
             for record in records
         ),

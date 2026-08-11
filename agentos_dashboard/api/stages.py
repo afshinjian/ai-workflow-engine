@@ -10,6 +10,7 @@ from agentos_dashboard.core.snapshot import RepositorySnapshot
 from agentos_dashboard.prompt_templates.schema import STAGE_SCHEMA
 from agentos_dashboard.services.consistency import ConsistencyFinding
 from agentos_dashboard.services.stages import (
+    STAGE_REGISTRY_PATH,
     PreconditionReport,
     build_stage_registry_view,
     evaluate_preconditions,
@@ -57,11 +58,19 @@ def stage_registry_to_json(snapshot: RepositorySnapshot) -> dict[str, Any]:
                 "report_path": schema.report_path,
                 "prerequisite": schema.prerequisite,
                 "registry_state": row.state if row is not None else None,
+                "source": row.source if row is not None else STAGE_REGISTRY_PATH,
+                "line": row.line if row is not None else 1,
                 "precondition_report": (
                     precondition_report_to_json(report) if report is not None else None
                 ),
             }
         )
     return redact_mapping(
-        {"stages": stages, "findings": [_finding_to_json(f) for f in view.findings]}
+        {
+            "stages": stages,
+            "findings": [_finding_to_json(f) for f in view.findings],
+            "source": view.source,
+            "raw_text": view.raw_text,
+            "degraded": view.degraded,
+        }
     )

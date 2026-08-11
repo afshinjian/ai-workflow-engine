@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Board · AgentOS Dashboard</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  <header>
+    <div class="brand">AgentOS Dashboard</div>
+    <div class="status-strip" aria-label="Repository status">
+
+        <span>branch: main</span>
+        <span>HEAD: 91d91e91a2ae</span>
+        <span>upstream: none</span>
+
+
+    </div>
+  </header>
+  <div class="layout">
+    <nav aria-label="Primary">
+      <ul>
+        <li><a href="/" >Overview</a></li>
+        <li><a href="/board" aria-current="page">Board</a></li>
+        <li><a href="/board#lanes-heading" >Tasks</a></li>
+        <li><a href="/stages" >Stages &amp; Prompts</a></li>
+        <li><a href="/runs" >Runs</a></li>
+        <li><a href="/evidence" >Evidence</a></li>
+        <li><a href="/git" >Git</a></li>
+        <li><a href="/governance" >Governance</a></li>
+        <li class="disabled" aria-disabled="true" title="Renders inside the Board's program lane (EP-18); no separate page">Orchestration</li>
+        <li><a href="/handover" >Handover</a></li>
+        <li><a href="/audit" >Audit</a></li>
+        <li><a href="/consistency" >Consistency</a></li>
+        <li><a href="/settings" >Settings</a></li>
+      </ul>
+    </nav>
+    <main id="main-content">
+
+<h1>Board</h1>
+<p class="empty-state">Read-only: no drag/drop, status edit, or other mutation affordance exists on this page (DR-023).</p>
+
+<section aria-labelledby="stage-strip-heading">
+  <h2 id="stage-strip-heading">
+    Engine workflow stages <span class="badge badge-info">reference diagram, display-only</span>
+  </h2>
+  <p class="empty-state">
+    This is the Legacy engine's fixed seven-stage pipeline shape, shown identically regardless of
+    any task's real position — it is never a per-task computed state. Each task's own actual,
+    persisted Legacy-workflow position (where recorded) is shown on its card below and on its
+    task detail page.
+  </p>
+  <ol class="stage-strip">
+
+      <li>plan-review</li>
+
+      <li>implementation</li>
+
+      <li>implementation-review</li>
+
+      <li>remediation</li>
+
+      <li>governance-closeout</li>
+
+      <li>governance-review</li>
+
+      <li>push</li>
+
+  </ol>
+</section>
+
+<section aria-labelledby="board-findings-heading">
+  <h2 id="board-findings-heading">Board findings</h2>
+
+    <p class="empty-state">No board findings — every recognized task heading has a Status field</p>
+
+</section>
+
+<section aria-labelledby="lanes-heading">
+  <h2 id="lanes-heading" class="visually-hidden">Queue lanes</h2>
+  <div class="board-lanes">
+    <div class="lane" aria-labelledby="lane-planned-heading">
+      <h3 id="lane-planned-heading">Planned <span class="badge badge-info">0</span></h3>
+
+        <p class="empty-state">No Planned tasks</p>
+
+    </div>
+    <div class="lane" aria-labelledby="lane-current-heading">
+      <h3 id="lane-current-heading">Current <span class="badge badge-info">1</span></h3>
+
+
+<article class="card">
+  <h4><a href="/tasks/DASH-001">DASH-001 — E2E fixture task</a></h4>
+  <p>
+    <span class="badge badge-info">DASH</span>
+    <span class="badge badge-error">
+      EVIDENCE: FAIL
+    </span>
+  </p>
+  <p class="empty-state">
+    referenced tasks: TC-16
+  </p>
+  <p>
+    next: Done —
+    <span class="badge badge-pass">
+      ALLOWED
+    </span>
+    allowed: requires governance closeout and Human Owner approval (this board never mutates task state)
+  </p>
+  <p class="legacy-workflow">
+    Legacy workflow:
+
+      <span class="badge badge-info">NO PERSISTED HISTORY</span>
+
+  </p>
+  <p class="empty-state">docs/TASK_QUEUE.md:1</p>
+</article>
+
+
+    </div>
+    <div class="lane" aria-labelledby="lane-done-heading">
+      <h3 id="lane-done-heading">Done <span class="badge badge-info">0</span></h3>
+
+        <p class="empty-state">No Done tasks</p>
+
+    </div>
+    <div class="lane lane-unclassified" aria-labelledby="lane-unclassified-heading">
+      <h3 id="lane-unclassified-heading">Unclassified <span class="badge badge-info">0</span></h3>
+
+        <p class="empty-state">No unclassified task headings — every recognized heading has a Status field</p>
+
+    </div>
+  </div>
+</section>
+
+<section aria-labelledby="orch-heading" class="orch-lane">
+  <h2 id="orch-heading">Orchestration program (ORCH) <span class="badge badge-info">separate program lane</span></h2>
+
+    <p class="empty-state">No orchestration stages recorded</p>
+
+
+</section>
+
+    </main>
+  </div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

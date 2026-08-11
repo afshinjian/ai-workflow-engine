@@ -321,10 +321,33 @@
     });
   }
 
+  function wireCopyConfigButton() {
+    var button = document.querySelector("[data-action='copy-config']");
+    var payload = document.getElementById("copy-config-payload");
+    if (!button || !payload) {
+      return;
+    }
+    button.addEventListener("click", function () {
+      var status = document.getElementById("copy-config-status");
+      copyToClipboard(payload.textContent)
+        .then(function () {
+          if (status) {
+            status.textContent = "Copied configuration to the clipboard.";
+          }
+        })
+        .catch(function () {
+          if (status) {
+            status.textContent = "Copy failed — nothing was copied.";
+          }
+        });
+    });
+  }
+
   document.addEventListener("DOMContentLoaded", wireRefreshButton);
   document.addEventListener("DOMContentLoaded", wireAcknowledgeForms);
   document.addEventListener("DOMContentLoaded", wireGeneratePromptButtons);
   document.addEventListener("DOMContentLoaded", wireCreateRunForm);
   document.addEventListener("DOMContentLoaded", wireAddNoteForms);
   document.addEventListener("DOMContentLoaded", wireCopyTimelineButton);
+  document.addEventListener("DOMContentLoaded", wireCopyConfigButton);
 })();

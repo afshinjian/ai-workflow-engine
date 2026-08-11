@@ -399,16 +399,16 @@ def test_recognized_empty_current_declaration_parses_as_valid_empty_collection()
     assert parsed.notes == ()
 
 
-def test_real_current_task_is_recognized_as_a_valid_empty_state() -> None:
-    """The live repository's `docs/current_task.md` currently declares zero Current tasks
-    (a legal state under `maximum_current_tasks: 1`, a ceiling not a quota) and must parse as a
-    recognized empty collection, never `parse_failed`/malformed/unknown, in the role the real
-    consistency engine actually uses for this file."""
+def test_real_current_task_mirror_parses_without_assuming_a_transient_task_count() -> None:
+    """The live mirror may legally contain zero or one Current task depending on governance
+    phase. The parser contract is high-confidence recognition, not a transient repository fact."""
     real_path = Path(__file__).resolve().parents[2] / "docs" / "current_task.md"
     text = real_path.read_text(encoding="utf-8")
     parsed = parse_task_records(text, "docs/current_task.md", recognize_empty_current=True)
     assert parsed.confidence is Confidence.HIGH
-    assert parsed.value == ()
+    assert parsed.value is not None
+    assert len(parsed.value) <= 1
+    assert all(record.status is TaskStatus.CURRENT for record in parsed.value)
 
 
 def test_malformed_empty_document_without_a_declaration_still_fails() -> None:
