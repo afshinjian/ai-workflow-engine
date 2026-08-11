@@ -29,7 +29,7 @@
     <div class="table-scroll">
       <table>
         <thead>
-          <tr><th>Path</th><th>Claimed size</th><th>Actual size</th><th>Digest</th><th>Status</th></tr>
+          <tr><th>Path</th><th>Claimed size</th><th>Actual size</th><th>Digest</th><th>Status</th><th>Source</th></tr>
         </thead>
         <tbody>
           {% for record in handover.records %}
@@ -47,6 +47,7 @@
                   <span class="badge badge-error">MISMATCH</span>
                 {% endif %}
               </td>
+              <td class="mono">{{ record.source }}:{{ record.line }}</td>
             </tr>
           {% endfor %}
         </tbody>
@@ -54,6 +55,12 @@
     </div>
   {% else %}
     <p class="empty-state">No manifest rows found</p>
+  {% endif %}
+  {% if handover.manifest_raw_text is not none %}
+    <details>
+      <summary>Raw manifest source fallback (<code>{{ handover.manifest_path }}:1</code>)</summary>
+      <pre class="prose">{{ handover.manifest_raw_text }}</pre>
+    </details>
   {% endif %}
 </section>
 

@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Handover · AgentOS Dashboard</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  <header>
+    <div class="brand">AgentOS Dashboard</div>
+    <div class="status-strip" aria-label="Repository status">
+
+        <span>branch: main</span>
+        <span>HEAD: 91d91e91a2ae</span>
+        <span>upstream: none</span>
+
+
+    </div>
+  </header>
+  <div class="layout">
+    <nav aria-label="Primary">
+      <ul>
+        <li><a href="/" >Overview</a></li>
+        <li><a href="/board" >Board</a></li>
+        <li><a href="/board#lanes-heading" >Tasks</a></li>
+        <li><a href="/stages" >Stages &amp; Prompts</a></li>
+        <li><a href="/runs" >Runs</a></li>
+        <li><a href="/evidence" >Evidence</a></li>
+        <li><a href="/git" >Git</a></li>
+        <li><a href="/governance" >Governance</a></li>
+        <li class="disabled" aria-disabled="true" title="Renders inside the Board's program lane (EP-18); no separate page">Orchestration</li>
+        <li><a href="/handover" aria-current="page">Handover</a></li>
+        <li><a href="/audit" >Audit</a></li>
+        <li><a href="/consistency" >Consistency</a></li>
+        <li><a href="/settings" >Settings</a></li>
+      </ul>
+    </nav>
+    <main id="main-content">
+
+<h1>Handover</h1>
+<p class="empty-state">Read-only: the manifest refresh procedure below is a manual, documented instruction — no refresh action exists on this page (OD-D6).</p>
+
+<section aria-labelledby="handover-findings-heading">
+  <h2 id="handover-findings-heading">Handover findings</h2>
+
+
+    <p class="empty-state">No handover findings — the manifest matches the real files</p>
+
+</section>
+
+<section aria-labelledby="manifest-heading">
+  <h2 id="manifest-heading">Checksum manifest <span class="badge badge-info">handover/PROJECT_CHECKSUM.md</span></h2>
+
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>Path</th><th>Claimed size</th><th>Actual size</th><th>Digest</th><th>Status</th><th>Source</th></tr>
+        </thead>
+        <tbody>
+
+            <tr>
+              <td>handover/PROJECT_HANDOVER.md</td>
+              <td>73</td>
+              <td>73</td>
+              <td class="mono">ffa8b3a9f9bb5e77…</td>
+              <td>
+
+                  <span class="badge badge-pass">VERIFIED</span>
+
+              </td>
+              <td class="mono">handover/PROJECT_CHECKSUM.md:5</td>
+            </tr>
+
+        </tbody>
+      </table>
+    </div>
+
+
+    <details>
+      <summary>Raw manifest source fallback (<code>handover/PROJECT_CHECKSUM.md:1</code>)</summary>
+      <pre class="prose"># Project Checksum Manifest
+
+| Relative path | Size (bytes) | Last modified | SHA-256 (prefix) |
+|---|---|---|---|
+| handover/PROJECT_HANDOVER.md | 73 | 2026-01-01 | ffa8b3a9f9bb5e77b6cb47564870996e4572e7e3af7203839d80ebf3145abbed |
+</pre>
+    </details>
+
+</section>
+
+<section aria-labelledby="refresh-heading">
+  <h2 id="refresh-heading">Manual refresh procedure <span class="badge badge-warning">DEFERRED</span></h2>
+
+    <pre class="prose"># Project Checksum Manifest</pre>
+
+</section>
+
+<section aria-labelledby="narrative-heading">
+  <h2 id="narrative-heading">Narrative <span class="badge badge-info">handover/PROJECT_HANDOVER.md</span></h2>
+
+
+    <pre class="prose"># Project Handover
+
+Fixture narrative for the DASH-010 end-to-end suite.
+</pre>
+
+</section>
+
+    </main>
+  </div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

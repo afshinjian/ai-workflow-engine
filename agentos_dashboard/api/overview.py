@@ -11,7 +11,8 @@ healthy-empty state (DR-013) rather than a guess or a silent omission.
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
+from sqlite3 import Connection
 from typing import Any
 
 from agentos_dashboard.core.files import FileAccessError, read_text
@@ -22,6 +23,7 @@ from agentos_dashboard.parsing.models import TaskStatus
 from agentos_dashboard.parsing.orchestration import parse_implementation_state
 from agentos_dashboard.parsing.project_state import parse_project_state
 from agentos_dashboard.parsing.task_queue import parse_task_records
+from agentos_dashboard.services.audit import list_audit_events
 from agentos_dashboard.services.consistency import (
     IMPLEMENTATION_STATE_PATH,
     PROJECT_STATE_PATH,
@@ -29,6 +31,8 @@ from agentos_dashboard.services.consistency import (
     ConsistencyFinding,
     run_consistency_checks,
 )
+from agentos_dashboard.services.handover import build_handover_view
+from agentos_dashboard.services.runs import list_runs
 
 __all__ = [
     "NO_CURRENT_TASK_MESSAGE",
@@ -37,6 +41,7 @@ __all__ = [
     "OverviewData",
     "TaskCounts",
     "build_overview",
+    "enrich_overview_from_local_state",
     "overview_to_json",
 ]
 
@@ -75,11 +80,21 @@ class OverviewData:
     current_task_summary: str
     task_counts: TaskCounts
     blockers: tuple[str, ...]
+    blocker_lines: tuple[int, ...]
     orch_blockers: tuple[str, ...]
+    orch_blocker_lines: tuple[int, ...]
     git: GitOverview | None
+    handover_status: str
     consistency_findings: tuple[ConsistencyFinding, ...]
+    last_gate_summary: str
     last_event_summary: str
     stale: bool
+    project_state_source: str
+    version_line: int | None
+    summary_line: int | None
+    task_queue_source: str
+    current_task_line: int | None
+    orchestration_source: str
 
 
 def _read_or_none(root: RepositoryRoot, relative: str) -> str | None:
@@ -139,6 +154,11 @@ def build_overview(snapshot: RepositorySnapshot) -> OverviewData:
         if orch_view is not None
         else ()
     )
+    orch_blocker_lines = (
+        tuple(stage.line for stage in orch_view.stages for _ in stage.blockers)
+        if orch_view is not None
+        else ()
+    )
 
     git: GitOverview | None = None
     if snapshot.git_status is not None:
@@ -154,6 +174,12 @@ def build_overview(snapshot: RepositorySnapshot) -> OverviewData:
         )
 
     consistency = run_consistency_checks(root)
+    handover = build_handover_view(snapshot)
+    handover_status = (
+        "MISSING"
+        if handover.narrative_text is None or not handover.records
+        else "STALE" if handover.stale else "FAIL" if handover.findings else "VERIFIED"
+    )
 
     return OverviewData(
         version=project_state.version_fact if project_state is not None else None,
@@ -170,11 +196,49 @@ def build_overview(snapshot: RepositorySnapshot) -> OverviewData:
             if project_state
             else ()
         ),
+        blocker_lines=(
+            tuple(entry.line for entry in project_state.blockers) if project_state else ()
+        ),
         orch_blockers=tuple(redact_secrets(blocker) for blocker in orch_blockers),
+        orch_blocker_lines=orch_blocker_lines,
         git=git,
+        handover_status=handover_status,
         consistency_findings=consistency.findings,
+        last_gate_summary="No recorded validation results yet — expected before a run is recorded",
         last_event_summary=NO_RECORDED_EVENTS_MESSAGE,
         stale=snapshot.is_stale(),
+        project_state_source=PROJECT_STATE_PATH,
+        version_line=project_state.version_fact_line if project_state is not None else None,
+        summary_line=project_state.summary_line if project_state is not None else None,
+        task_queue_source=TASK_QUEUE_PATH,
+        current_task_line=current[0].line if current else None,
+        orchestration_source=IMPLEMENTATION_STATE_PATH,
+    )
+
+
+def enrich_overview_from_local_state(data: OverviewData, conn: Connection) -> OverviewData:
+    """Add DASH-008's recorded gate/event facts without changing repository authority labels."""
+    gate_summary = data.last_gate_summary
+    for run in list_runs(conn):
+        if run.validation_entries:
+            rendered = ", ".join(
+                f"{entry.command}: {entry.result.value}" for entry in run.validation_entries
+            )
+            gate_summary = f"Run {run.uuid[:8]}… — {rendered}"
+            break
+        if run.validation_summary:
+            gate_summary = f"Run {run.uuid[:8]}… — {run.validation_summary}"
+            break
+
+    events = list_audit_events(conn, limit=1)
+    event_summary = data.last_event_summary
+    if events:
+        event = events[0]
+        event_summary = f"{event.kind} by {event.actor} at {event.ts}"
+    return replace(
+        data,
+        last_gate_summary=redact_secrets(gate_summary),
+        last_event_summary=redact_secrets(event_summary),
     )
 
 
@@ -189,6 +253,7 @@ def overview_to_json(data: OverviewData) -> dict[str, Any]:
         "blockers": list(data.blockers),
         "orch_blockers": list(data.orch_blockers),
         "git": asdict(data.git) if data.git is not None else None,
+        "handover_status": data.handover_status,
         "consistency_findings": [
             {
                 "rule": finding.rule,
@@ -198,6 +263,7 @@ def overview_to_json(data: OverviewData) -> dict[str, Any]:
             }
             for finding in data.consistency_findings
         ],
+        "last_gate_summary": data.last_gate_summary,
         "last_event_summary": data.last_event_summary,
         "stale": data.stale,
     }

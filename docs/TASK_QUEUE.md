@@ -868,11 +868,52 @@ authorized action.
 
 ## DASH-010 — Integration testing, documentation, and release readiness
 
-Status: Planned
+Status: Done
 
 End-to-end tests, operator manual, bounded read-only PG-12 Settings/About surface, final
 DR-121/DR-122 cross-page evidence, and MVP closure recommendation to the Human Owner. Contract:
 `docs/agentos-dashboard/stage-prompts/DASH-010.md`.
+
+**Authorized by the Human Owner on 2026-08-11** through the local two-confirmation task gate
+(`scripts/workflow-authorize.sh`); implemented and validated the same day on the registered branch
+`feature/dash-010-release-readiness`, **uncommitted**, stopped for Human Owner approval. Task
+status remains `Current`.
+
+Delivered the bounded read-only PG-12 Settings/About page (`agentos_dashboard/services/
+settings_view.py`, `web/templates/settings.html`, the `/settings` route: repo root, bind/port,
+accepted `Host` headers, configured caps, process lock status, about, and a browser-side
+clipboard-only "copy config" action — zero mutation affordance, per PLAN-001/`DECISIONS.md`
+DD-16's explicit bound); an enhanced `python -m agentos_dashboard --check` that now builds the
+repository snapshot and opens one local-database connection rather than only constructing the app
+object; a new `agentos_dashboard/tests/e2e/` suite covering TC-16 (full page-set walks against a
+constructed fixture repository, and read-only against this real repository), TC-10 (byte-exact
+golden-file snapshots of the Board and Handover pages), and the DR-121/DR-122 final cross-page
+verification/evidence closure `STAGE_REGISTRY.md` §5 assigns this stage; and
+`docs/agentos-dashboard/OPERATIONS.md` (start/stop, `AWED_*` configuration, the manual handover
+manifest-refresh procedure per OD-D6, `dashboard.db` backup/disposal, troubleshooting, and the
+restated `SECURITY_MODEL.md` §5 prohibited-operations list).
+
+The real-repository E2E walk deliberately excludes the four `dashboard.db`-backed pages (Runs, Run
+detail, Evidence, Audit), to avoid creating `data/agentos_dashboard/**` in this repository's own
+working tree as a side effect of a read-only verification pass; those four pages are covered
+end-to-end against the constructed fixture repository instead, and a dedicated test asserts no
+such directory exists in the real repository after the walk. Full detail, exact validation
+results, and the MVP closure recommendation: `docs/reports/agentos-dashboard/STAGE-10-completion.md`.
+
+**Final independent review/correction (2026-08-11):** one bounded Codex pass reproduced the
+reported dashboard failure on a clean archive of authorization HEAD `1afc34e` and confirmed its
+historical live-`Current` fixture coupling, then corrected the test to remain valid throughout the
+task lifecycle. The pass also found and corrected substantive DASH-010 gaps: `--check` did not
+acquire the execution lock or cleanly handle SQLite compatibility/corruption failures; stale
+snapshots were silently rebuilt so DR-121's banner could not occur in the live app; DR-122 lacked
+rendered provenance/raw fallback on later-stage pages; Overview omitted required summary,
+handover, and local validation/audit state; the E2E walk was too dependent on transient repository
+facts; and the manual handover checksum procedure included an impossible self-hash. Regression
+coverage now exercises every delivered page in fresh and stale states, expanded page-level
+provenance/raw fallback, lock and database failure paths, semantic page content, empty/degraded
+states, deterministic byte-exact goldens, and fresh local-runtime creation/reopen. The reviewed
+implementation remains uncommitted and `Current`; final acceptance remains solely the Human
+Owner's decision. Exact final verification is recorded in the completion report.
 
 ## GOV-AUTO-04 — Automatic registered-branch preparation and canonical completion-report naming
 

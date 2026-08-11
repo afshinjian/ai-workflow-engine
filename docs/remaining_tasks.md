@@ -130,7 +130,6 @@ every later roadmap phase remain unauthorized. Completion report:
 
 | Task | Title | Status |
 |---|---|---|
-| DASH-010 | Integration testing, documentation, and release readiness | Planned |
 
 **DASH-006 implementation update (2026-08-09):** implemented and validated on branch
 `feature/dash-006-git-handover-views`, uncommitted, awaiting Human Owner approval. Report:

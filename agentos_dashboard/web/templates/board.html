@@ -94,9 +94,16 @@
         <dt>Evidence</dt>
         <dd>{{ stage.evidence|join(", ") if stage.evidence else "none recorded" }}</dd>
       </dl>
+      <p class="empty-state">Source: <span class="mono">{{ stage.source }}:{{ stage.line }}</span></p>
     </article>
   {% else %}
     <p class="empty-state">No orchestration stages recorded</p>
   {% endfor %}
+  {% if board.orch_raw_text is not none %}
+    <details {% if board.orch_degraded %}open{% endif %}>
+      <summary>Raw orchestration source fallback (<code>{{ board.orch_source }}:1</code>)</summary>
+      <pre class="prose">{{ board.orch_raw_text }}</pre>
+    </details>
+  {% endif %}
 </section>
 {% endblock %}

@@ -26,7 +26,7 @@
       <ul>
         <li><a href="/" {% if active_nav == "overview" %}aria-current="page"{% endif %}>Overview</a></li>
         <li><a href="/board" {% if active_nav == "board" %}aria-current="page"{% endif %}>Board</a></li>
-        <li class="disabled" aria-disabled="true" title="Not yet available">Tasks</li>
+        <li><a href="/board#lanes-heading" {% if active_nav == "tasks" %}aria-current="page"{% endif %}>Tasks</a></li>
         <li><a href="/stages" {% if active_nav == "stages" %}aria-current="page"{% endif %}>Stages &amp; Prompts</a></li>
         <li><a href="/runs" {% if active_nav == "runs" %}aria-current="page"{% endif %}>Runs</a></li>
         <li><a href="/evidence" {% if active_nav == "evidence" %}aria-current="page"{% endif %}>Evidence</a></li>
@@ -36,7 +36,7 @@
         <li><a href="/handover" {% if active_nav == "handover" %}aria-current="page"{% endif %}>Handover</a></li>
         <li><a href="/audit" {% if active_nav == "audit" %}aria-current="page"{% endif %}>Audit</a></li>
         <li><a href="/consistency" {% if active_nav == "consistency" %}aria-current="page"{% endif %}>Consistency</a></li>
-        <li class="disabled" aria-disabled="true" title="Not yet available">Settings</li>
+        <li><a href="/settings" {% if active_nav == "settings" %}aria-current="page"{% endif %}>Settings</a></li>
       </ul>
     </nav>
     <main id="main-content">

@@ -43,7 +43,11 @@ from agentos_dashboard.api.governance import (
 from agentos_dashboard.api.handover import handover_view_to_json
 from agentos_dashboard.api.lock import ExecutionLock
 from agentos_dashboard.api.orchestration import orchestration_view_to_json
-from agentos_dashboard.api.overview import build_overview, overview_to_json
+from agentos_dashboard.api.overview import (
+    build_overview,
+    enrich_overview_from_local_state,
+    overview_to_json,
+)
 from agentos_dashboard.api.prompts import (
     GeneratePromptRequest,
     generated_prompt_to_json,
@@ -148,7 +152,11 @@ def build_router(
 
     @router.get("/status")
     async def status() -> dict[str, Any]:
-        return ok(overview_to_json(build_overview(cache.get())))
+        overview = build_overview(cache.get())
+        if database is not None and database.db_path.exists():
+            with database.connection() as conn:
+                overview = enrich_overview_from_local_state(overview, conn)
+        return ok(overview_to_json(overview))
 
     @router.post("/snapshot/refresh")
     async def refresh_snapshot() -> dict[str, Any]:

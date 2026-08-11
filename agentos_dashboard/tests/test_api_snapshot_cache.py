@@ -1,4 +1,4 @@
-"""`api.snapshot_cache.SnapshotCache` — lazy build, staleness rebuild, refresh contention."""
+"""`api.snapshot_cache.SnapshotCache` — lazy build, visible staleness, refresh contention."""
 
 from __future__ import annotations
 
@@ -17,13 +17,20 @@ def test_get_builds_once_and_then_serves_the_cached_snapshot(root: RepositoryRoo
     assert first is second
 
 
-def test_get_rebuilds_after_a_watched_file_changes(workspace: Path, root: RepositoryRoot) -> None:
+def test_get_preserves_a_stale_snapshot_until_explicit_refresh(
+    workspace: Path, root: RepositoryRoot
+) -> None:
     cache = SnapshotCache(root)
     first = cache.get()
     (workspace / "docs").mkdir(parents=True, exist_ok=True)
     (workspace / "docs" / "PROJECT_STATE.md").write_text("Current Version: 9.9.9\n")
-    second = cache.get()
-    assert first.fingerprint.digest != second.fingerprint.digest
+    held = cache.get()
+    assert held is first
+    assert held.is_stale() is True
+
+    refreshed = cache.refresh()
+    assert refreshed is not first
+    assert refreshed.is_stale() is False
 
 
 def test_refresh_forces_a_rebuild(root: RepositoryRoot) -> None:

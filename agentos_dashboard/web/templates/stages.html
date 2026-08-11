@@ -22,6 +22,7 @@
         {{ stage.role }} · branch <span class="mono">{{ stage.branch }}</span> · registry state
         <span class="badge {% if stage.registry_state == 'COMPLETE' %}badge-info{% elif stage.registry_state in ('AUTHORIZED', 'IN_PROGRESS', 'SELF_REVIEW', 'REVIEW', 'APPROVAL') %}badge-warning{% else %}badge-error{% endif %}">{{ stage.registry_state or "UNKNOWN" }}</span>
       </p>
+      <p class="empty-state">Source: <span class="mono">{{ stage.source }}:{{ stage.line }}</span></p>
       {% if stage.precondition_report %}
         <ul class="checklist">
           {% for result in stage.precondition_report.results %}
@@ -40,6 +41,12 @@
       {% endif %}
     </article>
   {% endfor %}
+  {% if registry.raw_text %}
+    <details {% if registry.degraded %}open{% endif %}>
+      <summary>Raw registry source fallback (<code>{{ registry.source }}:1</code>)</summary>
+      <pre class="prose">{{ registry.raw_text }}</pre>
+    </details>
+  {% endif %}
 </section>
 
 <section aria-labelledby="prompt-result-heading">

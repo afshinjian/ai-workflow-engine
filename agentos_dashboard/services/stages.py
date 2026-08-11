@@ -95,6 +95,8 @@ class RegistryRow:
     state: str
     branch: str
     prompt_path: str
+    source: str
+    line: int
 
 
 @dataclass(frozen=True)
@@ -103,6 +105,9 @@ class StageRegistryView:
 
     rows: tuple[RegistryRow, ...]
     findings: tuple[ConsistencyFinding, ...]
+    source: str
+    raw_text: str | None
+    degraded: bool
 
     def row_for(self, stage_id: str) -> RegistryRow | None:
         return next((row for row in self.rows if row.stage_id == stage_id), None)
@@ -163,7 +168,9 @@ def _parse_registry_rows(text: str) -> tuple[tuple[RegistryRow, ...], tuple[str,
         return (), ("registry section is missing",)
     rows: list[RegistryRow] = []
     malformed: list[str] = []
-    for line in section.splitlines():
+    section_start = text.find("## 3. Registry") + len("## 3. Registry")
+    first_line = text.count("\n", 0, section_start) + 1
+    for line_number, line in enumerate(section.splitlines(), start=first_line):
         stripped = line.strip()
         if not stripped.startswith("|"):
             continue
@@ -181,6 +188,8 @@ def _parse_registry_rows(text: str) -> tuple[tuple[RegistryRow, ...], tuple[str,
                 state=cells[3],
                 branch=_strip_code(cells[4]),
                 prompt_path=_strip_code(cells[5]),
+                source=STAGE_REGISTRY_PATH,
+                line=line_number,
             )
         )
     return tuple(rows), tuple(malformed)
@@ -292,6 +301,9 @@ def build_stage_registry_view(root: RepositoryRoot) -> StageRegistryView:
                     sources=(STAGE_REGISTRY_PATH,),
                 ),
             ),
+            source=STAGE_REGISTRY_PATH,
+            raw_text=None,
+            degraded=True,
         )
     rows, malformed = _parse_registry_rows(text)
     if not rows:
@@ -305,6 +317,9 @@ def build_stage_registry_view(root: RepositoryRoot) -> StageRegistryView:
                     sources=(STAGE_REGISTRY_PATH,),
                 ),
             ),
+            source=STAGE_REGISTRY_PATH,
+            raw_text=text,
+            degraded=True,
         )
     malformed_findings = tuple(
         ConsistencyFinding(
@@ -315,7 +330,14 @@ def build_stage_registry_view(root: RepositoryRoot) -> StageRegistryView:
         )
         for message in malformed
     )
-    return StageRegistryView(rows=rows, findings=malformed_findings + _cross_check_schema(rows))
+    findings = malformed_findings + _cross_check_schema(rows)
+    return StageRegistryView(
+        rows=rows,
+        findings=findings,
+        source=STAGE_REGISTRY_PATH,
+        raw_text=text,
+        degraded=bool(findings),
+    )
 
 
 def _authorization_log_records(text: str | None, stage_id: str) -> bool:

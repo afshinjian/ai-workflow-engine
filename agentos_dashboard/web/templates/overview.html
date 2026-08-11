@@ -9,26 +9,41 @@
     <div class="tile">
       <span class="tile-label">Version</span>
       <span class="tile-value">{{ overview.version or "unknown" }}</span>
+      {% if overview.version_line %}<span class="empty-state mono">{{ overview.project_state_source }}:{{ overview.version_line }}</span>{% endif %}
     </div>
     <div class="tile">
       <span class="tile-label">Current</span>
       <span class="tile-value">{{ overview.task_counts.current }}</span>
+      <span class="empty-state mono">{{ overview.task_queue_source }}:1</span>
     </div>
     <div class="tile">
       <span class="tile-label">Planned</span>
       <span class="tile-value">{{ overview.task_counts.planned }}</span>
+      <span class="empty-state mono">{{ overview.task_queue_source }}:1</span>
     </div>
     <div class="tile">
       <span class="tile-label">Done</span>
       <span class="tile-value">{{ overview.task_counts.done }}</span>
+      <span class="empty-state mono">{{ overview.task_queue_source }}:1</span>
     </div>
   </div>
+</section>
+
+<section aria-labelledby="summary-heading">
+  <h2 id="summary-heading">Project summary</h2>
+  {% if overview.summary %}
+    <p>{{ overview.summary }}</p>
+    <p class="empty-state">Source: <span class="mono">{{ overview.project_state_source }}:{{ overview.summary_line }}</span> · <a href="/governance/project-state?raw=1">Raw source fallback</a></p>
+  {% else %}
+    <p class="empty-state">Project summary unavailable — inspect the <a href="/governance/project-state?raw=1">raw project-state source</a>.</p>
+  {% endif %}
 </section>
 
 <section aria-labelledby="current-task-heading">
   <h2 id="current-task-heading">Current task</h2>
   {% if overview.current_task_id %}
     <p><strong>{{ overview.current_task_id }}</strong> — {{ overview.current_task_summary }}</p>
+    <p class="empty-state">Source: <span class="mono">{{ overview.task_queue_source }}:{{ overview.current_task_line }}</span> · <a href="/governance/task-queue?raw=1">Raw source fallback</a></p>
   {% else %}
     <p class="empty-state">{{ overview.current_task_summary }}</p>
   {% endif %}
@@ -39,7 +54,7 @@
   {% if overview.blockers %}
     <ul>
       {% for blocker in overview.blockers %}
-        <li>{{ blocker }}</li>
+        <li>{{ blocker }} <span class="empty-state mono">{{ overview.project_state_source }}:{{ overview.blocker_lines[loop.index0] }}</span></li>
       {% endfor %}
     </ul>
   {% else %}
@@ -50,7 +65,7 @@
   {% if overview.orch_blockers %}
     <ul>
       {% for blocker in overview.orch_blockers %}
-        <li>{{ blocker }}</li>
+        <li>{{ blocker }} <span class="empty-state mono">{{ overview.orchestration_source }}:{{ overview.orch_blocker_lines[loop.index0] }}</span></li>
       {% endfor %}
     </ul>
   {% else %}
@@ -62,6 +77,7 @@
   <h2 id="gate-health-heading">
     Gate health <span class="badge badge-info">as-recorded, not re-run</span>
   </h2>
+  <p>{{ overview.last_gate_summary }}</p>
   {% if overview.consistency_findings %}
     <ul>
       {% for finding in overview.consistency_findings %}
@@ -100,6 +116,7 @@
   {% else %}
     <p class="empty-state">Git status unavailable</p>
   {% endif %}
+  <p>Handover: <span class="badge {% if overview.handover_status == 'VERIFIED' %}badge-pass{% elif overview.handover_status in ('STALE', 'MISSING') %}badge-warning{% else %}badge-error{% endif %}">{{ overview.handover_status }}</span> · <a href="/handover">details and source</a></p>
 </section>
 
 <section aria-labelledby="last-event-heading">
