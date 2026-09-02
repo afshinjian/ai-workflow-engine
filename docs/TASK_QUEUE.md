@@ -2138,3 +2138,67 @@ deferral/manual-bootstrap policy only. It does not prove, supply, or substitute 
 authorization event, the missing `INTENTIONAL_POLICY` artifact, or any of the three missing
 plan-review artifacts, which remain `NOT_FOUND` / `UNVERIFIABLE`. Rationale: `docs/DECISION_LOG.md`, 2026-09-02
 entry.
+
+## T-307 — Target-bound governed verification evidence and engine execution provenance
+
+Status: Planned
+
+Registered on 2026-09-02 at `main` / `f632ebe458f21a1ccccb988b57c103237be4774e` with a clean
+worktree, `workflowctl verify` PASS, and an empty Current set. **Registration only — the Human
+Owner has not authorized this task, and it must not be planned or implemented until they do.**
+
+T-307 is the next unused canonical ID in the owning task family. `docs/MASTER_ROADMAP.md` defines
+the `T-<milestone><nn>` namespace; the capability being extended is Milestone 3 (non-interactive
+agent execution — T-304's disposable sandbox and scrubbed-environment executor, T-305's agent-run
+artifact and independent claim verification); T-301 through T-306 exist contiguously and T-307
+occurs nowhere in the repository. `T-406` was rejected because Milestone 4 owns controlled commit
+and push, which this task does not touch. Milestone 2's prompt pipeline is the transport for the
+new evidence, not its owner. No completed task is reopened.
+
+**Objective.** Restore target-bound governed review evidence and execution provenance so a
+reviewer can receive engine-executed verification evidence for the exact target HEAD while
+remaining filesystem read-only, with the exact engine version/HEAD/install provenance recorded
+and fail-closed. This is a general engine capability with no consumer-specific behaviour.
+
+**Four separately verified defects.** C1: verification commands are hardcoded
+(`prompt/templates.py` `_VERIFICATION_STANDARD` and the `push` fragment), `PromptContext` has no
+verification-bundle field, `ALLOWED_PLACEHOLDER_NAMES` is a closed set with no evidence member,
+and the only executor (`agents/runner.py` `_run_verification_commands`) is reachable solely from
+`run_agent()` — which this repository cannot reach at all, since `agents: []`. C2: review agents
+are correctly locked to `read-only` and must stay that way, so execution moves to the engine's own
+disposable clone rather than the reviewer's sandbox. C3: neither `PromptMetadata` nor
+`AgentRunRecord` records engine HEAD, version, worktree cleanliness, install mode, or resolved
+package path — which matters precisely because the engine is installed editable and therefore
+executes whatever the working tree currently holds. C4: the running engine's canonical version is
+reconciled fail-closed against installed distribution metadata (the working environment reports
+`1.0.0`/`1.0.0`; the `base` environment reports source `1.0.0` against metadata `0.1.0` with a
+broken entry point), while base-environment repair and every other environment cleanup is recorded
+as separable out-of-scope follow-up. The reported stray `lib/python3.1/site-packages` directory
+does not exist at this baseline and is not remediated.
+
+**Frozen design.** An optional `verification.bundles` configuration section of named, strictly
+validated argv-list command bundles (modelled on the existing `agents` section); a repeatable
+`--verification-bundle` option on the `workflowctl prompt` subcommands; engine-side execution with
+`shell=False` inside a disposable clone of the exact, clean target HEAD, capturing argv, exit
+code, timeout flag, and execution order but not command output; a new `## Verification evidence`
+section rendering one fenced JSON block carrying engine provenance and the target-bound
+observations; prompt payload/metadata schema `1.1` → `1.2`; agent-run record schema `1.0` → `1.1`;
+template version `1.0.0` → `1.1.0` with all seven goldens updated and `## Identity` preserved
+byte-for-byte. `TMPDIR` is deliberately **not** added to the scrubbed environment allowlist —
+`conda run` was measured to succeed without it, and the previously observed failure was a
+consumer-side read-only sandbox property, not an engine one.
+
+Contract, including the exact frozen allowed-path set, the fifteen acceptance criteria, the
+forbidden surface, and two open decisions (OD-1 dirty-editable strictness, OD-2 per-stage bundle
+availability): `docs/t-307-governed-verification-evidence-and-engine-provenance.md`.
+
+Explicitly excluded: every file in the `dahua-ai-vms` repository and any consumer-specific
+hardcoding; sandbox-mode weakening or any path that could promote a review agent to
+`workspace-write`; commit/push gate and apply-patch changes; T-405 and first-publication work;
+dashboard and `agentos_workflow`/`agentos_dashboard` functionality; `milestone_runner` and
+`successor_planning`; `scripts/**`, `pyproject.toml`, and dependency changes; and base-environment
+or unrelated version cleanup.
+
+This registration authorizes nothing. Authorization is a separate Human Owner act through
+`scripts/workflow-authorize.sh T-307`, which requires a clean worktree and an empty Current set;
+until then T-307 stays `Planned` and the Current set stays empty.

@@ -7,7 +7,40 @@ so keep the version line's wording exact if you edit it.
 
 Current Version: 1.0.0
 
-## Latest governance activity — PLAN-001 closed
+## Latest governance activity — T-307 registered as a candidate for authorization
+
+T-307 — Target-bound governed verification evidence and engine execution provenance — was
+registered in `docs/TASK_QUEUE.md` on 2026-09-02 as `Planned`. **This is a registration only.** The
+Human Owner has not authorized it; no planning, implementation, branch, commit, or push is
+permitted until they do, through `scripts/workflow-authorize.sh T-307`. The `Current` set was empty
+before the registration and is empty after it, and no successor was promoted.
+
+The task restores target-bound governed review evidence and execution provenance in this engine:
+optional named verification bundles in configuration, engine-side execution of the selected argv
+commands inside a disposable clone of the exact, clean target HEAD, capture of exact argv and
+observed exit codes as engine evidence (never agent self-report), a new `## Verification evidence`
+prompt section, and fail-closed engine version/HEAD/worktree-cleanliness/install-mode/package-path
+provenance recorded in both the prompt payload and metadata and the agent-run artifact — with
+review agents left `read-only` and the `## Identity` block preserved byte-for-byte. It is the next
+unused canonical ID in Milestone 3, the family that owns the T-304 sandbox executor and the T-305
+agent-run artifact it extends; `T-406` was rejected because Milestone 4 owns controlled commit and
+push, which this task does not touch.
+
+**Scope of the registration change itself: governance and task-contract documentation only.**
+`docs/TASK_QUEUE.md`, `docs/current_task.md`, `docs/remaining_tasks.md`, this file,
+`docs/CHANGELOG.md`, `docs/DECISION_LOG.md`, and the new contract
+`docs/t-307-governed-verification-evidence-and-engine-provenance.md` were the only files touched.
+No file under `src/`, `tests/`, `scripts/`, `agentos_workflow/`, or `agentos_dashboard/` changed;
+`pyproject.toml`, `self-governance.yaml`, the handover pair, and every dependency are unchanged;
+and no branch, commit, push, pull request, or merge was performed. The engine version remains
+1.0.0.
+
+Two decisions are left open for the Human Owner at authorization time and are recorded in the
+contract: OD-1, whether a dirty editable engine worktree should fail closed unconditionally or only
+when a verification bundle is selected; and OD-2, whether bundle selection is exposed on all seven
+prompt subcommands or only on review stages.
+
+## Prior governance activity — PLAN-001 closed
 
 PLAN-001 — Close dashboard requirement-to-stage coverage gaps — was registered and, in the same
 written directive, authorized by the Human Owner on 2026-08-10: "PLAN-001 is authorized as a

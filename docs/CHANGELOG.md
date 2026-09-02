@@ -7,6 +7,22 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- T-307 registered as `Planned` (2026-09-02): Target-bound governed verification evidence and
+  engine execution provenance. Registration and task contract only — the Human Owner has not
+  authorized it, the `Current` set stays empty, and no source, test, script, or packaging path
+  changed. The task will add optional named `verification.bundles` configuration, a repeatable
+  `--verification-bundle` option on the `workflowctl prompt` subcommands, engine-side execution of
+  the selected argv commands with `shell=False` inside a disposable clone of the exact, clean
+  target HEAD, capture of exact argv and observed exit codes as engine evidence rather than agent
+  self-report, a new `## Verification evidence` prompt section rendering one fenced JSON block, and
+  fail-closed engine version/HEAD/worktree-cleanliness/install-mode/package-path provenance in both
+  the prompt payload and metadata and the agent-run artifact. Review agents stay `read-only`, the
+  `## Identity` block is preserved byte-for-byte, the prompt payload schema moves `1.1` → `1.2`,
+  the agent-run record schema `1.0` → `1.1`, and the template version `1.0.0` → `1.1.0` with all
+  seven goldens updated explicitly. `TMPDIR` is deliberately not added to the scrubbed environment
+  allowlist. Base-environment repair, editable-install consolidation, and other environment cleanup
+  are recorded as separable out-of-scope follow-up. Contract:
+  `docs/t-307-governed-verification-evidence-and-engine-provenance.md`.
 - T-405 ratification and governance reconciliation (2026-09-02): the Human Owner ratified T-405's
   registration, policy ruling, and deferred closure as a real governance decision made on
   2026-08-19. T-405 stays `Done` with an empty `Current` set. The reconciliation records four

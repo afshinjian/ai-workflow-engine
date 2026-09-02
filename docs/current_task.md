@@ -32,3 +32,12 @@ not prove or replace the missing authorization event or the missing review artif
 
 T-405 is `Done`; it is named here only because this mirror records that closure. No task is
 `Current`, and no successor — including any Chain C work — is authorized by this state.
+
+**Registration note — 2026-09-02.** `T-307 — Target-bound governed verification evidence and engine
+execution provenance` was registered in `docs/TASK_QUEUE.md` as `Planned` on 2026-09-02. It is a
+registration only: the Human Owner has not authorized it, no successor was promoted, and the
+`Current` set is empty both before and after. Registering a `Planned` task does not contradict the
+statement above that this state authorizes no successor, including any Chain C work — T-307 is that
+Chain C work, and it remains unauthorized until the Human Owner authorizes it through
+`scripts/workflow-authorize.sh T-307`. Contract:
+`docs/t-307-governed-verification-evidence-and-engine-provenance.md`.

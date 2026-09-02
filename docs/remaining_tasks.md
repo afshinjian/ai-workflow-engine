@@ -130,6 +130,7 @@ every later roadmap phase remain unauthorized. Completion report:
 
 | Task | Title | Status |
 |---|---|---|
+| T-307 | Target-bound governed verification evidence and engine execution provenance | Planned |
 
 **DASH-006 implementation update (2026-08-09):** implemented and validated on branch
 `feature/dash-006-git-handover-views`, uncommitted, awaiting Human Owner approval. Report:
@@ -224,3 +225,26 @@ The `Current` set is empty both before and after. Rationale: `docs/agentos-dashb
 DD-16; `docs/DECISION_LOG.md`, 2026-08-10 entry. DASH-007..DASH-010 all remain `Planned` and
 unauthorized in the table above — this closure authorizes no successor and does not begin,
 authorize, or start DASH-007.
+
+## T-307 registration — 2026-09-02
+
+Status: Planned
+
+**T-307 — Target-bound governed verification evidence and engine execution provenance — was
+registered on 2026-09-02 as a `Planned` task and is NOT authorized.** It was registered at `main` /
+`f632ebe458f21a1ccccb988b57c103237be4774e` with a clean worktree, `workflowctl verify` PASS, and an
+empty `Current` set, which this registration leaves empty. No planning, implementation, branch,
+commit, or push is authorized by it.
+
+It restores target-bound governed review evidence and execution provenance: configurable named
+verification bundles, engine-side execution of the selected commands inside a disposable clone of
+the exact clean target HEAD, capture of exact argv and observed exit codes as engine evidence, a
+rendered `## Verification evidence` section, and fail-closed engine version/HEAD/worktree/install
+provenance in both the prompt payload/metadata and the agent-run artifact — all while review agents
+stay `read-only`. It is the next unused canonical ID in Milestone 3, the family that owns the
+sandbox executor (T-304) and the agent-run artifact (T-305) this task extends.
+
+Contract, with the exact frozen allowed-path set, the fifteen acceptance criteria, the forbidden
+surface, and two open decisions for the Human Owner:
+`docs/t-307-governed-verification-evidence-and-engine-provenance.md`. Authorization is a separate
+Human Owner act through `scripts/workflow-authorize.sh T-307`.

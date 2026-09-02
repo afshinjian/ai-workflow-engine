@@ -13,6 +13,85 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-09-02 — T-307 registered: task-ID family, evidence transport, and provenance policy
+
+**Decision:** register `T-307 — Target-bound governed verification evidence and engine execution
+provenance` in `docs/TASK_QUEUE.md` as `Planned`, with a frozen task contract, as a candidate for
+Human Owner authorization. This entry records only the *registration* and the design choices frozen
+into the contract. It authorizes nothing: the `Current` set stays empty, no successor is promoted,
+and no source, test, script, or packaging path changed.
+
+**Task-ID selection.** `T-307`, not `T-406`. `docs/MASTER_ROADMAP.md` defines the ordinary engine
+namespace as `T-<milestone><nn>`; the repository has no allocator and no reserved-ID queue; and
+T-405's own registration set the selection rule — take the next unused contiguous ID *in the
+milestone that owns the capability being extended*. The extended capability is Milestone 3's
+non-interactive agent execution: T-304's disposable sandbox clone and scrubbed-environment
+subprocess executor, and T-305's agent-run artifact and independent claim verification. T-301..T-306
+are contiguous and `T-307` occurs nowhere in the repository. `T-406` was rejected because Milestone
+4 owns controlled commit and push, which this task does not touch. Milestone 2's prompt pipeline is
+the transport for the new evidence, not its owner. Alternative considered and rejected: a new
+prefix (the `GOV-`/`PLAN-` shape), which is reserved here for governance/documentation corrections,
+not engine capability work.
+
+**Evidence transport: a fenced JSON block, not prose lines.** The new `## Verification evidence`
+section renders one fenced JSON block carrying `engine_provenance` and `verification_evidence`.
+A JSON block cannot emit a `- <Label>: <value>` line, so it cannot be mistaken for `## Identity`
+content by a consumer that parses the canonical Identity block. Rejected alternative: a
+bulleted evidence list, which would have produced exactly those ambiguous lines.
+
+**Execution stays with the engine; reviewers stay read-only.** The alternative — promoting review
+agents to `workspace-write` so they can run verification themselves — was rejected outright. It
+would break `_READ_ONLY_STAGES`, and an agent's account of a command it says it ran is self-report,
+which `docs/AGENT_PROTOCOL.md` already forbids treating as evidence. Execution therefore moves into
+the engine's own disposable clone, which already exists (`agents.sandbox.create_sandbox`) and never
+writes the target repository. Command stdout/stderr is deliberately *not* captured into prompt
+evidence: argv, exit code, timeout flag, and execution order are the contracted observation, and
+command output may carry secrets.
+
+**Canonical engine version.** The executing module constant `ai_workflow_engine.__version__` is
+canonical; installed distribution metadata is observed only to cross-check it. This follows the
+reasoning already committed in `agentos_workflow/__about__.py`: a module constant is identical
+whether the package is installed, editable, or imported from source, so provenance cannot vary with
+load mechanism. A resolvable disagreement fails closed with a deterministic error naming both
+values — neither is silently preferred. Measured at registration: the `ai-workflow-engine`
+environment reports `1.0.0`/`1.0.0`; the `base` environment reports source `1.0.0` against
+distribution metadata `0.1.0` and its `workflowctl` entry point is broken. Under this rule the
+working environment is unaffected and the broken one fails closed with a precise error, which is
+the intended behaviour rather than a reason to repair the environment inside this task.
+
+**Scope discipline on C4.** Only version/provenance consistency required for governed execution is
+in scope. Base-environment metadata repair, the broken `base` entry point, editable-install
+consolidation, and any other environment cleanup are recorded in the contract as separable
+out-of-scope follow-up rather than silently absorbed. The reported stray
+`lib/python3.1/site-packages` directory was searched for and **does not exist** at this baseline, so
+no remediation is contracted for it.
+
+**`TMPDIR` disposition.** Not added to `_SCRUBBED_KEYS`. Measured at registration: `conda run`
+under exactly the current scrubbed key set succeeds with `TMPDIR` absent, and also with `TMPDIR`
+set to a nonexistent path. The failure observed in a consumer repository was a property of that
+reviewer's read-only sandbox having no writable temporary directory, not of the engine-side
+executor. Adding an ambient passthrough would import the ambient-environment dependence this task
+exists to remove. The contract instead requires a test pinning the exact scrubbed key set and a
+test proving bundle execution with `TMPDIR` absent.
+
+**Consumer dependency, recorded not acted on.** `DV-029` in the `dahua-ai-vms` repository is that
+repository's `Current` task and its final governed implementation-review is blocked on this engine
+capability. That repository is the discovering consumer only. T-307 does not alter DV-029, reads
+and writes no file there, and introduces no consumer-specific behaviour; the cross-repository
+compatibility proof required by the contract is a fixture-based test inside this repository.
+
+**Two decisions deliberately left to the Human Owner** at authorization time, recorded as OD-1 and
+OD-2 in the contract: whether a dirty editable engine worktree fails closed unconditionally or only
+when a verification bundle is selected (the contract freezes the latter so that backward
+compatibility holds and so the task can be implemented in a necessarily dirty worktree); and
+whether bundle selection is exposed on all seven prompt subcommands or only on review stages.
+
+**Lifecycle.** `self-governance.yaml` still declares `agents: []`, so `workflowctl agent run` is
+not invented for this repository. Independence comes from fresh sessions per
+`docs/AGENT_PROTOCOL.md`: preparation → Human Owner authorization → `Current` → fresh planning →
+fresh independent plan review → implementation → fresh independent implementation review → bounded
+remediation → closeout → `Done` → Human-approved commit.
+
 ## 2026-09-02 — Human Owner ratified T-405 and reconciled its governance record
 
 **Corrective entry.** This entry names and corrects the five 2026-08-19 T-405 entries below (the
