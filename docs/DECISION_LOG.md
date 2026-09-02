@@ -13,6 +13,83 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-09-02 — Human Owner resolved T-307 OD-1 and OD-2; contract amended to Revision 2
+
+**Corrective/amending entry.** This entry names and supersedes the OD-1 disposition recorded in the
+T-307 registration entry immediately below it. Per this log's append-only rule that entry's text is
+not edited or deleted; where the two conflict, this one governs. T-307 stays `Planned`, the
+`Current` set stays empty, and no authorization, planning, implementation, or push occurred.
+
+**OD-1 — dirty editable engine strictness. Decided: FAIL CLOSED, unconditionally within the
+governed surface.** The Human Owner ruled that for governed review/provenance functionality:
+`editable` install + clean resolved engine worktree is permitted; `editable` install + dirty
+resolved engine worktree **fails closed**; a non-editable installed distribution is permitted only
+if version/provenance validation succeeds; and governed review evidence must never be produced
+using uncommitted engine code. **The rule applies regardless of whether a verification bundle is
+selected.**
+
+This is stricter than the contract's Revision 1, which limited the refusal to bundle-selecting
+execution so that criterion 10 would hold and so the engine would stay developable. The Human Owner
+rejected that trade: the value of engine-observed evidence is that it is attributable to a specific
+committed engine, and a bundle-conditional rule left a governed prompt renderable from
+uncommitted code. §4.3, §5.6, and acceptance criteria 7 and 10 were rewritten; criteria 7 and 10
+now partition on **provenance validity** rather than on bundle selection, which is what makes them
+internally consistent under the stricter rule.
+
+**Bounded deliberately.** The refusal governs only the T-307 governed prompt/review/provenance
+surface. It is not a prohibition on ordinary development commands: `inspect`, the five `check-*`
+commands, `verify`, `state`, `commit`, `push`, `apply-patch`, `migrate`, `auto`,
+`milestone-runner`, and `version` are unaffected, as are `pytest`/`ruff`/`black`/`mypy`. The
+contract requires a test pinning that boundary in both directions. The rule also constrains the
+**engine** worktree, which is a different worktree from the target repository constrained by §4.2;
+they coincide only under self-governance.
+
+**Derived consequence recorded before planning: a mandatory test seam.** Provenance is resolved
+from the imported package's own location, so an un-seamed implementation would make the entire
+prompt test suite fail closed whenever the engine checkout is dirty — that is, during all normal
+development. The contract now requires tests to substitute the resolver by monkeypatching it at
+module scope, exactly as `tests/test_agent_runner.py` already does with `verification_argv`, and
+**forbids** any production injection parameter, CLI option, configuration key, or
+environment-variable bypass, with a test asserting the CLI exposes no option reaching the resolver.
+Rejected alternative: a production `provenance=` parameter on `build_prompt_context`, which would
+have created exactly the trust hole the rule exists to close.
+
+**Verified while deciding:** no script under `scripts/` invokes `workflowctl prompt` — this
+repository drives its own lifecycle from the static `scripts/prompts/implement-next-task.md`, and
+`workflow-authorize.sh` already requires a clean tree — so the stricter rule creates no conflict
+with the engine's own governed workflow.
+
+**OD-2 — verification bundle availability. Decided: confirmatory of the frozen design.** Bundles
+are optional configuration; only bundles explicitly configured for that project may be selected; an
+unknown bundle is a deterministic fail-closed error before any verification execution; duplicate
+selection is a deterministic error; selection order determines execution order; selecting none
+preserves backward-compatible default verification behaviour (subject to §4.3 and §4.4); and
+configuration stays project-generic with no Dahua-specific bundle names, paths, commands, or
+defaults. Every clause was already frozen in §5.1, §5.2, and §5.3, so no architecture was
+rewritten. The ruling settles this contract's original "availability by stage" question on a
+different axis than the one posed: availability is a function of **configuration**, not of stage,
+so §5.2's uniform exposure across the `workflowctl prompt` subcommands stands, bounded by "only
+explicitly configured bundles may be selected".
+
+**Preparation defect corrected in the same amendment.** Reading `scripts/workflow-authorize.sh`
+before authorization showed it updates a task's canonical **table row** in
+`docs/remaining_tasks.md` but not any narrative `Status:` line. The T-307 registration section
+carried its own `Status: Planned` line, which the gate would have left stale at promotion. The
+parser's first-occurrence-wins rule meant `check-task-state` would still have passed — the table
+row has the lower offset — so this was checker-invisible prose drift, not a validation failure. The
+narrative now carries no status line, matching the convention already used by the `AUTO-015
+closure`, `DASH-005 implementation update`, and `PLAN-001 closure` sections in that file, and
+leaving the table row as the single parseable source.
+
+**Authorization attempt on record.** `scripts/workflow-authorize.sh T-307` was run once on
+2026-09-02 under explicit Human Owner authorization and was **correctly refused** with `branch
+baseline not met: HEAD differs from origin/main` (exit 6, `EXIT_PRECONDITION`), before the two
+`AUTHORIZE` prompts and before any file change: `require_upstream` is `true` and `main` was ahead
+of `origin/main`. Nothing was mutated and no state transition was reproduced by hand. The gate's
+insistence on a published baseline is the correct behaviour and is not worked around; the local
+governance baseline must be pushed to the existing `origin/main` first — the ordinary T-403 path
+with a resolvable upstream, not the first-publication case T-405 was deferred over.
+
 ## 2026-09-02 — T-307 registered: task-ID family, evidence transport, and provenance policy
 
 **Decision:** register `T-307 — Target-bound governed verification evidence and engine execution

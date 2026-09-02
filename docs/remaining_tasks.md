@@ -228,13 +228,17 @@ authorize, or start DASH-007.
 
 ## T-307 registration — 2026-09-02
 
-Status: Planned
+This section is a dated historical record of the registration event. It deliberately carries no
+`Status:` line and asserts no live lifecycle state: the canonical, parseable status for T-307 is
+the row in the table above, which `scripts/workflow-authorize.sh` updates on authorization. This
+follows the convention already used by the `AUTO-015 closure`, `DASH-005 implementation update`,
+and `PLAN-001 closure` sections in this file.
 
 **T-307 — Target-bound governed verification evidence and engine execution provenance — was
-registered on 2026-09-02 as a `Planned` task and is NOT authorized.** It was registered at `main` /
-`f632ebe458f21a1ccccb988b57c103237be4774e` with a clean worktree, `workflowctl verify` PASS, and an
-empty `Current` set, which this registration leaves empty. No planning, implementation, branch,
-commit, or push is authorized by it.
+registered on 2026-09-02** at `main` / `f632ebe458f21a1ccccb988b57c103237be4774e` with a clean
+worktree, `workflowctl verify` PASS, and an empty `Current` set that the registration left empty.
+Registration alone authorized nothing: no planning, implementation, branch, commit, or push
+followed from it.
 
 It restores target-bound governed review evidence and execution provenance: configurable named
 verification bundles, engine-side execution of the selected commands inside a disposable clone of
@@ -244,7 +248,16 @@ provenance in both the prompt payload/metadata and the agent-run artifact — al
 stay `read-only`. It is the next unused canonical ID in Milestone 3, the family that owns the
 sandbox executor (T-304) and the agent-run artifact (T-305) this task extends.
 
+**Contract amended 2026-09-02 (Revision 2).** The Human Owner resolved both decisions the contract
+had left open. OD-1 is now stricter than originally frozen: a dirty **editable** engine worktree
+fails closed on every governed prompt/review/provenance execution, regardless of bundle selection.
+OD-2 confirms the frozen bundle design — optional configuration, only explicitly configured
+bundles selectable, unknown or duplicate selection a deterministic pre-execution error, selection
+order fixing execution order, no-selection preserving backward-compatible behaviour, and no
+consumer-specific names, paths, commands, or defaults. No open decision remains.
+
 Contract, with the exact frozen allowed-path set, the fifteen acceptance criteria, the forbidden
-surface, and two open decisions for the Human Owner:
+surface, and the two resolved Human Owner decisions:
 `docs/t-307-governed-verification-evidence-and-engine-provenance.md`. Authorization is a separate
-Human Owner act through `scripts/workflow-authorize.sh T-307`.
+Human Owner act through `scripts/workflow-authorize.sh T-307`, which additionally requires the
+local governance baseline to be published to `origin/main` first.

@@ -7,6 +7,21 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- T-307 contract amended to Revision 2 (2026-09-02): the Human Owner resolved both decisions the
+  registration left open, and none remain. OD-1 is stricter than Revision 1 and supersedes it — an
+  `editable` engine installation whose resolved engine worktree is dirty fails closed on every
+  governed prompt/review/provenance execution, regardless of bundle selection, because governed
+  review evidence must never be produced from uncommitted engine code; `editable` + clean is
+  permitted and a non-editable distribution is permitted only when version/provenance validation
+  succeeds. The refusal is bounded to the T-307 governed surface, not to ordinary development
+  commands, and the contract now records the derived requirement that tests substitute the
+  provenance resolver at module scope with no production injection parameter, CLI option,
+  configuration key, or environment-variable bypass. OD-2 confirms the already-frozen bundle design
+  and settles availability by configuration rather than by stage. Acceptance criteria 7 and 10 were
+  rewritten to partition on provenance validity instead of bundle selection. The amendment also
+  removed a duplicate, non-canonical `Status:` line from the T-307 narrative section of
+  `docs/remaining_tasks.md`, which `scripts/workflow-authorize.sh` does not update and which would
+  have gone stale at promotion. T-307 remains `Planned`; governance documentation only.
 - T-307 registered as `Planned` (2026-09-02): Target-bound governed verification evidence and
   engine execution provenance. Registration and task contract only — the Human Owner has not
   authorized it, the `Current` set stays empty, and no source, test, script, or packaging path

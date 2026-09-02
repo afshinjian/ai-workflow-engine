@@ -35,10 +35,32 @@ No file under `src/`, `tests/`, `scripts/`, `agentos_workflow/`, or `agentos_das
 and no branch, commit, push, pull request, or merge was performed. The engine version remains
 1.0.0.
 
-Two decisions are left open for the Human Owner at authorization time and are recorded in the
-contract: OD-1, whether a dirty editable engine worktree should fail closed unconditionally or only
-when a verification bundle is selected; and OD-2, whether bundle selection is exposed on all seven
-prompt subcommands or only on review stages.
+**Both contract decisions were resolved by the Human Owner on 2026-09-02, and the contract was
+amended the same day to Revision 2; none remain open.** OD-1 is stricter than Revision 1 froze and
+supersedes it: an `editable` engine installation whose resolved engine worktree is dirty fails
+closed on every governed prompt/review/provenance execution, regardless of bundle selection —
+governed review evidence must never be produced from uncommitted engine code. `editable` + clean is
+permitted; a non-editable distribution is permitted only when version/provenance validation
+succeeds. The refusal is bounded to the T-307 governed surface and is not a prohibition on ordinary
+development commands. OD-2 confirms the already-frozen bundle design (optional configuration, only
+explicitly configured bundles selectable, deterministic pre-execution errors for unknown or
+duplicated selections, selection order fixing execution order, no-selection preserving
+backward-compatible behaviour, and no consumer-specific hardcoding), settling availability by
+configuration rather than by stage. Acceptance criteria 7 and 10 were rewritten accordingly.
+
+The 2026-09-02 amendment also corrected one preparation defect found while reading the
+authorization gate: `docs/remaining_tasks.md` carried a second, non-canonical `Status:` line for
+T-307 inside its narrative registration section, which `scripts/workflow-authorize.sh` does not
+update and which would therefore have gone stale at promotion. The narrative now carries no status
+line, leaving the table row as the single parseable source, per the convention already used by the
+`AUTO-015 closure`, `DASH-005 implementation update`, and `PLAN-001 closure` sections.
+
+T-307 remains `Planned` and unauthorized; the `Current` set remains empty. A first attempt to run
+`scripts/workflow-authorize.sh T-307` on 2026-09-02 was correctly **refused** by the gate with
+`branch baseline not met: HEAD differs from origin/main` (exit 6, `EXIT_PRECONDITION`) before any
+prompt or file change, because `main` is ahead of `origin/main` and `require_upstream` is `true`.
+The local governance baseline must be published to the existing `origin/main` before the gate can
+succeed.
 
 ## Prior governance activity — PLAN-001 closed
 

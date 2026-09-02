@@ -2188,9 +2188,24 @@ byte-for-byte. `TMPDIR` is deliberately **not** added to the scrubbed environmen
 `conda run` was measured to succeed without it, and the previously observed failure was a
 consumer-side read-only sandbox property, not an engine one.
 
-Contract, including the exact frozen allowed-path set, the fifteen acceptance criteria, the
-forbidden surface, and two open decisions (OD-1 dirty-editable strictness, OD-2 per-stage bundle
-availability): `docs/t-307-governed-verification-evidence-and-engine-provenance.md`.
+Contract, including the exact frozen allowed-path set, the fifteen acceptance criteria, and the
+forbidden surface: `docs/t-307-governed-verification-evidence-and-engine-provenance.md`.
+
+**Contract amended 2026-09-02 (Revision 2) — both open decisions resolved by the Human Owner; none
+remain.** OD-1 is now stricter than Revision 1 froze and supersedes it: an `editable` engine
+installation whose resolved engine worktree is dirty **fails closed on every governed
+prompt/review/provenance execution, regardless of bundle selection**, because governed review
+evidence must never be produced from uncommitted engine code; `editable` + clean is permitted, and
+a non-editable distribution is permitted only when version/provenance validation succeeds. The
+refusal is bounded to the T-307 governed surface and is not a prohibition on ordinary development
+commands, and the contract records the derived requirement that tests substitute the resolver at
+module scope with no production bypass. OD-2 is confirmatory of the already-frozen design:
+bundles are optional configuration, only explicitly configured bundles may be selected, an unknown
+or duplicated selection is a deterministic error before any execution, selection order fixes
+execution order, selecting none preserves backward-compatible behaviour, and no consumer-specific
+names, paths, commands, or defaults may be hardcoded — settling the earlier availability question
+by configuration rather than by stage. Acceptance criteria 7 and 10 were rewritten to partition on
+provenance validity instead of bundle selection.
 
 Explicitly excluded: every file in the `dahua-ai-vms` repository and any consumer-specific
 hardcoding; sandbox-mode weakening or any path that could promote a review agent to

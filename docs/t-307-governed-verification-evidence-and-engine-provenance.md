@@ -7,6 +7,13 @@ Registered: 2026-09-02
 Registration baseline: `main` at `f632ebe458f21a1ccccb988b57c103237be4774e`, clean worktree,
 `workflowctl verify --config self-governance.yaml` = PASS, 0 Current tasks.
 
+**Revision 2 — amended 2026-09-02.** Revision 1 (committed as
+`a9a769f152a7cf6f66882645a7b0faa5d091154f`) left OD-1 and OD-2 open. Both are now resolved by
+Human Owner decision and recorded in section 12; OD-1's ruling is **stricter** than Revision 1's
+frozen text and supersedes it, changing §4.3, §5.6, and acceptance criteria 7 and 10. Every other
+requirement, the frozen scope, and the forbidden surface are unchanged. No implementation has
+occurred.
+
 This contract is a *preparation* artifact. It authorizes nothing. No source, test, script, or
 packaging path may change until the Human Owner authorizes T-307 through
 `scripts/workflow-authorize.sh T-307` and a fresh planning session is opened under section 11.
@@ -185,13 +192,40 @@ Provenance is resolved from the imported package's own location, never from
 `config.project.repository` (which names the *target*, and only incidentally coincides with the
 engine under self-governance).
 
-**Fail-closed rule.** If the engine is `editable` and its worktree is dirty, any command that
-executes a verification bundle fails closed: a governed review must never run using uncommitted
-engine code. When no bundle is selected, provenance is still recorded — including
-`engine_worktree_clean: false` — and rendering proceeds, which is what keeps criterion 10
-(backward compatibility) true and keeps this repository developable while T-307 itself is
-implemented. See OD-1 in section 12: the Human Owner may tighten this to unconditional
-fail-closed at authorization time.
+**Fail-closed rule — Human Owner decision OD-1, 2026-09-02, binding.** If the resolved engine
+installation is `editable` and its resolved engine source worktree is dirty, every governed
+prompt/review/provenance execution covered by T-307 fails closed, **whether or not a verification
+bundle is selected**. Governed review evidence must never be produced using uncommitted engine
+code. The complete ruling:
+
+| Engine installation | Engine worktree | Result |
+|---|---|---|
+| `editable` | clean | permitted; provenance recorded |
+| `editable` | dirty | **refused** — deterministic `EngineProvenanceError` |
+| `installed` (non-editable distribution) | n/a | permitted only if §4.4 version/provenance validation succeeds |
+| `source` (no distribution metadata) | n/a | treated as non-editable for this rule; §4.4 still applies |
+
+**Bounded, deliberately.** The refusal governs only the T-307 governed prompt/review/provenance
+surface. It is **not** a general prohibition on ordinary development commands: `workflowctl
+inspect`, `check-git`, `check-task-state`, `check-governance`, `check-registries`,
+`check-handover`, `verify`, `state`, `commit`, `push`, `apply-patch`, `migrate`, `auto`,
+`milestone-runner`, and `version` are unaffected, and `pytest`/`ruff`/`black`/`mypy` are untouched.
+A test must pin that boundary in both directions.
+
+**Scope note.** This rule constrains the **engine** worktree, which is a different worktree from
+the target repository constrained by §4.2. They coincide only under self-governance. Verified at
+amendment time: no script under `scripts/` invokes `workflowctl prompt` — this repository drives
+its own lifecycle from the static `scripts/prompts/implement-next-task.md` — so the strict rule
+creates no conflict with the engine's own governed workflow, and `workflow-authorize.sh` already
+requires a clean tree.
+
+**Required test seam (derived consequence).** Because provenance is resolved from the *imported
+package's* location, an un-seamed implementation would make the entire prompt test suite fail
+closed whenever the engine checkout is dirty — i.e. during all normal development. Tests must
+therefore substitute the resolver by monkeypatching it at module scope, exactly as
+`tests/test_agent_runner.py` already does with `verification_argv`. **No production injection
+parameter, CLI option, configuration key, or environment-variable bypass may exist**, and a test
+must assert that the CLI exposes no option reaching the resolver.
 
 ### 4.4 Version reconciliation
 
@@ -322,8 +356,11 @@ additive evidence, not a replacement for that invariant.
 
 A new module `src/ai_workflow_engine/provenance.py` resolves `CanonicalEngineProvenance` and
 raises a single deterministic `EngineProvenanceError` for: unresolvable engine HEAD, an editable
-package whose directory is not inside a Git worktree, and a resolvable version disagreement
-(§4.4). It is the only place either version is read for provenance purposes.
+package whose directory is not inside a Git worktree, a resolvable version disagreement (§4.4),
+and — per §4.3/OD-1 — an `editable` installation whose engine worktree is dirty, on every governed
+prompt/review/provenance execution regardless of bundle selection. It is the only place either
+version is read for provenance purposes, and the only symbol tests substitute to obtain
+deterministic provenance.
 
 ### 5.7 Agent-run artifact
 
@@ -459,16 +496,25 @@ not closed.
    `target_head` equals `PromptMetadata.repository_head`.
 6. The agent-run artifact includes matching engine provenance, and `run_id` still equals the
    record's content hash.
-7. A dirty **editable** engine worktree causes bundle-selecting prompt/review execution to fail
-   closed with a specific error (and, per §4.3, does not block the no-bundle path).
+7. A dirty **editable** engine worktree causes **every** governed prompt/review/provenance
+   execution to fail closed with a specific error — proved **both** with a bundle selected and
+   with none selected (§4.3/OD-1). `editable` + clean is permitted and records provenance; a
+   non-editable distribution is permitted only when §4.4 validation succeeds; `source` behaves as
+   non-editable. A further test pins the boundary: the refusal does not extend to the
+   non-governed command surface enumerated in §4.3.
 8. An engine version mismatch between the module constant and resolvable distribution metadata is
    detected deterministically and fails closed, naming both values; matching versions and absent
    metadata each behave as specified.
 9. The reviewer remains read-only: `_READ_ONLY_STAGES` binding is unchanged and no new
    configuration or CLI path yields a `workspace-write` review agent.
-10. With no bundle configured **and** none selected, behaviour is backward compatible: the payload's
+10. With no bundle configured **and** none selected **and** the engine passing §4.3/§4.4
+    provenance validation, behaviour is backward compatible: the payload's
     `verification_evidence` is `null`, the `## Verification commands` section is byte-identical to
-    the baseline, and no execution occurs.
+    the baseline, and no bundle execution occurs. Backward compatibility is defined over the
+    provenance-valid case only: under OD-1 a dirty editable engine refuses this path too
+    (criterion 7). That is a deliberate, Human-Owner-approved behaviour change from the baseline,
+    not a regression, and criteria 7 and 10 are internally consistent because they partition on
+    provenance validity rather than on bundle selection.
 11. `## Identity` is byte-identical across the `1.0.0` → `1.1.0` template change, for all seven
     stages, and the seven golden byte counts and digests are updated explicitly.
 12. The prompt validator FAILs on malformed or missing verification evidence when bundles are
@@ -529,15 +575,49 @@ was not actually performed, and no review artifact may be narrated without a pre
 the T-405 ratification (`docs/DECISION_LOG.md`, 2026-09-02) is the standing reason this is stated
 explicitly.
 
-## 12. Open decisions for the Human Owner
+## 12. Human Owner decisions — resolved 2026-09-02
 
-- **OD-1 — dirty-editable strictness.** §4.3 fails closed only when a bundle is selected, so that
-  criterion 10 holds and so that T-307 itself can be implemented in a necessarily dirty engine
-  worktree. The Human Owner may instead direct unconditional fail-closed on any governed prompt
-  render; that choice must be made at authorization time, because it changes criteria 7 and 10.
-- **OD-2 — bundle availability by stage.** §5.2 exposes `--verification-bundle` on all seven
-  prompt subcommands uniformly. Restricting it to review stages only is a defensible alternative
-  and must be settled before planning.
+Both decisions this contract left open are now settled by the Human Owner and are **binding**. No
+open decision remains; nothing here waits on further direction.
+
+### OD-1 — dirty editable engine strictness — RESOLVED (stricter than originally frozen)
+
+For governed review/provenance functionality:
+
+- `editable` engine install + **clean** resolved engine worktree → permitted;
+- `editable` engine install + **dirty** resolved engine worktree → **FAIL CLOSED**;
+- non-editable installed distribution → permitted only if version/provenance validation succeeds;
+- governed review evidence must **never** be produced using uncommitted engine code.
+
+**This rule applies regardless of whether a verification bundle is selected.** It supersedes the
+weaker rule this contract originally froze, which limited the refusal to bundle-selecting
+execution. §4.3 now carries the authoritative text, §5.6 carries the error, and acceptance
+criteria 7 and 10 were rewritten to partition on provenance validity rather than on bundle
+selection.
+
+The refusal is bounded to the governed prompt/review/provenance surface T-307 delivers. It must
+not be broadened into a prohibition on ordinary development commands; §4.3 enumerates the
+unaffected surface and requires a test pinning that boundary. §4.3 also records the derived
+consequence — the mandatory module-scope test seam, with no production bypass of any kind.
+
+### OD-2 — verification bundle availability — RESOLVED (confirms the frozen design)
+
+- verification bundles are **optional** configuration;
+- only bundles **explicitly configured for that project** may be selected;
+- unknown bundle → deterministic fail-closed error **before** any verification execution;
+- duplicate selection → deterministic error;
+- selection order determines execution order;
+- no selected bundle → preserve backward-compatible default verification behaviour (subject to
+  §4.3 and §4.4);
+- configuration remains **project-generic**; no Dahua-specific bundle names, paths, commands, or
+  defaults may be hardcoded anywhere.
+
+**Disposition: confirmatory.** Every clause above is already the design frozen in §5.1, §5.2, and
+§5.3, so no architecture is rewritten. The ruling additionally settles this contract's original
+"availability by stage" question by a different axis than the one posed: availability is a
+function of **configuration**, not of stage. §5.2's uniform exposure across the `workflowctl
+prompt` subcommands therefore stands unchanged, bounded by "only explicitly configured bundles may
+be selected".
 
 ## 13. Dependency on `dahua-ai-vms` (recorded, not acted on)
 
