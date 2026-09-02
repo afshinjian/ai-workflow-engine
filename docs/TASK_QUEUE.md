@@ -2005,3 +2005,136 @@ separate Human Owner review, since this session held no commit authority under i
 git-safety bound). The `Current` set is empty again. This closure authorizes no successor:
 DASH-007, DASH-008, DASH-009, and DASH-010 all remain `Planned`/`NOT_STARTED` and explicitly
 unauthorized. It does not begin, authorize, or start DASH-007 implementation.
+
+## T-405 — Governed first publication of an absent remote branch
+
+Status: Done
+
+Registered and authorized for the repository's normal lifecycle by the Human Owner on 2026-08-19
+as a new ordinary Milestone 4 remediation linked to T-403. T-403 remains `Done` and is not reopened
+or rewritten. The Current set was empty before registration. T-405 is the next unused canonical
+Milestone 4 ID: `docs/MASTER_ROADMAP.md` defines `T-<milestone><nn>`, controlled push is Milestone
+4, T-401 through T-404 already exist contiguously, and the repository has no allocator or reserved
+ID queue.
+
+The task adds only a Human-approved governed first-publication path for an exact configured remote
+branch that is authoritatively absent. `PushApproval` must gain field-locally strict
+`create_remote_ref: StrictBool = False` (or an equivalent strict declaration); only literal boolean
+true authorizes bootstrap, while `"true"`, `"false"`, `1`, and `0` are invalid and omission remains
+false. The gate must preserve exact branch/HEAD approval, approval integrity, clean state,
+structured tracking configuration independent of `@{upstream}`, exact approved remote/ref binding,
+authoritative remote existence classification, and the complete existing-upstream T-403 path
+unchanged. Only the new bootstrap path adds post-push authoritative SHA verification, narrow local
+tracking materialization/resolution, and the rule that no workflow `push` completion is recorded
+before independently verified publication.
+
+**Human Owner strict create-only ruling:** "The approved remote branch may be created only if the
+exact destination ref still does not exist at update time." For this one fixed-shape operation only,
+Git's zero-expected-OID creation CAS equivalent to
+`--force-with-lease=<exact-approved-remote-ref>:` is permitted. No generic force/lease API,
+caller-supplied lease, arbitrary refspec, overwrite, deletion, non-fast-forward update, remote
+creation, or unattended approval is authorized. If the destination appears at any SHA between
+inspection and publication, it must not be modified and the result must fail for authoritative
+re-evaluation. Deterministic local-bare-remote tests must interpose that race.
+
+The first independent plan review returned `REJECTED / PLAN_REMEDIATION_REQUIRED`; no workflow
+event was recorded. The remediated contract closes only T405-PR-001..004: the first-publication
+source is now the immutable validated `approval.head` OID rather than a mutable local ref; matching
+existence, conflicting existence, query command/error, and malformed-query evidence are distinct;
+both remote query failure classes are ERROR; definite creation rejection is distinct from
+post-write indeterminacy; and deterministic tests cover same-SHA/different-SHA remote races, local
+branch movement after validation, exact writer argv/API closure, and unavailable/mismatched
+post-write remote/tracking evidence. The Human Owner policy and task scope are unchanged.
+
+The second fresh independent review returned `REJECTED / PLAN_REMEDIATION_REQUIRED`, confirmed
+T405-PR-001..004 closed, and raised T405-PR-005..006. The contract now closes those endpoint/push-
+containment findings: complete configured push/fallback URL sets must yield exactly one immutable
+effective endpoint; missing/multiple/malformed cases refuse before mutation; pre-query, direct
+zero-OID writer, and post-query use the identical endpoint value; symbolic remote drift cannot
+redirect the writer; and fixed invocation-local settings disable tag following and submodule
+recursion. Direct endpoint plus one exact refspec renders named-remote/default/pushRemote/auto-setup
+selection irrelevant, subject to installed-Git proof. The expanded 44-case local-bare-remote matrix
+tests endpoint cardinality/divergence/drift and ambient configuration containment. No workflow
+event was recorded and no production/test implementation occurred.
+
+The third fresh independent review also returned `REJECTED / PLAN_REMEDIATION_REQUIRED`. It kept
+T405-PR-001..004 closed but found four unresolved consequences, now closed in the final contract:
+T405-PR-007 authorizes, only after verified remote creation, one fixed exact-head fetch from the
+same frozen endpoint into the sole prevalidated local remote-tracking ref, with all unrelated ref,
+worktree, index, refmap, tag, submodule, FETCH_HEAD, prune, maintenance, and commit-graph effects
+forbidden; T405-PR-008 accepts only enumerated direct endpoint forms, rejects custom helpers and
+every effective `insteadOf`/`pushInsteadOf` rule, and uses one sanitized rewrite-free transport
+envelope; T405-PR-009 fixes `--no-verify` and an empty invocation-local `push.pushOption` with no
+caller override; and T405-PR-010 explicitly preserves the legacy T-403 gates,
+`GitWriter.push()` argv, and result semantics without any bootstrap endpoint/query/materialization
+call. The deterministic local-only matrix now contains 70 cases. Tracking or other verification
+failure after the CAS is indeterminate/ERROR, permits no workflow event, and cannot trigger a
+second remote write. No workflow event was recorded and no production/test implementation
+occurred.
+
+**Final Human Owner disposition — 2026-08-19:** T-405 is administratively closed
+`Current -> Done` without implementation. Repeated independent reviews showed that a trustworthy
+engine primitive would require materially broader Git transport, URL-rewrite, hook, ambient-
+configuration, environment, tracking, and local-metadata isolation than this bounded remediation
+was intended to introduce. This is a policy/scope decision, not an implementation-defect closure:
+no T-405 production or test implementation began. All T405-PR-001..010 findings and the complete
+remediated contract remain historical evidence explaining why engine implementation was not
+pursued.
+
+The binding policy is now:
+
+```text
+FIRST PUBLICATION
+Human Owner manual bootstrap
+→ establishes remote branch and upstream
+
+SUBSEQUENT PUBLICATION
+existing T-403 workflowctl push
+→ requires resolvable approved upstream
+```
+
+The manual bootstrap is outside `workflowctl push` and grants no unattended push, force, generic
+first-publication automation, deletion, merge automation, T-403 change, or `GitWriter` change.
+
+`SUPERSEDED — historical operator sequence; no longer actionable.` As originally written on
+2026-08-19, this closeout also named a pending documentation-orchestrator bootstrap command
+(`git push -u origin feature/docflow-005-provider-doctor`) that it declined to execute. That work
+was subsequently completed in `documentation-orchestrator` itself between 2026-08-19 and
+2026-08-22 — the push completed and was verified at HEAD
+`dced1783788c64ec0c97576ea5709b7e2dc27600`, DOCFLOW-005's push lifecycle was recorded, DOCFLOW-006
+was authorized, implemented and closed `Done`, that repository's baseline was reconciled, and
+DOCFLOW-007 is its sole `Current` task. The command is retained here only to explain what T-405
+originally decided. It is not an instruction, and this repository issues no present-tense direction
+to `documentation-orchestrator`.
+
+The task-status vocabulary has no `Deferred` value, so the established administrative
+`SUPERSEDED ≈ Done` semantic is used: `Done` means closed and no longer active, not successfully
+implemented. T-405's workflow event history remains empty; no artificial approval or completion
+event is recorded. The Current set is empty. This closure creates no replacement task, authorizes
+no successor, and preserves completed T-403 history and behavior unchanged.
+
+Contract: `docs/t-405-governed-first-push-remediation.md`. This registration permits the next
+`plan-review` stage only as historical pre-closeout text; the final Human Owner disposition above
+supersedes that direction. No further T-405 stage or implementation is authorized.
+
+Explicitly excluded: ORCH-021, remote URL digest redesign, generic Git sync, GitHub repository
+creation, merge/PR automation, branch deletion, arbitrary ref publication, documentation-
+orchestrator changes, provider/model execution, and unrelated governance improvements.
+
+**Human Owner ratification and evidence status — 2026-09-02.** The Human Owner ratifies T-405's
+registration, policy ruling, and deferred closure as a real governance decision made on 2026-08-19.
+T-405 stays `Done` and the `Current` set stays empty. The ratification records, and does not
+remediate, four historical gaps: the executable authorization gate
+`scripts/workflow-authorize.sh` (GOV-AUTO-02) **was not used**; **no committed `authorize T-405`
+transition exists** anywhere in this repository's history; the cited `INTENTIONAL_POLICY`
+bootstrap-audit artifact is **`NOT_FOUND`**; and the three narrated plan-review rounds behind
+T405-PR-001..010 are **`NOT_FOUND / UNVERIFIABLE`**, with no review file, prompt, agent run, or
+event. No artifact was fabricated, reconstructed, or back-dated, and no claim is made that any of
+them existed. The substance of the decision is separately corroborated: one hour after these files
+were written, the Human Owner performed the manual bootstrap recorded as DOCFLOW-005 event 8 at
+HEAD `dced1783788c64ec0c97576ea5709b7e2dc27600`, and `documentation-orchestrator`'s committed
+`DL-009` records the same act. The DOCFLOW-005 evidence corroborates the substance of the
+deferral/manual-bootstrap policy only. It does not prove, supply, or substitute for T-405's missing
+authorization event, the missing `INTENTIONAL_POLICY` artifact, or any of the three missing
+plan-review artifacts, which remain `NOT_FOUND` / `UNVERIFIABLE`. Rationale: `docs/DECISION_LOG.md`, 2026-09-02
+entry.

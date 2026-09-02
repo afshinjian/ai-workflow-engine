@@ -13,6 +13,276 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-09-02 — Human Owner ratified T-405 and reconciled its governance record
+
+**Corrective entry.** This entry names and corrects the five 2026-08-19 T-405 entries below (the
+registration, the three plan-remediation corrections, and the deferred closeout). Per this log's
+append-only rule, none of their text is edited or deleted; this entry supersedes them wherever they
+conflict with it.
+
+**Decision:** the Human Owner ratifies T-405 — its registration, its strict create-only policy
+ruling, and its deferred closure `Current -> Done` without implementation — as a real Human Owner
+governance decision made on 2026-08-19. T-405 remains `Done`, the `Current` set remains empty, and
+this ratification creates no replacement task and authorizes no successor.
+
+**Historical evidence gaps, recorded truthfully and deliberately not remediated.** A read-only
+survey of committed history, the working tree, `~/.ai-workflow-engine/`, and the
+`documentation-orchestrator` repository on 2026-09-02 established the following. These gaps are
+ratified as accepted governance debt. No artifact was created, reconstructed, or back-dated to
+close any of them, and no claim is made that any of them ever existed.
+
+- The repository's normal executable authorization gate, `scripts/workflow-authorize.sh`
+  (GOV-AUTO-02), **was not used** for T-405. Every comparable recent task carries a
+  `docs(governance): authorize <ID>` commit produced by that gate (DASH-006 through DASH-010);
+  T-405 has none.
+- **No committed `authorize T-405` transition exists** — `git grep T-405 HEAD` returns nothing, so
+  no commit in this repository's history mentions T-405 at all. T-405 moves from non-existent to
+  `Done` with no committed antecedent for the intermediate `Current` state its closure narrates.
+- The `INTENTIONAL_POLICY` verdict of the "completed governed first-push bootstrap audit" cited as
+  the predicate of the registration entry below is **`NOT_FOUND`**: the string appears in no
+  committed file, no working-tree file, nowhere under `~/.ai-workflow-engine/`, and nowhere in
+  `documentation-orchestrator`.
+- The three narrated `REJECTED / PLAN_REMEDIATION_REQUIRED` plan-review rounds that produced
+  T405-PR-001..010 are **`NOT_FOUND / UNVERIFIABLE`**: no review file, prompt, agent run, or event
+  exists for any of them. T-405's "zero workflow events" corroborates nothing either way, because
+  the engine's event store holds no `ai-workflow-engine` project directory at all — zero events is
+  trivially true of every task in this repository.
+
+**What is independently corroborated.** The *substance* of the T-405 policy decision is confirmed
+by evidence outside this repository and outside the files that assert it. The T-405 closeout files
+were written on 2026-08-19 between 21:50 and 21:54 and state that the manual bootstrap "was not
+executed here". One hour later, at 22:57 the same day, the workflow event store recorded DOCFLOW-005
+event 8 — `stage: push`, "Human Owner manual bootstrap publication completed under recorded
+first-publication policy" — at exactly the HEAD `dced1783788c64ec0c97576ea5709b7e2dc27600` named in
+those files. `documentation-orchestrator`'s own committed `DL-009` and `docs/CONTEXT.md` record the
+same act independently. The Human Owner therefore enacted T-405's replacement policy in a separate
+governed repository after it was recorded here. The decision is real; only its authorization and
+review paperwork is missing.
+
+**The limit of that corroboration.** The DOCFLOW-005 evidence corroborates the *substance* of the
+deferral/manual-bootstrap policy and nothing else. It does **not** prove, supply, or stand in for
+T-405's missing authorization event, the missing `INTENTIONAL_POLICY` artifact, or any of the three
+missing plan-review artifacts. Those remain `NOT_FOUND` / `UNVERIFIABLE` exactly as recorded above,
+and no reader should treat the external event as closing them.
+
+**What this ratification does and does not do.** The Human Owner's ratification establishes the
+governance decision *now*, on 2026-09-02. It does not manufacture historical evidence that never
+existed. The repository's authorization procedure was **not successfully preserved through the
+normal gate** for T-405: `scripts/workflow-authorize.sh` produces a governance commit, and no such
+commit exists. That procedural failure is recorded here permanently rather than repaired. This
+entry reconciles the record — it does not rewrite history: no prior entry's text is edited, no
+timestamped authorization artifact is fabricated, and no `NOT_FOUND` or `UNVERIFIABLE` item is
+converted into a `PASS` or `APPROVED`.
+
+**Supersession of the cross-repository operator sequence.** The deferred-closeout entry below ends
+with a prospective operator sequence for `documentation-orchestrator`: perform the manual first push
+of `feature/docflow-005-provider-doctor`, verify remote SHA
+`dced1783788c64ec0c97576ea5709b7e2dc27600` and upstream resolution, complete the DOCFLOW-005 push
+lifecycle, reconcile that repository's stale narratives, and only then consider DOCFLOW-006. That
+sequence is now **`SUPERSEDED — historical operator sequence; no longer actionable.`** Every
+step was carried out in `documentation-orchestrator` between 2026-08-19 and 2026-08-22: the push
+completed (`DL-009`), DOCFLOW-006 was authorized (`DL-010`), implemented, and closed `Done`, the
+completed DOCFLOW baseline was reconciled, and DOCFLOW-007 has been that repository's sole `Current`
+task since 2026-08-22. The wording below is retained solely as the historical record of what T-405
+decided. No `documentation-orchestrator` history is rewritten by this entry, and this repository
+issues no present-tense instruction to that repository.
+
+**Scope.** This ratification reconciles the existing T-405 governance state only. It authorizes no
+implementation, no source, test, script, or packaging change, no commit, and no push. Preparing the
+reconciled files is authorized; committing them requires a separate Human Owner authorization.
+
+## 2026-08-19 — Human Owner deferred T-405 and retained manual first-publication bootstrap
+
+**Decision:** The Human Owner directed that T-405 must not be implemented and is formally closed
+without implementation. Repeated independent plan reviews demonstrated that a fully governed
+first-publication primitive would require materially broader Git transport, URL-rewrite, hook,
+ambient-configuration, environment, tracking, and local-metadata isolation than the intended
+bounded remediation. T-405 is therefore not abandoned because of an implementation defect: no
+production or test implementation began. T405-PR-001 through T405-PR-010 and the fully remediated
+contract are retained as historical evidence explaining why implementation was not pursued.
+
+The binding publication policy is now:
+
+```text
+FIRST PUBLICATION
+Human Owner manual bootstrap
+→ establishes remote branch and upstream
+
+SUBSEQUENT PUBLICATION
+existing T-403 workflowctl push
+→ requires resolvable approved upstream
+```
+
+First publication of a branch whose remote upstream ref does not yet exist is an explicit Human
+Owner operation outside `workflowctl push`. After that bootstrap establishes the remote branch
+and a resolvable upstream, ordinary subsequent publication returns to the unchanged T-403 path.
+This grants no generic unattended push, force push, first-publication automation, deletion, merge
+automation, T-403 change, `GitWriter` change, or T-405 implementation authority.
+
+The repository supports only `Planned`, `Current`, and `Done` task statuses. Following the
+established `SUPERSEDED ≈ Done` administrative rule, T-405 moves `Current -> Done` as deferred/
+closed without successful implementation. Its workflow history remains at zero events because the
+state machine has no cancellation outcome and no plan-review approval, implementation, review,
+commit, or push stage occurred. The Current set becomes empty; this decision creates no replacement
+task and authorizes no successor.
+
+For the current documentation-orchestrator case, the intended later Human-operated bootstrap is
+`git push -u origin feature/docflow-005-provider-doctor`, but this ai-workflow-engine closeout does
+not execute it. The exact subsequent sequence is: verify the documentation-orchestrator branch,
+HEAD, clean worktree, remote, and upstream target; perform the Human-approved manual first push;
+verify remote branch SHA `dced1783788c64ec0c97576ea5709b7e2dc27600`; verify upstream resolves;
+complete/record the DOCFLOW-005 push lifecycle as permitted; reconcile stale documentation-
+orchestrator governance/handover narratives; and only then consider DOCFLOW-006.
+
+## 2026-08-19 — T-405 final trust-boundary correction after third rejected review
+
+**Correction:** The third fresh independent T-405 plan review returned
+`REJECTED / PLAN_REMEDIATION_REQUIRED`. It kept T405-PR-001..004 closed but found that the prior
+endpoint/push-containment correction did not close four consequences: a direct endpoint push does
+not materialize the configured local remote-tracking ref (`T405-PR-007`); Git URL rewriting can
+make identical raw endpoint operands inspect and mutate different repositories (`T405-PR-008`);
+pre-push hooks and ambient push options can expand effects (`T405-PR-009`); and a proposed shared
+post-verification rule would alter completed T-403 behavior (`T405-PR-010`). No workflow event was
+recorded. T-405 remains the sole `Current` task with `plan-review` next.
+
+The corrected bootstrap path accepts only enumerated direct endpoint forms, rejects every
+effective `url.*.insteadOf` and `url.*.pushInsteadOf` entry, removes inherited Git configuration
+injection, and runs both exact queries, the one create CAS, and the tracking materializer with the
+same frozen endpoint under one rewrite-free configuration envelope. Custom remote helpers,
+ambiguous/relative/scp-like endpoints, missing/multiple endpoints, or configuration drift fail
+closed. Before the CAS they cause no write; after a verified remote creation they are
+`PUBLICATION_INDETERMINATE` / ERROR and can never authorize another remote write.
+
+The fixed create writer now also clears inherited `push.pushOption`, uses `--no-verify`, and keeps
+the prior no-follow-tags/no-recursive-submodule protections. Callers cannot supply or remove any
+of those controls. After the remote creation is independently verified at the approved HEAD, one
+separate fixed local metadata operation may force-update only the exact validated
+`refs/remotes/<remote>/<branch>` ref by fetching the exact remote head from the same endpoint. It
+uses an empty configured refmap plus fixed no-tags/no-submodule/no-FETCH_HEAD/no-prune/no-
+maintenance/no-write-commit-graph controls. The gate then requires the sole expected local ref
+change, exact tracking SHA, exact upstream name/SHA, and unchanged worktree/index. Failure is
+indeterminate, produces no workflow event, and permits no automatic retry or second remote write.
+
+T-403 is explicitly outside these bootstrap semantics: its existing gates,
+`GitWriter.push()` argv, and result semantics remain unchanged, and it invokes no T-405 endpoint,
+rewrite, exact-query, or tracking-materialization operation. The deterministic local-only matrix
+now has 70 cases, preserving the prior 44 while adding tracking success/failure/isolation, URL
+rewrite and endpoint-form refusal, hook bypass, push-option non-leakage, and legacy-path isolation.
+This correction changes no task status, Human Owner policy, production source, or tests and
+authorizes only another fresh independent plan review.
+
+## 2026-08-19 — T-405 endpoint/push-containment correction after second rejected review
+
+**Correction:** The second fresh independent T-405 plan review returned
+`REJECTED / PLAN_REMEDIATION_REQUIRED`. It confirmed T405-PR-001..004 closed and identified two
+new blocking trust-boundary findings: a symbolic remote can resolve its fetch and push operations
+to different or multiple endpoints (`T405-PR-005`), and ambient push configuration can add tag or
+submodule writes despite an explicit branch refspec (`T405-PR-006`). No workflow event was
+recorded; T-405 remains the sole `Current` task with `plan-review` next.
+
+The contract now requires the gate to read the complete configured `pushurl` and ordinary `url`
+value sets, preserve their cardinality, and derive exactly one immutable typed effective endpoint:
+the sole explicit push URL, or otherwise the sole ordinary URL. Missing, multiple, malformed, or
+ambiguous endpoint configuration fails before mutation. Pre-write exact-ref inspection, the
+zero-OID writer, and post-write exact-ref verification must receive the same endpoint value
+directly. The writer never receives or re-resolves the symbolic remote, so changing its
+configuration after validation cannot redirect publication.
+
+The first-publication writer additionally uses fixed invocation-local semantics equivalent to
+`push.followTags=false` and `push.recurseSubmodules=no`, a direct endpoint, and exactly one explicit
+approved-OID-to-heads-ref refspec. Callers cannot alter those protections. Named-remote/default/
+pushRemote/auto-setup refspec selection becomes irrelevant and must be proven so against installed
+Git; any other installed-Git setting that can still add a ref or repository write must be
+neutralized or refused before mutation. Porcelain is evidence of exact creation, not a post-hoc
+substitute for preventing expanded writes.
+
+The local-bare-remote matrix grows from 28 to 44 cases with endpoint cardinality, distinct
+fetch/push state, endpoint configuration movement, identical inspect/write/verify operands,
+follow-tags, submodule recursion, adversarial named-remote/default settings, exact argv, and API
+closure coverage. T405-PR-001..004 remain closed. This correction changes no approval schema
+beyond the already authorized strict boolean, adds no URL digest, preserves T-403's existing
+writer, and authorizes only another fresh independent plan review—not implementation, workflow
+recording, commit, push, merge, branch operation, or successor work.
+
+## 2026-08-19 — T-405 plan-remediation correction after rejected independent review
+
+**Correction:** The first fresh independent review of the T-405 contract returned
+`REJECTED / PLAN_REMEDIATION_REQUIRED` with four blocking plan findings. No workflow event was
+recorded, T-405 remains the sole `Current` task, and `plan-review` remains next. The contract is
+corrected without changing the Human Owner's authorization, policy, task status, scope, or
+exclusions:
+
+1. `create_remote_ref` is now a field-locally strict boolean equivalent to
+   `StrictBool = False`; only literal boolean true grants creation authority, omission stays false,
+   and `"true"`, `"false"`, `1`, and `0` must be rejected.
+2. The fixed writer's source is now the immutable validated `approval.head` commit OID, never the
+   mutable local branch ref. The gate still separately proves the exact branch and HEAD before the
+   write, and a deterministic interposition test must move the local branch after that proof and
+   demonstrate that the moved commit cannot be published.
+3. Authoritative absence, matching existence, conflicting existence, remote command/transport/
+   authentication/protocol failure, and malformed/duplicate/ambiguous output are separate states.
+   Both remote-query failure classes are `Status.ERROR`, never FAIL or absence.
+4. Definite first-publication rejection is separate from `PUBLICATION_INDETERMINATE`. An exit-zero
+   push followed by unavailable remote evidence, a mismatched authoritative SHA, or unresolved/
+   mismatched tracking is indeterminate/ERROR and cannot precede a workflow push completion event.
+
+The narrow writer remains an internal construction of exactly one literal empty-expectation lease
+and one approved-OID-to-validated-heads-ref mapping. No generic force, lease, expected-OID,
+source-ref, destination-ref, refspec, or raw-argv authority is added; existing `GitWriter.push()`
+remains unchanged. The revised 28-case matrix uses only temporary local repositories/bare remotes
+and includes exact writer argv and public-API closure assertions. This correction authorizes only
+a fresh independent plan review. It does not authorize implementation and records no workflow
+event, commit, push, merge, branch operation, or successor task.
+
+## 2026-08-19 — Human Owner registered T-405 and authorized strict create-only first publication
+
+**Decision:** Following the completed governed first-push bootstrap audit's `INTENTIONAL_POLICY`
+verdict, the Human Owner registered `T-405 — Governed first publication of an absent remote branch`
+as a new ordinary Milestone 4 remediation linked to T-403. T-403 remains `Done` and is not reopened
+or rewritten. The Current set was empty, so T-405 becomes the sole `Current` task. This governance-
+only act prepares the task for the repository's next `plan-review` stage; implementation must not
+begin before a fresh independent review returns `APPROVED`.
+
+There is no repository allocator or reserved-ID queue. `docs/MASTER_ROADMAP.md` defines task IDs as
+`T-<milestone><nn>`; governed push belongs to Milestone 4; T-401 through T-404 are the existing
+contiguous Milestone 4 tasks; and T-405 was unused. T-405 is therefore the next canonical ID in the
+owning family. This post-roadmap remediation is registered in the authoritative task queue and its
+own contract; the completed master-roadmap and T-403 records are historical and remain unchanged.
+
+**Binding Human Owner concurrency policy:**
+
+> The approved remote branch may be created only if the exact destination ref still does not exist
+> at update time.
+
+For this bounded operation only, the Human Owner explicitly permits Git's zero-expected-OID
+creation compare-and-swap mechanism equivalent to
+`--force-with-lease=<exact-approved-remote-ref>:`. The permission is represented in the T-405
+contract as a separately named fixed-shape writer operation that constructs a literal empty-
+expectation lease and one exact source-to-destination refspec from independently validated approval
+and structured tracking data. Its approval gate additionally requires explicit
+`create_remote_ref: true`, with the strict field defaulting to false.
+
+If the destination appears at any SHA after the authoritative absence observation, the primitive
+must not modify it and T-405 must report failure/re-evaluation. The contract therefore requires the
+zero-OID CAS, deterministic machine-readable proof of actual new-ref creation (an exit-zero no-op is
+not creation), post-push authoritative remote-SHA verification, successful upstream resolution,
+and local-bare-remote race tests that interpose another actor between inspection and publication.
+
+**Trust-boundary amendment:** T-401/T-403's existing non-force `GitWriter.push()` and published-
+branch gate remain unchanged. T-405 adds one narrower capability that the original approved plan
+intentionally could not express: create exactly one Human-approved, authoritatively absent
+`refs/heads/*` destination using an empty expected OID. This is not general force authority and may
+never update an existing ref.
+
+**Boundaries:** No general force push, force-with-lease against an existing ref, arbitrary lease,
+caller-supplied lease expression, arbitrary refspec, branch overwrite, branch deletion, non-fast-
+forward update, automatic remote creation, unattended approval, ORCH-021 work, remote URL digest
+redesign, generic Git synchronization, GitHub repository creation, merge/PR automation,
+documentation-orchestrator change, provider/model execution, or unrelated governance improvement
+is authorized. This registration changes no production source or test, records no workflow event,
+and authorizes no commit, push, merge, branch operation, or successor task. Contract:
+`docs/t-405-governed-first-push-remediation.md`.
+
 ## 2026-08-11 — Human Owner approved and closed DASH-010
 
 **Decision:** The Human Owner reviewed the implementation diff for `DASH-010` on

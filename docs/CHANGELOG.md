@@ -7,6 +7,43 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- T-405 ratification and governance reconciliation (2026-09-02): the Human Owner ratified T-405's
+  registration, policy ruling, and deferred closure as a real governance decision made on
+  2026-08-19. T-405 stays `Done` with an empty `Current` set. The reconciliation records four
+  historical evidence gaps truthfully instead of repairing them — the executable authorization gate
+  `scripts/workflow-authorize.sh` (GOV-AUTO-02) was not used, no committed `authorize T-405`
+  transition exists, the cited `INTENTIONAL_POLICY` bootstrap-audit artifact is `NOT_FOUND`, and the
+  three narrated plan-review rounds behind T405-PR-001..010 are `NOT_FOUND / UNVERIFIABLE`. No
+  workflow event, plan-review verdict, prompt ID, or run ID was fabricated, and no claim is made
+  that the missing artifacts existed. The substance of the decision is corroborated externally by
+  the Human Owner's manual bootstrap recorded as DOCFLOW-005 event 8 at HEAD
+  `dced1783788c64ec0c97576ea5709b7e2dc27600`. The prospective documentation-orchestrator operator
+  sequence carried by the 2026-08-19 closeout is marked `SUPERSEDED — historical operator
+  sequence; no longer actionable.`, since that work completed in that repository between
+  2026-08-19 and 2026-08-22. Governance and handover documentation only; no source, test, script, or packaging
+  path changed.
+- T-405 (2026-08-19): registered as the sole `Current` ordinary Milestone 4 remediation linked to
+  completed T-403, with a bounded contract for independent plan review. The Human Owner authorized
+  only an explicit-approval, zero-expected-OID, create-only first-publication primitive for one
+  exact absent remote branch; production implementation remains gated on an `APPROVED` plan
+  review. After the first independent review returned `REJECTED`, the plan alone was remediated to
+  require a field-local strict boolean, immutable approved-HEAD OID source, ERROR semantics for
+  failed/malformed remote queries, distinct matching/conflicting/rejected/indeterminate states,
+  and deterministic remote/local race plus post-write verification tests. A second independent
+  review confirmed those findings closed but rejected endpoint/configuration containment; the plan
+  now derives one immutable effective push endpoint, uses it directly for inspect/write/verify,
+  refuses multiple/missing/malformed endpoint sets, disables tag-following and submodule recursion
+  invocation-locally, and expanded the local-bare-remote matrix to 44 cases. A third independent
+  rejection exposed tracking materialization, URL rewrite, client hook/push-option, and T-403
+  preservation consequences. The final contract now uses one fixed single-ref local tracking
+  fetch only after verified creation, rejects URL rewrites and helper/ambiguous endpoints, bypasses
+  pre-push hooks, clears ambient push options, preserves the legacy T-403 path exactly, and expands
+  the deterministic local-only matrix to 70 cases. No code, test, workflow event, commit, or push
+  is part of this registration or remediation. The Human Owner subsequently deferred and closed
+  T-405 without implementation: first publication is now an explicit Human-operated bootstrap
+  outside `workflowctl push`, while subsequent pushes return to the unchanged T-403 path after a
+  resolvable upstream exists. All ten review findings remain historical evidence; no replacement
+  or successor task was created or authorized.
 - DASH-010 (2026-08-11): implemented, Human-Owner-approved, and closed
   `Current -> Done` in one local commit via scripts/workflow-approve.sh's automatic
   task closeout (GOV-AUTO-03).

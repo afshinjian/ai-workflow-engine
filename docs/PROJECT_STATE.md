@@ -688,3 +688,81 @@ Status: Done
 
 The Human Owner explicitly authorized this single task through the local authorization gate.
 Implementation and approval remain separate phases.
+
+## Authorization update — 2026-08-19
+
+## T-405 — Governed first publication of an absent remote branch
+
+Status: Done
+
+The Human Owner registered T-405 as a new ordinary Milestone 4 remediation linked to completed
+T-403 and selected the strict create-only concurrency policy: an exact approved remote branch may
+be created only while the exact destination remains absent at update time, enforced by a narrowly
+typed zero-expected-OID CAS. The task contract is
+`docs/t-405-governed-first-push-remediation.md`. T-403 remains `Done`; T-405 is prepared for a
+fresh independent `plan-review`, and implementation must not begin before an `APPROVED` verdict.
+No production code, test, workflow event, commit, push, branch, or remote was changed by this
+registration.
+
+The first independent plan review returned `REJECTED / PLAN_REMEDIATION_REQUIRED` and was not
+recorded as a workflow event. The contract now closes T405-PR-001..004 by requiring a field-local
+strict boolean, an immutable validated `approval.head` source OID, ERROR classifications for remote
+query execution/malformed-evidence failures, distinct matching/conflicting/definite-rejection/
+indeterminate states, and the associated deterministic race and post-write tests. At that review
+point, Human Owner policy, scope, authorization, and task status were unchanged: T-405 remained
+`Current`, had zero events, and awaited a fresh independent `plan-review`.
+
+The second independent plan review also returned `REJECTED / PLAN_REMEDIATION_REQUIRED`, while
+confirming T405-PR-001..004 closed. The contract now closes T405-PR-005..006 by deriving exactly one
+immutable effective push endpoint from complete configured push/fallback URL sets; refusing
+missing, multiple, malformed, or ambiguous endpoint configurations; using that same direct value
+for inspection, zero-OID publication, and verification; preventing symbolic-config redirection;
+and hardcoding invocation-local tag-following/submodule-recursion suppression. The deterministic
+matrix now contains 44 cases. No workflow event or implementation change occurred; status and next
+stage remain unchanged.
+
+The third independent plan review again returned `REJECTED / PLAN_REMEDIATION_REQUIRED`. It kept
+T405-PR-001..004 closed but identified the post-publication tracking gap, URL-rewrite repository-
+identity gap, pre-push-hook/push-option gap, and an accidental T-403 postcondition expansion. The
+final contract closes T405-PR-007..010 and completes endpoint/push containment: accepted direct
+endpoint forms plus total rewrite-rule refusal preserve actual inspect/write/verify/materialize
+repository identity; `--no-verify` and empty invocation-local `push.pushOption` prevent client
+hook/option expansion; one post-verification fixed exact-ref fetch may update only the approved
+local remote-tracking ref; and T-403's existing gates, writer argv, and result semantics remain
+exactly unchanged. Every post-CAS materialization/verification failure is indeterminate/ERROR,
+permits no workflow event, and causes no second remote write. The deterministic local-only matrix
+now contains 70 cases. No workflow event or implementation change occurred; at that review point,
+T-405 remained the sole `Current` task with `plan-review` next.
+
+**Final Human Owner disposition — 2026-08-19:** T-405 is deferred/closed without implementation
+using the repository's canonical administrative `Done` status. Repeated plan reviews established
+that safely automating first publication would require materially broader Git transport, URL-
+rewrite, hook, ambient-configuration, environment, tracking, and local-metadata isolation than the
+intended remediation. This is a deliberate policy/scope decision rather than an implementation
+defect; no T-405 production or test implementation occurred. T405-PR-001..010 and the complete
+contract remain historical evidence.
+
+The resulting boundary is: first publication is an explicit Human Owner manual bootstrap outside
+`workflowctl push`, establishing the remote branch and upstream; subsequent publication uses the
+unchanged T-403 path and still requires a resolvable approved upstream. T-403 history,
+`GitWriter`, and production behavior are unchanged. T-405 has zero workflow events, no synthetic
+stage outcome is recorded, the Current set is empty, and no replacement or successor is created or
+authorized.
+
+**Human Owner ratification — 2026-09-02:** the T-405 decision above is ratified as a real Human
+Owner governance decision made on 2026-08-19. T-405 remains `Done` and the `Current` set remains
+empty. The ratification explicitly preserves rather than repairs its evidence gaps: the executable
+authorization gate `scripts/workflow-authorize.sh` (GOV-AUTO-02) **was not used**, **no committed
+`authorize T-405` transition exists**, the cited `INTENTIONAL_POLICY` bootstrap-audit artifact is
+**`NOT_FOUND`**, and the three narrated plan-review rounds behind T405-PR-001..010 are
+**`NOT_FOUND / UNVERIFIABLE`**. Nothing was fabricated to close those gaps and no claim is made
+that the missing artifacts existed; T-405's "zero workflow events" proves nothing either way, since
+the engine's event store holds no `ai-workflow-engine` project at all. The substance of the policy
+is independently corroborated by the Human Owner's own later action: DOCFLOW-005 event 8, recorded
+2026-08-19 at 22:57, completed the manual bootstrap "under recorded first-publication policy" at
+HEAD `dced1783788c64ec0c97576ea5709b7e2dc27600`. The DOCFLOW-005 evidence corroborates the substance of the
+deferral/manual-bootstrap policy only. It does not prove, supply, or substitute for T-405's missing
+authorization event, the missing `INTENTIONAL_POLICY` artifact, or any of the three missing
+plan-review artifacts, which remain `NOT_FOUND` / `UNVERIFIABLE`. The ratification establishes the
+governance decision now; it manufactures no historical evidence. Rationale:
+`docs/DECISION_LOG.md`, 2026-09-02 entry.
