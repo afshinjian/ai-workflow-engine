@@ -130,7 +130,7 @@ every later roadmap phase remain unauthorized. Completion report:
 
 | Task | Title | Status |
 |---|---|---|
-| T-307 | Target-bound governed verification evidence and engine execution provenance | Planned |
+| T-307 | Target-bound governed verification evidence and engine execution provenance | Current |
 
 **DASH-006 implementation update (2026-08-09):** implemented and validated on branch
 `feature/dash-006-git-handover-views`, uncommitted, awaiting Human Owner approval. Report:

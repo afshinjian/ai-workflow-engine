@@ -7,6 +7,8 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- T-307 (2026-09-03): explicitly authorized by the Human Owner through the local
+  two-confirmation task gate; authorization commit and implementation remain separate.
 - T-307 contract amended to Revision 2 (2026-09-02): the Human Owner resolved both decisions the
   registration left open, and none remain. OD-1 is stricter than Revision 1 and supersedes it — an
   `editable` engine installation whose resolved engine worktree is dirty fails closed on every

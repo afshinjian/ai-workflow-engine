@@ -2141,7 +2141,7 @@ entry.
 
 ## T-307 — Target-bound governed verification evidence and engine execution provenance
 
-Status: Planned
+Status: Current
 
 Registered on 2026-09-02 at `main` / `f632ebe458f21a1ccccb988b57c103237be4774e` with a clean
 worktree, `workflowctl verify` PASS, and an empty Current set. **Registration only — the Human

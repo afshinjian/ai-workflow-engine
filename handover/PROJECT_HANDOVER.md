@@ -1201,3 +1201,10 @@ appended 2026-09-02 corrective entry naming exactly what it corrects.
 This reconciliation is governance and handover documentation only. No `src/**`, `tests/**`,
 `scripts/**`, `pyproject.toml`, or packaging path is touched, and the reconciled state is prepared
 but **not committed**: committing it requires a separate Human Owner authorization.
+
+## Authorization update — 2026-09-03
+
+T-307 is the single `Current` task after two exact Human Owner `AUTHORIZE` confirmations.
+The authorization-only commit contains governance and handoff records; implementation has not
+started. No predecessor was closed automatically, and no push, merge, upstream, branch, or stash
+operation was performed.

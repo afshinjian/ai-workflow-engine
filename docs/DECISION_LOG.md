@@ -13,6 +13,15 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-09-03 — Human Owner authorized T-307
+
+**Decision:** The Human Owner typed the two exact `AUTHORIZE` confirmations for
+`T-307`. The task moves `Planned → Current`; implementation remains separate.
+The authorization was recorded from branch `main` at `de76ce256964fce2ff20fa1126c49ed2f5a69dc6`.
+
+**Boundaries:** This decision authorizes only the named task. It authorizes no successor,
+push, merge, implementation approval, stash mutation, or automatic predecessor closure.
+
 ## 2026-09-02 — Human Owner resolved T-307 OD-1 and OD-2; contract amended to Revision 2
 
 **Corrective/amending entry.** This entry names and supersedes the OD-1 disposition recorded in the

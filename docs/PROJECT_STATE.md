@@ -821,3 +821,12 @@ authorization event, the missing `INTENTIONAL_POLICY` artifact, or any of the th
 plan-review artifacts, which remain `NOT_FOUND` / `UNVERIFIABLE`. The ratification establishes the
 governance decision now; it manufactures no historical evidence. Rationale:
 `docs/DECISION_LOG.md`, 2026-09-02 entry.
+
+## Authorization update — 2026-09-03
+
+## T-307
+
+Status: Current
+
+The Human Owner explicitly authorized this single task through the local authorization gate.
+Implementation and approval remain separate phases.
