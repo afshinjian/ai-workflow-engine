@@ -331,8 +331,78 @@ class CanonicalEngineConfig(PromptStrictModel):
         return value
 
 
+class CanonicalVerificationCommandObservation(PromptStrictModel):
+    """One engine-executed verification command and the exit code it produced (T-307).
+
+    Only the argv and the outcome are recorded. Command stdout/stderr is deliberately absent:
+    exit codes and argv are the contracted observation, and command output may carry secrets
+    while adding nothing the reviewer needs in order to judge the result.
+    """
+
+    bundle: str
+    index: int
+    argv: list[str]
+    exit_code: int
+    timed_out: bool
+
+    @field_validator("argv")
+    @classmethod
+    def _argv_not_empty(cls, value: list[str]) -> list[str]:
+        if not value:
+            raise ValueError("argv must have at least one token")
+        return value
+
+
+class CanonicalVerificationEvidence(PromptStrictModel):
+    """Engine-executed verification evidence bound to one exact target HEAD (T-307).
+
+    `bundles` is the selection order, which is also the execution order, so it is checked for
+    uniqueness but deliberately never sorted — reordering it would misreport what actually ran.
+    """
+
+    target_head: str
+    bundles: list[str]
+    observations: list[CanonicalVerificationCommandObservation]
+
+    @field_validator("bundles")
+    @classmethod
+    def _bundles_present_and_unique(cls, value: list[str]) -> list[str]:
+        if not value:
+            raise ValueError("verification evidence must name at least one bundle")
+        if len(set(value)) != len(value):
+            raise ValueError("verification evidence bundles must be unique")
+        return value
+
+    @model_validator(mode="after")
+    def _observations_are_a_complete_ordered_run(self) -> "CanonicalVerificationEvidence":
+        if not self.observations:
+            raise ValueError("verification evidence must carry at least one observation")
+        expected = list(range(len(self.observations)))
+        if [observation.index for observation in self.observations] != expected:
+            raise ValueError("verification observation indices must be exactly 0..n-1 in order")
+        selected = set(self.bundles)
+        unknown = sorted({observation.bundle for observation in self.observations} - selected)
+        if unknown:
+            raise ValueError(f"verification observations name unselected bundles {unknown}")
+        return self
+
+
+class CanonicalEngineProvenance(PromptStrictModel):
+    """Which engine produced this evidence (T-307).
+
+    Resolved from the imported package's own location, never from the configured target
+    repository: under self-governance the two coincide, and everywhere else they do not.
+    """
+
+    engine_version: str
+    engine_head: str
+    engine_worktree_clean: bool
+    engine_install_mode: Literal["editable", "installed", "source"]
+    engine_package_path: str
+
+
 class PromptContext(PromptStrictModel):
-    schema_version: Literal["1.1"]
+    schema_version: Literal["1.2"]
     config: CanonicalEngineConfig
     stage: WorkflowStage
     task_id: str
@@ -343,6 +413,11 @@ class PromptContext(PromptStrictModel):
     checks: list[CanonicalCheckResult]
     remediation_findings: list[str]
     allowed_paths: list[str]
+    # Always present: which engine produced this prompt. Never optional, because an artifact
+    # that cannot say which engine made it is not governed evidence.
+    engine_provenance: CanonicalEngineProvenance
+    # `None` exactly when no verification bundle was selected, which is the pre-T-307 behaviour.
+    verification_evidence: CanonicalVerificationEvidence | None
 
     @field_validator("protected_path_violations", "allowed_paths")
     @classmethod
@@ -357,9 +432,18 @@ class PromptContext(PromptStrictModel):
             raise ValueError(f"checks must be in the fixed order {expected}")
         return value
 
+    @model_validator(mode="after")
+    def _evidence_is_bound_to_this_target_head(self) -> "PromptContext":
+        evidence = self.verification_evidence
+        if evidence is not None and evidence.target_head != self.git_status.head:
+            raise ValueError(
+                "verification evidence target_head must equal the payload's own repository head"
+            )
+        return self
+
 
 class PromptMetadata(PromptStrictModel):
-    schema_version: Literal["1.1"]
+    schema_version: Literal["1.2"]
     prompt_id: str
     project_id: str
     task_id: str
@@ -372,6 +456,19 @@ class PromptMetadata(PromptStrictModel):
     payload_sha256: str
     markdown_sha256: str
     payload: PromptContext
+    # Mirrored from the payload so a consumer reading only the sidecar still learns which engine
+    # produced the prompt and what it verified.
+    engine_provenance: CanonicalEngineProvenance
+    verification_evidence: CanonicalVerificationEvidence | None
+
+    @model_validator(mode="after")
+    def _evidence_is_bound_to_the_recorded_head(self) -> "PromptMetadata":
+        evidence = self.verification_evidence
+        if evidence is not None and evidence.target_head != self.repository_head:
+            raise ValueError(
+                "verification evidence target_head must equal metadata.repository_head"
+            )
+        return self
 
     @field_validator("prompt_id")
     @classmethod
@@ -415,7 +512,7 @@ class StoredPromptPaths(PromptStrictModel):
 
 
 class PromptSuccess(PromptStrictModel):
-    schema_version: Literal["1.1"]
+    schema_version: Literal["1.2"]
     stored: bool
     prompt_artifact: str | None
     metadata_artifact: str | None

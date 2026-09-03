@@ -130,7 +130,6 @@ every later roadmap phase remain unauthorized. Completion report:
 
 | Task | Title | Status |
 |---|---|---|
-| T-307 | Target-bound governed verification evidence and engine execution provenance | Current |
 
 **DASH-006 implementation update (2026-08-09):** implemented and validated on branch
 `feature/dash-006-git-handover-views`, uncommitted, awaiting Human Owner approval. Report:
@@ -300,3 +299,16 @@ surface, and the two resolved Human Owner decisions:
 `docs/t-307-governed-verification-evidence-and-engine-provenance.md`. Authorization is a separate
 Human Owner act through `scripts/workflow-authorize.sh T-307`, which additionally requires the
 local governance baseline to be published to `origin/main` first.
+
+## T-307 closeout preparation — 2026-09-03
+
+T-307's Revision 4 implementation is complete and remains uncommitted on `main` at parent HEAD
+`678fbaea07a1e0ed6c49c837399aafe2c3996738`. A fresh, read-only independent implementation review
+returned `APPROVED`, findings `NONE`, remediation `NONE`, and
+`T307_IMPLEMENTATION_REVIEW_APPROVED`. All fifteen acceptance criteria are closed; both full
+6022-test validation modes and all quality/governance commands passed in the independent review.
+
+The canonical task state is prepared as `Done`, so T-307 is removed from the not-yet-Done table
+and the Current set is empty. This closeout authorizes no successor. The implementation and
+governance closeout remain one uncommitted working-tree change set pending separate Human Owner
+final-commit authorization; no commit or push was performed.

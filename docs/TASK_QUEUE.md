@@ -2141,7 +2141,7 @@ entry.
 
 ## T-307 — Target-bound governed verification evidence and engine execution provenance
 
-Status: Current
+Status: Done
 
 Registered on 2026-09-02 at `main` / `f632ebe458f21a1ccccb988b57c103237be4774e` with a clean
 worktree, `workflowctl verify` PASS, and an empty Current set. **Registration only — the Human
@@ -2262,3 +2262,26 @@ recorded while the task is already `Current` — not a re-authorization;
 scope-amendment entry in `docs/DECISION_LOG.md` is the governing precedent. T-307 remains `Current`,
 **implementation has not started** under the amended scope, and both newly authorized files are
 themselves untouched. Rationale: `docs/DECISION_LOG.md`, 2026-09-03 entry.
+
+**Governance closeout prepared 2026-09-03.** The Revision 4 implementation is complete and remains
+uncommitted on `main` at parent HEAD `678fbaea07a1e0ed6c49c837399aafe2c3996738`. A fresh,
+read-only independent implementation review returned `APPROVED`, with findings `NONE`, remediation
+`NONE`, and next action `T307_IMPLEMENTATION_REVIEW_APPROVED`. Its focused coverage and final
+complete validation passed: `pytest -q` and `FORCE_COLOR=3 pytest -q` each reported 6022 passed,
+34 deselected; `ruff check .`, `black --check .`, `mypy src`, `git diff --check`, and
+`workflowctl verify --config self-governance.yaml` all passed. Transient environment-sensitive
+failures were independently rerun and did not reproduce in the final complete runs; they are not
+T-307 defects.
+
+All fifteen §8 acceptance criteria are closed with implementation evidence, automated tests, and
+independent-review PASS. Prompt context/metadata/success are schema 1.2, templates are 1.1.0,
+AgentRun is schema 1.1, and both migration pins and all four derived current-artifact labels match;
+prior Prompt 1.1 and AgentRun 1.0 inputs remain deterministically unsupported/quarantined. The
+package version stays 1.0.0 and `pyproject.toml` is unchanged.
+
+The actual reviewed scope is all twelve §7.1 production paths and fifteen §7.2 test paths listed
+in the contract's §14.4 completion record; `tests/test_cli_contract_v2.py` was authorized but not
+changed. No forbidden, consumer-specific, dependency, package, or project-version path changed.
+The canonical task mirrors are synchronized to `Done`; the Current set is empty and no successor
+is authorized. This complete implementation-and-closeout state is prepared but not committed,
+pushed, merged, or tagged. A separate Human Owner authorization is required for the final commit.

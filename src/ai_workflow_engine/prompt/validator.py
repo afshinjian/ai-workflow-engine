@@ -39,6 +39,7 @@ REQUIRED_HEADINGS: tuple[str, ...] = (
     "### Validation checks",
     "## Remediation findings",
     "## Verification commands",
+    "## Verification evidence",
     "## Stop condition",
     "## Verdict instruction",
 )
@@ -51,7 +52,7 @@ _FRAGMENT_SPAN_HEADINGS: dict[str, tuple[str, str | None]] = {
     "ROLE": ("## Role", "## Scope and allowed operations"),
     "SCOPE": ("## Scope and allowed operations", "## Allowed paths"),
     "PROHIBITED": ("## Prohibited operations", "## Repository inspection evidence"),
-    "VERIFICATION": ("## Verification commands", "## Stop condition"),
+    "VERIFICATION": ("## Verification commands", "## Verification evidence"),
     "STOP": ("## Stop condition", "## Verdict instruction"),
     "VERDICT": ("## Verdict instruction", None),
 }
@@ -63,6 +64,7 @@ _LIST_SPAN_HEADINGS: dict[str, tuple[str, str]] = {
     "PROTECTED_PATH_VIOLATIONS_LIST": ("### Protected-path violations", "### Validation checks"),
     "CHECKS_JSON": ("### Validation checks", "## Remediation findings"),
     "REMEDIATION_FINDINGS_LIST": ("## Remediation findings", "## Verification commands"),
+    "VERIFICATION_EVIDENCE_JSON": ("## Verification evidence", "## Stop condition"),
 }
 
 
@@ -159,10 +161,32 @@ def _check_headings(lines: list[str]) -> tuple[list[Finding], dict[str, int]]:
     return [], positions
 
 
+def _mapping_or_finding(
+    context: PromptContext, prompt_id: str
+) -> tuple[dict[str, str] | None, list[Finding]]:
+    """Build the placeholder mapping, reporting a defect rather than raising.
+
+    A context reached through `model_construct` or `model_copy(update=...)` can carry values the
+    formatters cannot serialize. That is a content defect to report, not an exception to escape
+    `validate_prompt`.
+    """
+    try:
+        return build_placeholder_mapping(context, prompt_id), []
+    except Exception as exc:
+        return None, [
+            Finding(
+                code="placeholder_mapping_error",
+                message=f"Placeholder mapping could not be built from the context: {exc}",
+            )
+        ]
+
+
 def _check_list_and_json_spans(
     context: PromptContext, prompt_id: str, lines: list[str], positions: dict[str, int]
 ) -> list[Finding]:
-    mapping = build_placeholder_mapping(context, prompt_id)
+    mapping, mapping_findings = _mapping_or_finding(context, prompt_id)
+    if mapping is None:
+        return mapping_findings
     findings: list[Finding] = []
     for name, (start_heading, end_heading) in _LIST_SPAN_HEADINGS.items():
         span = _content_between(lines, positions[start_heading], positions[end_heading])
@@ -240,7 +264,9 @@ def _check_fragments(
     except ValueError as exc:
         return [Finding(code="unknown_stage", message=str(exc))]
 
-    mapping = build_placeholder_mapping(context, prompt_id)
+    mapping, mapping_findings = _mapping_or_finding(context, prompt_id)
+    if mapping is None:
+        return mapping_findings
 
     for name in MARKER_ORDER:
         start_heading, end_heading = _FRAGMENT_SPAN_HEADINGS[name]
@@ -399,6 +425,114 @@ def _check_full_consistency(rendered: RenderedPrompt) -> list[Finding]:
     return findings
 
 
+def _verification_evidence_findings(rendered: RenderedPrompt) -> list[Finding]:
+    """Semantic checks on the evidence itself, independent of how the models were built.
+
+    The span check cannot cover this: it recomputes the mapping from the *same* context, so a
+    tampered payload renders and re-renders consistently. `model_construct`,
+    `model_copy(update=...)`, and a hand-written payload all bypass the model validators that
+    would otherwise hold these invariants, so they are re-asserted here from scratch.
+    """
+    context = rendered.context
+    metadata = rendered.metadata
+    findings: list[Finding] = []
+
+    evidence = getattr(context, "verification_evidence", None)
+    provenance = getattr(context, "engine_provenance", None)
+
+    if getattr(metadata, "verification_evidence", None) != evidence:
+        findings.append(
+            Finding(
+                code="metadata_verification_evidence_mismatch",
+                message="metadata.verification_evidence differs from the payload's",
+            )
+        )
+    if getattr(metadata, "engine_provenance", None) != provenance:
+        findings.append(
+            Finding(
+                code="metadata_engine_provenance_mismatch",
+                message="metadata.engine_provenance differs from the payload's",
+            )
+        )
+
+    if evidence is None:
+        return findings
+
+    bundles = list(getattr(evidence, "bundles", []))
+    observations = list(getattr(evidence, "observations", []))
+
+    if len(set(bundles)) != len(bundles):
+        findings.append(
+            Finding(
+                code="verification_evidence_duplicate_bundle",
+                message=f"Selected bundles contain a duplicate: {bundles}",
+            )
+        )
+
+    if not observations:
+        findings.append(
+            Finding(
+                code="verification_evidence_empty_observations",
+                message="Verification evidence is present but records no observation",
+            )
+        )
+    else:
+        indices = [observation.index for observation in observations]
+        if any(not isinstance(index, int) or isinstance(index, bool) for index in indices):
+            raise TypeError(f"verification observation indices must be integers: {indices!r}")
+        expected = list(range(len(indices)))
+        if len(set(indices)) != len(indices):
+            findings.append(
+                Finding(
+                    code="verification_evidence_index_duplicate",
+                    message=f"Verification observation indices repeat: {indices}",
+                )
+            )
+        elif sorted(indices) != expected:
+            findings.append(
+                Finding(
+                    code="verification_evidence_index_gap",
+                    message=f"Verification observation indices are not 0..n-1: {indices}",
+                )
+            )
+        elif indices != expected:
+            findings.append(
+                Finding(
+                    code="verification_evidence_index_order",
+                    message=f"Verification observation indices are out of order: {indices}",
+                )
+            )
+        unknown = sorted({observation.bundle for observation in observations} - set(bundles))
+        if unknown:
+            findings.append(
+                Finding(
+                    code="verification_evidence_unselected_bundle",
+                    message=f"Observations name bundles that were not selected: {unknown}",
+                )
+            )
+
+    if getattr(evidence, "target_head", None) != getattr(metadata, "repository_head", None):
+        findings.append(
+            Finding(
+                code="verification_evidence_target_head_mismatch",
+                message="verification evidence target_head differs from metadata.repository_head",
+            )
+        )
+    return findings
+
+
+def _check_verification_evidence(rendered: RenderedPrompt) -> list[Finding]:
+    try:
+        return _verification_evidence_findings(rendered)
+    except Exception as exc:
+        return [
+            Finding(
+                code="verification_evidence_unreadable",
+                message=f"Verification evidence could not be inspected: {exc}",
+            )
+        ]
+
+
 def validate_prompt(rendered: RenderedPrompt) -> CheckResult:
     """Mechanically validate one rendered prompt; never raises for expected content defects."""
     context = rendered.context
@@ -418,6 +552,7 @@ def validate_prompt(rendered: RenderedPrompt) -> CheckResult:
         findings.extend(_check_fragments(context, rendered.prompt_id, lines, positions))
 
     findings.extend(_check_full_consistency(rendered))
+    findings.extend(_check_verification_evidence(rendered))
 
     status = Status.FAIL if findings else Status.PASS
     return CheckResult(

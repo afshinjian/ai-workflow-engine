@@ -336,13 +336,162 @@ def test_prompt_json_success_schema_and_exit_code(
         "schema_version",
         "stored",
     ]
-    assert payload["schema_version"] == "1.1"
+    assert payload["schema_version"] == "1.2"
     assert payload["stored"] is True
     assert payload["prompt_artifact"] is not None
     assert payload["metadata_artifact"] is not None
     assert payload["metadata"]["stage"] == stage
     assert result.stdout.endswith("\n")
     assert result.stdout.count("\n") == 1
+
+
+# --- T-307: --verification-bundle CLI wiring ------------------------------------
+
+
+def _add_bundle_to_config(config_path: Path, *names: str, sleepy: bool = False) -> None:
+    raw = yaml.safe_load(config_path.read_text())
+    command = [sys.executable, "-c", "raise SystemExit(0)"]
+    raw["verification"] = {"bundles": [{"name": name, "commands": [command]} for name in names]}
+    config_path.write_text(yaml.safe_dump(raw))
+
+
+@pytest.mark.parametrize(("stage", "extra_args"), PROMPT_STAGES)
+def test_verification_bundle_option_is_accepted_on_every_prompt_subcommand(
+    repository: Path, config_factory: object, stage: str, extra_args: list[str]
+) -> None:
+    config = config_factory(repository)  # type: ignore[operator]
+    _add_bundle_to_config(config, "quality")
+    result = runner.invoke(
+        app,
+        [
+            "prompt",
+            stage,
+            "--config",
+            str(config),
+            "--task-id",
+            "T-1",
+            "--no-store",
+            "--output",
+            "json",
+            "--verification-bundle",
+            "quality",
+            *extra_args,
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    evidence = payload["metadata"]["verification_evidence"]
+    assert evidence is not None
+    assert evidence["bundles"] == ["quality"]
+
+
+def test_verification_bundle_is_repeatable_and_selection_order_is_execution_order(
+    repository: Path, config_factory: object
+) -> None:
+    config = config_factory(repository)  # type: ignore[operator]
+    _add_bundle_to_config(config, "zeta", "alpha")
+    result = runner.invoke(
+        app,
+        [
+            "prompt",
+            "plan-review",
+            "--config",
+            str(config),
+            "--task-id",
+            "T-1",
+            "--no-store",
+            "--output",
+            "json",
+            "--verification-bundle",
+            "alpha",
+            "--verification-bundle",
+            "zeta",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    evidence = json.loads(result.stdout)["metadata"]["verification_evidence"]
+    assert evidence["bundles"] == ["alpha", "zeta"]
+
+
+def test_unknown_verification_bundle_is_a_deterministic_protected_error(
+    repository: Path, config_factory: object
+) -> None:
+    config = config_factory(repository)  # type: ignore[operator]
+    result = runner.invoke(
+        app,
+        [
+            "prompt",
+            "plan-review",
+            "--config",
+            str(config),
+            "--task-id",
+            "T-1",
+            "--verification-bundle",
+            "absent",
+        ],
+    )
+    assert result.exit_code == 2
+    assert "absent" in result.stderr
+
+
+def test_duplicate_verification_bundle_selection_is_a_deterministic_protected_error(
+    repository: Path, config_factory: object
+) -> None:
+    config = config_factory(repository)  # type: ignore[operator]
+    _add_bundle_to_config(config, "quality")
+    result = runner.invoke(
+        app,
+        [
+            "prompt",
+            "plan-review",
+            "--config",
+            str(config),
+            "--task-id",
+            "T-1",
+            "--verification-bundle",
+            "quality",
+            "--verification-bundle",
+            "quality",
+        ],
+    )
+    assert result.exit_code == 2
+
+
+def test_no_bundle_selected_yields_null_verification_evidence(
+    repository: Path, config_factory: object
+) -> None:
+    config = config_factory(repository)  # type: ignore[operator]
+    _add_bundle_to_config(config, "quality")
+    result = runner.invoke(
+        app,
+        [
+            "prompt",
+            "plan-review",
+            "--config",
+            str(config),
+            "--task-id",
+            "T-1",
+            "--no-store",
+            "--output",
+            "json",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    assert payload["metadata"]["verification_evidence"] is None
+    assert payload["metadata"]["engine_provenance"] is not None
+
+
+def test_no_prompt_command_exposes_an_option_reaching_the_provenance_resolver(
+    repository: Path, config_factory: object
+) -> None:
+    """No CLI/config/env option may disable OD-1 enforcement: the only option this task adds
+    is `--verification-bundle`, which selects bundles and never touches provenance."""
+    for stage, _extra_args in PROMPT_STAGES:
+        result = runner.invoke(app, ["prompt", stage, "--help"])
+        assert result.exit_code == 0
+        for forbidden in ("--engine", "--provenance", "--skip-", "--no-provenance", "--force"):
+            assert forbidden not in result.stdout
 
 
 def test_prompt_no_store_writes_nothing(
@@ -589,7 +738,7 @@ def _direct_prompt_success(
     )
     rendered = render_prompt(context)
     return PromptSuccess(
-        schema_version="1.1",
+        schema_version="1.2",
         stored=False,
         prompt_artifact=None,
         metadata_artifact=None,
@@ -946,6 +1095,69 @@ def test_agent_run_verification_fail_stores_artifact_and_exits_one(
     assert payload["run_id"] is not None
     assert payload["record_artifact"] is not None
     assert Path(payload["record_artifact"]).exists()
+
+
+def test_agent_run_engine_drift_reports_and_stores_nothing(
+    repository: Path, config_factory: object, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """T-307: an engine-drift observation is an integrity failure. `--store` must still report
+    it, but must persist neither a record artifact nor a patch artifact -- distinct from an
+    ordinary auditable failure (`test_agent_run_verification_fail_stores_artifact_and_exits_one`,
+    just above, proves that one *is* still stored)."""
+    import ai_workflow_engine.agents.runner as runner_module
+    from ai_workflow_engine.prompt.models import CanonicalEngineProvenance
+
+    monkeypatch.setattr(runner_module, "verification_argv", lambda env: [["true"]])
+    before = CanonicalEngineProvenance(
+        engine_version="0.0.0-test",
+        engine_head="a" * 40,
+        engine_worktree_clean=True,
+        engine_install_mode="source",
+        engine_package_path="/nonexistent/test-engine",
+    )
+    after = before.model_copy(update={"engine_head": "b" * 40})
+    calls = iter([before, after])
+    monkeypatch.setattr(runner_module, "resolve_engine_provenance", lambda: next(calls))
+
+    stub = _write_report_stub(tmp_path)
+    config = _agent_config_with_stub(repository, config_factory, stub)
+    rendered = runner.invoke(
+        app,
+        ["prompt", "plan-review", "--config", str(config), "--task-id", "T-1", "--output", "json"],
+    )
+    prompt_id = json.loads(rendered.stdout)["metadata"]["prompt_id"]
+    run = runner.invoke(
+        app,
+        [
+            "agent",
+            "run",
+            "--config",
+            str(config),
+            "--agent",
+            "rev",
+            "--task-id",
+            "T-1",
+            "--stage",
+            "plan-review",
+            "--prompt-id",
+            prompt_id,
+            "--output",
+            "json",
+        ],
+    )
+    assert run.exit_code == 1
+    payload = json.loads(run.stdout)
+    assert payload["status"] == "FAIL"
+    assert payload["run_id"] is None
+    assert payload["record_artifact"] is None
+    assert payload["patch_artifact"] is None
+    findings = payload["verification"]["findings"]
+    assert any(finding["code"] == "engine_drift_during_run" for finding in findings)
+
+    runs_root = Path.home() / ".ai-workflow-engine" / "workflow-runs" / "agent-runs"
+    if runs_root.exists():
+        stored_files = [path for path in runs_root.rglob("*") if path.is_file()]
+        assert stored_files == []
 
 
 # ---- workflowctl commit (T-402) ------------------------------------------------

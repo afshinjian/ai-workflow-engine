@@ -1,18 +1,26 @@
 """Textual normalization, allowed-path validation, and context-construction tests."""
 
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
 
-from ai_workflow_engine.models import EngineConfig
+from ai_workflow_engine import provenance as provenance_module
+from ai_workflow_engine.models import EngineConfig, VerificationBundleSettings, VerificationSettings
+from ai_workflow_engine.prompt import context as context_module
 from ai_workflow_engine.prompt.context import (
+    DirtyTargetWorktree,
+    TargetStateDrift,
+    VerificationBundleSelectionError,
     build_prompt_context,
     normalize_allowed_path,
     normalize_text,
 )
 from ai_workflow_engine.prompt.models import (
     CanonicalCheckResult,
+    CanonicalEngineProvenance,
     CanonicalFactRule,
     CanonicalFinding,
     CanonicalGitStatus,
@@ -25,7 +33,9 @@ from ai_workflow_engine.prompt.models import (
     CanonicalWorkflowSettings,
 )
 from ai_workflow_engine.prompt.renderer import canonical_json
+from ai_workflow_engine.provenance import EngineProvenanceError
 from ai_workflow_engine.result import CheckResult, Status
+from ai_workflow_engine.verification_bundles import BundleCommandObservation
 
 # --- Task ID / finding textual normalization ------------------------------------
 
@@ -145,7 +155,7 @@ def test_build_prompt_context_plan_review_has_no_allowed_paths_or_findings(
     assert context.remediation_findings == []
     assert context.task_id == "T-1"
     assert context.stage == "plan-review"
-    assert context.schema_version == "1.1"
+    assert context.schema_version == "1.2"
 
 
 def test_build_prompt_context_implementation_requires_allowed_paths(
@@ -713,3 +723,334 @@ def test_agents_config_changes_prompt_id(engine_config: EngineConfig) -> None:
     assert without.prompt_id != withx.prompt_id
     assert without.context.config.agents == []
     assert withx.context.config.agents[0].name == "reviewer"
+
+
+# --- T-307: engine provenance and verification-bundle wiring -------------------
+
+
+def _ok_bundle(name: str = "quality") -> VerificationBundleSettings:
+    return VerificationBundleSettings(
+        name=name, commands=[[sys.executable, "-c", "raise SystemExit(0)"]]
+    )
+
+
+def _with_bundles(
+    engine_config: EngineConfig, *bundles: VerificationBundleSettings
+) -> EngineConfig:
+    return engine_config.model_copy(
+        update={"verification": VerificationSettings(bundles=list(bundles))}
+    )
+
+
+def _git(repository: Path, *args: str) -> None:
+    subprocess.run(
+        ["git", "-C", str(repository), *args], check=True, capture_output=True, text=True
+    )
+
+
+def test_engine_provenance_is_always_present_with_no_bundle_selected(
+    engine_config: EngineConfig,
+) -> None:
+    context = build_prompt_context(engine_config, stage="plan-review", task_id="T-1")
+    assert isinstance(context.engine_provenance, CanonicalEngineProvenance)
+    assert context.verification_evidence is None
+
+
+def test_no_bundle_selected_never_calls_the_executor(
+    engine_config: EngineConfig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def _fail(**_kwargs: object) -> list[BundleCommandObservation]:
+        raise AssertionError("run_verification_bundles must not be called with no selection")
+
+    monkeypatch.setattr(context_module, "run_verification_bundles", _fail)
+    context = build_prompt_context(engine_config, stage="plan-review", task_id="T-1")
+    assert context.verification_evidence is None
+
+
+def test_unknown_bundle_name_is_refused_before_any_execution(
+    engine_config: EngineConfig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def _fail(**_kwargs: object) -> list[BundleCommandObservation]:
+        raise AssertionError("must not execute when selection is invalid")
+
+    monkeypatch.setattr(context_module, "run_verification_bundles", _fail)
+    with pytest.raises(VerificationBundleSelectionError) as excinfo:
+        build_prompt_context(
+            engine_config,
+            stage="plan-review",
+            task_id="T-1",
+            verification_bundles=["absent"],
+        )
+    assert excinfo.value.code == "unknown_verification_bundle"
+
+
+def test_duplicate_bundle_selection_is_refused_before_any_execution(
+    engine_config: EngineConfig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config = _with_bundles(engine_config, _ok_bundle("quality"))
+
+    def _fail(**_kwargs: object) -> list[BundleCommandObservation]:
+        raise AssertionError("must not execute when selection is invalid")
+
+    monkeypatch.setattr(context_module, "run_verification_bundles", _fail)
+    with pytest.raises(VerificationBundleSelectionError) as excinfo:
+        build_prompt_context(
+            config, stage="plan-review", task_id="T-1", verification_bundles=["quality", "quality"]
+        )
+    assert excinfo.value.code == "duplicate_verification_bundle"
+
+
+def test_only_configured_bundles_are_selectable(engine_config: EngineConfig) -> None:
+    config = _with_bundles(engine_config, _ok_bundle("zeta"), _ok_bundle("alpha"))
+    context = build_prompt_context(
+        config, stage="plan-review", task_id="T-1", verification_bundles=["zeta"]
+    )
+    assert context.verification_evidence is not None
+    assert context.verification_evidence.bundles == ["zeta"]
+
+
+def test_selection_order_is_execution_order_and_evidence_is_bound_to_target_head(
+    engine_config: EngineConfig,
+) -> None:
+    config = _with_bundles(engine_config, _ok_bundle("zeta"), _ok_bundle("alpha"))
+    context = build_prompt_context(
+        config, stage="plan-review", task_id="T-1", verification_bundles=["alpha", "zeta"]
+    )
+    evidence = context.verification_evidence
+    assert evidence is not None
+    assert evidence.bundles == ["alpha", "zeta"]
+    assert [observation.bundle for observation in evidence.observations] == ["alpha", "zeta"]
+    assert [observation.index for observation in evidence.observations] == [0, 1]
+    assert evidence.target_head == context.git_status.head
+
+
+def test_dirty_target_worktree_is_refused_before_any_bundle_executes(
+    engine_config: EngineConfig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config = _with_bundles(engine_config, _ok_bundle())
+    (config.project.repository / "untracked.txt").write_text("dirt\n", encoding="utf-8")
+
+    def _fail(**_kwargs: object) -> list[BundleCommandObservation]:
+        raise AssertionError("must not execute against a dirty target")
+
+    monkeypatch.setattr(context_module, "run_verification_bundles", _fail)
+    with pytest.raises(DirtyTargetWorktree):
+        build_prompt_context(
+            config, stage="plan-review", task_id="T-1", verification_bundles=["quality"]
+        )
+
+
+def test_a_bundle_never_mutates_the_target_repository(engine_config: EngineConfig) -> None:
+    repository = engine_config.project.repository
+    before_head = subprocess.run(
+        ["git", "-C", str(repository), "rev-parse", "HEAD"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    before_status = subprocess.run(
+        ["git", "-C", str(repository), "status", "--porcelain=v1", "--untracked-files=all"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+
+    writing = VerificationBundleSettings(
+        name="writer",
+        commands=[
+            [
+                sys.executable,
+                "-c",
+                "import pathlib; pathlib.Path('intruder.txt').write_text('x\\n')",
+            ]
+        ],
+    )
+    config = _with_bundles(engine_config, writing)
+    context = build_prompt_context(
+        config, stage="plan-review", task_id="T-1", verification_bundles=["writer"]
+    )
+    assert context.verification_evidence is not None
+    assert context.verification_evidence.observations[0].exit_code == 0
+
+    after_head = subprocess.run(
+        ["git", "-C", str(repository), "rev-parse", "HEAD"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    after_status = subprocess.run(
+        ["git", "-C", str(repository), "status", "--porcelain=v1", "--untracked-files=all"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    assert after_head == before_head
+    assert after_status == before_status
+    assert not (repository / "intruder.txt").exists()
+
+
+def test_external_target_head_drift_during_verification_fails_closed(
+    engine_config: EngineConfig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config = _with_bundles(engine_config, _ok_bundle())
+
+    def _external_actor(
+        *, repository: Path, repository_head: str, bundles: list[VerificationBundleSettings]
+    ) -> list[BundleCommandObservation]:
+        # The external actor commits to the *target*, standing in for a concurrent writer; the
+        # stub never touches the sandbox and is not the bundle executor under test.
+        _git(repository, "commit", "--allow-empty", "-m", "external mutation")
+        return [
+            BundleCommandObservation(
+                bundle=bundles[0].name,
+                index=0,
+                argv=bundles[0].commands[0],
+                exit_code=0,
+                timed_out=False,
+            )
+        ]
+
+    monkeypatch.setattr(context_module, "run_verification_bundles", _external_actor)
+    with pytest.raises(TargetStateDrift) as excinfo:
+        build_prompt_context(
+            config, stage="plan-review", task_id="T-1", verification_bundles=["quality"]
+        )
+    assert excinfo.value.code == "target_head_drift_during_verification"
+
+
+def test_external_target_dirtiness_during_verification_fails_closed(
+    engine_config: EngineConfig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config = _with_bundles(engine_config, _ok_bundle())
+
+    def _external_actor(
+        *, repository: Path, repository_head: str, bundles: list[VerificationBundleSettings]
+    ) -> list[BundleCommandObservation]:
+        (repository / "external.txt").write_text("mutated\n", encoding="utf-8")
+        return [
+            BundleCommandObservation(
+                bundle=bundles[0].name,
+                index=0,
+                argv=bundles[0].commands[0],
+                exit_code=0,
+                timed_out=False,
+            )
+        ]
+
+    monkeypatch.setattr(context_module, "run_verification_bundles", _external_actor)
+    with pytest.raises(TargetStateDrift) as excinfo:
+        build_prompt_context(
+            config, stage="plan-review", task_id="T-1", verification_bundles=["quality"]
+        )
+    assert excinfo.value.code == "target_dirty_during_verification"
+
+
+def _stub_provenance_sequence(
+    monkeypatch: pytest.MonkeyPatch, values: list[CanonicalEngineProvenance]
+) -> None:
+    iterator = iter(values)
+    monkeypatch.setattr(context_module, "resolve_engine_provenance", lambda: next(iterator))
+
+
+def test_engine_head_drift_during_verification_fails_closed(
+    engine_config: EngineConfig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config = _with_bundles(engine_config, _ok_bundle())
+    before = CanonicalEngineProvenance(
+        engine_version="0.0.0-test",
+        engine_head="a" * 40,
+        engine_worktree_clean=True,
+        engine_install_mode="source",
+        engine_package_path="/nonexistent/engine",
+    )
+    after = before.model_copy(update={"engine_head": "b" * 40})
+    _stub_provenance_sequence(monkeypatch, [before, after])
+    with pytest.raises(EngineProvenanceError) as excinfo:
+        build_prompt_context(
+            config, stage="plan-review", task_id="T-1", verification_bundles=["quality"]
+        )
+    assert excinfo.value.code == "engine_head_drift_during_verification"
+
+
+def test_engine_dirtiness_during_verification_fails_closed(
+    engine_config: EngineConfig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config = _with_bundles(engine_config, _ok_bundle())
+    before = CanonicalEngineProvenance(
+        engine_version="0.0.0-test",
+        engine_head="a" * 40,
+        engine_worktree_clean=True,
+        engine_install_mode="source",
+        engine_package_path="/nonexistent/engine",
+    )
+    after = before.model_copy(update={"engine_worktree_clean": False})
+    _stub_provenance_sequence(monkeypatch, [before, after])
+    with pytest.raises(EngineProvenanceError) as excinfo:
+        build_prompt_context(
+            config, stage="plan-review", task_id="T-1", verification_bundles=["quality"]
+        )
+    assert excinfo.value.code == "engine_dirty_during_verification"
+
+
+def test_engine_becoming_unresolvable_during_verification_fails_closed(
+    engine_config: EngineConfig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config = _with_bundles(engine_config, _ok_bundle())
+    before = CanonicalEngineProvenance(
+        engine_version="0.0.0-test",
+        engine_head="a" * 40,
+        engine_worktree_clean=True,
+        engine_install_mode="source",
+        engine_package_path="/nonexistent/engine",
+    )
+    calls = iter(
+        [
+            before,
+            provenance_module.EngineProvenanceError(
+                "engine vanished mid-run", code="engine_head_unresolvable"
+            ),
+        ]
+    )
+
+    def _sequence() -> CanonicalEngineProvenance:
+        value = next(calls)
+        if isinstance(value, Exception):
+            raise value
+        return value
+
+    monkeypatch.setattr(context_module, "resolve_engine_provenance", _sequence)
+    with pytest.raises(EngineProvenanceError) as excinfo:
+        build_prompt_context(
+            config, stage="plan-review", task_id="T-1", verification_bundles=["quality"]
+        )
+    assert excinfo.value.code == "engine_drift_during_verification"
+
+
+@pytest.mark.parametrize("select_a_bundle", [False, True])
+def test_editable_dirty_engine_is_refused_at_context_construction(
+    select_a_bundle: bool, engine_config: EngineConfig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """AC7: proves the wiring -- `build_prompt_context` calls the resolver first and propagates
+    its refusal, **both** with a bundle selected and with none selected. The resolver's own OD-1
+    logic (editable+clean permitted, non-editable/source unaffected by dirt) is exhaustively
+    covered in `tests/test_engine_provenance.py`."""
+
+    def _refuse() -> CanonicalEngineProvenance:
+        raise EngineProvenanceError("dirty editable engine", code="engine_editable_worktree_dirty")
+
+    monkeypatch.setattr(context_module, "resolve_engine_provenance", _refuse)
+
+    def _fail_if_bundles_are_resolved(
+        config: EngineConfig, selected: object
+    ) -> list[VerificationBundleSettings]:
+        raise AssertionError("bundle resolution must not run before the OD-1 gate")
+
+    monkeypatch.setattr(context_module, "_resolve_selected_bundles", _fail_if_bundles_are_resolved)
+
+    config = _with_bundles(engine_config, _ok_bundle()) if select_a_bundle else engine_config
+    selection = ["quality"] if select_a_bundle else []
+    with pytest.raises(EngineProvenanceError) as excinfo:
+        build_prompt_context(
+            config, stage="plan-review", task_id="T-1", verification_bundles=selection
+        )
+    assert excinfo.value.code == "engine_editable_worktree_dirty"

@@ -7,60 +7,34 @@ so keep the version line's wording exact if you edit it.
 
 Current Version: 1.0.0
 
-## Latest governance activity — T-307 registered as a candidate for authorization
+## Latest governance activity — T-307 closeout prepared
 
-T-307 — Target-bound governed verification evidence and engine execution provenance — was
-registered in `docs/TASK_QUEUE.md` on 2026-09-02 as `Planned`. **This is a registration only.** The
-Human Owner has not authorized it; no planning, implementation, branch, commit, or push is
-permitted until they do, through `scripts/workflow-authorize.sh T-307`. The `Current` set was empty
-before the registration and is empty after it, and no successor was promoted.
+T-307 — Target-bound governed verification evidence and engine execution provenance — is complete
+under authoritative contract Revision 4. The implementation remains uncommitted on `main` at
+parent HEAD `678fbaea07a1e0ed6c49c837399aafe2c3996738`. A fresh, read-only independent
+implementation review returned `APPROVED`, findings `NONE`, remediation `NONE`, and next action
+`T307_IMPLEMENTATION_REVIEW_APPROVED`. All fifteen acceptance criteria have implementation and
+automated-test evidence and independent-review PASS.
 
-The task restores target-bound governed review evidence and execution provenance in this engine:
-optional named verification bundles in configuration, engine-side execution of the selected argv
-commands inside a disposable clone of the exact, clean target HEAD, capture of exact argv and
-observed exit codes as engine evidence (never agent self-report), a new `## Verification evidence`
-prompt section, and fail-closed engine version/HEAD/worktree-cleanliness/install-mode/package-path
-provenance recorded in both the prompt payload and metadata and the agent-run artifact — with
-review agents left `read-only` and the `## Identity` block preserved byte-for-byte. It is the next
-unused canonical ID in Milestone 3, the family that owns the T-304 sandbox executor and the T-305
-agent-run artifact it extends; `T-406` was rejected because Milestone 4 owns controlled commit and
-push, which this task does not touch.
+Delivered behavior includes optional configured verification bundles selected by repeatable,
+ordered `--verification-bundle` options; exact-HEAD disposable-clone execution; target-bound
+prompt evidence; Prompt 1.2/template 1.1.0 and AgentRun 1.1 artifacts; and five-field engine
+provenance with OD-1's dirty-editable fail-closed rule. No selection creates no bundle sandbox and
+records null evidence. The prompt and AgentRun migration pins are 1.2 and 1.1 respectively, all
+four current-artifact labels derive from them, and prior Prompt 1.1/AgentRun 1.0 artifacts remain
+deterministically unsupported/quarantined.
 
-**Scope of the registration change itself: governance and task-contract documentation only.**
-`docs/TASK_QUEUE.md`, `docs/current_task.md`, `docs/remaining_tasks.md`, this file,
-`docs/CHANGELOG.md`, `docs/DECISION_LOG.md`, and the new contract
-`docs/t-307-governed-verification-evidence-and-engine-provenance.md` were the only files touched.
-No file under `src/`, `tests/`, `scripts/`, `agentos_workflow/`, or `agentos_dashboard/` changed;
-`pyproject.toml`, `self-governance.yaml`, the handover pair, and every dependency are unchanged;
-and no branch, commit, push, pull request, or merge was performed. The engine version remains
-1.0.0.
+The independent complete validation passed twice (`pytest -q` and `FORCE_COLOR=3 pytest -q`: 6022
+passed, 34 deselected each), together with `ruff check .`, `black --check .`, `mypy src`,
+`git diff --check`, and configured `workflowctl verify`. Transient environment-sensitive failures
+were independently rerun and did not reproduce in the final complete runs; they are not T-307
+defects.
 
-**Both contract decisions were resolved by the Human Owner on 2026-09-02, and the contract was
-amended the same day to Revision 2; none remain open.** OD-1 is stricter than Revision 1 froze and
-supersedes it: an `editable` engine installation whose resolved engine worktree is dirty fails
-closed on every governed prompt/review/provenance execution, regardless of bundle selection —
-governed review evidence must never be produced from uncommitted engine code. `editable` + clean is
-permitted; a non-editable distribution is permitted only when version/provenance validation
-succeeds. The refusal is bounded to the T-307 governed surface and is not a prohibition on ordinary
-development commands. OD-2 confirms the already-frozen bundle design (optional configuration, only
-explicitly configured bundles selectable, deterministic pre-execution errors for unknown or
-duplicated selections, selection order fixing execution order, no-selection preserving
-backward-compatible behaviour, and no consumer-specific hardcoding), settling availability by
-configuration rather than by stage. Acceptance criteria 7 and 10 were rewritten accordingly.
-
-The 2026-09-02 amendment also corrected one preparation defect found while reading the
-authorization gate: `docs/remaining_tasks.md` carried a second, non-canonical `Status:` line for
-T-307 inside its narrative registration section, which `scripts/workflow-authorize.sh` does not
-update and which would therefore have gone stale at promotion. The narrative now carries no status
-line, leaving the table row as the single parseable source, per the convention already used by the
-`AUTO-015 closure`, `DASH-005 implementation update`, and `PLAN-001 closure` sections.
-
-T-307 remains `Planned` and unauthorized; the `Current` set remains empty. A first attempt to run
-`scripts/workflow-authorize.sh T-307` on 2026-09-02 was correctly **refused** by the gate with
-`branch baseline not met: HEAD differs from origin/main` (exit 6, `EXIT_PRECONDITION`) before any
-prompt or file change, because `main` is ahead of `origin/main` and `require_upstream` is `true`.
-The local governance baseline must be published to the existing `origin/main` before the gate can
-succeed.
+The task mirrors are prepared `Current → Done`, leaving no Current task and authorizing no
+successor. No forbidden or consumer-specific path, dependency, package version, `pyproject.toml`,
+or Dahua file changed. The implementation and closeout remain one dirty working-tree state pending
+separate Human Owner final-commit authorization; no commit, push, merge, tag, branch, upstream, or
+stash operation was performed. The project version remains 1.0.0.
 
 ## Prior governance activity — PLAN-001 closed
 
@@ -826,7 +800,7 @@ governance decision now; it manufactures no historical evidence. Rationale:
 
 ## T-307
 
-Status: Current
+Status: Done
 
 The Human Owner explicitly authorized this single task through the local authorization gate.
 Implementation and approval remain separate phases.
@@ -873,3 +847,14 @@ recorded while the task is already `Current` — not a re-authorization;
 scope-amendment entry in `docs/DECISION_LOG.md` is the governing precedent. T-307 remains `Current`,
 **implementation has not started** under the amended scope, and both newly authorized files are
 themselves untouched. Rationale: `docs/DECISION_LOG.md`, 2026-09-03 entry.
+
+## T-307 governance closeout preparation — 2026-09-03
+
+The authoritative Revision 4 implementation is complete and independently approved with no
+findings or remediation. All fifteen acceptance criteria and the final Prompt 1.2/template 1.1.0,
+AgentRun 1.1, migration-pin, prior-version quarantine, scope, and validation evidence are recorded
+in the contract's §14 completion record. T-307 is prepared `Current → Done`; no task remains
+Current and no successor is authorized.
+
+This implementation and governance state is deliberately uncommitted pending separate Human Owner
+final-commit authorization. No commit, push, merge, or tag was performed by closeout preparation.

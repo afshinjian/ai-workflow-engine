@@ -18,10 +18,11 @@ from typing import Literal
 
 from pydantic import ValidationError, field_validator
 
-from ai_workflow_engine.agents.runner import RunObservation
+from ai_workflow_engine.agents.runner import ENGINE_DRIFT_FAILURE_CODE, RunObservation
 from ai_workflow_engine.models import StrictModel, WorkflowStage
 from ai_workflow_engine.prompt.models import (
     WORKFLOW_STAGES,
+    CanonicalEngineProvenance,
     CanonicalFinding,
     JsonValue,
     canonicalize_json_value,
@@ -56,7 +57,7 @@ class StoredVerification(StrictModel):
 
 
 class AgentRunRecord(StrictModel):
-    schema_version: Literal["1.0"]
+    schema_version: Literal["1.1"]
     run_id: str
     project_id: str
     task_id: str
@@ -68,6 +69,9 @@ class AgentRunRecord(StrictModel):
     agent_executable: str
     agent_args: list[str]
     timeout_seconds: int
+    # Mirrors `RunObservation.engine_provenance`: which engine actually executed this run.
+    # Required, never a fabricated default -- see `build_record`'s drift backstop below.
+    engine_provenance: CanonicalEngineProvenance
     ok: bool
     failure_code: str | None
     exit_code: int | None
@@ -119,8 +123,17 @@ def build_record(
 ) -> tuple[AgentRunRecord, bytes]:
     """Assemble the closed record (computed ``run_id``) and return it with the patch bytes."""
     patch = observation.patch
+    if observation.failure_code == ENGINE_DRIFT_FAILURE_CODE:
+        # Artifact-layer backstop (T-307/PR-005): even if a future or alternate call path
+        # forgets the CLI's own drift-persistence guard, this function refuses outright to turn
+        # a drift-marked observation into a durable, hash-verified record. There is no way to
+        # reach `save_run` for this observation without going through here first.
+        raise ArtifactError(
+            f"Refusing to build a durable AgentRunRecord for an observation marked "
+            f"{ENGINE_DRIFT_FAILURE_CODE!r}: its provenance is no longer trustworthy"
+        )
     draft = AgentRunRecord(
-        schema_version="1.0",
+        schema_version="1.1",
         run_id="0" * 16,  # placeholder; replaced by the content hash below
         project_id=project_id,
         task_id=observation.task_id,
@@ -132,6 +145,7 @@ def build_record(
         agent_executable=observation.agent_executable,
         agent_args=list(observation.agent_args),
         timeout_seconds=observation.timeout_seconds,
+        engine_provenance=observation.engine_provenance,
         ok=observation.ok,
         failure_code=observation.failure_code,
         exit_code=observation.exit_code,

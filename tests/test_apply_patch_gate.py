@@ -2,6 +2,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
+from conftest import stub_engine_provenance
 
 from ai_workflow_engine.agents.artifacts import AgentRunRecord, build_record, save_run
 from ai_workflow_engine.agents.runner import RunObservation, VerificationCommandResult
@@ -64,6 +65,7 @@ def _store_run(
         stage="implementation",
         prompt_id="0123456789abcdef",
         repository_head=head or client.head(),
+        engine_provenance=stub_engine_provenance(),
         ok=True,
         failure_code=None,
         report=None,

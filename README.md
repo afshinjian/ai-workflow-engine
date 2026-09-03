@@ -67,12 +67,25 @@ workflowctl prompt implementation --config self-governance.yaml --task-id T-102 
 workflowctl prompt remediation --config self-governance.yaml --task-id T-102 \
   --allowed-path README.md --finding "README omits the prompt commands"
 workflowctl prompt governance-closeout --config self-governance.yaml --task-id T-102 --no-store
+
+# Run configured bundles in selection order against a disposable clone of the exact target HEAD
+workflowctl prompt implementation-review --config <config> --task-id T-102 \
+  --verification-bundle unit --verification-bundle lint
 ```
 
 Every prompt command accepts `--output human|json` and `--store/--no-store` (default `--store`;
 artifacts land under `~/.ai-workflow-engine/workflow-runs/prompts/`, never inside the target
 repository). Prompt identity is the SHA-256 of the canonical JSON of the complete rendered
-context — two renders of the same state are byte-identical.
+context — two renders of the same state are byte-identical. Optional verification bundles are
+declared as argv lists under `verification.bundles`; selected bundles execute with `shell=False`
+in a disposable exact-HEAD clone and contribute target-bound argv/exit-code evidence without
+capturing stdout or stderr. No selected bundle means no bundle execution and null evidence.
+
+Prompt schema 1.2 and template 1.1.0 always record the running engine's version, HEAD, worktree
+cleanliness, install mode, and imported-package path. An editable engine with a dirty or
+unresolvable worktree fails closed for governed prompt/review/provenance execution, including the
+no-bundle path. See [docs/configuration.md](docs/configuration.md) for the complete bundle and
+provenance rules.
 
 ## Workflow state and agent execution (Milestone 3)
 
@@ -95,7 +108,8 @@ workflowctl state record --config <config> --task-id T-1 --stage plan-review \
 Agents are declared in the config's `agents` section (see
 [docs/configuration.md](docs/configuration.md)). An agent runs in a throwaway clone of the
 repository, never touching the target working tree; its report is independently verified against
-what actually changed in the sandbox, and the result is stored as a tamper-evident artifact.
+what actually changed in the sandbox, and the result is stored as a tamper-evident AgentRun 1.1
+artifact carrying the same engine provenance. Engine drift during a run prevents persistence.
 
 ## Controlled commit and push (Milestone 4)
 

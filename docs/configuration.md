@@ -36,8 +36,37 @@ may run. Each entry has:
   `governance-closeout`, `governance-review`; `scoped-write` agents may take `implementation`,
   `remediation`. The `push` stage is never permitted for any agent.
 
-Milestone 3 defines these schemas and (in later tasks) the runner; Milestone 3 never applies an
-agent's changes to the target repository — that is Milestone 4.
+`verification` is optional and defaults to no configured bundles. Bundles are named, ordered sets
+of argv arrays; they are never shell strings. Names are unique and match
+`[A-Za-z][A-Za-z0-9._-]{0,63}`. Each bundle has at least one non-empty command, every token is a
+non-empty string without NUL, newline, or surrogate code points, and `timeout_seconds` defaults to
+3600 and must be in `[1, 86400]`.
+
+```yaml
+verification:
+  bundles:
+    - name: quality
+      commands:
+        - ["python", "-m", "pytest", "-q"]
+        - ["git", "diff", "--check"]
+      timeout_seconds: 3600
+```
+
+Select configured bundles with repeatable `--verification-bundle NAME` options on any
+`workflowctl prompt <stage>` command. Selection order is execution order; unknown and duplicate
+selections fail before execution. Commands run with `shell=False` in one disposable clone checked
+out at the target's exact clean HEAD, never in the target worktree. Evidence records bundle name,
+global command index, exact argv, exit code, and timeout state; stdout and stderr are not included.
+With no selection, no verification sandbox is created and prompt evidence records
+`verification_evidence: null`.
+
+Governed prompt and agent execution also records the running engine's version, Git HEAD,
+worktree-cleanliness flag, install mode, and resolved imported-package path. Version disagreement
+fails closed. Under OD-1, an editable installation with a dirty worktree, or without a resolvable
+worktree, is refused even when no bundle is selected. This enforcement is deliberately limited to
+governed prompt/review/provenance and agent execution; ordinary inspection, governance, migration,
+commit/push, apply-patch, automation, milestone-runner, and version commands remain unaffected.
+
+Milestone 3 never applies an agent's changes to the target repository — that is Milestone 4.
 
 See [examples/amozesh_konkur.yaml](../examples/amozesh_konkur.yaml) for a complete configuration.
-

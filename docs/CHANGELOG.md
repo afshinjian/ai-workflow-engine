@@ -7,6 +7,16 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- T-307 governance closeout prepared (2026-09-03): implemented optional ordered verification
+  bundles in disposable exact-HEAD clones, governed prompt evidence with Prompt schema 1.2 and
+  template 1.1.0, AgentRun schema 1.1, and five-field engine provenance with OD-1 dirty-editable
+  fail-closed behavior. A fresh read-only independent implementation review returned `APPROVED`
+  with no findings or remediation; all fifteen acceptance criteria closed, both 6022-test color
+  modes and every quality/governance gate passed. Prior Prompt 1.1 and AgentRun 1.0 artifacts
+  remain deterministically unsupported/quarantined. T-307 is prepared `Current → Done`, leaving
+  no Current task and authorizing no successor. The full implementation and closeout remain
+  uncommitted pending separate Human Owner final-commit authorization; no dependency, package
+  version, forbidden, consumer-specific, or Dahua path changed.
 - T-307 contract amended to Revision 4 (2026-09-03): the Human Owner approved a second bounded
   scope amendment adding exactly two paths — `tests/test_apply_patch_gate.py` and
   `tests/test_agent_verification.py` — to the frozen §7.2 test allowlist. Rationale is

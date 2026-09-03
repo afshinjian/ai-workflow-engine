@@ -7,6 +7,7 @@ import unicodedata
 from typing import Literal
 
 from ai_workflow_engine.prompt.models import (
+    JsonValue,
     PromptContext,
     PromptMetadata,
     RenderedPrompt,
@@ -39,6 +40,7 @@ ALLOWED_PLACEHOLDER_NAMES: frozenset[str] = frozenset(
         "STAGE_SCALAR",
         "TASK_ID_SCALAR",
         "TASK_SNAPSHOT_JSON",
+        "VERIFICATION_EVIDENCE_JSON",
     }
 )
 
@@ -101,6 +103,20 @@ def _json_block(value: object) -> str:
     return f"```json\n{canonical_json(value).decode('utf-8')}\n```"
 
 
+def _verification_evidence_document(context: PromptContext) -> dict[str, JsonValue]:
+    """The evidence section's payload: exactly two top-level keys, always both present.
+
+    Rendered as a fenced JSON block rather than a list, deliberately: compact canonical JSON
+    contains no newline, so no line inside the fence can begin with `- `, and the block can
+    therefore never be mistaken for `## Identity` content by a line-oriented consumer.
+    """
+    evidence = context.verification_evidence
+    return {
+        "engine_provenance": context.engine_provenance.model_dump(mode="json"),
+        "verification_evidence": (None if evidence is None else evidence.model_dump(mode="json")),
+    }
+
+
 def build_placeholder_mapping(context: PromptContext, prompt_id: str) -> dict[str, str]:
     """The closed, fully-populated runtime placeholder mapping for one render."""
     project = context.config.project
@@ -124,6 +140,7 @@ def build_placeholder_mapping(context: PromptContext, prompt_id: str) -> dict[st
         "GIT_STATUS_JSON": _json_block(git.model_dump(mode="json")),
         "TASK_SNAPSHOT_JSON": _json_block(context.task_snapshot.model_dump(mode="json")),
         "CHECKS_JSON": _json_block([check.model_dump(mode="json") for check in context.checks]),
+        "VERIFICATION_EVIDENCE_JSON": _json_block(_verification_evidence_document(context)),
     }
 
 
@@ -201,7 +218,7 @@ def render_prompt(context: PromptContext) -> RenderedPrompt:
     markdown_bytes = markdown.encode("utf-8", errors="strict")
     markdown_sha256 = hashlib.sha256(markdown_bytes).hexdigest()
     metadata = PromptMetadata(
-        schema_version="1.1",
+        schema_version="1.2",
         prompt_id=prompt_id,
         project_id=context.config.project.id,
         task_id=context.task_id,
@@ -214,6 +231,8 @@ def render_prompt(context: PromptContext) -> RenderedPrompt:
         payload_sha256=payload_sha256,
         markdown_sha256=markdown_sha256,
         payload=context,
+        engine_provenance=context.engine_provenance,
+        verification_evidence=context.verification_evidence,
     )
     metadata_bytes = canonical_json(metadata.model_dump(mode="json")) + b"\n"
     return RenderedPrompt(

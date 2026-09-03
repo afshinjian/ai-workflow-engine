@@ -1,7 +1,10 @@
 """Canonical JSON, tokenizer/substitution, and rendering algorithm tests."""
 
 import hashlib
+import json
 import math
+import re
+import sys
 
 import pytest
 from pydantic import ValidationError
@@ -179,7 +182,7 @@ def test_apply_mapping_substitutes_every_occurrence_simultaneously() -> None:
     assert result == "X-X"
 
 
-def test_allowed_placeholder_names_is_the_closed_eighteen_name_set() -> None:
+def test_allowed_placeholder_names_is_the_closed_nineteen_name_set() -> None:
     assert ALLOWED_PLACEHOLDER_NAMES == frozenset(
         {
             "ALLOWED_PATHS_LIST",
@@ -200,6 +203,7 @@ def test_allowed_placeholder_names_is_the_closed_eighteen_name_set() -> None:
             "STAGE_SCALAR",
             "TASK_ID_SCALAR",
             "TASK_SNAPSHOT_JSON",
+            "VERIFICATION_EVIDENCE_JSON",
         }
     )
 
@@ -633,3 +637,131 @@ def test_check_evidence_changes_prompt_identity(engine_config, check_name: str) 
         update={"checks": [*baseline.checks[:index], mutated_check, *baseline.checks[index + 1 :]]}
     )
     assert _prompt_id(mutated) != _prompt_id(baseline)
+
+
+# --- T-307: Identity safety and verification-evidence rendering ----------------
+
+_IDENTITY_FIELD_LINE_RE = re.compile(
+    r"^- (Prompt ID|Stage|Task|Repository|Default branch|Conda environment): "
+)
+
+
+_IDENTITY_STAGE_KWARGS: dict[str, dict[str, object]] = {
+    "plan-review": {},
+    "implementation": {"allowed_paths": ["src/a.py"]},
+    "implementation-review": {},
+    "remediation": {"allowed_paths": ["src/a.py"], "remediation_findings": ["Fix the bug"]},
+    "governance-closeout": {},
+    "governance-review": {},
+    "push": {},
+}
+
+
+def _render_with_bundle(engine_config, *, selected: bool, stage: str = "plan-review"):
+    from ai_workflow_engine.models import VerificationBundleSettings, VerificationSettings
+    from ai_workflow_engine.prompt.context import build_prompt_context
+
+    bundle = VerificationBundleSettings(
+        name="quality", commands=[[sys.executable, "-c", "raise SystemExit(0)"]]
+    )
+    config = engine_config.model_copy(
+        update={"verification": VerificationSettings(bundles=[bundle])}
+    )
+    context = build_prompt_context(
+        config,
+        stage=stage,
+        task_id="T-1",
+        verification_bundles=["quality"] if selected else [],
+        **_IDENTITY_STAGE_KWARGS[stage],
+    )
+    return render_prompt(context)
+
+
+@pytest.mark.parametrize("stage", sorted(_IDENTITY_STAGE_KWARGS))
+def test_identity_block_has_exactly_its_six_baseline_lines(engine_config, stage: str) -> None:
+    rendered = _render_with_bundle(engine_config, selected=True, stage=stage)
+    lines = rendered.markdown.split("\n")
+    start = lines.index("## Identity")
+    end = lines.index("## Role")
+    identity_lines = [line for line in lines[start + 1 : end] if line]
+    assert len(identity_lines) == 6
+    assert all(_IDENTITY_FIELD_LINE_RE.match(line) for line in identity_lines)
+
+
+@pytest.mark.parametrize("stage", sorted(_IDENTITY_STAGE_KWARGS))
+def test_no_line_outside_identity_mimics_an_identity_field_with_evidence_populated(
+    engine_config, stage: str
+) -> None:
+    """Criterion 15, re-proved across all seven stages: populated verification evidence must
+    never produce a spoofable Identity line anywhere else in the document."""
+    rendered = _render_with_bundle(engine_config, selected=True, stage=stage)
+    lines = rendered.markdown.split("\n")
+    start = lines.index("## Identity")
+    end = lines.index("## Role")
+    outside = lines[:start] + lines[end:]
+    offenders = [line for line in outside if _IDENTITY_FIELD_LINE_RE.match(line)]
+    assert offenders == []
+
+
+def test_populated_verification_evidence_is_one_compact_fenced_json_block(engine_config) -> None:
+    rendered = _render_with_bundle(engine_config, selected=True)
+    body = rendered.markdown
+    section = body.split("## Verification evidence\n", 1)[1].split("\n## Stop condition", 1)[0]
+    lines = section.rstrip("\n").split("\n")
+    assert lines[0] == "```json"
+    assert lines[-1] == "```"
+    assert len(lines) == 3  # fence, one compact JSON line, fence
+    payload = json.loads(lines[1])
+    assert set(payload) == {"engine_provenance", "verification_evidence"}
+    assert payload["verification_evidence"]["bundles"] == ["quality"]
+
+
+def test_prompt_metadata_carries_the_target_head_and_all_five_provenance_fields(
+    engine_config,
+) -> None:
+    """AC5: PromptMetadata includes the target HEAD and all five engine-provenance fields, and
+    the evidence's target_head equals PromptMetadata.repository_head."""
+    rendered = _render_with_bundle(engine_config, selected=True)
+    metadata = rendered.metadata
+    provenance_fields = set(metadata.engine_provenance.model_dump())
+    assert provenance_fields == {
+        "engine_version",
+        "engine_head",
+        "engine_worktree_clean",
+        "engine_install_mode",
+        "engine_package_path",
+    }
+    assert metadata.engine_provenance == rendered.context.engine_provenance
+    evidence = metadata.verification_evidence
+    assert evidence is not None
+    assert evidence.target_head == metadata.repository_head
+
+
+def test_no_bundle_selected_renders_null_evidence_with_unchanged_verification_commands(
+    engine_config,
+) -> None:
+    with_bundle_unselected = _render_with_bundle(engine_config, selected=False)
+    from ai_workflow_engine.prompt.context import build_prompt_context
+
+    without_bundle_configured = render_prompt(
+        build_prompt_context(engine_config, stage="plan-review", task_id="T-1")
+    )
+
+    for rendered in (with_bundle_unselected, without_bundle_configured):
+        body = rendered.markdown
+        evidence_section = body.split("## Verification evidence\n", 1)[1].split(
+            "\n## Stop condition", 1
+        )[0]
+        payload = json.loads(evidence_section.split("\n")[1])
+        assert payload["verification_evidence"] is None
+        assert payload["engine_provenance"] is not None
+
+    # The `## Verification commands` section is untouched by whether a bundle is configured.
+    def commands_section(markdown: str) -> str:
+        return markdown.split("## Verification commands\n", 1)[1].split(
+            "\n## Verification evidence", 1
+        )[0]
+
+    assert commands_section(with_bundle_unselected.markdown) == commands_section(
+        without_bundle_configured.markdown
+    )

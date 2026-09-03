@@ -10,34 +10,37 @@ from ai_workflow_engine.prompt import models as prompt_models
 from ai_workflow_engine.prompt.models import PromptStrictModel, PromptTemplate
 from ai_workflow_engine.prompt.templates import TEMPLATE_REGISTRY, get_fragments, get_template
 
+# Recomputed for T-307's `## Verification evidence` section and template version 1.0.0 -> 1.1.0.
+# Values are explicit literals, computed once from the built registry and hardcoded here --
+# never re-derived from `TEMPLATE_REGISTRY` inside a test, which would make the golden vacuous.
 GOLDEN: dict[str, tuple[int, str]] = {
     "plan-review": (
-        1739,
-        "27dde6b824ec24aef65736fb8e66a90985f73bce04323e4957122faf7963008a",
+        1796,
+        "51db4df3a4032995bd64d1184e5f4090294be7376ecff83d3db1f89b335acda5",
     ),
     "implementation": (
-        1772,
-        "4aae483d3402332a26bab1ba813d6d7084c9da273702749d8911490198f6bea3",
+        1829,
+        "6d1544dfcf3d0bdbc24206e5309f1f6b86b5aefbd51dbc64b426186371570cee",
     ),
     "implementation-review": (
-        1752,
-        "3417515b3001ae3d105b9e18cfda1892e2fa0774d14345d1f8e55be09d89a575",
+        1809,
+        "4d1fad411380d3778216db73f2986c11da05275190145c439b90521b32d847bb",
     ),
     "remediation": (
-        1833,
-        "135e61a751b226dff796e143cf17cf5143c3f48e0e0ad374d5534d491a73e2d8",
+        1890,
+        "0bc2e440c25ba2accc6d37f6920217a2c77a886b510e511044eab9c01710b9b4",
     ),
     "governance-closeout": (
-        1768,
-        "9d0ab6e86cc26e555eaaa60493827ef33a27931c5360485424523a354b12f247",
+        1825,
+        "c3e37ffb4ddb253f46acab6b72433bada3137a3805707b2625f2f66f9d858184",
     ),
     "governance-review": (
-        1765,
-        "7dbd4ace9b1f1af39808a542f4ba90a17abe5e7ce418ebf52034ac712a520cce",
+        1822,
+        "4f28f597fc607466d52f64a8024a2e87a448f40173825883fd1609ddfa59c3a1",
     ),
     "push": (
-        2924,
-        "e175957cf5939c01fb10381ef04df410c830daa285df8f23757d929b1ea5ec84",
+        2981,
+        "c259be0321bf31497faf1c8be2857d1f2f2d3d2043162844184e56102240be98",
     ),
 }
 
@@ -55,7 +58,7 @@ def test_registry_entry_matches_golden_bytes_and_digest(stage: str) -> None:
     assert len(content_bytes) == expected_bytes
     assert template.sha256 == expected_sha256
     assert hashlib.sha256(content_bytes).hexdigest() == expected_sha256
-    assert template.version == "1.0.0"
+    assert template.version == "1.1.0"
     assert template.stage == stage
 
 
@@ -207,6 +210,8 @@ def test_prompt_metadata_model_fields_is_exactly_the_closed_field_set() -> None:
         "payload_sha256",
         "markdown_sha256",
         "payload",
+        "engine_provenance",
+        "verification_evidence",
     }
 
 

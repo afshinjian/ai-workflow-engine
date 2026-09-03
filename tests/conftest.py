@@ -1,4 +1,5 @@
 import hashlib
+import importlib
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
@@ -8,6 +9,49 @@ import yaml
 
 from ai_workflow_engine.config import load_config
 from ai_workflow_engine.models import EngineConfig
+from ai_workflow_engine.prompt.models import CanonicalEngineProvenance
+
+# T-307 engine-provenance test seam.
+#
+# Provenance is resolved from the *imported package's* own location, and an editable engine with
+# a dirty worktree is refused outright (OD-1). Without a seam the entire prompt suite would
+# therefore fail closed during all normal development, whenever this checkout has uncommitted
+# work -- which is exactly when the tests most need to run.
+#
+# The seam is the established one: substitute the module-scope name inside each *consumer*,
+# exactly as `tests/test_agent_runner.py` does with `verification_argv`. It never patches
+# `ai_workflow_engine.provenance` itself, so `tests/test_engine_provenance.py` always exercises
+# the real resolver. There is deliberately no production injection parameter, CLI option,
+# configuration key, or environment variable this fixture stands in for -- none exists.
+ENGINE_PROVENANCE_CONSUMERS: tuple[str, ...] = (
+    "ai_workflow_engine.prompt.context",
+    "ai_workflow_engine.agents.runner",
+)
+
+
+def stub_engine_provenance() -> CanonicalEngineProvenance:
+    """A deterministic, obviously non-production provenance value for tests.
+
+    Never written by production code and never presented as a real engine's provenance: the
+    version and package path are unmistakably synthetic, so a value that escaped into a durable
+    artifact would be self-evident rather than plausible.
+    """
+    return CanonicalEngineProvenance(
+        engine_version="0.0.0-test",
+        engine_head="0" * 40,
+        engine_worktree_clean=True,
+        engine_install_mode="source",
+        engine_package_path="/nonexistent/test-engine/ai_workflow_engine",
+    )
+
+
+@pytest.fixture(autouse=True)
+def deterministic_engine_provenance(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Give every test outside `test_engine_provenance.py` a fixed, resolver-free provenance."""
+    for module_name in ENGINE_PROVENANCE_CONSUMERS:
+        module = importlib.import_module(module_name)
+        if hasattr(module, "resolve_engine_provenance"):
+            monkeypatch.setattr(module, "resolve_engine_provenance", stub_engine_provenance)
 
 
 def git(repository: Path, *args: str) -> str:

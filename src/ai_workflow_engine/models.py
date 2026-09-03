@@ -135,6 +135,82 @@ class AgentSettings(StrictModel):
         return self
 
 
+# Argv tokens are recorded verbatim as governed evidence and are executed with `shell=False`, so
+# a token must survive a faithful round-trip through that record. NUL and newline cannot (they are
+# the delimiters every line- or NUL-oriented consumer relies on), and a lone surrogate cannot be
+# UTF-8 encoded at all. Rejecting them at configuration time keeps the failure deterministic and
+# early rather than at execution or serialization time.
+_FORBIDDEN_ARGV_CHARACTERS = {"\x00": "NUL", "\n": "newline", "\r": "newline"}
+
+
+def _validate_argv_token(token: str, *, position: str) -> None:
+    if token == "":
+        raise ValueError(f"verification command token {position} must not be empty")
+    for character, label in _FORBIDDEN_ARGV_CHARACTERS.items():
+        if character in token:
+            raise ValueError(f"verification command token {position} must not contain a {label}")
+    if any(0xD800 <= ord(character) <= 0xDFFF for character in token):
+        raise ValueError(
+            f"verification command token {position} must not contain a surrogate code point"
+        )
+
+
+class VerificationBundleSettings(StrictModel):
+    """One named bundle of verification commands the engine may execute (T-307).
+
+    Modelled on :class:`AgentSettings`: a named, strictly validated entry rather than a bare
+    mapping. Commands are argv lists only — never shell strings — so no quoting or word splitting
+    is ever involved and each token passes to the executed process exactly as configured.
+    """
+
+    name: str
+    commands: list[list[str]] = Field(min_length=1)
+    # Defaults to the runner's long-standing per-command verification timeout, so a bundle that
+    # does not state one behaves like the existing hardcoded verification path.
+    timeout_seconds: int = Field(ge=1, le=86400, default=3600)
+
+    @field_validator("name")
+    @classmethod
+    def _validate_name(cls, value: str) -> str:
+        # Deliberately the same shape as an agent name, reusing the one compiled pattern so the
+        # two configured-entity name rules cannot drift apart.
+        if not _AGENT_NAME_RE.fullmatch(value):
+            raise ValueError("verification bundle name must match [A-Za-z][A-Za-z0-9._-]{0,63}")
+        return value
+
+    @field_validator("commands")
+    @classmethod
+    def _validate_commands(cls, value: list[list[str]]) -> list[list[str]]:
+        for command_index, argv in enumerate(value):
+            if not argv:
+                raise ValueError(
+                    f"verification command {command_index} must have at least one token"
+                )
+            for token_index, token in enumerate(argv):
+                _validate_argv_token(token, position=f"{command_index}.{token_index}")
+        return value
+
+
+class VerificationSettings(StrictModel):
+    """The optional `verification` configuration section (T-307).
+
+    An absent section, or a present section with no bundles, means no bundle can be selected —
+    which is exactly the pre-T-307 behaviour.
+    """
+
+    bundles: list[VerificationBundleSettings] = Field(default_factory=list)
+
+    @field_validator("bundles")
+    @classmethod
+    def _unique_bundle_names(
+        cls, value: list[VerificationBundleSettings]
+    ) -> list[VerificationBundleSettings]:
+        names = [bundle.name for bundle in value]
+        if len(set(names)) != len(names):
+            raise ValueError("verification bundle names must be unique across the bundles list")
+        return value
+
+
 class EngineConfig(StrictModel):
     project: ProjectSettings
     governance: GovernanceSettings
@@ -142,6 +218,9 @@ class EngineConfig(StrictModel):
     protected_paths: ProtectedPathsSettings = Field(default_factory=ProtectedPathsSettings)
     workflow: WorkflowSettings = Field(default_factory=WorkflowSettings)
     agents: list[AgentSettings] = Field(default_factory=list)
+    # Optional and empty by default: a configuration with no `verification` section selects no
+    # bundles and renders exactly the prompts it rendered before T-307.
+    verification: VerificationSettings = Field(default_factory=VerificationSettings)
 
     @field_validator("workflow")
     @classmethod

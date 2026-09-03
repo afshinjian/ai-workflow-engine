@@ -232,6 +232,8 @@ def test_read_only_agent_that_physically_writes_is_caught(
 
 def test_malformed_changed_path_is_caught(engine_config: EngineConfig) -> None:
     # Defensive: a synthetic observation carrying a non-repo-relative path must be flagged.
+    from conftest import stub_engine_provenance
+
     from ai_workflow_engine.agents.models import AgentReport
     from ai_workflow_engine.agents.runner import RunObservation
 
@@ -247,6 +249,7 @@ def test_malformed_changed_path_is_caught(engine_config: EngineConfig) -> None:
         stage="implementation",
         prompt_id=rendered.prompt_id,
         repository_head=rendered.metadata.repository_head,
+        engine_provenance=stub_engine_provenance(),
         ok=True,
         failure_code=None,
         report=report.model_copy(update={"changed_paths": ["/abs/escape"]}),

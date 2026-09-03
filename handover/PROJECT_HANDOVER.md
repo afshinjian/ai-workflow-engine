@@ -1208,3 +1208,33 @@ T-307 is the single `Current` task after two exact Human Owner `AUTHORIZE` confi
 The authorization-only commit contains governance and handoff records; implementation has not
 started. No predecessor was closed automatically, and no push, merge, upstream, branch, or stash
 operation was performed.
+
+## T-307 governance closeout preparation — 2026-09-03
+
+T-307's Revision 4 implementation is complete on `main` and remains uncommitted at expected parent
+HEAD `678fbaea07a1e0ed6c49c837399aafe2c3996738`. A fresh, read-only independent implementation
+review returned `APPROVED`, findings `NONE`, remediation `NONE`, and next action
+`T307_IMPLEMENTATION_REVIEW_APPROVED`. The review covered all fifteen acceptance criteria and the
+exact changed production/test set. Its final `pytest -q` and `FORCE_COLOR=3 pytest -q` runs each
+reported 6022 passed and 34 deselected; `ruff check .`, `black --check .`, `mypy src`,
+`git diff --check`, and configured `workflowctl verify` passed. Independently rerun transient
+environment-sensitive failures did not reproduce in the final complete runs and are not defects.
+
+The delivered behavior is optional configured verification bundles with repeatable ordered CLI
+selection, exact-HEAD disposable-clone execution, target-bound governed prompt evidence, Prompt
+schema 1.2/template 1.1.0, AgentRun schema 1.1, and five-field engine provenance. OD-1 refuses
+dirty editable engines even with no selected bundle. A valid no-bundle path executes no bundle and
+records null evidence. Prompt 1.1 and AgentRun 1.0 artifacts remain deterministically
+unsupported/quarantined through current migration pins 1.2 and 1.1 and their four derived labels.
+The package version remains 1.0.0; no dependency or `pyproject.toml` change occurred.
+
+The reviewed implementation is all twelve Revision 4 §7.1 production paths and fifteen actually
+changed §7.2 test paths; the authorized `tests/test_cli_contract_v2.py` did not change. Unit E adds
+only Revision 4 §7.3 documentation/governance paths. No forbidden path, consumer-specific name,
+or Dahua file changed.
+
+The canonical task queue and mirrors are prepared `Current → Done`; the Current set is empty and
+no successor is authorized. The repository approval script's closeout transaction was inspected
+but not run because it requires two Human Owner confirmations and commits immediately. The full
+implementation-and-closeout tree now awaits separate Human Owner final-commit authorization. No
+commit, push, merge, tag, branch, upstream, remote, or stash operation was performed.

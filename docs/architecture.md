@@ -23,7 +23,11 @@ queue is authoritative; other documents are mirrors.
 Milestone 2 layers governed prompt generation on top of the same read-only inspection:
 
 ```text
-YAML config -> read-only inspection (git status, task snapshot, four checks)
+YAML config -> running-engine provenance validation -> selected bundle-name resolution
+            -> exact target HEAD + clean-tree capture
+            -> optional bundles in a disposable exact-HEAD clone
+            -> target/engine state re-read and drift refusal
+            -> read-only task snapshot and governance checks
             -> canonical context (strict models, NFC, sorted collections)
             -> exact template lookup (7 stages, pinned versions + SHA-256 digests)
             -> deterministic rendering (closed placeholder mapping, simultaneous substitution)
@@ -41,7 +45,15 @@ Key properties, specified normatively in [milestone-2-plan.md](milestone-2-plan.
   published via hard-link creates (metadata first), never inside the target repository, never
   overwritten. `load()` re-derives and re-verifies everything from the stored sidecar alone.
 - **Prompts are inert:** rendered command lines are instructions for an external operator or
-  agent; Milestone 2 never executes them, and `GitClient.READ_ONLY_FORMS` is unchanged.
+  agent. T-307's separately configured verification bundles are the sole prompt-time execution
+  path: the engine runs their argv arrays with `shell=False` in a disposable clone of the exact,
+  clean target HEAD and renders only exact argv/exit-code/timeout observations under
+  `## Verification evidence`. The target worktree is never written and command output is omitted.
+- **Evidence is target- and engine-bound:** prompt payload and metadata schema 1.2 bind optional
+  verification evidence to `repository_head` and always record five engine-provenance fields.
+  Template version 1.1.0 adds the evidence section without changing the six-line `## Identity`
+  block. A dirty editable engine fails closed under OD-1, with or without selected bundles; no
+  selection creates no verification sandbox and records null evidence.
 
 ## Agent execution and workflow state (Milestone 3)
 
@@ -54,7 +66,7 @@ governed prompt (M2) -> configured agent (EngineConfig.agents)
   -> subprocess (stdin=prompt, JSON AgentReport on stdout, hard timeout, scrubbed env)
   -> observe raw facts (change set, patch, verification-command exit codes)
   -> independent verification (claim equality, scope + protected containment, commands passed)
-  -> tamper-evident AgentRunRecord artifact  ──cites──>  workflow state event
+  -> tamper-evident AgentRunRecord 1.1 + engine provenance  ──cites──>  workflow state event
 ```
 
 Key invariants (normative detail in `docs/milestone-3-plan.md`):
@@ -72,6 +84,11 @@ Key invariants (normative detail in `docs/milestone-3-plan.md`):
   identity, and the parent-digest chain.
 - **Determinism holds end-to-end.** `prompt_id` and `run_id` are content hashes; no clock value
   enters any prompt, run identity, or state event.
+- **Engine drift cannot become trusted evidence.** Provenance is resolved from the imported
+  package location before governed execution and re-read afterward. A changed or newly
+  unresolvable engine becomes `engine_drift_during_run`; the CLI does not persist that run, and
+  the artifact builder independently refuses it. Prompt schema 1.1 and AgentRun schema 1.0 remain
+  deterministic unsupported/quarantine inputs to the migration reader after the 1.2/1.1 bumps.
 
 CLI surfaces added: `workflowctl state show|next|record` and `workflowctl agent run`.
 

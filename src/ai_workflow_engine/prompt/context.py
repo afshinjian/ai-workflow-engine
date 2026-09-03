@@ -16,12 +16,13 @@ from ai_workflow_engine.governance.validators import (
     task_snapshot,
 )
 from ai_workflow_engine.handover.validators import HandoverSource, check_handover
-from ai_workflow_engine.models import EngineConfig
+from ai_workflow_engine.models import EngineConfig, VerificationBundleSettings
 from ai_workflow_engine.prompt.models import (
     WORKFLOW_STAGES,
     CanonicalAgentSettings,
     CanonicalCheckResult,
     CanonicalEngineConfig,
+    CanonicalEngineProvenance,
     CanonicalFactRule,
     CanonicalFinding,
     CanonicalGitStatus,
@@ -31,6 +32,8 @@ from ai_workflow_engine.prompt.models import (
     CanonicalProtectedPathsSettings,
     CanonicalTaskRecord,
     CanonicalTaskSnapshot,
+    CanonicalVerificationCommandObservation,
+    CanonicalVerificationEvidence,
     CanonicalWorkflowSettings,
     JsonValue,
     PromptContext,
@@ -39,10 +42,166 @@ from ai_workflow_engine.prompt.models import (
 )
 from ai_workflow_engine.prompt.renderer import canonical_json
 from ai_workflow_engine.prompt.templates import get_template
+from ai_workflow_engine.provenance import EngineProvenanceError, resolve_engine_provenance
 from ai_workflow_engine.result import CheckResult, Finding, Status
+from ai_workflow_engine.verification_bundles import run_verification_bundles
 
 _STAGES_REQUIRING_ALLOWED_PATHS = frozenset({"implementation", "remediation"})
 _STAGES_REQUIRING_FINDINGS = frozenset({"remediation"})
+
+
+class PromptContextError(ValueError):
+    """A deterministic, fail-closed refusal raised while collecting prompt context."""
+
+    code = "prompt_context_error"
+
+    def __init__(self, message: str, *, code: str | None = None) -> None:
+        super().__init__(message)
+        if code is not None:
+            self.code = code
+
+
+class VerificationBundleSelectionError(PromptContextError):
+    """A selected bundle name is unknown or repeated. Raised before any execution."""
+
+
+class DirtyTargetWorktree(PromptContextError):
+    """The target worktree is not clean, so no evidence can be bound to its HEAD."""
+
+    code = "target_worktree_dirty"
+
+
+class TargetStateDrift(PromptContextError):
+    """The target repository changed while verification was running."""
+
+
+def _status_clean(status: GitStatus) -> bool:
+    return not (status.modified_files or status.staged_files or status.untracked_files)
+
+
+def _resolve_selected_bundles(
+    config: EngineConfig, selected: Sequence[str]
+) -> list[VerificationBundleSettings]:
+    """Resolve selected names against the configured bundles, in selection order.
+
+    Runs before the target probe and before any sandbox exists, so an unknown or repeated name
+    is refused before anything is executed. Selection order is preserved and never sorted: it is
+    the execution order the evidence will report.
+    """
+    configured = {bundle.name: bundle for bundle in config.verification.bundles}
+    resolved: list[VerificationBundleSettings] = []
+    seen: set[str] = set()
+    for name in selected:
+        if name in seen:
+            raise VerificationBundleSelectionError(
+                f"Verification bundle {name!r} was selected more than once",
+                code="duplicate_verification_bundle",
+            )
+        seen.add(name)
+        bundle = configured.get(name)
+        if bundle is None:
+            raise VerificationBundleSelectionError(
+                f"Unknown verification bundle {name!r}; configured bundles are "
+                f"{sorted(configured)}",
+                code="unknown_verification_bundle",
+            )
+        resolved.append(bundle)
+    return resolved
+
+
+def _require_engine_unchanged(before: CanonicalEngineProvenance) -> None:
+    """Re-resolve engine provenance after execution and refuse any difference.
+
+    A bundle command may run for hours, so the engine that started the run is not automatically
+    the engine that finished it. Re-resolving through the same single resolver keeps this on the
+    one substituted symbol and adds no bypass.
+    """
+    try:
+        after = resolve_engine_provenance()
+    except EngineProvenanceError as exc:
+        if exc.code == "engine_editable_worktree_dirty":
+            raise EngineProvenanceError(
+                f"The engine worktree became dirty while verification was running: {exc}",
+                code="engine_dirty_during_verification",
+            ) from exc
+        raise EngineProvenanceError(
+            f"The engine stopped resolving while verification was running: {exc}",
+            code="engine_drift_during_verification",
+        ) from exc
+    if after.engine_head != before.engine_head:
+        raise EngineProvenanceError(
+            f"The engine HEAD moved from {before.engine_head} to {after.engine_head} while "
+            "verification was running",
+            code="engine_head_drift_during_verification",
+        )
+    if after.engine_worktree_clean != before.engine_worktree_clean:
+        raise EngineProvenanceError(
+            "The engine worktree cleanliness changed while verification was running",
+            code="engine_dirty_during_verification",
+        )
+    if after != before:
+        raise EngineProvenanceError(
+            f"Engine provenance changed while verification was running: {before} -> {after}",
+            code="engine_drift_during_verification",
+        )
+
+
+def _require_target_unchanged(repository: Path, before: GitStatus) -> None:
+    after = GitClient(repository).status()
+    if after.head != before.head:
+        raise TargetStateDrift(
+            f"The target HEAD moved from {before.head} to {after.head} while verification was "
+            "running",
+            code="target_head_drift_during_verification",
+        )
+    if not _status_clean(after):
+        raise TargetStateDrift(
+            "The target worktree became dirty while verification was running",
+            code="target_dirty_during_verification",
+        )
+
+
+def _collect_verification_evidence(
+    config: EngineConfig,
+    *,
+    bundles: list[VerificationBundleSettings],
+    git_status: GitStatus,
+    engine_provenance: CanonicalEngineProvenance,
+) -> CanonicalVerificationEvidence:
+    """Execute the selected bundles against the exact recorded HEAD and bind the evidence.
+
+    The state checks bracket execution: the target must be clean at the recorded HEAD before
+    anything runs, and both the target and the engine must be unchanged afterwards. The
+    after-checks run *before* any evidence object exists, so a drifted run emits nothing at all.
+    """
+    repository = config.project.repository
+    if not _status_clean(git_status):
+        raise DirtyTargetWorktree(
+            "The target working tree must be clean before engine-executed verification, so the "
+            "evidence can be bound to an exact committed HEAD"
+        )
+
+    observations = run_verification_bundles(
+        repository=repository, repository_head=git_status.head, bundles=bundles
+    )
+
+    _require_target_unchanged(repository, git_status)
+    _require_engine_unchanged(engine_provenance)
+
+    return CanonicalVerificationEvidence(
+        target_head=git_status.head,
+        bundles=[bundle.name for bundle in bundles],
+        observations=[
+            CanonicalVerificationCommandObservation(
+                bundle=observation.bundle,
+                index=observation.index,
+                argv=list(observation.argv),
+                exit_code=observation.exit_code,
+                timed_out=observation.timed_out,
+            )
+            for observation in observations
+        ],
+    )
 
 
 def _has_surrogate(value: str) -> bool:
@@ -479,7 +638,18 @@ def build_prompt_context(
     task_id: str,
     allowed_paths: Sequence[str] = (),
     remediation_findings: Sequence[str] = (),
+    verification_bundles: Sequence[str] = (),
 ) -> PromptContext:
+    # OD-1 and the version reconciliation are the first substantive statement, unconditionally
+    # and before anything else is probed: this is one of exactly two enforcement sites (the other
+    # is `run_agent`), and putting it here rather than in the CLI is what makes it unbypassable
+    # by an in-process caller. It runs whether or not a bundle is selected.
+    engine_provenance = resolve_engine_provenance()
+
+    # Resolved before the target is probed and long before any sandbox exists, so an unknown or
+    # repeated name fails closed with nothing executed.
+    selected_bundles = _resolve_selected_bundles(config, verification_bundles)
+
     if stage in _STAGES_REQUIRING_ALLOWED_PATHS:
         if not allowed_paths:
             raise ValueError(f"Stage {stage!r} requires at least one --allowed-path")
@@ -504,6 +674,19 @@ def build_prompt_context(
     git_status = GitClient(config.project.repository).status()
     canonical_git_status = _canonicalize_git_status(git_status)
 
+    # No selection means no sandbox, no execution, and `verification_evidence = None` -- exactly
+    # the pre-T-307 behaviour, with provenance still resolved and validated above.
+    verification_evidence = (
+        _collect_verification_evidence(
+            config,
+            bundles=selected_bundles,
+            git_status=git_status,
+            engine_provenance=engine_provenance,
+        )
+        if selected_bundles
+        else None
+    )
+
     snapshot = task_snapshot(config)
     canonical_snapshot = _canonicalize_task_snapshot(snapshot)
 
@@ -525,7 +708,7 @@ def build_prompt_context(
     ]
 
     return PromptContext(
-        schema_version="1.1",
+        schema_version="1.2",
         config=canonical_config,
         stage=stage,
         task_id=normalized_task_id,
@@ -536,4 +719,6 @@ def build_prompt_context(
         checks=checks,
         remediation_findings=normalized_findings,
         allowed_paths=normalized_allowed_paths,
+        engine_provenance=engine_provenance,
+        verification_evidence=verification_evidence,
     )

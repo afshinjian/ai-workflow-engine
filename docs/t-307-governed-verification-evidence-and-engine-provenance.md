@@ -676,3 +676,145 @@ or write any Dahua file, and introduces no Dahua-specific behaviour. After T-307
 repository will — under its own separate governance and its own Human Owner authorization — use
 the resulting clean engine HEAD to generate target-bound evidence for its bundles and perform a
 fresh governed review. Nothing in this contract authorizes any action in that repository.
+
+## 14. Completion and governance-closeout evidence — 2026-09-03
+
+Revision 4 is the authoritative contract for this completion. The implementation was prepared on
+`main` with parent HEAD `678fbaea07a1e0ed6c49c837399aafe2c3996738` and deliberately remained
+uncommitted throughout implementation and independent review. A fresh, read-only independent
+implementation reviewer inspected that dirty implementation against Revision 4 and returned:
+
+- Verdict: `APPROVED`
+- Findings: `NONE`
+- Remediation: `NONE`
+- Next action: `T307_IMPLEMENTATION_REVIEW_APPROVED`
+
+The reviewer covered configuration and selection, exact-HEAD sandbox execution, target and engine
+drift/TOCTOU gates, provenance and OD-1 boundaries, Prompt 1.2 rendering/validation/storage,
+AgentRun 1.1 persistence and drift backstops, migration behavior, reviewer read-only posture, all
+fifteen acceptance criteria, Unit D's three strengthened gaps, and every changed production path.
+No implementation commit or push existed during review.
+
+### 14.1 Independent validation
+
+- focused review coverage: PASS
+- `pytest -q`: 6022 passed, 34 deselected
+- final `FORCE_COLOR=3 pytest -q`: 6022 passed, 34 deselected
+- `ruff check .`: PASS
+- `black --check .`: PASS
+- `mypy src`: PASS
+- `git diff --check`: PASS
+- `workflowctl verify --config self-governance.yaml`: PASS
+
+Transient environment-sensitive failures observed during the independent review were rerun and
+did not reproduce in the final complete runs. They are not T-307 defects.
+
+### 14.2 Acceptance closure
+
+All fifteen Revision 4 §8 criteria have implementation evidence, automated test evidence, and an
+independent-review PASS:
+
+1. **PASS — bundle configuration.** `models.py` supplies the strict optional bundle models;
+   `test_config.py` covers valid/absent configuration and every rejected name, command, argv,
+   token, duplicate-name, unknown-key, and timeout case.
+2. **PASS — exact target HEAD.** `verification_bundles.py` uses `create_sandbox(repository,
+   repository_head)`; executor tests distinguish committed content from dirty worktree content
+   and assert the detached clone OID.
+3. **PASS — exact ordered observations.** The executor records exact argv, global indices, exit
+   codes, and timeout flags in selection order; tests cover nonzero continuation, timeout 124,
+   OSError 127, and absence of stdout/stderr.
+4. **PASS — rendered target-bound evidence.** `prompt/context.py` constructs evidence only after
+   exact-HEAD execution and `prompt/renderer.py` emits the single `## Verification evidence`
+   fenced JSON block; context and renderer tests prove the populated path.
+5. **PASS — metadata/head/provenance binding.** Prompt 1.2 models require all five provenance
+   fields and enforce evidence target HEAD equality; renderer tests assert the exact field set,
+   payload/metadata equality, and `repository_head` relation.
+6. **PASS — AgentRun provenance and identity.** AgentRun 1.1 requires provenance and includes it
+   in the canonical content hash; artifact tests prove round-trip, hash equality, and that changed
+   provenance changes `run_id`.
+7. **PASS — OD-1 and its boundary.** `provenance.py` refuses dirty editable and editable-without-
+   worktree engines; tests cover bundle and no-bundle governed paths, clean editable, installed,
+   source, and the complete §4.3 non-governed command enumeration.
+8. **PASS — version reconciliation.** The module version is canonical, resolvable distribution
+   metadata is cross-checked, and mismatches name both values; provenance tests cover matching,
+   mismatching, and absent metadata.
+9. **PASS — reviewer remains read-only.** Agent mode/stage sets and validation are unchanged;
+   configuration and CLI tests prove bundles expose no mode/stage promotion path or resolver
+   bypass.
+10. **PASS — no-bundle compatibility.** Context, executor, CLI, renderer, and validator tests
+    prove null evidence, no bundle sandbox/execution, unchanged verification-command content, and
+    unconditional valid provenance enforcement.
+11. **PASS — Identity/template compatibility.** The seven templates are version 1.1.0; tests
+    prove the six Identity lines remain byte-identical and pin each byte count and SHA-256 below.
+12. **PASS — validator fail-closed cases.** Validator tests cover missing section, non-JSON,
+    non-reserializable evidence, index gap/order/duplicate, unselected bundle, duplicate selected
+    bundle, empty observations, target mismatch, metadata/context mismatches, malformed types, and
+    the evidence span mutation matrix without raising.
+13. **PASS — existing runner verification invariants.** The original displayed-command/runner-
+    argv equality test still passes; `agents/verification.py` is unchanged and its existing
+    judgment tests pass.
+14. **PASS — complete quality suite.** Both 6022-test runs and every lint, format, type,
+    whitespace, and configured governance command listed in §14.1 passed independently.
+15. **PASS — cross-repository Identity compatibility.** Renderer tests populate evidence for all
+    seven stages, assert exactly the six baseline Identity lines inside the span, and reject every
+    Identity-shaped line outside it without reading or naming any consumer repository.
+
+### 14.3 Final schemas and template goldens
+
+| Artifact/component | Current | Previous behavior |
+|---|---:|---|
+| `PromptContext` | 1.2 | Prompt 1.1 rejected/quarantined as unsupported |
+| `PromptMetadata` | 1.2 | Prompt 1.1 rejected/quarantined as unsupported |
+| `PromptSuccess` | 1.2 | Prompt 1.1 rejected/quarantined as unsupported |
+| prompt template | 1.1.0 | Identity bytes preserved across 1.0.0 → 1.1.0 |
+| prompt migration pin | 1.2 | drives `prompt-metadata` and prompt-Markdown labels |
+| `AgentRunRecord` | 1.1 | AgentRun 1.0 rejected/quarantined as unsupported |
+| agent-run migration pin | 1.1 | drives `agent-run-record` and `agent-run-patch` labels |
+
+All four current-artifact migration labels derive from their corresponding pins. The package
+version remains 1.0.0; `pyproject.toml` is unchanged and outside T-307 scope.
+
+| Stage | Bytes | SHA-256 |
+|---|---:|---|
+| `plan-review` | 1796 | `51db4df3a4032995bd64d1184e5f4090294be7376ecff83d3db1f89b335acda5` |
+| `implementation` | 1829 | `6d1544dfcf3d0bdbc24206e5309f1f6b86b5aefbd51dbc64b426186371570cee` |
+| `implementation-review` | 1809 | `4d1fad411380d3778216db73f2986c11da05275190145c439b90521b32d847bb` |
+| `remediation` | 1890 | `0bc2e440c25ba2accc6d37f6920217a2c77a886b510e511044eab9c01710b9b4` |
+| `governance-closeout` | 1825 | `c3e37ffb4ddb253f46acab6b72433bada3137a3805707b2625f2f66f9d858184` |
+| `governance-review` | 1822 | `4f28f597fc607466d52f64a8024a2e87a448f40173825883fd1609ddfa59c3a1` |
+| `push` | 2981 | `c259be0321bf31497faf1c8be2857d1f2f2d3d2043162844184e56102240be98` |
+
+### 14.4 Reviewed implementation scope
+
+The actual reviewed production set is all twelve §7.1 paths. The actual reviewed test set is:
+
+```
+tests/conftest.py
+tests/test_agent_artifacts.py
+tests/test_agent_runner.py
+tests/test_agent_verification.py
+tests/test_apply_patch_gate.py
+tests/test_cli.py
+tests/test_config.py
+tests/test_engine_provenance.py
+tests/test_migration_readers.py
+tests/test_prompt_context.py
+tests/test_prompt_renderer.py
+tests/test_prompt_store.py
+tests/test_prompt_templates.py
+tests/test_prompt_validator.py
+tests/test_verification_bundles.py
+```
+
+`tests/test_cli_contract_v2.py` was authorized by §7.2 but did not change. No §7.5 forbidden path,
+Dahua path or name, dependency, package file, or project-version file changed. Authorization and
+actual modification are intentionally recorded separately.
+
+### 14.5 Prepared lifecycle state
+
+With implementation complete, the independent implementation review approved, no findings or
+remediation outstanding, and all closure evidence present, Unit E prepares T-307's canonical
+`Current → Done` transition and synchronizes the task queue, mirrors, project state, decision log,
+changelog, handover, and checksum. This state remains uncommitted. No commit, push, merge, tag,
+branch, upstream, or stash operation is part of this preparation; the complete implementation and
+closeout diff requires separate Human Owner final-commit authorization.

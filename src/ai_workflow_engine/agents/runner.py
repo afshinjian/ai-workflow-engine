@@ -23,12 +23,19 @@ from ai_workflow_engine.git.client import GitClient
 from ai_workflow_engine.git.models import GitStatus
 from ai_workflow_engine.models import AgentSettings, EngineConfig
 from ai_workflow_engine.prompt.context import normalize_text
-from ai_workflow_engine.prompt.models import WorkflowStage
+from ai_workflow_engine.prompt.models import CanonicalEngineProvenance, WorkflowStage
 from ai_workflow_engine.prompt.store import load
+from ai_workflow_engine.provenance import EngineProvenanceError, resolve_engine_provenance
 from ai_workflow_engine.workflow.events import VERDICT_STAGES
 
 _SCRUBBED_KEYS = ("PATH", "HOME", "LANG", "LC_ALL")
 _VERIFICATION_TIMEOUT = 3600
+
+# T-307: the engine that started a run is not automatically the engine that finished it. This
+# failure_code marks an observation whose provenance is no longer trustworthy -- the single
+# named constant `agents/artifacts.py` and `cli.py` both check against, so the string cannot
+# drift out of sync between the three sites that must agree on it.
+ENGINE_DRIFT_FAILURE_CODE = "engine_drift_during_run"
 
 
 class RunnerError(ValueError):
@@ -66,6 +73,11 @@ class RunObservation:
     stage: WorkflowStage
     prompt_id: str
     repository_head: str
+    # Which engine executed this run. Required, never a fabricated default: an observation that
+    # cannot say which engine ran it is not evidence T-305/commit gates can trust. Always the
+    # value resolved *before* execution -- the engine that actually started the run -- even when
+    # a post-execution drift check later sets `failure_code = "engine_drift_during_run"`.
+    engine_provenance: CanonicalEngineProvenance
     ok: bool
     failure_code: str | None
     report: AgentReport | None
@@ -200,6 +212,11 @@ def run_agent(
             f"Live HEAD {before.head} differs from the prompt's recorded head {recorded_head}"
         )
 
+    # OD-1 enforcement site #2 (the other is `build_prompt_context`): resolved unconditionally,
+    # before any sandbox exists, and fails closed (raises) exactly like that site. The retained
+    # value is what flows into the observation and, from there, into any stored artifact.
+    engine_provenance = resolve_engine_provenance()
+
     def observe(
         *,
         ok: bool,
@@ -223,6 +240,7 @@ def run_agent(
             stage=stage,
             prompt_id=prompt_id,
             repository_head=recorded_head,
+            engine_provenance=engine_provenance,
             ok=ok,
             failure_code=failure_code,
             report=report,
@@ -275,7 +293,22 @@ def run_agent(
         if failure_code is None:
             verifications = _run_verification_commands(config, sandbox)
 
-        # A run that changed the *target* repository fails regardless of everything else.
+        # T-307/PR-005: the engine that started this run may not be the engine that finished it
+        # -- the backend plus verification commands can run for as long as the agent's own
+        # timeout allows. Re-resolve and compare against the retained `engine_provenance` above;
+        # any difference, including the resolver now refusing outright, is drift. Unlike the
+        # pre-execution resolution, this never raises: the run already happened and its captured
+        # evidence (stdout/stderr/patch) is still worth recording, with the drift as its outcome.
+        try:
+            after_engine_provenance = resolve_engine_provenance()
+        except EngineProvenanceError:
+            failure_code, report = ENGINE_DRIFT_FAILURE_CODE, None
+        else:
+            if after_engine_provenance != engine_provenance:
+                failure_code, report = ENGINE_DRIFT_FAILURE_CODE, None
+
+        # A run that changed the *target* repository fails regardless of everything else,
+        # including an engine-drift finding above.
         after = GitClient(repository).status()
         if after != before:
             failure_code, report = "repository_mutated", None

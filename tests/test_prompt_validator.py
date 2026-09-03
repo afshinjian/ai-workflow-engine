@@ -1,10 +1,23 @@
 """Mechanical structural validation tests: headings, fragments, spans, consistency."""
 
+import hashlib
+import sys
+
 import pytest
 
-from ai_workflow_engine.models import EngineConfig
+from ai_workflow_engine.models import (
+    EngineConfig,
+    VerificationBundleSettings,
+    VerificationSettings,
+)
 from ai_workflow_engine.prompt.context import build_prompt_context
-from ai_workflow_engine.prompt.renderer import render_prompt
+from ai_workflow_engine.prompt.renderer import (
+    canonical_json,
+    canonical_payload_bytes,
+    compute_prompt_id,
+    render_markdown,
+    render_prompt,
+)
 from ai_workflow_engine.prompt.templates import get_template
 from ai_workflow_engine.prompt.validator import validate_prompt
 from ai_workflow_engine.result import Status
@@ -268,6 +281,7 @@ _SPAN_MUTATIONS: list[tuple[str, str, str]] = [
     ("protected_path_violations_list", "### Protected-path violations", "rendered_span_mismatch"),
     ("checks_json_block", "### Validation checks", "rendered_span_mismatch"),
     ("remediation_findings_list", "## Remediation findings", "rendered_span_mismatch"),
+    ("verification_evidence_json_block", "## Verification evidence", "rendered_span_mismatch"),
 ]
 
 
@@ -389,3 +403,283 @@ def test_validate_prompt_detects_push_stop_condition_mutation(
     assert result.status == Status.FAIL
     codes = {finding.code for finding in result.findings}
     assert "fragment_mismatch" in codes
+
+
+# --- AC12: mechanically malformed verification evidence -----------------------
+
+
+def test_validate_prompt_detects_verification_evidence_section_absent(
+    engine_config: EngineConfig,
+) -> None:
+    """An entirely missing `## Verification evidence` heading is caught by the same heading-
+    sequence check every other required heading already relies on."""
+    rendered = _rendered(engine_config)
+    mutated = rendered.model_copy(
+        update={"markdown": rendered.markdown.replace("## Verification evidence\n", "", 1)}
+    )
+    result = validate_prompt(mutated)
+    assert result.status == Status.FAIL
+    codes = {finding.code for finding in result.findings}
+    assert "heading_sequence_mismatch" in codes
+
+
+def test_validate_prompt_detects_verification_evidence_non_json_block(
+    engine_config: EngineConfig,
+) -> None:
+    """The fenced block's content must be exactly the re-derived canonical JSON; replacing it
+    with non-JSON text is caught the same way every other JSON span is."""
+    rendered = _rendered(engine_config)
+    body = rendered.markdown
+    section = body.split("## Verification evidence\n", 1)[1].split("\n## Stop condition", 1)[0]
+    mutated_markdown = body.replace(
+        "## Verification evidence\n" + section, "## Verification evidence\n```json\nnot json\n```"
+    )
+    assert mutated_markdown != body
+    mutated = rendered.model_copy(update={"markdown": mutated_markdown})
+    result = validate_prompt(mutated)
+    assert result.status == Status.FAIL
+    codes = {finding.code for finding in result.findings}
+    assert "rendered_span_mismatch" in codes
+
+
+def test_validate_prompt_detects_verification_evidence_not_reserializable(
+    engine_config: EngineConfig,
+) -> None:
+    """AC12's 'not re-serializable from the payload' case: the markdown is internally
+    well-formed JSON, but it no longer equals what `render_markdown` would recompute from the
+    stored context -- caught by the full rerender check, independent of the span check."""
+    rendered = _rendered(engine_config)
+    body = rendered.markdown
+    section = body.split("## Verification evidence\n", 1)[1].split("\n## Stop condition", 1)[0]
+    replaced = '```json\n{"engine_provenance":null,"verification_evidence":null}\n```'
+    mutated_markdown = body.replace("## Verification evidence\n" + section, replaced)
+    assert mutated_markdown != body
+    mutated = rendered.model_copy(update={"markdown": mutated_markdown})
+    result = validate_prompt(mutated)
+    assert result.status == Status.FAIL
+    codes = {finding.code for finding in result.findings}
+    assert "markdown_mismatch" in codes or "rendered_span_mismatch" in codes
+
+
+# --- T-307 / PR-006: independent semantic validation of verification evidence --
+
+
+def _bundle_rendered(engine_config: EngineConfig):
+    bundle = VerificationBundleSettings(
+        name="quality",
+        commands=[
+            [sys.executable, "-c", "raise SystemExit(0)"],
+            [sys.executable, "-c", "raise SystemExit(0)"],
+        ],
+    )
+    config = engine_config.model_copy(
+        update={"verification": VerificationSettings(bundles=[bundle])}
+    )
+    context = build_prompt_context(
+        config, stage="plan-review", task_id="T-1", verification_bundles=["quality"]
+    )
+    return render_prompt(context)
+
+
+def _re_rendered_from_tampered_context(
+    base_rendered,
+    tampered_context,
+    *,
+    sync_metadata_evidence: bool = True,
+    sync_metadata_provenance: bool = True,
+):
+    """Fully regenerate every derived field from a tampered context, exactly as `render_prompt`
+    would. This is the adversarial case PR-006 targets: the tampered payload renders and
+    re-renders consistently (every existing mechanical check passes), so only an independent
+    semantic check on the evidence's own content can catch it.
+    """
+    payload_bytes = canonical_payload_bytes(tampered_context)
+    payload_sha256, prompt_id = compute_prompt_id(payload_bytes)
+    markdown = render_markdown(tampered_context.template.content, tampered_context, prompt_id)
+    markdown_sha256 = hashlib.sha256(markdown.encode("utf-8", errors="strict")).hexdigest()
+
+    metadata_updates: dict[str, object] = {
+        "prompt_id": prompt_id,
+        "payload_sha256": payload_sha256,
+        "markdown_sha256": markdown_sha256,
+        "payload": tampered_context,
+    }
+    if sync_metadata_evidence:
+        metadata_updates["verification_evidence"] = tampered_context.verification_evidence
+    if sync_metadata_provenance:
+        metadata_updates["engine_provenance"] = tampered_context.engine_provenance
+    metadata = base_rendered.metadata.model_copy(update=metadata_updates)
+
+    return base_rendered.model_copy(
+        update={
+            "context": tampered_context,
+            "canonical_payload_bytes": payload_bytes,
+            "prompt_id": prompt_id,
+            "markdown": markdown,
+            "metadata": metadata,
+            "metadata_bytes": canonical_json(metadata.model_dump(mode="json")) + b"\n",
+        }
+    )
+
+
+def _codes(result) -> set[str]:
+    return {finding.code for finding in result.findings}
+
+
+def test_semantic_check_index_gap(engine_config: EngineConfig) -> None:
+    rendered = _bundle_rendered(engine_config)
+    evidence = rendered.context.verification_evidence
+    assert evidence is not None
+    observations = evidence.observations
+    gapped = observations[1].model_copy(update={"index": 2})
+    tampered_evidence = evidence.model_copy(update={"observations": [observations[0], gapped]})
+    tampered_context = rendered.context.model_copy(
+        update={"verification_evidence": tampered_evidence}
+    )
+    result = validate_prompt(_re_rendered_from_tampered_context(rendered, tampered_context))
+    assert result.status == Status.FAIL
+    assert "verification_evidence_index_gap" in _codes(result)
+
+
+def test_semantic_check_index_order(engine_config: EngineConfig) -> None:
+    rendered = _bundle_rendered(engine_config)
+    evidence = rendered.context.verification_evidence
+    assert evidence is not None
+    reordered = list(reversed(evidence.observations))
+    tampered_evidence = evidence.model_copy(update={"observations": reordered})
+    tampered_context = rendered.context.model_copy(
+        update={"verification_evidence": tampered_evidence}
+    )
+    result = validate_prompt(_re_rendered_from_tampered_context(rendered, tampered_context))
+    assert result.status == Status.FAIL
+    assert "verification_evidence_index_order" in _codes(result)
+
+
+def test_semantic_check_index_duplicate(engine_config: EngineConfig) -> None:
+    rendered = _bundle_rendered(engine_config)
+    evidence = rendered.context.verification_evidence
+    assert evidence is not None
+    duplicated = [evidence.observations[0], evidence.observations[0]]
+    tampered_evidence = evidence.model_copy(update={"observations": duplicated})
+    tampered_context = rendered.context.model_copy(
+        update={"verification_evidence": tampered_evidence}
+    )
+    result = validate_prompt(_re_rendered_from_tampered_context(rendered, tampered_context))
+    assert result.status == Status.FAIL
+    assert "verification_evidence_index_duplicate" in _codes(result)
+
+
+def test_semantic_check_unselected_bundle(engine_config: EngineConfig) -> None:
+    rendered = _bundle_rendered(engine_config)
+    evidence = rendered.context.verification_evidence
+    assert evidence is not None
+    ghost = evidence.observations[0].model_copy(update={"bundle": "ghost"})
+    tampered_evidence = evidence.model_copy(
+        update={"observations": [ghost, evidence.observations[1]]}
+    )
+    tampered_context = rendered.context.model_copy(
+        update={"verification_evidence": tampered_evidence}
+    )
+    result = validate_prompt(_re_rendered_from_tampered_context(rendered, tampered_context))
+    assert result.status == Status.FAIL
+    assert "verification_evidence_unselected_bundle" in _codes(result)
+
+
+def test_semantic_check_duplicate_selected_bundle(engine_config: EngineConfig) -> None:
+    rendered = _bundle_rendered(engine_config)
+    evidence = rendered.context.verification_evidence
+    assert evidence is not None
+    tampered_evidence = evidence.model_copy(update={"bundles": ["quality", "quality"]})
+    tampered_context = rendered.context.model_copy(
+        update={"verification_evidence": tampered_evidence}
+    )
+    result = validate_prompt(_re_rendered_from_tampered_context(rendered, tampered_context))
+    assert result.status == Status.FAIL
+    assert "verification_evidence_duplicate_bundle" in _codes(result)
+
+
+def test_semantic_check_empty_observations(engine_config: EngineConfig) -> None:
+    rendered = _bundle_rendered(engine_config)
+    evidence = rendered.context.verification_evidence
+    assert evidence is not None
+    tampered_evidence = evidence.model_copy(update={"observations": []})
+    tampered_context = rendered.context.model_copy(
+        update={"verification_evidence": tampered_evidence}
+    )
+    result = validate_prompt(_re_rendered_from_tampered_context(rendered, tampered_context))
+    assert result.status == Status.FAIL
+    assert "verification_evidence_empty_observations" in _codes(result)
+
+
+def test_semantic_check_target_head_mismatch(engine_config: EngineConfig) -> None:
+    rendered = _bundle_rendered(engine_config)
+    evidence = rendered.context.verification_evidence
+    assert evidence is not None
+    tampered_evidence = evidence.model_copy(update={"target_head": "0" * 40})
+    tampered_context = rendered.context.model_copy(
+        update={"verification_evidence": tampered_evidence}
+    )
+    result = validate_prompt(_re_rendered_from_tampered_context(rendered, tampered_context))
+    assert result.status == Status.FAIL
+    assert "verification_evidence_target_head_mismatch" in _codes(result)
+
+
+def test_semantic_check_metadata_evidence_mismatch(engine_config: EngineConfig) -> None:
+    rendered = _bundle_rendered(engine_config)
+    evidence = rendered.context.verification_evidence
+    assert evidence is not None
+    tampered_evidence = evidence.model_copy(update={"target_head": "0" * 40})
+    tampered_context = rendered.context.model_copy(
+        update={"verification_evidence": tampered_evidence}
+    )
+    result = validate_prompt(
+        _re_rendered_from_tampered_context(rendered, tampered_context, sync_metadata_evidence=False)
+    )
+    assert result.status == Status.FAIL
+    assert "metadata_verification_evidence_mismatch" in _codes(result)
+
+
+def test_semantic_check_metadata_provenance_mismatch(engine_config: EngineConfig) -> None:
+    rendered = _bundle_rendered(engine_config)
+    provenance = rendered.context.engine_provenance
+    tampered_provenance = provenance.model_copy(update={"engine_head": "f" * 40})
+    tampered_context = rendered.context.model_copy(
+        update={"engine_provenance": tampered_provenance}
+    )
+    result = validate_prompt(
+        _re_rendered_from_tampered_context(
+            rendered, tampered_context, sync_metadata_provenance=False
+        )
+    )
+    assert result.status == Status.FAIL
+    assert "metadata_engine_provenance_mismatch" in _codes(result)
+
+
+def test_semantic_check_never_raises_on_a_malformed_index_type(
+    engine_config: EngineConfig,
+) -> None:
+    """The defensive `_check_verification_evidence` wrapper converts even a type defect that
+    would otherwise raise (a non-int index, bypassed past the observation model's own strict
+    typing via `model_copy`) into a Finding, never an exception."""
+    rendered = _bundle_rendered(engine_config)
+    evidence = rendered.context.verification_evidence
+    assert evidence is not None
+    malformed = evidence.observations[0].model_copy(update={"index": "not-an-int"})
+    tampered_evidence = evidence.model_copy(
+        update={"observations": [malformed, evidence.observations[1]]}
+    )
+    tampered_context = rendered.context.model_copy(
+        update={"verification_evidence": tampered_evidence}
+    )
+    result = validate_prompt(_re_rendered_from_tampered_context(rendered, tampered_context))
+    assert result.status == Status.FAIL
+    assert "verification_evidence_unreadable" in _codes(result)
+
+
+def test_no_verification_evidence_findings_when_none_selected(
+    engine_config: EngineConfig,
+) -> None:
+    rendered = _rendered(engine_config)
+    result = validate_prompt(rendered)
+    assert result.status == Status.PASS
+    assert not any(finding.code.startswith("verification_evidence_") for finding in result.findings)

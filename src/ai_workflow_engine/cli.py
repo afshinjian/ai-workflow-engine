@@ -13,7 +13,12 @@ from rich.console import Console
 
 from ai_workflow_engine import __version__
 from ai_workflow_engine.agents.artifacts import build_record, save_run
-from ai_workflow_engine.agents.runner import RunnerError, run_agent
+from ai_workflow_engine.agents.runner import (
+    ENGINE_DRIFT_FAILURE_CODE,
+    RunnerError,
+    RunObservation,
+    run_agent,
+)
 from ai_workflow_engine.agents.verification import verify_run
 from ai_workflow_engine.commit.gates import (
     run_apply_patch_gate,
@@ -395,6 +400,13 @@ TaskIdOption = Annotated[str, typer.Option("--task-id")]
 StoreOption = Annotated[bool, typer.Option("--store/--no-store")]
 AllowedPathOption = Annotated[list[str], typer.Option("--allowed-path")]
 FindingOption = Annotated[list[str], typer.Option("--finding")]
+# Repeatable and ordered, following the established `--allowed-path`/`--finding` convention.
+# Selection order is execution order, so the list is threaded through unchanged and never sorted.
+# There is deliberately no counterpart option for engine provenance: enforcement lives in
+# `build_prompt_context`, and a CLI switch would make "no production bypass" unverifiable.
+# Defaulted to `None` rather than `[]` so no mutable default is shared across invocations; the
+# command body normalizes it to an empty list.
+VerificationBundleOption = Annotated[list[str] | None, typer.Option("--verification-bundle")]
 
 
 def _emit_prompt_success(
@@ -406,7 +418,7 @@ def _emit_prompt_success(
     output: OutputFormat,
 ) -> None:
     success = PromptSuccess(
-        schema_version="1.1",
+        schema_version="1.2",
         stored=stored,
         prompt_artifact=prompt_artifact,
         metadata_artifact=metadata_artifact,
@@ -446,6 +458,7 @@ def _run_prompt_command(
     store: bool,
     allowed_paths: list[str],
     remediation_findings: list[str],
+    verification_bundles: list[str],
 ) -> None:
     context = _protected(
         lambda: build_prompt_context(
@@ -454,6 +467,7 @@ def _run_prompt_command(
             task_id=task_id,
             allowed_paths=allowed_paths,
             remediation_findings=remediation_findings,
+            verification_bundles=verification_bundles,
         ),
         output=output,
         command=stage,
@@ -487,6 +501,7 @@ def _run_prompt_command(
 def prompt_plan_review(
     config: ConfigOption,
     task_id: TaskIdOption,
+    verification_bundle: VerificationBundleOption = None,
     output: OutputOption = OutputFormat.HUMAN,
     store: StoreOption = True,
 ) -> None:
@@ -496,6 +511,7 @@ def prompt_plan_review(
         task_id=task_id,
         output=output,
         store=store,
+        verification_bundles=verification_bundle or [],
         allowed_paths=[],
         remediation_findings=[],
     )
@@ -506,6 +522,7 @@ def prompt_implementation(
     config: ConfigOption,
     task_id: TaskIdOption,
     allowed_path: AllowedPathOption,
+    verification_bundle: VerificationBundleOption = None,
     output: OutputOption = OutputFormat.HUMAN,
     store: StoreOption = True,
 ) -> None:
@@ -515,6 +532,7 @@ def prompt_implementation(
         task_id=task_id,
         output=output,
         store=store,
+        verification_bundles=verification_bundle or [],
         allowed_paths=allowed_path,
         remediation_findings=[],
     )
@@ -524,6 +542,7 @@ def prompt_implementation(
 def prompt_implementation_review(
     config: ConfigOption,
     task_id: TaskIdOption,
+    verification_bundle: VerificationBundleOption = None,
     output: OutputOption = OutputFormat.HUMAN,
     store: StoreOption = True,
 ) -> None:
@@ -533,6 +552,7 @@ def prompt_implementation_review(
         task_id=task_id,
         output=output,
         store=store,
+        verification_bundles=verification_bundle or [],
         allowed_paths=[],
         remediation_findings=[],
     )
@@ -544,6 +564,7 @@ def prompt_remediation(
     task_id: TaskIdOption,
     allowed_path: AllowedPathOption,
     finding: FindingOption,
+    verification_bundle: VerificationBundleOption = None,
     output: OutputOption = OutputFormat.HUMAN,
     store: StoreOption = True,
 ) -> None:
@@ -553,6 +574,7 @@ def prompt_remediation(
         task_id=task_id,
         output=output,
         store=store,
+        verification_bundles=verification_bundle or [],
         allowed_paths=allowed_path,
         remediation_findings=finding,
     )
@@ -562,6 +584,7 @@ def prompt_remediation(
 def prompt_governance_closeout(
     config: ConfigOption,
     task_id: TaskIdOption,
+    verification_bundle: VerificationBundleOption = None,
     output: OutputOption = OutputFormat.HUMAN,
     store: StoreOption = True,
 ) -> None:
@@ -571,6 +594,7 @@ def prompt_governance_closeout(
         task_id=task_id,
         output=output,
         store=store,
+        verification_bundles=verification_bundle or [],
         allowed_paths=[],
         remediation_findings=[],
     )
@@ -580,6 +604,7 @@ def prompt_governance_closeout(
 def prompt_governance_review(
     config: ConfigOption,
     task_id: TaskIdOption,
+    verification_bundle: VerificationBundleOption = None,
     output: OutputOption = OutputFormat.HUMAN,
     store: StoreOption = True,
 ) -> None:
@@ -589,6 +614,7 @@ def prompt_governance_review(
         task_id=task_id,
         output=output,
         store=store,
+        verification_bundles=verification_bundle or [],
         allowed_paths=[],
         remediation_findings=[],
     )
@@ -598,6 +624,7 @@ def prompt_governance_review(
 def prompt_push(
     config: ConfigOption,
     task_id: TaskIdOption,
+    verification_bundle: VerificationBundleOption = None,
     output: OutputOption = OutputFormat.HUMAN,
     store: StoreOption = True,
 ) -> None:
@@ -607,6 +634,7 @@ def prompt_push(
         task_id=task_id,
         output=output,
         store=store,
+        verification_bundles=verification_bundle or [],
         allowed_paths=[],
         remediation_findings=[],
     )
@@ -902,6 +930,20 @@ agent_app = typer.Typer(help="Run a configured non-interactive agent against a g
 app.add_typer(agent_app, name="agent")
 
 
+def _run_is_persistable(observation: RunObservation) -> bool:
+    """Whether this observation may become a durable `AgentRunRecord` (T-307/PR-005).
+
+    Ordinary auditable failures (timeout, nonzero exit, a malformed or mismatched report,
+    repository mutation, a FAIL verification result) keep today's storage semantics exactly --
+    those artifacts are the audit evidence repository policy expects to retain. Engine-drift is
+    different in kind: it means the provenance this run would record is no longer trustworthy,
+    so a normal record must never be built for it. One named predicate, so the rule guarding
+    `agent_run`'s `if store:` block is a single reviewable point rather than an inline special
+    case. `build_record` carries the same rule as an artifact-layer backstop.
+    """
+    return observation.failure_code != ENGINE_DRIFT_FAILURE_CODE
+
+
 @agent_app.command("run")
 def agent_run(
     config: ConfigOption,
@@ -944,7 +986,7 @@ def agent_run(
         stored_record: str | None = None
         stored_patch: str | None = None
         run_id: str | None = None
-        if store:
+        if store and _run_is_persistable(observation):
             record, patch = build_record(observation, verification, project_id=settings.project.id)
             record_path, patch_path = save_run(
                 record, patch, repository=str(settings.project.repository)

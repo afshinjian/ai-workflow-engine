@@ -53,6 +53,9 @@ _COMMON_LITERAL = (
     "## Verification commands\n"
     "@@VERIFICATION@@\n"
     "\n"
+    "## Verification evidence\n"
+    "{{VERIFICATION_EVIDENCE_JSON}}\n"
+    "\n"
     "## Stop condition\n"
     "@@STOP@@\n"
     "\n"
@@ -297,7 +300,7 @@ def _construct_content(stage: WorkflowStage) -> str:
 def _build_template(stage: WorkflowStage) -> PromptTemplate:
     content = _construct_content(stage)
     digest = hashlib.sha256(content.encode("utf-8")).hexdigest()
-    return PromptTemplate(stage=stage, version="1.0.0", content=content, sha256=digest)
+    return PromptTemplate(stage=stage, version="1.1.0", content=content, sha256=digest)
 
 
 TEMPLATE_REGISTRY: dict[WorkflowStage, PromptTemplate] = {

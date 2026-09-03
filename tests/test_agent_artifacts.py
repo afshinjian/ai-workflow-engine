@@ -3,6 +3,7 @@ import hashlib
 from pathlib import Path
 
 import pytest
+from conftest import stub_engine_provenance
 
 from ai_workflow_engine.agents.artifacts import (
     AgentRunRecord,
@@ -37,6 +38,7 @@ def _observation(**overrides: object) -> RunObservation:
         stage="plan-review",
         prompt_id="0123456789abcdef",
         repository_head="a" * 40,
+        engine_provenance=stub_engine_provenance(),
         ok=True,
         failure_code=None,
         report=None,
@@ -157,3 +159,45 @@ def test_save_rejects_repository_containment(
     record, patch = _built()
     with pytest.raises(ArtifactError, match="must not be inside"):
         save_run(record, patch, repository=str(repo))
+
+
+# --- T-307: schema 1.1, provenance round-trip, and the engine-drift backstop ---
+
+
+def test_agent_run_record_schema_is_1_1() -> None:
+    record, _patch = _built()
+    assert record.schema_version == "1.1"
+
+
+def test_engine_provenance_round_trips() -> None:
+    record, _patch = _built()
+    expected = stub_engine_provenance()
+    assert record.engine_provenance == expected
+
+
+def test_run_id_is_content_bound_to_engine_provenance() -> None:
+    baseline, _ = _built()
+    other = build_record(
+        _observation(
+            engine_provenance=stub_engine_provenance().model_copy(update={"engine_head": "f" * 40})
+        ),
+        _verification(),
+        project_id="proj",
+    )[0]
+    assert other.run_id != baseline.run_id
+
+
+def test_build_record_refuses_an_engine_drift_observation() -> None:
+    drifted = _observation(ok=False, failure_code="engine_drift_during_run")
+    with pytest.raises(ArtifactError, match="engine_drift_during_run"):
+        build_record(drifted, _verification(status=Status.FAIL), project_id="proj")
+
+
+def test_build_record_still_builds_an_ordinary_failed_observation() -> None:
+    """The backstop is narrow: ordinary auditable failures are unaffected."""
+    ordinary_failure = _observation(ok=False, failure_code="agent_nonzero_exit", exit_code=3)
+    record, _patch = build_record(
+        ordinary_failure, _verification(status=Status.FAIL), project_id="proj"
+    )
+    assert record.failure_code == "agent_nonzero_exit"
+    assert compute_run_id(record) == record.run_id

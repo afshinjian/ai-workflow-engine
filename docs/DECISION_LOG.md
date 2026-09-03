@@ -13,6 +13,48 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-09-03 — T-307 governance closeout prepared after independent approval
+
+**Decision:** T-307's authoritative Revision 4 implementation completed on `main` at expected
+parent HEAD `678fbaea07a1e0ed6c49c837399aafe2c3996738` and received a fresh, read-only independent
+implementation review verdict of `APPROVED`, with findings `NONE`, remediation `NONE`, and next
+action `T307_IMPLEMENTATION_REVIEW_APPROVED`. All fifteen acceptance criteria were independently
+confirmed closed with implementation and automated-test evidence.
+
+**Validation evidence:** focused independent coverage passed. The independent `pytest -q` and
+final `FORCE_COLOR=3 pytest -q` runs each reported 6022 passed and 34 deselected. `ruff check .`,
+`black --check .`, `mypy src`, `git diff --check`, and
+`workflowctl verify --config self-governance.yaml` passed. Transient environment-sensitive
+failures were independently rerun and did not reproduce in the final complete runs and are not
+T-307 defects.
+
+**Delivered contract:** optional configured verification bundles are selected by repeatable,
+ordered `--verification-bundle`; commands run with exact argv and `shell=False` in a disposable
+clone of the exact clean target HEAD; prompt evidence is bound to that HEAD and includes governed
+engine provenance. PromptContext, PromptMetadata, and PromptSuccess are 1.2, templates are 1.1.0,
+and AgentRunRecord is 1.1. The prompt and agent-run migration pins are 1.2 and 1.1, all four
+current-artifact labels derive from those pins, and prior Prompt 1.1 and AgentRun 1.0 artifacts
+remain deterministically unsupported/quarantined. OD-1 refuses dirty editable engines even with
+no bundle selected; the no-bundle valid-provenance path performs no bundle execution and carries
+null evidence. The package/project version remains 1.0.0 and `pyproject.toml` is unchanged.
+
+**Scope:** the independently reviewed implementation changed all twelve Revision 4 §7.1
+production paths and fifteen authorized §7.2 test paths. `tests/test_cli_contract_v2.py` was
+authorized but did not change. No forbidden path, Dahua path or name, dependency, packaging, or
+project-version path changed. Unit E adds only the minimum Revision 4 §7.3 documentation and
+governance closeout paths.
+
+**Mechanism and state:** `scripts/workflow-approve.sh` is the repository's canonical generated
+closeout gate, but it requires two Human Owner `APPROVE` confirmations and immediately commits.
+This Unit E session had explicit no-commit authority, so it did not invoke that transaction. It
+used the gate's canonical task-queue/mirror/handover/checksum rules to prepare the complete
+`Current → Done` state, with the more specific Revision 4 contract serving as the completion
+record. The Current set is empty and no successor is authorized.
+
+**Boundaries:** the complete implementation-and-closeout diff remains uncommitted pending a
+separate Human Owner final-commit authorization. No commit, push, merge, tag, branch, upstream,
+remote, or stash operation was performed.
+
 ## 2026-09-03 — Human Owner authorized a second narrow T-307 scope amendment (`RunObservation` test constructors)
 
 **Decision:** The Human Owner explicitly approved a bounded T-307 scope amendment adding **exactly

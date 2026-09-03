@@ -68,9 +68,9 @@ from ai_workflow_engine.workflow.events import WorkflowEvent
 from ai_workflow_engine.workflow.transitions import expected_stage
 
 _KNOWN_TOP_LEVEL: frozenset[str] = frozenset({"state", "agent-runs", "prompts", "approvals"})
-_AGENT_RUN_SCHEMA_VERSION = "1.0"
+_AGENT_RUN_SCHEMA_VERSION = "1.1"
 _WORKFLOW_EVENT_SCHEMA_VERSION = "1.0"
-_PROMPT_METADATA_SCHEMA_VERSION = "1.1"
+_PROMPT_METADATA_SCHEMA_VERSION = "1.2"
 
 
 class _DuplicateJsonKeyError(ValueError):
@@ -863,14 +863,14 @@ def _classify_agent_run_pair(
             json_sha256,
             json_size,
             kind="agent-run-record",
-            schema_version="1.0",
+            schema_version=_AGENT_RUN_SCHEMA_VERSION,
         ),
         _known(
             patch_rel.as_posix(),
             patch_sha256,
             patch_size,
             kind="agent-run-patch",
-            schema_version="1.0",
+            schema_version=_AGENT_RUN_SCHEMA_VERSION,
         ),
     ]
 
@@ -1207,9 +1207,15 @@ def _classify_prompt_pair(
             json_sha256,
             json_size,
             kind="prompt-metadata",
-            schema_version="1.1",
+            schema_version=_PROMPT_METADATA_SCHEMA_VERSION,
         ),
-        _known(md_rel.as_posix(), md_sha256, md_size, kind="prompt-markdown", schema_version="1.1"),
+        _known(
+            md_rel.as_posix(),
+            md_sha256,
+            md_size,
+            kind="prompt-markdown",
+            schema_version=_PROMPT_METADATA_SCHEMA_VERSION,
+        ),
     ]
 
 

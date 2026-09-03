@@ -26,6 +26,7 @@ from pathlib import Path
 
 import pytest
 import yaml
+from conftest import stub_engine_provenance
 
 import ai_workflow_engine.migration.legacy_readers as legacy_readers_module
 from ai_workflow_engine.agents.artifacts import build_record, save_run
@@ -103,6 +104,7 @@ def _write_known_agent_run(tmp_path: Path, *, project_id: str = "proj") -> str:
         stage="plan-review",
         prompt_id="deadbeefdeadbeef",
         repository_head="b" * 40,
+        engine_provenance=stub_engine_provenance(),
         ok=True,
         failure_code=None,
         report=None,
@@ -183,8 +185,28 @@ def test_known_agent_run_pair_is_classified_known_with_both_members(
     by_kind = {r.kind: r for r in records}
     assert by_kind["agent-run-record"].classification == "KNOWN"
     assert by_kind["agent-run-record"].relative_path.endswith(f"{run_id}.json")
+    assert by_kind["agent-run-record"].schema_version == "1.1"
     assert by_kind["agent-run-patch"].classification == "KNOWN"
     assert by_kind["agent-run-patch"].relative_path.endswith(f"{run_id}.patch")
+    assert by_kind["agent-run-patch"].schema_version == "1.1"
+
+
+def test_prior_agent_run_schema_is_quarantined_unsupported(
+    legacy_home: Path, tmp_path: Path
+) -> None:
+    # T-307 bumped the AgentRun schema 1.0 -> 1.1: the prior version must remain a deterministic
+    # quarantine, not silent tolerance, exactly like every other schema pin here.
+    _write_known_agent_run(tmp_path)
+    [record_path] = legacy_home.glob("agent-runs/**/*.json")
+    text = record_path.read_text(encoding="utf-8")
+    tampered = text.replace('"schema_version":"1.1"', '"schema_version":"1.0"', 1)
+    assert tampered != text
+    record_path.write_text(tampered, encoding="utf-8")
+    records = discover_legacy_artifacts(legacy_home)
+    by_relative_path = {r.relative_path: r for r in records}
+    quarantined = by_relative_path[record_path.relative_to(legacy_home).as_posix()]
+    assert quarantined.classification == "QUARANTINED"
+    assert quarantined.quarantine_reason == "UNSUPPORTED_SCHEMA_VERSION"
 
 
 def test_known_prompt_pair_is_classified_known_with_both_members(
@@ -195,9 +217,27 @@ def test_known_prompt_pair_is_classified_known_with_both_members(
     assert len(records) == 2
     by_kind = {r.kind: r for r in records}
     assert by_kind["prompt-metadata"].classification == "KNOWN"
-    assert by_kind["prompt-metadata"].schema_version == "1.1"
+    assert by_kind["prompt-metadata"].schema_version == "1.2"
     assert by_kind["prompt-markdown"].classification == "KNOWN"
-    assert by_kind["prompt-markdown"].schema_version == "1.1"
+    assert by_kind["prompt-markdown"].schema_version == "1.2"
+
+
+def test_prior_prompt_metadata_schema_is_quarantined_unsupported(
+    legacy_home: Path, repository: Path, config_factory: Callable[[Path], Path]
+) -> None:
+    # T-307 bumped the prompt schema 1.1 -> 1.2 (T307-PR-003): the prior version must remain a
+    # deterministic quarantine, not silent tolerance, exactly like every other schema pin here.
+    _write_known_prompt_metadata(repository, config_factory)
+    [metadata_path] = legacy_home.glob("prompts/**/*.json")
+    text = metadata_path.read_text(encoding="utf-8")
+    tampered = text.replace('"schema_version":"1.2"', '"schema_version":"1.1"')
+    assert tampered != text
+    metadata_path.write_text(tampered, encoding="utf-8")
+    records = discover_legacy_artifacts(legacy_home)
+    by_relative_path = {r.relative_path: r for r in records}
+    metadata_record = by_relative_path[metadata_path.relative_to(legacy_home).as_posix()]
+    assert metadata_record.classification == "QUARANTINED"
+    assert metadata_record.quarantine_reason == "UNSUPPORTED_SCHEMA_VERSION"
 
 
 def test_known_commit_and_push_approvals_are_classified_known(legacy_home: Path) -> None:

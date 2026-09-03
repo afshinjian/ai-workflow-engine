@@ -14,9 +14,11 @@ from ai_workflow_engine.agents.runner import (
 )
 from ai_workflow_engine.models import AgentSettings, EngineConfig
 from ai_workflow_engine.prompt.context import build_prompt_context
+from ai_workflow_engine.prompt.models import CanonicalEngineProvenance
 from ai_workflow_engine.prompt.renderer import render_prompt
 from ai_workflow_engine.prompt.store import save
 from ai_workflow_engine.prompt.templates import get_template
+from ai_workflow_engine.provenance import EngineProvenanceError
 
 
 @pytest.fixture(autouse=True)
@@ -375,7 +377,12 @@ def test_verification_argv_matches_template(engine_config: EngineConfig) -> None
     context = build_prompt_context(engine_config, stage="plan-review", task_id="T-1")
     rendered = render_prompt(context)
     body = rendered.markdown
-    section = body.split("## Verification commands\n", 1)[1].split("\n## Stop condition", 1)[0]
+    # T-307 added `## Verification evidence` between this section and `## Stop condition`, so the
+    # terminator moves; the assertion below -- displayed commands equal the executed argv -- is
+    # unchanged, and the `## Verification commands` section's own content is unchanged.
+    section = body.split("## Verification commands\n", 1)[1].split("\n## Verification evidence", 1)[
+        0
+    ]
     displayed = section.strip("\n").split("\n")
 
     expected = []
@@ -385,3 +392,181 @@ def test_verification_argv_matches_template(engine_config: EngineConfig) -> None
     assert displayed == expected
     # And the template still uses the shell placeholder (sanity: no accidental template change).
     assert "{{CONDA_ENVIRONMENT_SHELL}}" in get_template("plan-review").content
+
+
+# --- T-307: engine provenance capture and post-execution drift detection --------
+
+
+def _provenance(**overrides: object) -> CanonicalEngineProvenance:
+    base: dict[str, object] = dict(
+        engine_version="0.0.0-test",
+        engine_head="a" * 40,
+        engine_worktree_clean=True,
+        engine_install_mode="source",
+        engine_package_path="/nonexistent/test-engine",
+    )
+    base.update(overrides)
+    return CanonicalEngineProvenance(**base)  # type: ignore[arg-type]
+
+
+def _sequenced_provenance(
+    monkeypatch: pytest.MonkeyPatch, values: list[CanonicalEngineProvenance]
+) -> None:
+    """Override the autouse stub with a stateful sequence: value N on the Nth call.
+
+    This is the same module-scope substitution the autouse fixture itself uses --
+    `runner_module.resolve_engine_provenance` -- so it adds no production seam of its own.
+    """
+    iterator = iter(values)
+    monkeypatch.setattr(runner_module, "resolve_engine_provenance", lambda: next(iterator))
+
+
+def test_stable_engine_provenance_flows_into_the_observation(
+    engine_config: EngineConfig, tmp_path: Path
+) -> None:
+    rendered = _make_prompt(engine_config, "plan-review", "T-1")
+    stub = _stub(tmp_path, "s", report=_report(rendered, verdict="APPROVED"))
+    agent = _agent(stub, mode="read-only", stages=["plan-review"])
+    obs = run_agent(
+        engine_config, agent, task_id="T-1", stage="plan-review", prompt_id=rendered.prompt_id
+    )
+    assert obs.ok
+    assert obs.engine_provenance is not None
+    assert obs.engine_provenance.engine_version == "0.0.0-test"
+
+
+def test_engine_head_drift_after_execution_is_reported_and_stale_evidence_rejected(
+    engine_config: EngineConfig, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    before = _provenance(engine_head="a" * 40)
+    after = _provenance(engine_head="b" * 40)
+    _sequenced_provenance(monkeypatch, [before, after])
+    rendered = _make_prompt(engine_config, "plan-review", "T-1")
+    stub = _stub(tmp_path, "s", report=_report(rendered, verdict="APPROVED"))
+    agent = _agent(stub, mode="read-only", stages=["plan-review"])
+    obs = run_agent(
+        engine_config, agent, task_id="T-1", stage="plan-review", prompt_id=rendered.prompt_id
+    )
+    assert obs.failure_code == "engine_drift_during_run"
+    assert not obs.ok
+    assert obs.report is None  # no stale evidence is accepted as a successful observation
+    # The *retained* before-value is what the observation carries, not the drifted after-value.
+    assert obs.engine_provenance.engine_head == "a" * 40
+
+
+def test_engine_becoming_dirty_after_execution_is_reported(
+    engine_config: EngineConfig, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    before = _provenance(engine_worktree_clean=True)
+    after = _provenance(engine_worktree_clean=False)
+    _sequenced_provenance(monkeypatch, [before, after])
+    rendered = _make_prompt(engine_config, "plan-review", "T-1")
+    stub = _stub(tmp_path, "s", report=_report(rendered, verdict="APPROVED"))
+    agent = _agent(stub, mode="read-only", stages=["plan-review"])
+    obs = run_agent(
+        engine_config, agent, task_id="T-1", stage="plan-review", prompt_id=rendered.prompt_id
+    )
+    assert obs.failure_code == "engine_drift_during_run"
+    assert not obs.ok
+
+
+def test_engine_becoming_unresolvable_after_execution_is_reported(
+    engine_config: EngineConfig, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    before = _provenance()
+    calls = iter([before])
+
+    def _sequence() -> CanonicalEngineProvenance:
+        try:
+            return next(calls)
+        except StopIteration as exc:
+            raise EngineProvenanceError(
+                "vanished mid-run", code="engine_head_unresolvable"
+            ) from exc
+
+    monkeypatch.setattr(runner_module, "resolve_engine_provenance", _sequence)
+    rendered = _make_prompt(engine_config, "plan-review", "T-1")
+    stub = _stub(tmp_path, "s", report=_report(rendered, verdict="APPROVED"))
+    agent = _agent(stub, mode="read-only", stages=["plan-review"])
+    obs = run_agent(
+        engine_config, agent, task_id="T-1", stage="plan-review", prompt_id=rendered.prompt_id
+    )
+    assert obs.failure_code == "engine_drift_during_run"
+    assert not obs.ok
+
+
+def test_unchanged_engine_provenance_still_succeeds(
+    engine_config: EngineConfig, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    stable = _provenance()
+    _sequenced_provenance(monkeypatch, [stable, stable])
+    rendered = _make_prompt(engine_config, "plan-review", "T-1")
+    stub = _stub(tmp_path, "s", report=_report(rendered, verdict="APPROVED"))
+    agent = _agent(stub, mode="read-only", stages=["plan-review"])
+    obs = run_agent(
+        engine_config, agent, task_id="T-1", stage="plan-review", prompt_id=rendered.prompt_id
+    )
+    assert obs.ok
+    assert obs.failure_code is None
+
+
+def test_target_repository_mutation_still_overrides_engine_drift(
+    engine_config: EngineConfig, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The pre-existing target-mutation invariant ('fails regardless of everything else') is
+    preserved unchanged even when the run also carries an engine-drift finding."""
+    before = _provenance(engine_head="a" * 40)
+    after = _provenance(engine_head="b" * 40)
+    _sequenced_provenance(monkeypatch, [before, after])
+    rendered = _make_prompt(engine_config, "plan-review", "T-1")
+    mutate = engine_config.project.repository / "MUTATED.txt"
+    stub = _stub(
+        tmp_path, "hostile", report=_report(rendered, verdict="APPROVED"), mutate_path=str(mutate)
+    )
+    agent = _agent(stub, mode="read-only", stages=["plan-review"])
+    obs = run_agent(
+        engine_config, agent, task_id="T-1", stage="plan-review", prompt_id=rendered.prompt_id
+    )
+    assert obs.failure_code == "repository_mutated"
+    assert not obs.ok
+
+
+def test_engine_provenance_is_resolved_before_the_sandbox_is_created(
+    engine_config: EngineConfig, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """OD-1 enforcement site #2: a dirty/refused engine must never reach `create_sandbox`."""
+
+    def _refuse() -> CanonicalEngineProvenance:
+        raise EngineProvenanceError("dirty editable engine", code="engine_editable_worktree_dirty")
+
+    def _fail_if_called(*args: object, **kwargs: object) -> Path:
+        raise AssertionError("create_sandbox must not be called when provenance is refused")
+
+    monkeypatch.setattr(runner_module, "resolve_engine_provenance", _refuse)
+    monkeypatch.setattr(runner_module, "create_sandbox", _fail_if_called)
+    rendered = _make_prompt(engine_config, "plan-review", "T-1")
+    stub = _stub(tmp_path, "s", report=_report(rendered, verdict="APPROVED"))
+    agent = _agent(stub, mode="read-only", stages=["plan-review"])
+    with pytest.raises(EngineProvenanceError):
+        run_agent(
+            engine_config, agent, task_id="T-1", stage="plan-review", prompt_id=rendered.prompt_id
+        )
+
+
+def test_target_gates_still_run_before_engine_provenance_is_resolved(
+    engine_config: EngineConfig, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The existing DirtyWorktree/HeadDrift target gates are unchanged and still run first."""
+
+    def _fail_if_called() -> CanonicalEngineProvenance:
+        raise AssertionError("resolve_engine_provenance must not be called before target gates")
+
+    monkeypatch.setattr(runner_module, "resolve_engine_provenance", _fail_if_called)
+    rendered = _make_prompt(engine_config, "plan-review", "T-1")
+    (engine_config.project.repository / "dirty.txt").write_text("x", encoding="utf-8")
+    stub = _stub(tmp_path, "s", report=_report(rendered, verdict="APPROVED"))
+    agent = _agent(stub, mode="read-only", stages=["plan-review"])
+    with pytest.raises(DirtyWorktree):
+        run_agent(
+            engine_config, agent, task_id="T-1", stage="plan-review", prompt_id=rendered.prompt_id
+        )
