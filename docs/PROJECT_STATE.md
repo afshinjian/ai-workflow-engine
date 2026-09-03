@@ -830,3 +830,23 @@ Status: Current
 
 The Human Owner explicitly authorized this single task through the local authorization gate.
 Implementation and approval remain separate phases.
+
+## Scope amendment — T-307 contract Revision 3 (2026-09-03)
+
+**Contract amended 2026-09-03 (T-307 Revision 3) — bounded Human Owner scope amendment; one test
+path.** The Human Owner explicitly approved adding exactly one path to the frozen §7.2 test
+allowlist: `tests/test_prompt_store.py`. The rationale is schema-version test coupling: T-307's
+frozen design bumps the prompt payload/metadata schema `1.1` → `1.2`, and that file carries
+current-schema `"1.1"` literals coupled directly to the bump — a `PromptSuccess(schema_version="1.1", …)`
+construction that would fail during model construction after the bump rather than test its intended
+invariant, a legacy-sidecar test that must express the new current-to-previous relationship `"1.2"`
+→ `"1.1"`, and a duplicate-key literal representing the current Prompt schema. **No production path
+was added and no production scope expanded**: `src/ai_workflow_engine/prompt/store.py` pins no
+schema version and remains excluded by §7.4. The objective, OD-1, OD-2, §7.1, every other §7.2
+entry, §7.3, §7.5, and §8 in its entirety are unchanged — §8 is byte-identical to the
+pre-amendment contract. This is a Human-Owner
+amendment recorded while the task is already `Current` — not a re-authorization;
+`scripts/workflow-authorize.sh` structurally refuses a `Current` task, and the 2026-08-09 DASH-006
+scope-amendment entry in `docs/DECISION_LOG.md` is the governing precedent. T-307 remains `Current`,
+**implementation has not started** under the amended scope, and `tests/test_prompt_store.py` is
+itself untouched. Rationale: `docs/DECISION_LOG.md`, 2026-09-03 entry.

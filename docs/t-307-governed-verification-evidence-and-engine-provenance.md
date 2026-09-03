@@ -14,6 +14,26 @@ frozen text and supersedes it, changing §4.3, §5.6, and acceptance criteria 7 
 requirement, the frozen scope, and the forbidden surface are unchanged. No implementation has
 occurred.
 
+**Revision 3 — amended 2026-09-03 (bounded scope amendment; one test path).** The Human Owner
+explicitly approved adding exactly one path to the frozen §7.2 test allowlist:
+`tests/test_prompt_store.py`. Rationale: schema-version test coupling only — this contract's frozen
+design bumps the prompt payload/metadata schema `1.1` → `1.2`, and that file carries
+current-schema `"1.1"` literals that are coupled directly to the bump (a `PromptSuccess(schema_version="1.1", …)`
+construction, a duplicate-key literal, and a legacy-sidecar test that rewrites the current schema
+to the previous one). **No production path was added and no production scope expanded**;
+`src/ai_workflow_engine/prompt/store.py` itself pins no schema version and stays excluded by §7.4.
+The objective, OD-1, OD-2, §7.1, every other §7.2 entry, §7.3, §7.5, and §8 in its entirety are
+unchanged — §8 is byte-identical to the pre-amendment contract. T-307 remains `Current`; **implementation has not started** under the
+amended scope, and `tests/test_prompt_store.py` is itself untouched by this amendment. Recorded in
+`docs/DECISION_LOG.md`, 2026-09-03 entry.
+
+**Lifecycle note (supersedes the two paragraphs below).** The `Status:` line at the top of this
+document and the "preparation artifact" paragraph that follows record this contract's
+*registration-time* state. Both were superseded on 2026-09-03, when the Human Owner authorized
+T-307 through `scripts/workflow-authorize.sh T-307` (authorization commit
+`f624bd605b24304a88d43f314f5e2a8723e9c54b`) and the task moved `Planned → Current`. The canonical,
+parseable status for T-307 is the `Status:` line in `docs/TASK_QUEUE.md`, not this document.
+
 This contract is a *preparation* artifact. It authorizes nothing. No source, test, script, or
 packaging path may change until the Human Owner authorizes T-307 through
 `scripts/workflow-authorize.sh T-307` and a fresh planning session is opened under section 11.
@@ -425,6 +445,7 @@ tests/test_prompt_templates.py
 tests/test_prompt_renderer.py
 tests/test_prompt_validator.py
 tests/test_prompt_context.py
+tests/test_prompt_store.py                                (added by Revision 3)
 tests/test_agent_runner.py
 tests/test_agent_artifacts.py
 tests/test_migration_readers.py
@@ -459,6 +480,9 @@ handover/PROJECT_CHECKSUM.md
 - `src/ai_workflow_engine/agents/verification.py` — judging an agent run is unchanged (criterion 13).
 - `src/ai_workflow_engine/prompt/store.py` — `load()` re-renders deterministically from the
   payload; a payload field addition flows through without a storage change.
+  This exclusion is **unchanged by Revision 3**: the module pins no schema version and must not be
+  modified. Revision 3 added only its test file, `tests/test_prompt_store.py`, to §7.2, because
+  that file hardcodes the current schema literal and is coupled to the `1.1` → `1.2` bump.
 - `src/ai_workflow_engine/config.py` — Pydantic validates the new section; no loader change.
 - `self-governance.yaml` — this repository configures no bundles. Criterion 10 requires the
   no-bundle path to stay behaviour-identical, so its own governance must not change under this

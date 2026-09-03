@@ -7,6 +7,19 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- T-307 contract amended to Revision 3 (2026-09-03): the Human Owner approved a bounded scope
+  amendment adding exactly one path — `tests/test_prompt_store.py` — to the frozen §7.2 test
+  allowlist. Rationale is schema-version test coupling: T-307 bumps the prompt payload/metadata
+  schema `1.1` → `1.2`, and that file hardcodes current-schema `"1.1"` literals (a `PromptSuccess`
+  construction, a duplicate-key literal, and a legacy-sidecar test rewriting current-to-previous)
+  that are coupled directly to the bump. **No production path was added and no production scope
+  expanded** — `src/ai_workflow_engine/prompt/store.py` pins no schema version and stays excluded
+  by §7.4 — and the objective, OD-1, OD-2, §7.1, §7.3, §7.5, and §8 in its entirety are unchanged
+  (§8 is byte-identical to the pre-amendment contract). Recorded as a Human-Owner amendment while T-307 is already `Current`, not as a
+  re-authorization: the authorization gate structurally refuses a `Current` task, and the
+  2026-08-09 DASH-006 scope-amendment entry is the governing precedent. T-307 remains `Current`,
+  implementation has not started under the amended scope, and `tests/test_prompt_store.py` is
+  itself untouched; governance documentation only.
 - T-307 (2026-09-03): explicitly authorized by the Human Owner through the local
   two-confirmation task gate; authorization commit and implementation remain separate.
 - T-307 contract amended to Revision 2 (2026-09-02): the Human Owner resolved both decisions the

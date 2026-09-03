@@ -13,6 +13,56 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-09-03 — Human Owner authorized a narrow T-307 scope amendment (`tests/test_prompt_store.py`)
+
+**Decision:** The Human Owner explicitly approved a bounded T-307 scope amendment adding **exactly
+one** path to the frozen §7.2 test allowlist of
+`docs/t-307-governed-verification-evidence-and-engine-provenance.md`:
+
+```
+tests/test_prompt_store.py
+```
+
+No other path — production, test, script, packaging, or governance — is added by this decision.
+
+**Rationale — schema-version test coupling only.** T-307's frozen design bumps the prompt
+payload/metadata schema `1.1` → `1.2` (§5.4, and the "two schema-version bumps" required by §9).
+`tests/test_prompt_store.py` carries current-schema literals coupled directly to that bump, verified
+against this baseline: a `PromptSuccess(schema_version="1.1", …)` construction (line 580), which
+after the bump would fail during model construction rather than test its intended invariant; a
+legacy-sidecar test (line 619) that rewrites `"schema_version":"1.1"` → `"schema_version":"1.0"`
+and must, after T-307, express the new current-to-previous relationship `"1.2"` → `"1.1"`; and a
+duplicate-key literal (line 368) representing the current Prompt schema, which must likewise move
+to `1.2`. Without this path in the allowlist, T-307 cannot be implemented without either breaking
+the suite or touching an unauthorized file.
+
+**No production scope expansion.** `src/ai_workflow_engine/prompt/store.py` contains no
+schema-version pin — verified at this baseline — and remains excluded by contract §7.4. This
+amendment adds a *test* path only. §7.1 (production allowed paths), every other §7.2 entry, §7.3,
+§7.5 (forbidden paths), the objective, OD-1, OD-2, and §8 in its entirety are unchanged — §8 is
+byte-identical to the pre-amendment contract.
+
+**Mechanism and lifecycle.** This is a Human-Owner amendment recorded while the task is already
+`Current`; it is not a re-authorization. `scripts/workflow-authorize.sh` structurally refuses a
+task whose queue status is `Current` (`die "task $task_id is already Current"`, `EXIT_TASK`), and
+no repository rule provides for regressing a `Current` task to `Planned` in order to re-run that
+gate. The governing precedent is the 2026-08-09 entry in this log, in which the Human Owner
+authorized a narrow `agentos_dashboard/core/gitread.py` scope extension for an already-`Current`
+DASH-006 by a Decision Log entry rather than by re-authorization; contract §7.4 independently names
+this mechanism ("that is a **scope amendment**, not a silent addition"), and §11 places the
+planning session that surfaces such amendments *after* the task becomes `Current`. Per
+`docs/AGENT_PROTOCOL.md` ("What no agent may do"), this entry — not any agent's own record — is the
+operative authorization.
+
+**State:** T-307 remains the single `Current` task; T-405 remains `Done`. **Implementation has not
+started** under the amended scope: no file under `src/`, `tests/`, `scripts/`, `agentos_workflow/`,
+or `agentos_dashboard/` is changed by this amendment, and `tests/test_prompt_store.py` itself is
+untouched. The contract is amended to Revision 3.
+
+**Boundaries:** This decision authorizes only the addition of the one named test path to §7.2. It
+authorizes no implementation, no commit of implementation, no successor, no push, merge, branch,
+upstream, or stash operation, and no approval of any kind.
+
 ## 2026-09-03 — Human Owner authorized T-307
 
 **Decision:** The Human Owner typed the two exact `AUTHORIZE` confirmations for
