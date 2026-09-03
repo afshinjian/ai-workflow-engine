@@ -13,6 +13,64 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-09-03 — Human Owner authorized a second narrow T-307 scope amendment (`RunObservation` test constructors)
+
+**Decision:** The Human Owner explicitly approved a bounded T-307 scope amendment adding **exactly
+two** paths to the frozen §7.2 test allowlist of
+`docs/t-307-governed-verification-evidence-and-engine-provenance.md`:
+
+```
+tests/test_apply_patch_gate.py
+tests/test_agent_verification.py
+```
+
+No other path — production, test, script, packaging, or governance — is added by this decision.
+
+**Rationale — required-field test coupling only.** Contract §5.7 freezes "`RunObservation` carries
+the same value so `build_record` can store it", so `engine_provenance` must be a **required**
+`RunObservation` field. It must not be made optional in production, and no fabricated default is
+permitted, because §4.3 requires the agent-run artifact to record the provenance of the engine that
+actually executed the run. Verified against this baseline, four test files construct
+`RunObservation(...)` directly by keyword: `tests/test_agent_artifacts.py:52` and
+`tests/test_migration_readers.py:96` (both already in §7.2), plus
+`tests/test_apply_patch_gate.py:57` and `tests/test_agent_verification.py:240` (neither in §7.2).
+Each of the latter two needs one explicit keyword argument; no logic changes.
+
+**Why a `conftest.py`-only seam was rejected.** Independent plan review finding `T307-PR-002`
+established, and this baseline confirms, that a monkeypatch rebinds a *name* and cannot supply a
+missing required constructor argument. `tests/test_apply_patch_gate.py:7` imports `RunObservation`
+at **module scope**, binding it at collection time before any function-scoped fixture runs, so
+`monkeypatch.setattr(runner_module, "RunObservation", ...)` cannot reach the call at line 57. The
+only alternative — substituting a defaulted class from `conftest.py` — would push a fabricated
+provenance through the real `build_record` → `save_run` path at lines 86-87, persisting a
+hash-verified `AgentRunRecord` describing an engine that never executed, which
+`run_apply_patch_gate` would then validate. That would violate the requirement that persisted
+provenance describe the engine that actually executed the governed operation.
+`tests/test_agent_verification.py:236` uses a function-local import that a class substitution could
+technically reach, but that is the same fabricated default by relocation, injected into an
+observation passed to `verify_run`.
+
+**No production scope expansion.** This amendment adds *test* paths only. §7.1 (production allowed
+paths), every other §7.2 entry, §7.3, §7.4 (exclusions), §7.5 (forbidden paths), the objective,
+OD-1, OD-2, and §8 in its entirety are unchanged — §8 is byte-identical to the pre-amendment
+contract. `engine_provenance` remains a required production field.
+
+**Mechanism and lifecycle.** This is a Human-Owner amendment recorded while the task is already
+`Current`; it is not a re-authorization. `scripts/workflow-authorize.sh` structurally refuses a task
+whose queue status is `Current` (`die "task $task_id is already Current"`, `EXIT_TASK`), and no
+repository rule provides for regressing a `Current` task to `Planned` to re-run that gate. The
+governing precedent is the 2026-08-09 DASH-006 entry in this log, reaffirmed by the 2026-09-03
+Revision 3 entry immediately below. Per `docs/AGENT_PROTOCOL.md` ("What no agent may do"), this
+entry — not any agent's own record — is the operative authorization.
+
+**State:** T-307 remains the single `Current` task; T-405 remains `Done`. **Implementation has not
+started**, both newly authorized files are themselves untouched, and no source, test, script, or
+packaging path changed under this decision.
+
+**Boundaries:** This decision authorizes only the two named test paths. It authorizes no
+implementation, commit, push, merge, successor task, or any other scope change.
+
+
 ## 2026-09-03 — Human Owner authorized a narrow T-307 scope amendment (`tests/test_prompt_store.py`)
 
 **Decision:** The Human Owner explicitly approved a bounded T-307 scope amendment adding **exactly

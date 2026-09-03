@@ -850,3 +850,26 @@ amendment recorded while the task is already `Current` — not a re-authorizatio
 scope-amendment entry in `docs/DECISION_LOG.md` is the governing precedent. T-307 remains `Current`,
 **implementation has not started** under the amended scope, and `tests/test_prompt_store.py` is
 itself untouched. Rationale: `docs/DECISION_LOG.md`, 2026-09-03 entry.
+
+## Second scope amendment — T-307 contract Revision 4 (2026-09-03)
+
+**Contract amended 2026-09-03 (Revision 4) — bounded Human Owner scope amendment; two test paths.**
+The Human Owner explicitly approved adding exactly two paths to the frozen §7.2 test allowlist:
+`tests/test_apply_patch_gate.py` and `tests/test_agent_verification.py`. The rationale is
+required-field test coupling: contract §5.7 freezes `RunObservation` as the carrier of engine
+provenance, so `engine_provenance` must be a **required** field — never optional in production and
+never a fabricated default — and both files construct `RunObservation(...)` directly by keyword.
+Independent plan review finding `T307-PR-002` established that a `tests/conftest.py`-only seam
+cannot repair them: a monkeypatch rebinds a name and cannot supply a missing required constructor
+argument, `tests/test_apply_patch_gate.py` binds the class at module scope (line 7) before any
+fixture runs, and a substituted defaulted class would persist a fabricated provenance through the
+real `build_record`/`save_run` path (lines 86-87), yielding a hash-verified `AgentRunRecord`
+describing an engine that never executed. **No production path was added and no production scope
+expanded**; the amendment is test-only and `engine_provenance` remains required in production. The
+objective, OD-1, OD-2, §7.1, every other §7.2 entry, §7.3, §7.4, §7.5, and §8 in its entirety are
+unchanged — §8 is byte-identical to the pre-amendment contract. This is a Human-Owner amendment
+recorded while the task is already `Current` — not a re-authorization;
+`scripts/workflow-authorize.sh` structurally refuses a `Current` task, and the 2026-08-09 DASH-006
+scope-amendment entry in `docs/DECISION_LOG.md` is the governing precedent. T-307 remains `Current`,
+**implementation has not started** under the amended scope, and both newly authorized files are
+themselves untouched. Rationale: `docs/DECISION_LOG.md`, 2026-09-03 entry.

@@ -27,6 +27,26 @@ unchanged — §8 is byte-identical to the pre-amendment contract. T-307 remains
 amended scope, and `tests/test_prompt_store.py` is itself untouched by this amendment. Recorded in
 `docs/DECISION_LOG.md`, 2026-09-03 entry.
 
+**Revision 4 — amended 2026-09-03 (bounded scope amendment; two test paths).** The Human Owner
+explicitly approved adding exactly two paths to the frozen §7.2 test allowlist:
+`tests/test_apply_patch_gate.py` and `tests/test_agent_verification.py`. Rationale: §5.7 freezes
+"`RunObservation` carries the same value so `build_record` can store it", so `engine_provenance`
+must be a **required** field — it may not be optional in production, and no fabricated default is
+permitted, because §4.3 requires the agent-run artifact to record the provenance of the engine that
+actually executed the run. Both files construct `RunObservation(...)` directly by keyword and
+therefore need one explicit keyword argument each. Independent plan review finding `T307-PR-002`
+established that a `tests/conftest.py`-only seam cannot repair them: a monkeypatch rebinds a *name*
+and cannot supply a missing required constructor argument, and `tests/test_apply_patch_gate.py`
+binds `RunObservation` at **module scope** (line 7), before any function-scoped fixture runs.
+Substituting a defaulted class from `conftest.py` would push a fabricated provenance through the
+real `build_record` → `save_run` path (lines 86-87), persisting a hash-verified `AgentRunRecord`
+describing an engine that never executed. **No production path was added and no production scope
+expanded**; the amendment is test-only. The objective, OD-1, OD-2, §7.1, every other §7.2 entry,
+§7.3, §7.4, §7.5, and §8 in its entirety are unchanged — §8 is byte-identical to the pre-amendment
+contract. T-307 remains `Current`; **implementation has not started** under the amended scope, and
+both newly authorized files are themselves untouched by this amendment. Recorded in
+`docs/DECISION_LOG.md`, 2026-09-03 entry.
+
 **Lifecycle note (supersedes the two paragraphs below).** The `Status:` line at the top of this
 document and the "preparation artifact" paragraph that follows record this contract's
 *registration-time* state. Both were superseded on 2026-09-03, when the Human Owner authorized
@@ -448,6 +468,8 @@ tests/test_prompt_context.py
 tests/test_prompt_store.py                                (added by Revision 3)
 tests/test_agent_runner.py
 tests/test_agent_artifacts.py
+tests/test_agent_verification.py                          (added by Revision 4)
+tests/test_apply_patch_gate.py                            (added by Revision 4)
 tests/test_migration_readers.py
 tests/test_cli.py
 tests/test_cli_contract_v2.py

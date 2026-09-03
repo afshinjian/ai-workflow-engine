@@ -7,6 +7,20 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- T-307 contract amended to Revision 4 (2026-09-03): the Human Owner approved a second bounded
+  scope amendment adding exactly two paths — `tests/test_apply_patch_gate.py` and
+  `tests/test_agent_verification.py` — to the frozen §7.2 test allowlist. Rationale is
+  required-field test coupling: §5.7 freezes `RunObservation` as the carrier of engine provenance,
+  so `engine_provenance` must be a required field, and both files construct `RunObservation(...)`
+  directly. A `conftest.py`-only seam cannot repair them — a monkeypatch cannot supply a missing
+  required constructor argument, `tests/test_apply_patch_gate.py` binds the class at module scope,
+  and a substituted default would persist a fabricated provenance through the real
+  `build_record`/`save_run` path. **No production path was added and no production scope expanded**;
+  `engine_provenance` stays required in production, and the objective, OD-1, OD-2, §7.1, §7.3,
+  §7.4, §7.5, and §8 in its entirety are unchanged (§8 is byte-identical). Recorded as a Human-Owner
+  amendment while T-307 is already `Current`, not as a re-authorization. T-307 remains `Current`,
+  implementation has not started, and both newly authorized files are themselves untouched;
+  governance documentation only.
 - T-307 contract amended to Revision 3 (2026-09-03): the Human Owner approved a bounded scope
   amendment adding exactly one path — `tests/test_prompt_store.py` — to the frozen §7.2 test
   allowlist. Rationale is schema-version test coupling: T-307 bumps the prompt payload/metadata
