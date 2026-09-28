@@ -2285,3 +2285,170 @@ changed. No forbidden, consumer-specific, dependency, package, or project-versio
 The canonical task mirrors are synchronized to `Done`; the Current set is empty and no successor
 is authorized. This complete implementation-and-closeout state is prepared but not committed,
 pushed, merged, or tagged. A separate Human Owner authorization is required for the final commit.
+
+**Commit reconciliation (2026-09-28, EP-3).** The closeout paragraph above describes the working-tree
+state before the final commit. It is preserved unchanged as the historical record. T-307's implementation
+and governance closeout were subsequently committed together on `main` as
+`e7dbb31a1469a8b371a7571a6d85424f20f0226a`
+(`feat(workflow): add governed verification evidence and provenance (T-307)`). The mirrors are
+reconciled accordingly. Correction record: `docs/DECISION_LOG.md`, 2026-09-28.
+
+## AWE Governed Autonomous Stage Execution program
+
+Registered on 2026-09-28 by OWNER decision OD-GSE-07 at `main` /
+`e7dbb31a1469a8b371a7571a6d85424f20f0226a`, with the `Current` set empty. **Registration only; none of
+these stages is authorized.**
+
+The order of acts for each stage is fixed by `docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 3a
+(v7.0):
+1. Its stage contract is drafted and receives one bounded independent contract review **before**
+   implementation authorization. This is documentation-only governance work, and it is not implementation
+   authorization.
+2. Separate written OWNER authorization (§3 rules 1–3) is then required before branch creation,
+   implementation prompt execution, production implementation, or any lifecycle promotion.
+
+- **Governing architecture artifact:** `docs/workflow-automation/successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`.
+  **Status: CLOSED / FROZEN — OWNER-accepted governing architecture**
+  (`AWE_GSE_MASTER_PLAN_OWNER_ACCEPTED`, 2026-09-28).
+
+  Accepted identity:
+  - path: `docs/workflow-automation/successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`
+  - lines: 1664
+  - bytes: 110623
+  - SHA-256: `6bb2509f1b30b2518755d63549dfa87fa5a10289e547bcd6fe824f40ecf195ad`
+
+  Discovery review and closure:
+  - The one independent discovery review is complete.
+  - Frozen findings AWE-GSE-R01 … R11 are all CLOSED (`AWE_GSE_MASTER_PLAN_CLOSURE_PASS`).
+
+  Future changes to the plan require a new, recorded OWNER decision and a new revision identity.
+  AUTO-017 remains unauthorized. It still requires its own contract preparation, one bounded review, and
+  separate OWNER implementation authorization.
+- **Canonical subsystem:** `src/ai_workflow_engine/milestone_runner/`.
+- **Sole transition authority:** `MilestoneRunnerApplication`.
+- **Accepted OWNER decisions:** OD-GSE-01, -02, -03, -06, -07 and -12 (`docs/DECISION_LOG.md`, 2026-09-28).
+
+**Execution order (OD-GSE-12).** The stage numbering is preserved, but the execution order is:
+
+AUTO-017 → AUTO-018 → AUTO-019 → AUTO-021 → AUTO-020 → AUTO-022 → AUTO-023 → AUTO-024 → AUTO-025 →
+AUTO-026
+
+AUTO-021 must be complete before AUTO-020 may be authorized. Each stage's execution predecessor is the
+stage named in its entry below. This is the same rule as `STAGE_REGISTRY.md` §3 rule 10 (v7.0), the SSP
+"Stage Ordering" (v1.4) and the governing plan. Completing a stage never authorizes the next one.
+
+## AUTO-017 — Schema v2 + Stage Execution Policy
+
+Status: Planned
+
+Alias `AWE-AUTO-ST-01`. Registered 2026-09-28 (OD-GSE-07); **not authorized**.
+- **Execution predecessor (OD-GSE-12):** AUTO-016 (`COMPLETE`).
+- **Open OWNER decisions or external prerequisites that block this stage:** none (OD-GSE-01, -02, -03, -06, -07 accepted).
+- **Scope, exclusions and acceptance criteria:** the stage section in `docs/workflow-automation/successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`.
+- **Stage contract:** `docs/workflow-automation/stage-prompts/AUTO-017.md` does not exist yet. It must be
+  drafted and reviewed once before authorization.
+
+## AUTO-018 — Durable Lifecycle / Event Foundation
+
+Status: Planned
+
+Alias `AWE-AUTO-ST-02`. Registered 2026-09-28 (OD-GSE-07); **not authorized**.
+- **Execution predecessor (OD-GSE-12):** AUTO-017.
+- **Open OWNER decisions or external prerequisites that block this stage:** none.
+- **Scope, exclusions and acceptance criteria:** the stage section in `docs/workflow-automation/successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`.
+- **Stage contract:** `docs/workflow-automation/stage-prompts/AUTO-018.md` does not exist yet. It must be
+  drafted and reviewed once before authorization.
+
+## AUTO-019 — Resume / Crash Recovery
+
+Status: Planned
+
+Alias `AWE-AUTO-ST-03`. Registered 2026-09-28 (OD-GSE-07); **not authorized**.
+- **Execution predecessor (OD-GSE-12):** AUTO-018.
+- **Open OWNER decisions or external prerequisites that block this stage:** none.
+- **Scope, exclusions and acceptance criteria:** the stage section in `docs/workflow-automation/successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`.
+- **Stage contract:** `docs/workflow-automation/stage-prompts/AUTO-019.md` does not exist yet. It must be
+  drafted and reviewed once before authorization.
+
+## AUTO-021 — OWNER Decision API
+
+Status: Planned
+
+Alias `AWE-AUTO-ST-05`. Registered 2026-09-28 (OD-GSE-07); **not authorized**.
+- **Execution predecessor (OD-GSE-12):** AUTO-019.
+- **Open OWNER decisions or external prerequisites that block this stage:** OD-GSE-10 (OPEN).
+- **Scope, exclusions and acceptance criteria:** the stage section in `docs/workflow-automation/successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`.
+- **Stage contract:** `docs/workflow-automation/stage-prompts/AUTO-021.md` does not exist yet. It must be
+  drafted and reviewed once before authorization.
+
+## AUTO-020 — 1..3 Bounded Remediation Cycles
+
+Status: Planned
+
+Alias `AWE-AUTO-ST-04`. Registered 2026-09-28 (OD-GSE-07); **not authorized**.
+- **Execution predecessor (OD-GSE-12):** AUTO-021.
+- **Open OWNER decisions or external prerequisites that block this stage:** OD-GSE-09 and OD-GSE-11 (both OPEN).
+- **Scope, exclusions and acceptance criteria:** the stage section in `docs/workflow-automation/successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`.
+- **Stage contract:** `docs/workflow-automation/stage-prompts/AUTO-020.md` does not exist yet. It must be
+  drafted and reviewed once before authorization.
+
+## AUTO-022 — Per-role AI / Provider / Model Selection
+
+Status: Planned
+
+Alias `AWE-AUTO-ST-06`. Registered 2026-09-28 (OD-GSE-07); **not authorized**.
+- **Execution predecessor (OD-GSE-12):** AUTO-020.
+- **Open OWNER decisions or external prerequisites that block this stage:** OD-GSE-08 (OPEN).
+- **Scope, exclusions and acceptance criteria:** the stage section in `docs/workflow-automation/successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`.
+- **Stage contract:** `docs/workflow-automation/stage-prompts/AUTO-022.md` does not exist yet. It must be
+  drafted and reviewed once before authorization.
+
+## AUTO-023 — Hermes Execution Adapter
+
+Status: Planned
+
+Alias `AWE-AUTO-ST-07`. Registered 2026-09-28 (OD-GSE-07); **not authorized**.
+- **Execution predecessor (OD-GSE-12):** AUTO-022.
+- **Open OWNER decisions or external prerequisites that block this stage:** EP-1 (Hermes execution interface specification).
+- **Scope, exclusions and acceptance criteria:** the stage section in `docs/workflow-automation/successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`.
+- **Stage contract:** `docs/workflow-automation/stage-prompts/AUTO-023.md` does not exist yet. It must be
+  drafted and reviewed once before authorization.
+
+## AUTO-024 — Authenticated OWNER Decision Contracts
+
+Status: Planned
+
+Alias `AWE-AUTO-ST-08`. Registered 2026-09-28 (OD-GSE-07); **not authorized**.
+- **Execution predecessor (OD-GSE-12):** AUTO-023.
+- **Open OWNER decisions or external prerequisites that block this stage:** OD-GSE-05 (OPEN).
+- **Scope, exclusions and acceptance criteria:** the stage section in `docs/workflow-automation/successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`.
+- **Stage contract:** `docs/workflow-automation/stage-prompts/AUTO-024.md` does not exist yet. It must be
+  drafted and reviewed once before authorization.
+
+## AUTO-025 — Hermes Telegram Decision Transport
+
+Status: Planned
+
+Alias `AWE-AUTO-ST-09`. Registered 2026-09-28 (OD-GSE-07); **not authorized**.
+- **Execution predecessor (OD-GSE-12):** AUTO-024.
+- **Open OWNER decisions or external prerequisites that block this stage:** OD-GSE-05 (OPEN); EP-2 (Hermes Telegram interface specification).
+- **Scope, exclusions and acceptance criteria:** the stage section in `docs/workflow-automation/successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`.
+- **Stage contract:** `docs/workflow-automation/stage-prompts/AUTO-025.md` does not exist yet. It must be
+  drafted and reviewed once before authorization.
+
+## AUTO-026 — Controlled Git Automation
+
+Status: Planned
+
+Alias `AWE-AUTO-ST-10`. Registered 2026-09-28 (OD-GSE-07); **not authorized**.
+- **Execution predecessor (OD-GSE-12):** AUTO-025.
+- **Open OWNER decisions or external prerequisites that block this stage:** OD-GSE-04 (OPEN).
+- **Entry prerequisites (R08):** FA-1, FA-2, FA-3, FA-4, FA-5a (filesystem/runtime isolation, delivered
+  by AUTO-023) and FA-6. Full FA-5 is **not** an entry prerequisite.
+- **Delivers:** FA-5b, Git confinement.
+- **Enablement of executable Git automation (not entry):** requires full FA-5 (FA-5a and FA-5b together),
+  plus FA-1, FA-2, FA-3, FA-4 and FA-6, a ruling on OD-GSE-04 that permits it, and a separate recorded
+  OWNER act, as the master plan's §3 and AUTO-026 section state.
+- **Scope, exclusions and acceptance criteria:** the stage section in `docs/workflow-automation/successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`.
+- **Stage contract:** `docs/workflow-automation/stage-prompts/AUTO-026.md` does not exist yet. It must be
+  drafted and reviewed once before authorization.

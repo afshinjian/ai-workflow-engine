@@ -130,6 +130,16 @@ every later roadmap phase remain unauthorized. Completion report:
 
 | Task | Title | Status |
 |---|---|---|
+| AUTO-017 | Schema v2 + Stage Execution Policy (alias AWE-AUTO-ST-01) | Planned |
+| AUTO-018 | Durable Lifecycle / Event Foundation (alias AWE-AUTO-ST-02) | Planned |
+| AUTO-019 | Resume / Crash Recovery (alias AWE-AUTO-ST-03) | Planned |
+| AUTO-020 | 1..3 Bounded Remediation Cycles (alias AWE-AUTO-ST-04) | Planned |
+| AUTO-021 | OWNER Decision API (alias AWE-AUTO-ST-05) | Planned |
+| AUTO-022 | Per-role AI / Provider / Model Selection (alias AWE-AUTO-ST-06) | Planned |
+| AUTO-023 | Hermes Execution Adapter (alias AWE-AUTO-ST-07) | Planned |
+| AUTO-024 | Authenticated OWNER Decision Contracts (alias AWE-AUTO-ST-08) | Planned |
+| AUTO-025 | Hermes Telegram Decision Transport (alias AWE-AUTO-ST-09) | Planned |
+| AUTO-026 | Controlled Git Automation (alias AWE-AUTO-ST-10) | Planned |
 
 **DASH-006 implementation update (2026-08-09):** implemented and validated on branch
 `feature/dash-006-git-handover-views`, uncommitted, awaiting Human Owner approval. Report:
@@ -312,3 +322,45 @@ The canonical task state is prepared as `Done`, so T-307 is removed from the not
 and the Current set is empty. This closeout authorizes no successor. The implementation and
 governance closeout remain one uncommitted working-tree change set pending separate Human Owner
 final-commit authorization; no commit or push was performed.
+
+## T-307 commit reconciliation — 2026-09-28
+
+This section is a dated historical record. Like the sections above, it carries no parseable lifecycle
+line. The `T-307 closeout preparation — 2026-09-03` section describes the working tree before the final
+commit and is preserved unchanged. T-307's implementation and governance closeout were subsequently
+committed together on `main` as `e7dbb31a1469a8b371a7571a6d85424f20f0226a`. T-307 is `Done` and no longer
+uncommitted. Correction record: `docs/DECISION_LOG.md`, 2026-09-28.
+
+## AWE governed autonomous stage execution registration — 2026-09-28
+
+This section is a dated historical record. The canonical parseable entries for the ten stages are the rows
+in the table above.
+
+Ten stages were **registered, not authorized**, by OWNER decision OD-GSE-07: AUTO-017 through AUTO-026,
+with aliases AWE-AUTO-ST-01 through AWE-AUTO-ST-10.
+
+**Execution order (OD-GSE-12):** AUTO-017 → AUTO-018 → AUTO-019 → AUTO-021 → AUTO-020 → AUTO-022 →
+AUTO-023 → AUTO-024 → AUTO-025 → AUTO-026.
+
+**Governing architecture artifact:** `docs/workflow-automation/successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`.
+
+**Accepted OWNER decisions:** OD-GSE-01, -02, -03, -06, -07 and -12.
+
+**OWNER decisions still OPEN,** each with the stage it blocks:
+
+| Decision | Subject | Blocks |
+|---|---|---|
+| OD-GSE-10 | Worktree handling after abort or amend | AUTO-021 |
+| OD-GSE-09 | Verification failure after remediation | AUTO-020 |
+| OD-GSE-11 | Closure scope in cycles 2..N | AUTO-020 |
+| OD-GSE-08 | Reviewer independence | AUTO-022 |
+| OD-GSE-05 | Telegram principal, key and expiry | AUTO-024 and AUTO-025 |
+| OD-GSE-04 | Automatic commit | AUTO-026 |
+
+**External prerequisites deferred:**
+
+- EP-1 (Hermes execution interface) blocks AUTO-023.
+- EP-2 (Hermes Telegram interface) blocks AUTO-025.
+
+Each stage requires its own contract, its own bounded review, and its own fresh written OWNER
+authorization. Registration authorizes nothing.

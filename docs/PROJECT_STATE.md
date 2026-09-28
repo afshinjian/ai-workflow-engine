@@ -7,7 +7,36 @@ so keep the version line's wording exact if you edit it.
 
 Current Version: 1.0.0
 
-## Latest governance activity — T-307 closeout prepared
+## Latest governance activity — governed autonomous stage execution plan finalized
+
+**OWNER acceptance (2026-09-28).** The master plan has passed its discovery review (AWE-GSE-R01 … R11 all
+CLOSED, `AWE_GSE_MASTER_PLAN_CLOSURE_PASS`) and has been accepted by the OWNER
+(`AWE_GSE_MASTER_PLAN_OWNER_ACCEPTED`). It is now **CLOSED / FROZEN** at 1664 lines, 110623 bytes,
+SHA-256 `6bb2509f1b30b2518755d63549dfa87fa5a10289e547bcd6fe824f40ecf195ad`.
+
+AUTO-017 … AUTO-026 remain `NOT_STARTED` / `Planned` and unauthorized. AUTO-017 still requires its own
+contract preparation, one bounded review, and separate OWNER implementation authorization.
+
+On 2026-09-28 the OWNER accepted decisions OD-GSE-01, -02, -03, -06, -07 and -12 for the AWE Governed
+Autonomous Stage Execution program. The finalized master plan,
+`docs/workflow-automation/successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`, is the governing architecture artifact for ten newly registered, **unauthorized** stages,
+AUTO-017 through AUTO-026 (aliases AWE-AUTO-ST-01..10). Their canonical subsystem is
+`src/ai_workflow_engine/milestone_runner/`, and `MilestoneRunnerApplication` remains the sole transition
+authority.
+
+The execution order is AUTO-017 → AUTO-018 → AUTO-019 → AUTO-021 → AUTO-020 → AUTO-022 → AUTO-023 →
+AUTO-024 → AUTO-025 → AUTO-026. The decisions OD-GSE-04, -05, -08, -09, -10 and -11 remain OPEN, and each
+blocks only the stage the plan names. The `Current` set is still empty.
+
+This was a documentation and governance change only. No production source, test, script, package or
+dependency changed, and nothing was committed.
+
+**EP-3 reconciliation.** The T-307 section below describes the pre-commit working tree and is retained as
+written. T-307 was subsequently committed on `main` as `e7dbb31a1469a8b371a7571a6d85424f20f0226a`. The
+T-307 implementation and closeout are therefore committed, no longer uncommitted, and the task mirrors
+are reconciled (`docs/DECISION_LOG.md`, 2026-09-28).
+
+## Prior governance activity — T-307 closeout prepared
 
 T-307 — Target-bound governed verification evidence and engine execution provenance — is complete
 under authoritative contract Revision 4. The implementation remains uncommitted on `main` at

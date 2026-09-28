@@ -5,14 +5,14 @@
 | **Title** | Stage Prompts — Index and Standard Stage Protocol |
 | **Purpose** | Directory index for the canonical AUTO stage prompts and the sole canonical home of the Standard Stage Protocol (SSP). |
 | **Status** | Draft |
-| **Version** | 1.3 |
+| **Version** | 1.4 |
 | **Owner** | Documentation & Governance session · Human Owner (approval) |
 | **Dependencies** | `../README.md`; `../STAGE_REGISTRY.md` |
-| **Related Documents** | `AUTO-001.md` … `AUTO-007.md`; `../STAGE_REPORT_TEMPLATE.md` |
+| **Related Documents** | `AUTO-001.md` … `AUTO-026.md` (contracts for AUTO-017 … AUTO-026 are prepared per rule 3a before authorization); `../STAGE_REPORT_TEMPLATE.md`; `../successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md` |
 
 ## Purpose of This Directory
 
-Each `AUTO-00X.md` file contains the canonical prompt for exactly one stage, plus
+Each `AUTO-0XX.md` file contains the canonical prompt (stage contract) for exactly one stage, plus
 stage-specific notes. Prompts are executed only under the SSP below and only after the
 authorization procedure in `../STAGE_REGISTRY.md` §3.
 
@@ -69,9 +69,23 @@ security checks. Write/update `docs/reports/workflow-automation/AUTO-0XX-complet
 using the official template: list every created file, every modified file, every validation
 command with its exact result, unresolved risks, deviations from plan, and a
 per-acceptance-criterion PASS/FAIL statement. Recommend a commit message (do not commit). Then
-STOP: do not begin, select, or prepare the next stage; do not commit, push, merge, tag, rename
+STOP: do not begin, select, or prepare the next stage (contract preparation for any other stage is
+separate documentation-only governance work under `../STAGE_REGISTRY.md` §3 rule 3a, never part of this
+stage's session); do not commit, push, merge, tag, rename
 or delete branches, or alter Git history — commit and push always require explicit
 per-invocation human approval (`docs/AGENT_PROTOCOL.md`); do not promote any task.
+
+## Contract Preparation (v1.4, 2026-09-28; frozen discovery finding AWE-GSE-R04)
+
+A stage contract (`AUTO-0XX.md`) is drafted and receives its bounded independent contract review
+**before** implementation authorization (`../STAGE_REGISTRY.md` §3 rule 3a).
+
+Contract preparation does **not** constitute stage implementation authorization. The OWNER's written
+authorization is required before any of the following:
+- branch creation;
+- execution of the prompt under this SSP;
+- production implementation;
+- lifecycle promotion.
 
 ## Prompt Usage Rules
 
@@ -79,17 +93,29 @@ per-invocation human approval (`docs/AGENT_PROTOCOL.md`); do not promote any tas
    the stage's task record and `../STAGE_REGISTRY.md` §5.
 2. Prompts are applied verbatim with the SSP; the SSP is applied by reference and is never
    duplicated into stage files.
-3. Executing any prompt out of order, or while another stage is active, is a governance
-   violation (`../STAGE_REGISTRY.md` §3 rule 10).
+3. Executing any prompt before its stage's execution predecessor is `COMPLETE`, or while another
+   stage is active, is a governance violation (`../STAGE_REGISTRY.md` §3 rule 10).
 
 ## Naming Conventions
 
-Files are `AUTO-00X.md`, matching the stage ID; IDs are immutable. Reports are
+Files are `AUTO-0XX.md`, matching the stage ID; IDs are immutable. Aliases such as `AWE-AUTO-ST-NN` are
+traceability labels only and never file names or registry IDs. Reports are
 `AUTO-0XX-completion-report.md` under `docs/reports/workflow-automation/`.
 
 ## Stage Ordering
 
-AUTO-001 → AUTO-007, strictly sequential, one stage at a time, each independently authorized.
+One stage at a time, each independently authorized, and each only after its **execution predecessor**
+is `COMPLETE` (`../STAGE_REGISTRY.md` §3 rule 10, v7.0). The execution predecessor is the numerically
+preceding stage unless a recorded OWNER decision defines it otherwise.
+
+- AUTO-001 → … → AUTO-016 ran in numeric order.
+- AUTO-017 … AUTO-026 follow OWNER decision OD-GSE-12:
+
+  AUTO-017 → AUTO-018 → AUTO-019 → **AUTO-021 → AUTO-020** → AUTO-022 → AUTO-023 → AUTO-024 →
+  AUTO-025 → AUTO-026
+
+  AUTO-021 precedes AUTO-020.
+
 Completion of a stage never authorizes its successor.
 
 ## References

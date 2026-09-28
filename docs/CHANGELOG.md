@@ -7,6 +7,21 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- AWE Governed Autonomous Stage Execution master plan finalized (2026-09-28):
+  `docs/workflow-automation/successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`.
+  - The OWNER accepted OD-GSE-01, -02, -03, -06, -07 and -12.
+  - AUTO-017 … AUTO-026 (aliases AWE-AUTO-ST-01..10) are registered as `NOT_STARTED`/`Planned` and are
+    unauthorized.
+  - Execution order: AUTO-017 → 018 → 019 → 021 → 020 → 022 → 023 → 024 → 025 → 026.
+  - OD-GSE-04, -05, -08, -09, -10 and -11 remain OPEN.
+  - Documentation and governance only; no production code changed.
+- AWE GSE master plan Revision 2 (2026-09-28). It remediates the frozen discovery findings AWE-GSE-R01 …
+  R11 in the plan, `docs/workflow-automation/STAGE_REGISTRY.md` v7.0 (execution-predecessor rule 10,
+  contract-preparation rule 3a) and the SSP v1.4. Documentation only. No accepted OWNER decision changed,
+  and no open OWNER decision was decided.
+- EP-3 task-mirror reconciliation (2026-09-28): T-307's implementation and closeout are committed on
+  `main` as `e7dbb31a1469a8b371a7571a6d85424f20f0226a`. The prior "uncommitted" wording in the entry
+  below is historical and preserved.
 - T-307 governance closeout prepared (2026-09-03): implemented optional ordered verification
   bundles in disposable exact-HEAD clones, governed prompt evidence with Prompt schema 1.2 and
   template 1.1.0, AgentRun schema 1.1, and five-field engine provenance with OD-1 dirty-editable

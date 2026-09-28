@@ -5,7 +5,7 @@
 | **Title** | AgentOS Workflow Automation — Changelog |
 | **Purpose** | Program-level changelog, newest first. |
 | **Status** | Draft |
-| **Version** | 2.20 |
+| **Version** | 2.21 |
 | **Owner** | Documentation & Governance session |
 | **Dependencies** | None |
 | **Related Documents** | `docs/CHANGELOG.md` (repository-level; cross-posted there) |
@@ -13,6 +13,20 @@
 ## [Unreleased]
 
 ### Added
+- AUTO-017 … AUTO-026 registered (2026-09-28; registration only, none authorized). The governing
+  architecture artifact is `successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`.
+  - Aliases AWE-AUTO-ST-01..10.
+  - Accepted OWNER decisions: OD-GSE-01, -02, -03, -06, -07 and -12.
+  - Execution order: AUTO-017 → 018 → 019 → 021 → 020 → 022 → 023 → 024 → 025 → 026.
+  - OPEN: OD-GSE-04, -05, -08, -09, -10 and -11.
+  - `STAGE_REGISTRY.md` moves to v7.0 (ten §4 rows, one §5 row).
+- Frozen discovery findings AWE-GSE-R01 … R11 remediated (2026-09-28; documentation only).
+  - The master plan moves to Revision 2.
+  - `STAGE_REGISTRY.md` moves to v7.0: §1 scope is AUTO-001..AUTO-026; rule 1 and rule 10 gain
+    execution-predecessor semantics, with AUTO-021 preceding AUTO-020 (OD-GSE-12); new rule 3a says
+    contract preparation precedes authorization and is not authorization.
+  - The Standard Stage Protocol (`stage-prompts/README.md`) moves to v1.4, with a "Contract Preparation"
+    section and execution-predecessor stage ordering.
 - AUTO-012 (2026-08-01, implementation): `agentos_workflow/approvals.py` delivers the reusable
   approval subsystem `WorkflowService -> ApprovalService -> policy resolution / request persistence
   / manual decisions / timeout decisions / checksum binding / invalidation`. `ApprovalPolicyOverlay`

@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | **Title** | AgentOS Workflow Automation — Stage Registry |
-| **Purpose** | Live status of AUTO-001..007, the stage-lifecycle state model (distinct from the runtime `WORKFLOW_STATES.md` machine the finished engine will use), master stage-control rules, and the append-only authorization log. A *view* of `docs/TASK_QUEUE.md`, never a competing workflow. |
+| **Purpose** | Live status of AUTO-001..AUTO-026, the stage-lifecycle state model (distinct from the runtime `WORKFLOW_STATES.md` machine the finished engine will use), master stage-control rules, and the append-only authorization log. A *view* of `docs/TASK_QUEUE.md`, never a competing workflow. |
 | **Status** | Draft |
-| **Version** | 6.14 |
+| **Version** | 7.0 |
 | **Owner** | Documentation & Governance session · Human Owner (approval and stage authorization) |
 | **Dependencies** | `README.md` §5; `MVP_SCOPE.md`; `TEST_STRATEGY.md` |
 | **Related Documents** | `stage-prompts/README.md`, `docs/AGENT_PROTOCOL.md`, `self-governance.yaml`, `docs/TASK_QUEUE.md` |
@@ -16,7 +16,8 @@
 
 ## 1. Naming Note and Governance Scope
 
-This is the **stage lifecycle** for developing the AUTO engine itself (AUTO-001..AUTO-007),
+This is the **stage lifecycle** for developing the AUTO engine itself (AUTO-001..AUTO-026; scope extended
+from AUTO-001..AUTO-007 in v7.0, 2026-09-28),
 following exactly the state model this repository already established in
 `docs/agentos-dashboard/STAGE_REGISTRY.md` for DASH. It is a different state machine from the
 **runtime workflow states** (`WORKFLOW_STATES.md`) the finished engine will use to automate a
@@ -25,7 +26,7 @@ target repository's stage. Do not conflate `AUTHORIZED` here with `AUTHORIZED` i
 
 **This document, together with the Standard Stage Protocol (`stage-prompts/README.md`), is the
 exclusive governing authority for the AUTO-00x development-stage lifecycle** — authorization
-validity, precondition semantics, and state transitions for AUTO-001..AUTO-007 as tasks of
+validity, precondition semantics, and state transitions for AUTO-001..AUTO-026 as tasks of
 *this* repository. `WORKFLOW_STATES.md` and `HUMAN_AUTHORIZATION_MODEL.md` govern only the
 **runtime workflow engine's** future behavior once built: one execution of that engine against
 an authorized **target repository's** stage. Neither of those two documents is ever authority
@@ -69,7 +70,8 @@ AUTO-001 entry).
 
 ## 3. Control Rules
 
-1. **Authorization preconditions:** predecessor `COMPLETE`; registry and `docs/TASK_QUEUE.md`
+1. **Authorization preconditions:** execution predecessor (rule 10) `COMPLETE`; stage contract prepared
+   and reviewed (rule 3a); registry and `docs/TASK_QUEUE.md`
    agree; no other AUTO stage active; no other `Current` task anywhere in the queue; clean tree
    (defined below); blocking OD-# resolved.
 
@@ -109,6 +111,18 @@ AUTO-001 entry).
 2. **Authorizer:** only the Human Owner.
 3. **Required language:** a written record — "I authorize AUTO-0XX" (or an equivalent explicit
    directive) — captured in the stage's task record and §5 before work.
+3a. **Contract preparation precedes authorization, and is not authorization** (added v7.0, 2026-09-28;
+    frozen discovery finding AWE-GSE-R04).
+    - A stage's contract (`stage-prompts/AUTO-0XX.md`) is drafted, and receives its bounded
+      independent contract review, **before** implementation authorization. This is documentation-only
+      governance work, performed under `docs/TASK_QUEUE.md`'s ordinary task rules (precedent:
+      GOV-AUTO-08 and GOV-AUTO-10).
+    - Contract preparation does **not** constitute stage implementation authorization. It creates no
+      branch, executes no implementation prompt, changes no production code, and promotes no lifecycle
+      state.
+    - OWNER authorization (rules 2–3) is required before branch creation, before implementation prompt
+      execution, before production implementation, and before any lifecycle promotion
+      (`NOT_STARTED → AUTHORIZED`, `Planned → Current`).
 4. **Starting:** task `Planned → Current` (requires owner authorization per
    `self-governance.yaml` `require_designer_approval_for_promotion`); registry
    `AUTHORIZED → IN_PROGRESS`. This is the **initial-start** preflight; a session *resuming* an
@@ -156,8 +170,32 @@ AUTO-001 entry).
    the state, the directive requirement, and history's append-only nature were already
    established; the task-status mapping, the legal source-state list, and the no-automatic-
    successor rule were not, until now.
-10. **Early-start prevention:** stage N+1 is never authorized until N is `COMPLETE` and fresh
-    authorization is recorded.
+10. **Early-start prevention and execution predecessor** (amended v7.0, 2026-09-28; frozen discovery
+    finding AWE-GSE-R03). A stage is never authorized until its **execution predecessor** is `COMPLETE`
+    and fresh authorization is recorded.
+    - A stage's execution predecessor is the numerically preceding stage, unless an OWNER decision,
+      recorded in `docs/DECISION_LOG.md` and in §5, defines it otherwise. Numeric order alone is no
+      longer the rule.
+    - For AUTO-017..AUTO-026, OWNER decision OD-GSE-12 (2026-09-28) defines the execution predecessors:
+
+      | Stage | Execution predecessor |
+      |---|---|
+      | AUTO-017 | AUTO-016 |
+      | AUTO-018 | AUTO-017 |
+      | AUTO-019 | AUTO-018 |
+      | **AUTO-021** | **AUTO-019** |
+      | **AUTO-020** | **AUTO-021** |
+      | AUTO-022 | AUTO-020 |
+      | AUTO-023 | AUTO-022 |
+      | AUTO-024 | AUTO-023 |
+      | AUTO-025 | AUTO-024 |
+      | AUTO-026 | AUTO-025 |
+
+      AUTO-021 therefore precedes AUTO-020.
+    - The governing plan
+      `successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`, the SSP ("Stage
+      Ordering") and `docs/TASK_QUEUE.md` state this same rule.
+    - Rule 16 still applies: completing a stage never authorizes or starts its execution successor.
 11. **Documentation reconciliation:** a stage closes only after `docs/PROJECT_STATE.md`, the
     task queue and mirrors (`workflowctl check-task-state` green), this registry, and the stage
     report agree.
@@ -263,6 +301,16 @@ Report paths: `docs/reports/workflow-automation/AUTO-0XX-completion-report.md`.
 | AUTO-014 | CI, Merge, Repository Finalization, and Runtime Closeout (PR_OPEN → DONE) | Engine implementation session | COMPLETE | `feature/auto-014-merge-closeout` | `stage-prompts/AUTO-014.md` |
 | AUTO-015 | Deterministic Next-Stage Proposal and Governed Prompt Generation | Engine implementation session | COMPLETE | `feature/auto-015-successor-planning` | `stage-prompts/AUTO-015.md` |
 | AUTO-016 | Integrated Milestone Automation Runner | Engine implementation session | COMPLETE | `feature/auto-016-milestone-runner` | `stage-prompts/AUTO-016.md` |
+| AUTO-017 | Schema v2 + Stage Execution Policy (alias AWE-AUTO-ST-01) | Engine implementation session | NOT_STARTED | (not registered until authorization) | (contract not yet drafted; governing architecture: `successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`) |
+| AUTO-018 | Durable Lifecycle / Event Foundation (alias AWE-AUTO-ST-02) | Engine implementation session | NOT_STARTED | (not registered until authorization) | (contract not yet drafted; governing architecture: `successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`) |
+| AUTO-019 | Resume / Crash Recovery (alias AWE-AUTO-ST-03) | Engine implementation session | NOT_STARTED | (not registered until authorization) | (contract not yet drafted; governing architecture: `successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`) |
+| AUTO-020 | 1..3 Bounded Remediation Cycles (alias AWE-AUTO-ST-04) | Engine implementation session | NOT_STARTED | (not registered until authorization) | (contract not yet drafted; governing architecture: `successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`) |
+| AUTO-021 | OWNER Decision API (alias AWE-AUTO-ST-05) | Engine implementation session | NOT_STARTED | (not registered until authorization) | (contract not yet drafted; governing architecture: `successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`) |
+| AUTO-022 | Per-role AI / Provider / Model Selection (alias AWE-AUTO-ST-06) | Engine implementation session | NOT_STARTED | (not registered until authorization) | (contract not yet drafted; governing architecture: `successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`) |
+| AUTO-023 | Hermes Execution Adapter (alias AWE-AUTO-ST-07) | Engine implementation session | NOT_STARTED | (not registered until authorization) | (contract not yet drafted; governing architecture: `successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`) |
+| AUTO-024 | Authenticated OWNER Decision Contracts (alias AWE-AUTO-ST-08) | Engine implementation session | NOT_STARTED | (not registered until authorization) | (contract not yet drafted; governing architecture: `successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`) |
+| AUTO-025 | Hermes Telegram Decision Transport (alias AWE-AUTO-ST-09) | Engine implementation session | NOT_STARTED | (not registered until authorization) | (contract not yet drafted; governing architecture: `successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`) |
+| AUTO-026 | Controlled Git Automation (alias AWE-AUTO-ST-10) | Engine implementation session | NOT_STARTED | (not registered until authorization) | (contract not yet drafted; governing architecture: `successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`) |
 
 ## 5. Authorization Log (append-only)
 
@@ -352,6 +400,7 @@ Report paths: `docs/reports/workflow-automation/AUTO-0XX-completion-report.md`.
 | 2026-08-05 | AUTO-016 | Human Owner: "I authorize AUTO-016 implementation under the finalized AUTO-016 contract and its exact implementation allowlist." AUTO-016 had never been registered before, so this entry records both its registration and its authorization. Authorization is bounded to exactly the finalized **Revision 4** contract (`stage-prompts/AUTO-016.md`, SHA-256 `56f6a8f5720f30543f5b0623f5cb52ffa2cc45cbe51be8c5f9b9f5f256b90a7e`) and its independent review (`docs/reports/workflow-automation/AUTO-016-contract-review.md`, Revision 3, SHA-256 `00c44cac08891f166be1bc50412a18069c305e31259a984a469f3b7ff699a58d`, verdict **CONTRACT READY FOR HUMAN OWNER AUTHORIZATION**): the Core Engine architecture (DEC-016-001, `src/ai_workflow_engine/milestone_runner/`, no `agentos_workflow.WorkflowService` integration); the exact nineteen-file implementation allowlist (§23) named in the authorization statement, and the forbidden surface (§24) unchanged; the ruled decisions DEC-016-002, DEC-016-005, DEC-016-006 and the evidence-resolved DEC-016-001, -003, -004, -007, -008 (`docs/DECISION_LOG.md`, 2026-08-05); the twenty security invariants (§22); the run state machine (§10) and durable state model (§11); the plan format and location rules (§14); the provider boundary (§17) and sanitization boundary (§17a); the review and budget policy (§19); the human gates and two-surface Git authority (§20); the configuration model (§21); the verification plan (§25); the test matrix (§26); the two-tier live-acceptance plan (§27), whose Tier 2 real-provider execution is authorized only during the later implementation/verification phase and explicitly not during this authorization session; the migration plan (§28); the defect policy (§29); and the implementation stop condition (§31). No work outside the finalized contract is authorized. Preconditions verified (rule 1): predecessor AUTO-015 `COMPLETE`, merged as `e325f95` and published via PR #17; AUTO-001 through AUTO-015, GOV-4, GOV-AUTO-08 and GOV-AUTO-10 all `COMPLETE`/`Done`; no other `Current` task anywhere in the queue (the `Current` set was empty); registry and `docs/TASK_QUEUE.md` agree; clean, synchronized `main` == `origin/main` at `3b1cc232b3ae8a32f19f154a98ec89b1f464b946`; `workflowctl verify --config self-governance.yaml` full PASS (git, task-state, governance, registries, handover — `0 Current, 51 Done, 6 Planned`, 25 stages); no blocking OD-# (OD-6, OD-7, OD-10, OD-11, OD-12 each explicitly "blocks nothing's authorization"); no pre-existing AUTO-016 branch, Registry row, source symbol, or task entry. Registry state moves `NOT_STARTED → AUTHORIZED`; task status moves to `Current`. **This session performed registration and authorization-preflight only, by explicit Human Owner instruction — no implementation, and no branch.** The Human Owner directed exactly three permitted acts: prepare and validate the authorization governance edits; commit exactly those governance files to `main` as one documentation-only authorization commit; then stop with AUTO-016 `AUTHORIZED` and implementation progress 0%. Push is withheld. The registered branch `feature/auto-016-milestone-runner` was **not created**, and the `AUTHORIZED → IN_PROGRESS` initial-start transition (rule 4) does **not** occur here: rule 14 requires the branch to be cut from a `main` baseline already carrying this authorization record, which requires the Human Owner's own review and push of this commit first. A separate initial-start session will create the branch from that synchronized authorized baseline and record `AUTHORIZED → IN_PROGRESS`, stopping before implementation; a separate implementation session will then execute AUTO-016. No production source, test, script, package file, dependency, workflow runtime, provider, or the local prototype runner at `~/.local/share/auto015-runner/` was created, modified, or deleted. | Human Owner |
 | 2026-08-06 | AUTO-016 (initial-start preflight passed) | Engine initial-start session verified: active stage exactly AUTO-016 with registry status `AUTHORIZED`; predecessor AUTO-015 `COMPLETE`, merged as `e325f95`, and published via PR #17; no other AUTO stage `AUTHORIZED` or `IN_PROGRESS` in either program registry; `docs/TASK_QUEUE.md`/`docs/current_task.md`/`docs/remaining_tasks.md` agree (`Current`, exactly one); `main` == `origin/main` at `4cbd714dd6a83de1b390feac39223e0b8f5d4cbf` with zero divergence, `git status` clean, no staged or untracked files, `git diff --check` clean; no pre-existing AUTO-016 implementation work anywhere in the repository (no branch local or remote, no `milestone_runner` package, module, or source symbol, no registry row beyond the authorization entry already recorded); the finalized contract (`stage-prompts/AUTO-016.md`, Revision 4, SHA-256 `56f6a8f5720f30543f5b0623f5cb52ffa2cc45cbe51be8c5f9b9f5f256b90a7e` — unchanged from the authorization record) and its independent review (`docs/reports/workflow-automation/AUTO-016-contract-review.md`, Revision 3) present and unmodified; DEC-016-001 through DEC-016-008, including the Human Owner rulings on DEC-016-002, DEC-016-005, and DEC-016-006, all recorded in `docs/DECISION_LOG.md`; `workflowctl check-task-state`, `check-governance`, `check-handover --source commit --commit HEAD`, and `verify` all full PASS. Branch `feature/auto-016-milestone-runner` created from that clean, synchronized `main`; branch HEAD and merge-base with `main` both equal `4cbd714dd6a83de1b390feac39223e0b8f5d4cbf`; the branch carries the authoritative authorization record as its tip commit; no additional commit exists on the branch; no remote branch was created. Per rule 4 the registry state moves `AUTHORIZED → IN_PROGRESS`; no new Human Owner authorization act occurs and none is required. **This session performs the initial-start transition only — no implementation begins.** Implementation progress remains 0%; no file under `src/`, `tests/`, `agentos_workflow/`, or `agentos_dashboard/` changed; no script, package, or dependency file changed; the local prototype runner at `~/.local/share/auto015-runner/` is untouched (DEC-016-006); no provider was invoked and no live acceptance was performed; no commit, push, PR, merge, or branch deletion occurs in this session, none being authorized here. The next session, bounded exactly by the finalized Revision 4 contract (§23 allowlist / §24 forbidden surface), may begin implementation of `src/ai_workflow_engine/milestone_runner/`. | Engine initial-start session |
 | 2026-08-08 | AUTO-016 (Human Owner approval, closure, and publication) | Human Owner approved AUTO-016 for governance closure. Implementation was completed on branch `feature/auto-016-milestone-runner` (three commits: `4fa9212` initial start, `34ae307` implementation, `f41d3f3` CI fix) and published via pull request **#19**, merged into `main` as **`b4534c7`**, matching `main`'s verified HEAD; PR #19 CI is green (both `validate` runs pass). The completion report (`docs/reports/workflow-automation/AUTO-016-completion-report.md`) records the delivered surface — the exact nineteen-file `src/ai_workflow_engine/milestone_runner/` package §8/§23.1 fix plus one additive `workflowctl milestone-runner` sub-app — and its repository-native verification evidence: the §25 command set, the twenty §22 security invariants each held by a named negative test, the ten prototype-defect regressions, a real wheel build and out-of-tree import, the §27 Tier 1 disposable-repository acceptance matrix, and the four-way proof that nothing is committed, pushed, opened as a pull request, or merged automatically. It also records the GOV-AUTO-11 correction round (GOV-AUTO-11-F1 … F4), the independent implementation review's three High blockers (AUTO016-IMPL-001, -002, -003), and the deferred, non-blocking dispositions of OD-6, OD-7, OD-10, OD-11, OD-12 and D-14 … D-16. **Human Owner–confirmed external runner evidence** (produced by the local AUTO-016 runner at `~/.local/share/auto016-runner/`, outside this repository; not a repository-stored artifact): runner run ID `auto016-20260805T213855Z-7fea75fc`; all nine milestones AUTO-016-M01 … AUTO-016-M09 complete (9/9); exactly one bounded Codex review (`review_attempts` 1, `successful_review_rounds` 1), initial verdict `AUTO016_REVIEW_BLOCKED` on AUTO016-IMPL-001/002/003; one correction round (`correction_round` 1); one closure verification (`closure_round` 1) returning AUTO016-IMPL-002 `CLOSED` and AUTO016-IMPL-003 `CLOSED` with AUTO016-IMPL-001 `STILL_OPEN`; final verification set 11/11 exit 0 (`pytest -q`, `pytest -q -m live_cli -rs`, `ruff check .`, `black --check .`, `mypy --strict`, `pre-commit run --all-files`, `git diff --check`, and the four `workflowctl` governance checks). **Final blocker remediation:** the Human Owner authorized one narrowly bounded production remediation to close AUTO016-IMPL-001 (`state.py`, `application.py` and their three test modules only), replacing changed-path-name reconciliation with a durable pre-invocation SHA-256 content fingerprint; an out-of-band, strictly read-only Codex verification returned `AUTO016-IMPL-001 CLOSED` (external runner evidence file `~/.local/share/auto016-runner/state/auto016-impl-001-out-of-band-verdict.txt`, SHA-256 `80a473b8811974a651c91bc385647707d5046c0acca401d888531f9346294989`), recorded with `budget_effect: none` — no further review, correction, or closure round was authorized or performed. The runner's durable `blocking_findings` list is empty and its final state is `READY_FOR_COMMIT_APPROVAL`. **One deferred finding is retained, explicitly non-blocking:** `AUTO-016-M08-BLOCKER-001`, classified `cross_milestone` by Human Owner ruling on 2026-08-07 and recorded with `budget_effect: none` — a pre-existing conflict between M04's `TestProviderSpawnOnlyFromProvidersSubpackage` allowed set and the §20 approval façade plus M05's `verification.py`, unfixable from AUTO-016-M08's `allowed_files` and outside its focused verification. It was subsequently resolved as GOV-AUTO-11-F4 in the correction round, is not a blocking finding, and blocks nothing. Registry state moves `IN_PROGRESS → COMPLETE`; task status moves `Current → Done`; the `Current` set is empty. This closure authorizes no successor: AUTO-017 and every later roadmap phase remain unauthorized and `Planned`, and each requires its own separate, fresh, written Human Owner authorization. | Human Owner |
+| 2026-09-28 | AUTO-017 … AUTO-026 (registration only — NOT an authorization) | OWNER decision OD-GSE-07: register the ten AWE Governed Autonomous Stage Execution implementation stages as AUTO-017 through AUTO-026, preserving aliases AWE-AUTO-ST-01 through AWE-AUTO-ST-10. Each §4 row is `NOT_STARTED` (task status `Planned` in `docs/TASK_QUEUE.md`). OWNER decision OD-GSE-12 fixes the execution order: AUTO-017 → AUTO-018 → AUTO-019 → AUTO-021 → AUTO-020 → AUTO-022 → AUTO-023 → AUTO-024 → AUTO-025 → AUTO-026. The numbering is preserved, and AUTO-021 (OWNER Decision API) must be `COMPLETE` before AUTO-020 (bounded remediation cycles) may be authorized. For rule 10, each stage's predecessor is the stage immediately before it in that order. The governing architecture artifact is `successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`. Also accepted: OD-GSE-01, -02, -03 and -06 (`docs/DECISION_LOG.md`, 2026-09-28). Still OPEN, each blocking only the named stage: OD-GSE-10 (AUTO-021), OD-GSE-09 and -11 (AUTO-020), OD-GSE-08 (AUTO-022), OD-GSE-05 (AUTO-024, AUTO-025) and OD-GSE-04 (AUTO-026). External prerequisites EP-1 (AUTO-023) and EP-2 (AUTO-025) are deferred. **No stage is authorized.** No stage contract, branch or source symbol exists. Each stage requires its own contract, one bounded review, and fresh written OWNER authorization under rules 1–3. Preconditions observed: `main` at `e7dbb31a1469a8b371a7571a6d85424f20f0226a`, clean before this documentation change, `Current` set empty, `workflowctl verify` PASS. No production source, test, script, package or dependency changed, and nothing was committed. | OWNER (recorded by planning session) |
 
 ## 6. Decision References
 DD-01 through DD-39 (see `DECISIONS.md`; this line has historically lagged DD additions — DD-33

@@ -13,6 +13,170 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-09-28 — OWNER accepted the AWE GSE master plan; plan CLOSED / FROZEN as governing architecture
+
+**Decision (OWNER).** `AWE_GSE_MASTER_PLAN_OWNER_ACCEPTED`. The master plan is accepted at exactly this
+identity:
+
+| Field | Value |
+|---|---|
+| Path | `docs/workflow-automation/successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md` |
+| Lines | 1664 |
+| Bytes | 110623 |
+| SHA-256 | `6bb2509f1b30b2518755d63549dfa87fa5a10289e547bcd6fe824f40ecf195ad` |
+
+**Basis.**
+- The one independent discovery review of the plan is complete.
+- It produced the frozen finding set AWE-GSE-R01 … AWE-GSE-R11. These were remediated in plan Revision 2
+  (entry below). R08 received one further bounded correction in `docs/TASK_QUEUE.md`: the AUTO-026 entry
+  prerequisites became FA-1..FA-4, FA-5a and FA-6; the stage delivers FA-5b; and full FA-5 gates
+  enablement, not entry.
+- Independent closure verification returned `AWE_GSE_MASTER_PLAN_CLOSURE_PASS`. All of R01 … R11 are
+  CLOSED.
+
+**Effect.** The master plan is **CLOSED / FROZEN** as the governing architecture artifact for AUTO-017 …
+AUTO-026. Any change to it requires a new, recorded OWNER decision and produces a new revision identity.
+
+**Unchanged.**
+- The accepted OWNER decisions OD-GSE-01, -02, -03, -06, -07 and -12.
+- The OPEN decisions OD-GSE-04, -05, -08, -09, -10 and -11, which still block only the stages the plan names.
+- EP-1 and EP-2 remain deferred.
+
+**Boundaries.**
+- AUTO-017 … AUTO-026 remain `NOT_STARTED` / `Planned`. **This acceptance authorizes none of them.**
+- AUTO-017 still requires, in order:
+  1. its own contract preparation (`stage-prompts/AUTO-017.md`);
+  2. one bounded independent contract review;
+  3. separate written OWNER implementation authorization (`STAGE_REGISTRY.md` §3 rules 1–3 and 3a).
+- No branch was created, no production code or test changed, and nothing was staged or committed.
+
+## 2026-09-28 — AWE GSE master plan Revision 2: remediation of frozen discovery findings AWE-GSE-R01 … R11
+
+**Context.** One independent discovery review of the master plan candidate produced a frozen finding set,
+AWE-GSE-R01 … AWE-GSE-R11. R01 is a blocker, R02–R10 are major, and R11 is minor. This entry records the
+bounded remediation. There was no new discovery, no new finding ID, no change to any accepted OWNER
+decision (OD-GSE-01, -02, -03, -06, -07, -12), and no ruling on any open one (OD-GSE-04, -05, -08, -09,
+-10, -11).
+
+**What changed.**
+
+- **Plan.** `docs/workflow-automation/successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md` moves to Revision 2. Its §9 maps each finding to its remediation.
+  - **R01.** A non-circular live-provider isolation gate. FA-5a is delivered by AUTO-023 and proven by an
+    OS/runtime-level negative test using a hostile probe process, plus a per-run self-test.
+    `MilestoneRunnerApplication` evaluates the gate, so no second authority is created. Before the gate
+    opens, v2 runs use test doubles only. AUTO-016 v1 behavior is unchanged.
+  - **R02.** A durable pre-spawn `DISPATCH_INTENT`, distinct from the post-spawn `DISPATCH_RECEIPT`.
+    Ambiguous post-intent recovery for non-queryable adapters freezes for the OWNER. Discovery
+    cardinality is counted by dispatched discovery operation. `RETRY_DISCOVERY` and the
+    `OWNER_DECISION_REQUIRED → REVIEWING` edge are removed.
+  - **R05.** AUTO-024 is mechanism-neutral: security properties SP-1..SP-6 and a conformance suite over
+    every still-valid OD-GSE-05 option.
+  - **R06.** A single authoritative consumption event: the response is persisted, then consumed, then
+    applied, with the restart cases defined.
+  - **R07.** Durable inbound protocol: persist before acknowledgment, with EP-2 identity and redelivery
+    requirements and crash-boundary tests.
+  - **R08.** FA-5 is split into FA-5a and FA-5b. AUTO-026 entry needs FA-5a only, and full FA-5 is an
+    enablement requirement.
+  - **R09.** `GIT_INTENT` is persisted before any index mutation, with per-crash-point recovery.
+  - **R10.** Full-identity commit adoption, freezing on mismatch, plus a same-tree/different-message
+    regression test.
+  - **R11.** `START_STAGE` is an OWNER-initiated command with an explicit Stage ID, and nothing solicits a
+    successor.
+- **Registry (R03, R04).** `docs/workflow-automation/STAGE_REGISTRY.md` moves to **v7.0**. This is a MAJOR
+  version, because control rules changed, as that document's §8 requires. The candidate's earlier 6.15 bump
+  was never committed and is folded into this one.
+  - §1 scope is extended to AUTO-001..AUTO-026.
+  - Rule 1 now names the execution predecessor.
+  - Rule 10 defines execution-predecessor semantics. The default is numeric order, unless a recorded
+    OWNER decision says otherwise. For AUTO-017..AUTO-026, OD-GSE-12 fixes the predecessors, and AUTO-021
+    precedes AUTO-020.
+  - New rule 3a: contract drafting and bounded review precede implementation authorization, and contract
+    preparation is not authorization. OWNER authorization is required before branch creation,
+    implementation prompt execution, production implementation, and any lifecycle promotion.
+- **SSP (R03, R04).** The Standard Stage Protocol, `docs/workflow-automation/stage-prompts/README.md`,
+  moves to **v1.4**.
+  - It gains a "Contract Preparation" section.
+  - The "prepare the next stage" prohibition is clarified: it applies to a stage's own session and does
+    not cover rule 3a contract preparation.
+  - Prompt usage rule 3 now references the execution predecessor.
+  - Naming is `AUTO-0XX.md`, with aliases treated as labels only.
+  - "Stage Ordering" replaces "AUTO-001 → AUTO-007, strictly sequential" with the execution-predecessor
+    rule and the OD-GSE-12 chain.
+- **Task queue (R03, R04).** The program note in `docs/TASK_QUEUE.md` no longer says the stages may not be
+  "planned into a contract" before authorization. It now states the rule 3a order of acts and refers to
+  the single rule 10.
+
+**Classification.** These are amendments to versioned reference and control documents under
+`STAGE_REGISTRY.md` §3 rule 8, second category, with version bumps. No completion record, §5 row of
+another stage, or historical decision entry was edited. No production source, test, script or package
+changed. Nothing was staged or committed.
+
+## 2026-09-28 — AWE Governed Autonomous Stage Execution: OWNER decisions, AUTO-017 … AUTO-026 registration, and T-307 mirror correction
+
+**Decision (OWNER).** The OWNER accepted six decisions on the master plan
+`docs/workflow-automation/successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`, which is now the governing architecture artifact for the program:
+
+- **OD-GSE-01.** MEDIUM and LOW findings stay deferred and non-blocking. Only blocking findings (CRITICAL
+  and HIGH) enter remediation.
+- **OD-GSE-02.** The discovery blocker ceiling stays configurable (`1..3`), with a default of 3. An
+  overflow moves the run to `OWNER_DECISION_REQUIRED` (`DISCOVERY_OVERFLOW`) and does not invalidate the
+  one discovery review.
+- **OD-GSE-03.** `EXTEND_REMEDIATION` grants exactly +1 remediation/closure cycle, with at most 2
+  OWNER-authorized extensions per run.
+- **OD-GSE-06.** An AWE-native Stage Start authorization is authoritative. Project registry authorization
+  or status is an additional precondition, and any disagreement refuses execution.
+- **OD-GSE-07.** The ten implementation stages are registered as AUTO-017 through AUTO-026, preserving
+  aliases AWE-AUTO-ST-01 through AWE-AUTO-ST-10.
+- **OD-GSE-12.** The existing numbering is preserved, and the execution dependency is ST-01 → ST-02 →
+  ST-03 → ST-05 → ST-04 → ST-06 → ST-07 → ST-08 → ST-09 → ST-10. In Registry IDs that is AUTO-017 → 018
+  → 019 → 021 → 020 → 022 → 023 → 024 → 025 → 026. ST-05 must complete before ST-04, because
+  retry-exhaustion OWNER actions must exist before bounded multi-cycle remediation is enabled.
+
+**Registration, not authorization.** AUTO-017 … AUTO-026 are added to
+`docs/workflow-automation/STAGE_REGISTRY.md` §4 as `NOT_STARTED`, with one appended §5 row, and to
+`docs/TASK_QUEUE.md` as `Planned`. The registry version moves 6.14 → 7.0; see the remediation entry above. No stage is authorized. No
+stage contract, branch or source symbol exists, and each stage requires its own contract, one bounded
+review, and fresh written OWNER authorization. For `STAGE_REGISTRY.md` §3 rule 10, each stage's
+predecessor is the one immediately before it in the OD-GSE-12 order, not the numerically preceding ID.
+
+**Still OPEN (not decided; the plan's §6.2 gives alternatives and a non-binding recommendation for each):**
+
+| Decision | Subject | Blocks |
+|---|---|---|
+| OD-GSE-10 | Worktree handling after abort or amend | AUTO-021 |
+| OD-GSE-09 | Verification failure after remediation | AUTO-020 |
+| OD-GSE-11 | Closure scope in cycles 2..N | AUTO-020 |
+| OD-GSE-08 | Reviewer independence | AUTO-022 |
+| OD-GSE-05 | Telegram principal, key and expiry | AUTO-024 and AUTO-025 |
+| OD-GSE-04 | Automatic commit policy | AUTO-026 |
+
+External prerequisites EP-1 (Hermes execution interface; blocks AUTO-023) and EP-2 (Hermes Telegram
+interface; blocks AUTO-025) are deferred.
+
+**Correction record (EP-3).** This corrects the T-307 closeout records dated 2026-09-03 without editing
+them: the 2026-09-03 entry below, the `T-307 closeout preparation` sections of `docs/TASK_QUEUE.md` and
+`docs/remaining_tasks.md`, and the corresponding entries in `docs/PROJECT_STATE.md` and
+`docs/CHANGELOG.md`.
+
+- **What was wrong.** Those records, and the live mirror `docs/current_task.md`, still stated that T-307's
+  implementation and closeout "remain uncommitted pending separate Human Owner final-commit
+  authorization".
+- **Corrected fact.** They were committed together on `main` as
+  `e7dbb31a1469a8b371a7571a6d85424f20f0226a`
+  (`feat(workflow): add governed verification evidence and provenance (T-307)`), which is HEAD and
+  equals the local `origin/main` ref.
+- **Who found it.** The GSE architect/planner session found the drift on 2026-09-28, by comparing the
+  mirrors with `git show --stat e7dbb31`.
+- **What was changed.** Only `docs/current_task.md`'s live statement was changed in place, because it is
+  a current-state mirror. Every dated historical record was left untouched, and dated reconciliation
+  notes were appended instead.
+- **Machine checks.** The drift was prose only: `workflowctl verify` passed before the reconciliation
+  and passes after it.
+
+**Boundaries.** This is a documentation and governance change. No production source, test, script,
+package, dependency or milestone-runner file changed. No provider, Hermes, Telegram or network service
+was invoked, and nothing was staged, committed or pushed.
+
 ## 2026-09-03 — T-307 governance closeout prepared after independent approval
 
 **Decision:** T-307's authoritative Revision 4 implementation completed on `main` at expected
