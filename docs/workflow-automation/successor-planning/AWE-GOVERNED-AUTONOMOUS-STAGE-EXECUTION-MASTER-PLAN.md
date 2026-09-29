@@ -515,8 +515,9 @@ and a capability-granting field defaults to least capability.
 2. `max_remediation_cycles` values 0, 4, "2" and 2.0 are rejected, and 1, 2 and 3 are accepted.
 3. After publication, any mutation of `policy.json` makes load fail with `POLICY_DIGEST_MISMATCH`.
 4. Every v1 fixture under `tests/` loads, and publication produces v2.
-5. `start` without a matching `StageStartAuthorization` is refused with `STAGE_START_NOT_AUTHORIZED`,
-   even when the registry shows the stage `AUTHORIZED`.
+5. `start` without a matching `StageStartAuthorization` is refused with
+   `STAGE_START_AUTHORIZATION_CONFLICT` when the governed registry authorizes the Stage
+   (`D-AUTO017-01 = B`); otherwise it is refused with `STAGE_START_NOT_AUTHORIZED`.
    5a. A matching record whose stage the project registry does not authorize is refused with
    `STAGE_START_AUTHORIZATION_CONFLICT`, as is a record whose contract digest differs from the
    registry's. A repository without a governed registry relies on the record alone.
@@ -1463,6 +1464,16 @@ authorization.
 
 Accepted decisions are binding on every future stage contract in this program. A contract may narrow
 them. It may not contradict them without a new, recorded OWNER decision.
+
+#### Bounded authority clarification — D-AUTO017-01 (OWNER, 2026-09-29)
+
+`D-AUTO017-01 = B` is accepted and closed. For registry authorizes Stage + no matching AWE-native
+Stage Start authorization, the authoritative typed stop reason is
+`STAGE_START_AUTHORIZATION_CONFLICT`, not `STAGE_START_NOT_AUTHORIZED`. This ruling closes the
+AUTO017-R01 authority contradiction by amending only AUTO-017 acceptance 5 above; OD-GSE-06's
+source-of-truth rule is unchanged. This paragraph is the governance record of the ruling.
+The amended frozen identity is recorded in the AUTO-017 contract §2 and its remediation handoff.
+No other architecture, OWNER decision, stage authorization or lifecycle status changes.
 
 ### 6.2 Still OPEN (not decided; each blocks only the stage named)
 

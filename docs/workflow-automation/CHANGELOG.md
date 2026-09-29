@@ -5,7 +5,7 @@
 | **Title** | AgentOS Workflow Automation — Changelog |
 | **Purpose** | Program-level changelog, newest first. |
 | **Status** | Draft |
-| **Version** | 2.21 |
+| **Version** | 2.22 |
 | **Owner** | Documentation & Governance session |
 | **Dependencies** | None |
 | **Related Documents** | `docs/CHANGELOG.md` (repository-level; cross-posted there) |
@@ -13,6 +13,16 @@
 ## [Unreleased]
 
 ### Added
+- AUTO-017 contract OWNER-accepted, CLOSED and FROZEN (2026-09-29; contract acceptance only, NOT an
+  implementation authorization).
+  - `stage-prompts/AUTO-017.md`: 1552 lines, 120530 bytes, SHA-256
+    `80358d0f368a74e845c034072a813c85c5b90c20e5717c668235e2bc4e2b969d`.
+  - One discovery review is complete. AUTO017-R01 … R06 are all CLOSED (`AUTO_017_CONTRACT_CLOSURE_PASS`).
+  - The OWNER accepted the bounded Master Plan amendment (`D-AUTO017-01 = B`, acceptance 5 and §6.1
+    only). The new frozen plan identity is 1675 lines, 111414 bytes, SHA-256
+    `8ca4d72d9f2487f9a39f52c8dca653d74c1257b993878200f4305c97eb4ed3f7`.
+  - `STAGE_REGISTRY.md` moves to v7.1. Only the `Prompt` cell of the AUTO-017 §4 row changed: it now names
+    `stage-prompts/AUTO-017.md`, and the row's State remains `NOT_STARTED`.
 - AUTO-017 … AUTO-026 registered (2026-09-28; registration only, none authorized). The governing
   architecture artifact is `successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`.
   - Aliases AWE-AUTO-ST-01..10.

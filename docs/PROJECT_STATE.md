@@ -7,7 +7,31 @@ so keep the version line's wording exact if you edit it.
 
 Current Version: 1.0.0
 
-## Latest governance activity — governed autonomous stage execution plan finalized
+## Latest governance activity — AUTO-017 contract OWNER-accepted and frozen
+
+**OWNER acceptance (2026-09-29).** The AUTO-017 stage contract,
+`docs/workflow-automation/stage-prompts/AUTO-017.md`, has passed its review:
+- the one independent discovery review is complete;
+- frozen findings AUTO017-R01 … R06 are all CLOSED (`AUTO_017_CONTRACT_CLOSURE_PASS`).
+
+The OWNER recorded `AUTO_017_CONTRACT_OWNER_ACCEPTED`, `AUTO_017_CONTRACT_CLOSED` and
+`AUTO_017_CONTRACT_FROZEN`. The contract is **CLOSED / FROZEN** at 1552 lines, 120530 bytes, SHA-256
+`80358d0f368a74e845c034072a813c85c5b90c20e5717c668235e2bc4e2b969d`.
+
+The OWNER also accepted the bounded Master Plan amendment required by `D-AUTO017-01 = B`. It changes AUTO-017
+acceptance 5 and the §6.1 ruling record only. The amended plan is the new authoritative CLOSED / FROZEN
+revision at 1675 lines, 111414 bytes, SHA-256
+`8ca4d72d9f2487f9a39f52c8dca653d74c1257b993878200f4305c97eb4ed3f7`. It supersedes the 2026-09-28 identity
+below.
+
+**AUTO-017 is not authorized.** It remains `NOT_STARTED` / `Planned`, and implementation requires separate
+written OWNER authorization. OD-GSE-04, -05, -08, -09, -10 and -11 remain OPEN. The v1 registry-parser
+defect remains deferred. The `Current` set is still empty.
+
+This was a documentation and governance change only, and nothing was committed
+(`docs/DECISION_LOG.md`, 2026-09-29).
+
+## Prior governance activity — governed autonomous stage execution plan finalized
 
 **OWNER acceptance (2026-09-28).** The master plan has passed its discovery review (AWE-GSE-R01 … R11 all
 CLOSED, `AWE_GSE_MASTER_PLAN_CLOSURE_PASS`) and has been accepted by the OWNER

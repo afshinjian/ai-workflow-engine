@@ -5,7 +5,7 @@
 | **Title** | AgentOS Workflow Automation — Stage Registry |
 | **Purpose** | Live status of AUTO-001..AUTO-026, the stage-lifecycle state model (distinct from the runtime `WORKFLOW_STATES.md` machine the finished engine will use), master stage-control rules, and the append-only authorization log. A *view* of `docs/TASK_QUEUE.md`, never a competing workflow. |
 | **Status** | Draft |
-| **Version** | 7.0 |
+| **Version** | 7.1 |
 | **Owner** | Documentation & Governance session · Human Owner (approval and stage authorization) |
 | **Dependencies** | `README.md` §5; `MVP_SCOPE.md`; `TEST_STRATEGY.md` |
 | **Related Documents** | `stage-prompts/README.md`, `docs/AGENT_PROTOCOL.md`, `self-governance.yaml`, `docs/TASK_QUEUE.md` |
@@ -301,7 +301,7 @@ Report paths: `docs/reports/workflow-automation/AUTO-0XX-completion-report.md`.
 | AUTO-014 | CI, Merge, Repository Finalization, and Runtime Closeout (PR_OPEN → DONE) | Engine implementation session | COMPLETE | `feature/auto-014-merge-closeout` | `stage-prompts/AUTO-014.md` |
 | AUTO-015 | Deterministic Next-Stage Proposal and Governed Prompt Generation | Engine implementation session | COMPLETE | `feature/auto-015-successor-planning` | `stage-prompts/AUTO-015.md` |
 | AUTO-016 | Integrated Milestone Automation Runner | Engine implementation session | COMPLETE | `feature/auto-016-milestone-runner` | `stage-prompts/AUTO-016.md` |
-| AUTO-017 | Schema v2 + Stage Execution Policy (alias AWE-AUTO-ST-01) | Engine implementation session | NOT_STARTED | (not registered until authorization) | (contract not yet drafted; governing architecture: `successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`) |
+| AUTO-017 | Schema v2 + Stage Execution Policy (alias AWE-AUTO-ST-01) | Engine implementation session | NOT_STARTED | (not registered until authorization) | `stage-prompts/AUTO-017.md` |
 | AUTO-018 | Durable Lifecycle / Event Foundation (alias AWE-AUTO-ST-02) | Engine implementation session | NOT_STARTED | (not registered until authorization) | (contract not yet drafted; governing architecture: `successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`) |
 | AUTO-019 | Resume / Crash Recovery (alias AWE-AUTO-ST-03) | Engine implementation session | NOT_STARTED | (not registered until authorization) | (contract not yet drafted; governing architecture: `successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`) |
 | AUTO-020 | 1..3 Bounded Remediation Cycles (alias AWE-AUTO-ST-04) | Engine implementation session | NOT_STARTED | (not registered until authorization) | (contract not yet drafted; governing architecture: `successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`) |

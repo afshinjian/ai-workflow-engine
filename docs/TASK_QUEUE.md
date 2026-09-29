@@ -2324,6 +2324,15 @@ The order of acts for each stage is fixed by `docs/workflow-automation/STAGE_REG
   Future changes to the plan require a new, recorded OWNER decision and a new revision identity.
   AUTO-017 remains unauthorized. It still requires its own contract preparation, one bounded review, and
   separate OWNER implementation authorization.
+
+  **Amended identity (OWNER-accepted 2026-09-29, `D-AUTO017-01 = B`).** This is now the authoritative
+  CLOSED / FROZEN revision. It supersedes the identity above, which is retained as the historical record.
+  - lines: 1675
+  - bytes: 111414
+  - SHA-256: `8ca4d72d9f2487f9a39f52c8dca653d74c1257b993878200f4305c97eb4ed3f7`
+
+  The amendment is bounded to AUTO-017 acceptance 5 and the §6.1 ruling record. Record:
+  `docs/DECISION_LOG.md`, 2026-09-29.
 - **Canonical subsystem:** `src/ai_workflow_engine/milestone_runner/`.
 - **Sole transition authority:** `MilestoneRunnerApplication`.
 - **Accepted OWNER decisions:** OD-GSE-01, -02, -03, -06, -07 and -12 (`docs/DECISION_LOG.md`, 2026-09-28).
@@ -2345,8 +2354,18 @@ Alias `AWE-AUTO-ST-01`. Registered 2026-09-28 (OD-GSE-07); **not authorized**.
 - **Execution predecessor (OD-GSE-12):** AUTO-016 (`COMPLETE`).
 - **Open OWNER decisions or external prerequisites that block this stage:** none (OD-GSE-01, -02, -03, -06, -07 accepted).
 - **Scope, exclusions and acceptance criteria:** the stage section in `docs/workflow-automation/successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`.
-- **Stage contract:** `docs/workflow-automation/stage-prompts/AUTO-017.md` does not exist yet. It must be
-  drafted and reviewed once before authorization.
+- **Stage contract:** `docs/workflow-automation/stage-prompts/AUTO-017.md`.
+  **CLOSED / FROZEN — OWNER-accepted** (`AUTO_017_CONTRACT_OWNER_ACCEPTED`, `AUTO_017_CONTRACT_CLOSED`,
+  `AUTO_017_CONTRACT_FROZEN`; 2026-09-29).
+  - Identity: 1552 lines, 120530 bytes, SHA-256
+    `80358d0f368a74e845c034072a813c85c5b90c20e5717c668235e2bc4e2b969d`.
+  - The one independent discovery review is complete.
+  - Frozen findings AUTO017-R01 … R06 are all CLOSED (`AUTO_017_CONTRACT_CLOSURE_PASS`).
+  - `D-AUTO017-01 = B` is accepted.
+  - Record: `docs/DECISION_LOG.md`, 2026-09-29.
+
+  **Contract acceptance is not implementation authorization.** AUTO-017 stays `Planned` until separate
+  written OWNER authorization is given under `STAGE_REGISTRY.md` §3 rules 1–3.
 
 ## AUTO-018 — Durable Lifecycle / Event Foundation
 

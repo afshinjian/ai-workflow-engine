@@ -13,6 +13,73 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-09-29 — OWNER accepted the AUTO-017 contract and the bounded Master Plan amendment; contract CLOSED / FROZEN
+
+**Decision (OWNER).** The OWNER recorded `AUTO_017_CONTRACT_OWNER_ACCEPTED`, `AUTO_017_CONTRACT_CLOSED`
+and `AUTO_017_CONTRACT_FROZEN`. The AUTO-017 stage contract is accepted at exactly this identity:
+
+| Field | Value |
+|---|---|
+| Path | `docs/workflow-automation/stage-prompts/AUTO-017.md` |
+| Lines | 1552 |
+| Bytes | 120530 |
+| SHA-256 | `80358d0f368a74e845c034072a813c85c5b90c20e5717c668235e2bc4e2b969d` |
+
+The OWNER also accepted the bounded Master Plan amendment required by `D-AUTO017-01 = B`. The amended plan
+becomes the new authoritative **CLOSED / FROZEN** Master Plan revision at exactly this identity:
+
+| Field | Value |
+|---|---|
+| Path | `docs/workflow-automation/successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md` |
+| Lines | 1675 |
+| Bytes | 111414 |
+| SHA-256 | `8ca4d72d9f2487f9a39f52c8dca653d74c1257b993878200f4305c97eb4ed3f7` |
+
+This identity supersedes the 2026-09-28 accepted identity (1664 lines, 110623 bytes, SHA-256
+`6bb2509f1b30b2518755d63549dfa87fa5a10289e547bcd6fe824f40ecf195ad`). That entry below is preserved
+unchanged as the historical record.
+
+The amendment changes only two things:
+- AUTO-017 acceptance 5: registry authorizes the Stage with no matching AWE-native Stage Start
+  authorization → `STAGE_START_AUTHORIZATION_CONFLICT`;
+- the §6.1 ruling record for `D-AUTO017-01 = B`.
+
+No other architecture, OWNER decision, stage authorization or lifecycle status changed.
+
+**Basis.**
+- The contract was prepared under `STAGE_REGISTRY.md` §3 rule 3a.
+- The one independent discovery review is complete. It produced the frozen findings AUTO017-R01 …
+  AUTO017-R06.
+- Bounded remediation produced contract Revision 2. The OWNER ruling `D-AUTO017-01 = B` closed R01's
+  authority contradiction.
+- Fresh independent closure verification returned `AUTO_017_CONTRACT_CLOSURE_PASS`. AUTO017-R01, -R02,
+  -R03, -R04, -R05 and -R06 are all CLOSED.
+
+**Effect.**
+- The AUTO-017 contract is **CLOSED / FROZEN**. Any change to it requires a new, recorded OWNER decision
+  and produces a new identity.
+- The contract text still reads "PROPOSAL — NOT AUTHORIZED" and "Revision 2 — FROZEN-FINDING REMEDIATION
+  CANDIDATE". It is left byte-unchanged so that the accepted identity holds. This entry is the record of
+  its acceptance, closure and freeze.
+
+**Unchanged.**
+- Accepted OWNER decisions: OD-GSE-01, -02, -03, -06, -07 and -12, and `D-AUTO017-01 = B`.
+- Still OPEN, not altered: OD-GSE-04, -05, -08, -09, -10 and -11.
+- EP-1 and EP-2 remain deferred.
+- The v1 registry-parser defect (`_registry_authorizes`; contract §11.4) remains deferred.
+
+**Boundaries.**
+- **This acceptance does not authorize AUTO-017 implementation.** AUTO-017 remains `NOT_STARTED` in
+  `STAGE_REGISTRY.md` §4 and `Planned` in `docs/TASK_QUEUE.md`, and it is unauthorized.
+- Implementation still requires separate written OWNER authorization under `STAGE_REGISTRY.md` §3
+  rules 1–3.
+- AUTO-018 … AUTO-026 are unaffected.
+- The only lifecycle-mirror change is the `Prompt` cell of the AUTO-017 row in `STAGE_REGISTRY.md` §4.
+  It now names `stage-prompts/AUTO-017.md`; the row's State stays `NOT_STARTED`.
+- No branch was created. No production code or test changed. No provider, Hermes, Telegram or network
+  service was invoked. Nothing was staged or committed.
+- Precondition observed: `main` at `489885d51e0d84e60c3506fd1ae2b365440b2401`, with an empty index.
+
 ## 2026-09-28 — OWNER accepted the AWE GSE master plan; plan CLOSED / FROZEN as governing architecture
 
 **Decision (OWNER).** `AWE_GSE_MASTER_PLAN_OWNER_ACCEPTED`. The master plan is accepted at exactly this

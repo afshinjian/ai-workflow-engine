@@ -7,6 +7,14 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- AUTO-017 stage contract OWNER-accepted, CLOSED and FROZEN (2026-09-29):
+  `docs/workflow-automation/stage-prompts/AUTO-017.md`, SHA-256
+  `80358d0f368a74e845c034072a813c85c5b90c20e5717c668235e2bc4e2b969d`.
+  - Frozen findings AUTO017-R01 … R06 are all CLOSED (`AUTO_017_CONTRACT_CLOSURE_PASS`).
+  - The bounded Master Plan amendment for `D-AUTO017-01 = B` is OWNER-accepted and is the new frozen plan
+    revision (SHA-256 `8ca4d72d9f2487f9a39f52c8dca653d74c1257b993878200f4305c97eb4ed3f7`).
+  - AUTO-017 remains `NOT_STARTED` / `Planned` and unauthorized.
+  - Documentation and governance only; no production code changed.
 - AWE Governed Autonomous Stage Execution master plan finalized (2026-09-28):
   `docs/workflow-automation/successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`.
   - The OWNER accepted OD-GSE-01, -02, -03, -06, -07 and -12.

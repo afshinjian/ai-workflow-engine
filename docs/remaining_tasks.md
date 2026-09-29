@@ -364,3 +364,18 @@ AUTO-023 → AUTO-024 → AUTO-025 → AUTO-026.
 
 Each stage requires its own contract, its own bounded review, and its own fresh written OWNER
 authorization. Registration authorizes nothing.
+
+## AUTO-017 contract OWNER acceptance — 2026-09-29
+
+This section is a dated historical record. It carries no parseable lifecycle line, and AUTO-017's row in
+the table above stays `Planned`.
+
+The OWNER accepted the AUTO-017 stage contract (`docs/workflow-automation/stage-prompts/AUTO-017.md`,
+SHA-256 `80358d0f368a74e845c034072a813c85c5b90c20e5717c668235e2bc4e2b969d`). The contract is CLOSED and
+FROZEN (`AUTO_017_CONTRACT_OWNER_ACCEPTED`, `AUTO_017_CONTRACT_CLOSED`, `AUTO_017_CONTRACT_FROZEN`).
+- Frozen findings AUTO017-R01 … R06 are all CLOSED (`AUTO_017_CONTRACT_CLOSURE_PASS`).
+- The bounded Master Plan amendment for `D-AUTO017-01 = B` is OWNER-accepted. It is the new frozen plan
+  revision, SHA-256 `8ca4d72d9f2487f9a39f52c8dca653d74c1257b993878200f4305c97eb4ed3f7`.
+
+Contract acceptance is not implementation authorization. AUTO-017 still requires separate written OWNER
+authorization. Record: `docs/DECISION_LOG.md`, 2026-09-29.
