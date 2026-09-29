@@ -3,17 +3,19 @@
 Mirror of docs/TASK_QUEUE.md's Current set. Must contain exactly the same task ID(s) at
 the same status as the task queue — `workflowctl check-task-state` fails otherwise.
 
-## No task is currently active
+## AUTO-017 — Schema v2 + Stage Execution Policy
 
-T-307 — Target-bound governed verification evidence and engine execution provenance — was closed
-`Current → Done` after a fresh independent implementation review returned `APPROVED` with no findings
-or remediation. The implementation and its governance closeout were committed together on `main` as
-`e7dbb31a1469a8b371a7571a6d85424f20f0226a` (reconciled 2026-09-28; `docs/DECISION_LOG.md`).
+Status: Current
 
-AUTO-017 … AUTO-026 are registered as `Planned` and are unauthorized
-(`docs/TASK_QUEUE.md`; governing plan
-`docs/workflow-automation/successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`).
+The OWNER recorded `AUTO_017_IMPLEMENTATION_AUTHORIZED` on 2026-09-29. Registry state is `AUTHORIZED`;
+implementation has NOT begun, and no implementation candidate exists. AUTO-017 is the sole Current task
+under `self-governance.yaml`'s `maximum_current_tasks: 1`.
 
-The Current set is therefore empty. Under `self-governance.yaml`'s
-`maximum_current_tasks: 1`, this is a legal state — the maximum is a ceiling, not a quota.
-Closing T-307 authorizes no successor.
+Authorization binds exactly the CLOSED / FROZEN contract and Master Plan identities recorded in
+`docs/TASK_QUEUE.md`'s AUTO-017 entry and `docs/DECISION_LOG.md`'s 2026-09-29 implementation-authorization
+entry. Implementation is limited to the contract's exact production/test path set (§§5–6).
+
+This is an authorization-recording step only. The named branch is registered, not created; initial-start
+preflight has not run. No production code or tests changed. Git mutation authority remains ungranted,
+including staging, commit, push, tag, merge and reset/rebase/checkout/switch. The frozen artifacts remain
+unchanged. AUTO-018 … AUTO-026 remain `Planned` and unauthorized; scope expansion is not authorized.

@@ -7,6 +7,13 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- AUTO-017 implementation authorization recorded (OWNER, 2026-09-29):
+  `AUTO_017_IMPLEMENTATION_AUTHORIZED`. Registry `NOT_STARTED → AUTHORIZED`; task `Planned → Current`,
+  the sole Current task. Bound to the exact CLOSED / FROZEN contract and Master Plan identities in
+  `docs/DECISION_LOG.md`'s implementation-authorization entry, with only contract §§5–6's production/test
+  path set and scope authorized. Implementation has NOT begun; no implementation candidate or branch
+  was created. Governance documentation only; frozen artifacts unchanged; no scope expansion,
+  later-stage behavior or Git mutation authority; nothing staged or committed.
 - AUTO-017 stage contract OWNER-accepted, CLOSED and FROZEN (2026-09-29):
   `docs/workflow-automation/stage-prompts/AUTO-017.md`, SHA-256
   `80358d0f368a74e845c034072a813c85c5b90c20e5717c668235e2bc4e2b969d`.

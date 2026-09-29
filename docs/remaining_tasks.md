@@ -130,7 +130,7 @@ every later roadmap phase remain unauthorized. Completion report:
 
 | Task | Title | Status |
 |---|---|---|
-| AUTO-017 | Schema v2 + Stage Execution Policy (alias AWE-AUTO-ST-01) | Planned |
+| AUTO-017 | Schema v2 + Stage Execution Policy (alias AWE-AUTO-ST-01) | Current |
 | AUTO-018 | Durable Lifecycle / Event Foundation (alias AWE-AUTO-ST-02) | Planned |
 | AUTO-019 | Resume / Crash Recovery (alias AWE-AUTO-ST-03) | Planned |
 | AUTO-020 | 1..3 Bounded Remediation Cycles (alias AWE-AUTO-ST-04) | Planned |
@@ -367,8 +367,8 @@ authorization. Registration authorizes nothing.
 
 ## AUTO-017 contract OWNER acceptance — 2026-09-29
 
-This section is a dated historical record. It carries no parseable lifecycle line, and AUTO-017's row in
-the table above stays `Planned`.
+This section is a dated historical record. It carries no parseable lifecycle line. AUTO-017 remained
+`Planned` at that acceptance; the subsequent authorization below governs its current state.
 
 The OWNER accepted the AUTO-017 stage contract (`docs/workflow-automation/stage-prompts/AUTO-017.md`,
 SHA-256 `80358d0f368a74e845c034072a813c85c5b90c20e5717c668235e2bc4e2b969d`). The contract is CLOSED and
@@ -377,5 +377,16 @@ FROZEN (`AUTO_017_CONTRACT_OWNER_ACCEPTED`, `AUTO_017_CONTRACT_CLOSED`, `AUTO_01
 - The bounded Master Plan amendment for `D-AUTO017-01 = B` is OWNER-accepted. It is the new frozen plan
   revision, SHA-256 `8ca4d72d9f2487f9a39f52c8dca653d74c1257b993878200f4305c97eb4ed3f7`.
 
-Contract acceptance is not implementation authorization. AUTO-017 still requires separate written OWNER
-authorization. Record: `docs/DECISION_LOG.md`, 2026-09-29.
+Contract acceptance was not implementation authorization; separate written OWNER authorization was still
+required at that act. Record: `docs/DECISION_LOG.md`, 2026-09-29.
+
+## AUTO-017 implementation authorization — 2026-09-29
+
+The OWNER recorded `AUTO_017_IMPLEMENTATION_AUTHORIZED`, bound to the exact CLOSED / FROZEN contract
+and Master Plan identities in `docs/TASK_QUEUE.md`'s AUTO-017 entry and `docs/DECISION_LOG.md`'s
+implementation-authorization entry. AUTO-017 is now `AUTHORIZED` in the registry and the sole `Current`
+task in the table above. Implementation has NOT begun; no implementation candidate was created.
+Only the production/test paths and scope frozen in contract §§5–6 are authorized for implementation.
+This governance step grants no scope expansion, later-stage behavior, frozen-artifact edits or Git
+mutation authority, including staging, commit, push, tag, merge and reset/rebase/checkout/switch.
+AUTO-018 … AUTO-026 remain unauthorized and `Planned`.

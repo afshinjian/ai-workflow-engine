@@ -2296,8 +2296,9 @@ reconciled accordingly. Correction record: `docs/DECISION_LOG.md`, 2026-09-28.
 ## AWE Governed Autonomous Stage Execution program
 
 Registered on 2026-09-28 by OWNER decision OD-GSE-07 at `main` /
-`e7dbb31a1469a8b371a7571a6d85424f20f0226a`, with the `Current` set empty. **Registration only; none of
-these stages is authorized.**
+`e7dbb31a1469a8b371a7571a6d85424f20f0226a`, with the `Current` set empty. **Registration alone authorized
+none of these stages.** AUTO-017's subsequent OWNER authorization is recorded in its task entry below;
+AUTO-018 … AUTO-026 remain unauthorized.
 
 The order of acts for each stage is fixed by `docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 3a
 (v7.0):
@@ -2322,8 +2323,8 @@ The order of acts for each stage is fixed by `docs/workflow-automation/STAGE_REG
   - Frozen findings AWE-GSE-R01 … R11 are all CLOSED (`AWE_GSE_MASTER_PLAN_CLOSURE_PASS`).
 
   Future changes to the plan require a new, recorded OWNER decision and a new revision identity.
-  AUTO-017 remains unauthorized. It still requires its own contract preparation, one bounded review, and
-  separate OWNER implementation authorization.
+  At that acceptance, AUTO-017 still required its own contract preparation, one bounded review, and
+  separate OWNER implementation authorization. Those acts are now recorded in its task entry below.
 
   **Amended identity (OWNER-accepted 2026-09-29, `D-AUTO017-01 = B`).** This is now the authoritative
   CLOSED / FROZEN revision. It supersedes the identity above, which is retained as the historical record.
@@ -2348,9 +2349,10 @@ stage named in its entry below. This is the same rule as `STAGE_REGISTRY.md` §3
 
 ## AUTO-017 — Schema v2 + Stage Execution Policy
 
-Status: Planned
+Status: Current
 
-Alias `AWE-AUTO-ST-01`. Registered 2026-09-28 (OD-GSE-07); **not authorized**.
+Alias `AWE-AUTO-ST-01`. Registered 2026-09-28 (OD-GSE-07); **AUTHORIZED, implementation not begun**
+(OWNER, 2026-09-29; `AUTO_017_IMPLEMENTATION_AUTHORIZED`).
 - **Execution predecessor (OD-GSE-12):** AUTO-016 (`COMPLETE`).
 - **Open OWNER decisions or external prerequisites that block this stage:** none (OD-GSE-01, -02, -03, -06, -07 accepted).
 - **Scope, exclusions and acceptance criteria:** the stage section in `docs/workflow-automation/successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`.
@@ -2364,8 +2366,20 @@ Alias `AWE-AUTO-ST-01`. Registered 2026-09-28 (OD-GSE-07); **not authorized**.
   - `D-AUTO017-01 = B` is accepted.
   - Record: `docs/DECISION_LOG.md`, 2026-09-29.
 
-  **Contract acceptance is not implementation authorization.** AUTO-017 stays `Planned` until separate
-  written OWNER authorization is given under `STAGE_REGISTRY.md` §3 rules 1–3.
+  **Separate OWNER implementation authorization (2026-09-29).** "The OWNER now authorizes implementation
+  of AUTO-017 against exactly these frozen artifacts." Marker: `AUTO_017_IMPLEMENTATION_AUTHORIZED`.
+  This binds the contract identity above and the governing Master Plan at
+  `docs/workflow-automation/successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`:
+  1675 lines, 111414 bytes, SHA-256
+  `8ca4d72d9f2487f9a39f52c8dca653d74c1257b993878200f4305c97eb4ed3f7`.
+  Implementation is limited to the exact production/test paths and scope frozen in contract §§5–6.
+  No scope expansion, AUTO-018 or later-stage behavior, or change to either frozen artifact is authorized.
+  Registry `NOT_STARTED → AUTHORIZED`; task `Planned → Current`, the sole Current task.
+  This session records authorization only: no implementation, tests, implementation candidate or
+  initial-start transition. The branch `feature/auto-017-schema-v2-stage-policy` is registered only,
+  not created. Git mutation authority remains ungranted: no staging, commit, push, tag, merge,
+  reset/rebase/checkout/switch or other Git mutation. Exact baseline and preflight observations:
+  `docs/DECISION_LOG.md`, 2026-09-29 implementation-authorization entry; registry §5.
 
 ## AUTO-018 — Durable Lifecycle / Event Foundation
 

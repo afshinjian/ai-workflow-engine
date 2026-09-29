@@ -13,6 +13,45 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-09-29 — OWNER authorized AUTO-017 implementation against the frozen contract and Master Plan
+
+**Decision (OWNER).** "The OWNER now authorizes implementation of AUTO-017 against exactly these frozen
+artifacts." Marker: `AUTO_017_IMPLEMENTATION_AUTHORIZED`.
+
+| Artifact | Path | Lines | Bytes | SHA-256 |
+|---|---|---|---|---|
+| Contract | `docs/workflow-automation/stage-prompts/AUTO-017.md` | 1552 | 120530 | `80358d0f368a74e845c034072a813c85c5b90c20e5717c668235e2bc4e2b969d` |
+| Master Plan | `docs/workflow-automation/successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md` | 1675 | 111414 | `8ca4d72d9f2487f9a39f52c8dca653d74c1257b993878200f4305c97eb4ed3f7` |
+
+Both artifacts remain OWNER-accepted, CLOSED / FROZEN and byte-unchanged. Their historical proposal and
+unauthorized wording is retained to preserve these identities; current authorization is recorded here,
+in the task record and in `docs/workflow-automation/STAGE_REGISTRY.md` §5.
+
+**Observed baseline and basis.** The OWNER specified `main` at
+`3d804ebb3a4c4bf9868df47340d3fada7d3be258`. Before editing, HEAD matched exactly, `git status --short`,
+`git diff --cached --name-only` and `git diff --check` were empty, and both artifact identities matched.
+AUTO-016 is `COMPLETE`; no task was Current; registry/task states agreed; no OPEN decision blocks
+AUTO-017. The one independent contract discovery review and closure of AUTO017-R01 … R06 are recorded
+in the preceding OWNER-acceptance act below (`AUTO_017_CONTRACT_CLOSURE_PASS`). Configured
+`PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=.:src workflowctl verify --config self-governance.yaml` passed all
+five checks before editing (0 Current, 61 Done, 10 Planned; 36 stages across 2 registries).
+The local `origin/main` reference is two commits behind HEAD (`HEAD...@{upstream}`: 2 ahead, 0 behind).
+This bounded recording uses the OWNER's exact baseline; it does not claim synchronized `main` or
+satisfaction of the later initial-start execution preconditions, and authorizes no synchronization.
+
+**Effect.** Registry `NOT_STARTED → AUTHORIZED`; task `Planned → Current`. AUTO-017 is the sole Current
+task. The registry names `feature/auto-017-schema-v2-stage-policy` from the frozen contract; the branch
+is registered only, not created. Initial-start preflight and `AUTHORIZED → IN_PROGRESS` do not occur in
+this session. Implementation has NOT begun, and no implementation candidate was created.
+
+**Boundaries.** Implementation authority extends only to the exact production/test paths and scope
+frozen in contract §§5–6. No scope expansion, AUTO-018 or later-stage behavior, or change to the frozen
+contract or Master Plan is authorized. Git mutation authority remains ungranted: no staging, commit,
+push, tag, merge, reset/rebase/checkout/switch or other Git mutation. This session makes only the eight
+governance/documentation edits required by registry §3 rule 1. No production code or tests changed;
+no implementation report or baseline test corpus was created. AUTO-018 … AUTO-026 remain
+`NOT_STARTED` / `Planned` and unauthorized. Existing OPEN decisions and deferred items are unchanged.
+
 ## 2026-09-29 — OWNER accepted the AUTO-017 contract and the bounded Master Plan amendment; contract CLOSED / FROZEN
 
 **Decision (OWNER).** The OWNER recorded `AUTO_017_CONTRACT_OWNER_ACCEPTED`, `AUTO_017_CONTRACT_CLOSED`

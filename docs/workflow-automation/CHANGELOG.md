@@ -5,7 +5,7 @@
 | **Title** | AgentOS Workflow Automation — Changelog |
 | **Purpose** | Program-level changelog, newest first. |
 | **Status** | Draft |
-| **Version** | 2.22 |
+| **Version** | 2.23 |
 | **Owner** | Documentation & Governance session |
 | **Dependencies** | None |
 | **Related Documents** | `docs/CHANGELOG.md` (repository-level; cross-posted there) |
@@ -13,6 +13,14 @@
 ## [Unreleased]
 
 ### Added
+- AUTO-017 implementation authorization recorded (OWNER, 2026-09-29):
+  `AUTO_017_IMPLEMENTATION_AUTHORIZED`. `STAGE_REGISTRY.md` v7.2 records `NOT_STARTED → AUTHORIZED`
+  and the contract's named branch (registered only, not created); the task and mirrors move
+  `Planned → Current`. Exact CLOSED / FROZEN contract and Master Plan identities are bound in the task
+  record, registry §5 and `docs/DECISION_LOG.md`. Only contract §§5–6's production/test paths and scope
+  are authorized for implementation. Implementation has NOT begun; no implementation candidate was
+  created. No scope expansion, later-stage behavior, frozen-artifact edits or Git mutation authority;
+  nothing staged or committed. This is a governance/documentation-only change.
 - AUTO-017 contract OWNER-accepted, CLOSED and FROZEN (2026-09-29; contract acceptance only, NOT an
   implementation authorization).
   - `stage-prompts/AUTO-017.md`: 1552 lines, 120530 bytes, SHA-256

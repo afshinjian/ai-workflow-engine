@@ -7,7 +7,34 @@ so keep the version line's wording exact if you edit it.
 
 Current Version: 1.0.0
 
-## Latest governance activity — AUTO-017 contract OWNER-accepted and frozen
+## Latest governance activity — AUTO-017 implementation authorization recorded
+
+**OWNER authorization (2026-09-29): `AUTO_017_IMPLEMENTATION_AUTHORIZED`.** AUTO-017 is `AUTHORIZED`
+in `docs/workflow-automation/STAGE_REGISTRY.md` and the sole `Current` task. Implementation has NOT
+begun; no implementation candidate was created. The registered branch
+`feature/auto-017-schema-v2-stage-policy` has not been created, and initial-start preflight has not run.
+
+Authorization binds exactly the CLOSED / FROZEN artifacts:
+
+- Contract `docs/workflow-automation/stage-prompts/AUTO-017.md`: 1552 lines, 120530 bytes, SHA-256
+  `80358d0f368a74e845c034072a813c85c5b90c20e5717c668235e2bc4e2b969d`.
+- Master Plan `docs/workflow-automation/successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`:
+  1675 lines, 111414 bytes, SHA-256
+  `8ca4d72d9f2487f9a39f52c8dca653d74c1257b993878200f4305c97eb4ed3f7`.
+
+Implementation is limited to the exact production/test path set and scope in contract §§5–6. This
+authorization records no scope expansion, AUTO-018 or later-stage behavior, frozen-artifact changes or
+Git mutation authority (including staging, commit, push, tag, merge and reset/rebase/checkout/switch).
+AUTO-018 … AUTO-026 remain `NOT_STARTED` / `Planned` and unauthorized. The six OPEN OWNER decisions,
+deferred prerequisites and deferred v1 registry-parser defect are unchanged.
+
+Only governance documentation changed, on the OWNER-specified `main` baseline
+`3d804ebb3a4c4bf9868df47340d3fada7d3be258`; nothing was staged or committed. The local upstream reference
+reports two commits ahead and zero behind; no synchronization or implementation readiness is claimed.
+Full authority and preflight record: `docs/DECISION_LOG.md`, 2026-09-29 implementation-authorization entry.
+Earlier activity sections below are historical; the current state is recorded above.
+
+## Prior governance activity — AUTO-017 contract OWNER-accepted and frozen
 
 **OWNER acceptance (2026-09-29).** The AUTO-017 stage contract,
 `docs/workflow-automation/stage-prompts/AUTO-017.md`, has passed its review:
