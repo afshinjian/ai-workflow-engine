@@ -130,7 +130,7 @@ every later roadmap phase remain unauthorized. Completion report:
 
 | Task | Title | Status |
 |---|---|---|
-| AUTO-018 | Durable Lifecycle / Event Foundation (alias AWE-AUTO-ST-02) | Planned |
+| AUTO-018 | Durable Lifecycle / Event Foundation (alias AWE-AUTO-ST-02) | Current |
 | AUTO-019 | Resume / Crash Recovery (alias AWE-AUTO-ST-03) | Planned |
 | AUTO-020 | 1..3 Bounded Remediation Cycles (alias AWE-AUTO-ST-04) | Planned |
 | AUTO-021 | OWNER Decision API (alias AWE-AUTO-ST-05) | Planned |
@@ -398,5 +398,39 @@ AUTO-018 … AUTO-026 remain unauthorized and `Planned`.
 AUTO-017 is COMPLETE / Done, CLOSED and FROZEN at implementation commit
 `1dab51d83dfe3f2975aa944dc4c0a3924cb6eed0` and has been removed from the remaining-work table.
 There are zero Current tasks. AUTO-018 remains NOT_STARTED / Planned and implementation
-unauthorized; no successor preparation is authorized. Closeout markers, the six CLOSED
-implementation findings, G-1 Path B and frozen identities: `docs/DECISION_LOG.md`.
+unauthorized at that closeout; the acts recorded below govern AUTO-018's current state. Closeout
+markers, the six CLOSED implementation findings, G-1 Path B and frozen identities:
+`docs/DECISION_LOG.md`.
+
+## AUTO-018 contract OWNER acceptance — 2026-09-30
+
+This section is a dated historical record. It carries no parseable lifecycle line.
+
+The OWNER accepted the AUTO-018 stage contract
+(`docs/workflow-automation/stage-prompts/AUTO-018.md`, 1008 lines, 76360 bytes, SHA-256
+`75033788e08a6c3e6b9f7f79a48d1b33043018ed646857f059bf9916b3593751`). The contract is CLOSED and
+FROZEN (`AUTO_018_CONTRACT_OWNER_ACCEPTED`, `AUTO_018_CONTRACT_CLOSED`, `AUTO_018_CONTRACT_FROZEN`),
+and AUTO018-CONTRACT-R01 … R04 are all CLOSED (`AUTO_018_CONTRACT_CLOSURE_PASS`). Contract
+acceptance was not implementation authorization; separate written OWNER authorization was still
+required at that act. Record: `docs/DECISION_LOG.md`, 2026-09-30.
+
+## AUTO-018 implementation authorization — 2026-09-30
+
+The OWNER recorded `AUTO_018_IMPLEMENTATION_AUTHORIZED`, bound to the exact CLOSED / FROZEN contract
+identity above and the frozen Master Plan identity in `docs/TASK_QUEUE.md`'s AUTO-018 entry and
+`docs/DECISION_LOG.md`'s implementation-authorization entry. AUTO-018 is now `AUTHORIZED` in the
+registry and the sole `Current` task in the table above. The implementation branch
+`feature/auto-018-durable-lifecycle-events` is registered, not created. Implementation has NOT begun;
+no implementation candidate was created. Only the production/test paths and scope frozen in contract
+§11, plus the one completion report §1 names, are authorized for implementation.
+
+The OWNER's Stage Start selections and the resolved `EffectiveStageExecutionPolicy` digest
+`afb747606f97409b9d04dcbd3f9b4ba47fe162251c7a53b8d1fc40842fb191a1` are recorded in
+`docs/TASK_QUEUE.md`'s AUTO-018 entry. The external schema-v2 runner configuration and
+StageExecutionOverrides that resolve to it are local operator inputs held outside this repository.
+No native `StageStartAuthorization` was created and `workflowctl milestone-runner stage-start` was
+not run.
+
+This governance step grants no scope expansion, contract amendment, later-stage behavior,
+frozen-artifact edits or Git mutation authority, including staging, commit, push, tag, merge and
+reset/rebase/checkout/switch. AUTO-019 … AUTO-026 remain unauthorized and `Planned`.

@@ -7,6 +7,24 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- AUTO-018 / AWE-AUTO-ST-02 implementation authorization recorded and Stage Start inputs prepared
+  (OWNER, 2026-09-30): `AUTO_018_IMPLEMENTATION_AUTHORIZED`. Registry `NOT_STARTED → AUTHORIZED`
+  (v7.4) with branch `feature/auto-018-durable-lifecycle-events` registered, not created; task
+  `Planned → Current`, the sole Current task. Bound to the exact CLOSED / FROZEN contract and Master
+  Plan identities in `docs/DECISION_LOG.md`'s implementation-authorization entry, with only contract
+  §11's production/test path set, scope and the one §1 completion report authorized. The OWNER's four
+  per-role selections and contract-consistent ceilings (`max_remediation_cycles = 2`,
+  `max_blockers = 3`) resolve to an `EffectiveStageExecutionPolicy` with digest
+  `afb747606f97409b9d04dcbd3f9b4ba47fe162251c7a53b8d1fc40842fb191a1`; the schema-v2 runner
+  configuration and `StageExecutionOverrides` that produce it are local operator inputs held outside
+  the repository and were validated against current schemas. The AUTO-018 registry §4 Prompt cell was
+  reduced to the bare contract path so the machine-parsed schema-v2 registry binding can agree;
+  nothing was deleted, and the rationale is recorded in `docs/DECISION_LOG.md`. Implementation has
+  NOT begun; no native `StageStartAuthorization` was created,
+  `workflowctl milestone-runner stage-start` was not run, and no branch or implementation candidate
+  exists. Governance documentation only; frozen artifacts unchanged; no scope expansion, contract
+  amendment, later-stage behavior or Git mutation authority; nothing staged, committed or pushed.
+  AUTO-019 through AUTO-026 remain unauthorized.
 - AUTO-018 / AWE-AUTO-ST-02 contract OWNER-accepted, CLOSED / FROZEN (2026-09-30).
   Markers: `AUTO_018_CONTRACT_OWNER_ACCEPTED`, `AUTO_018_CONTRACT_CLOSED`,
   `AUTO_018_CONTRACT_FROZEN`. Accepted `docs/workflow-automation/stage-prompts/AUTO-018.md`

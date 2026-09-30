@@ -2297,8 +2297,8 @@ reconciled accordingly. Correction record: `docs/DECISION_LOG.md`, 2026-09-28.
 
 Registered on 2026-09-28 by OWNER decision OD-GSE-07 at `main` /
 `e7dbb31a1469a8b371a7571a6d85424f20f0226a`, with the `Current` set empty. **Registration alone authorized
-none of these stages.** AUTO-017's subsequent OWNER authorization is recorded in its task entry below;
-AUTO-018 … AUTO-026 remain unauthorized.
+none of these stages.** AUTO-017's and AUTO-018's subsequent OWNER authorizations are recorded in
+their task entries below; AUTO-019 … AUTO-026 remain unauthorized.
 
 The order of acts for each stage is fixed by `docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 3a
 (v7.0):
@@ -2445,10 +2445,11 @@ their lifecycle, uncommitted-candidate and pending-verification statements for c
 
 ## AUTO-018 — Durable Lifecycle / Event Foundation
 
-Status: Planned
+Status: Current
 
-Alias `AWE-AUTO-ST-02`. Registered 2026-09-28 (OD-GSE-07); **not authorized**.
-- **Execution predecessor (OD-GSE-12):** AUTO-017.
+Alias `AWE-AUTO-ST-02`. Registered 2026-09-28 (OD-GSE-07); **AUTHORIZED, implementation not begun**
+(OWNER, 2026-09-30; `AUTO_018_IMPLEMENTATION_AUTHORIZED`).
+- **Execution predecessor (OD-GSE-12):** AUTO-017 (`COMPLETE` / Done, CLOSED and FROZEN).
 - **Open OWNER decisions or external prerequisites that block this stage:** none.
 - **Scope, exclusions and acceptance criteria:** the stage section in `docs/workflow-automation/successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`.
 - **Stage contract:** `docs/workflow-automation/stage-prompts/AUTO-018.md` is OWNER-accepted,
@@ -2458,8 +2459,47 @@ Alias `AWE-AUTO-ST-02`. Registered 2026-09-28 (OD-GSE-07); **not authorized**.
   `AUTO_018_CONTRACT_FROZEN`. The single independent contract discovery review is complete;
   AUTO018-CONTRACT-R01, AUTO018-CONTRACT-R02, AUTO018-CONTRACT-R03 and AUTO018-CONTRACT-R04
   are all CLOSED (`AUTO_018_CONTRACT_CLOSURE_PASS`). Full binding: `docs/DECISION_LOG.md`.
-  Contract acceptance creates no Stage Start or implementation authorization; implementation
-  remains `Planned` / `NOT_STARTED` / unauthorized.
+  Contract acceptance created no Stage Start or implementation authorization; the separate
+  authorization recorded below governs AUTO-018's current state.
+
+  **Separate OWNER implementation authorization (2026-09-30).** "I authorize AUTO-018 /
+  AWE-AUTO-ST-02 implementation against the frozen contract above." Marker:
+  `AUTO_018_IMPLEMENTATION_AUTHORIZED`. This binds the exact CLOSED / FROZEN contract identity
+  above and the governing frozen Master Plan at
+  `docs/workflow-automation/successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`:
+  1698 lines, 113150 bytes, SHA-256
+  `8ab499c0240cc542e735eb5d1953dcd93994ebd87f1ef7413e9346805d613077`.
+  Implementation is limited to the exact production/test path set and scope frozen in contract
+  §11, and to the one completion report §1 names. Registry `NOT_STARTED → AUTHORIZED`; task
+  `Planned → Current`, the sole Current task.
+  - **Implementation branch:** `feature/auto-018-durable-lifecycle-events`. Registered only, not
+    created.
+  - **OWNER Stage Start selections (identities only; no adapter dispatch, no runtime budget).**
+    IMPLEMENTATION `claude` / `claude-opus-5` / `WORKSPACE_WRITE` / 7200s;
+    REVIEW `codex` / `gpt-6.1-sol` / `READ_ONLY` / 5400s;
+    CORRECTION `claude` / `claude-opus-5` / `WORKSPACE_WRITE` / 5400s;
+    CLOSURE `codex` / `gpt-6-sol` / `READ_ONLY` / 3600s.
+    `max_remediation_cycles = 2`, `max_blockers = 3`,
+    `on_retry_exhausted = ask_owner_and_freeze`. Fixed policy values retained unchanged:
+    `blocking_severities = [CRITICAL, HIGH]`, `defer_severities = [MEDIUM, LOW]`,
+    `max_owner_extensions = 2`, `schema_version = 2`. Per-role provider/model dispatch remains
+    AUTO-022's; recording a selection executes nothing.
+  - **Resolved EffectiveStageExecutionPolicy digest:**
+    `afb747606f97409b9d04dcbd3f9b4ba47fe162251c7a53b8d1fc40842fb191a1`
+    (`stage_overrides_digest` `b5282c31bf352022b52eb189254a4debee662a175b3f854659eae5ed1ac3dbc8`;
+    no project defaults, so `project_defaults_digest` is null). Resolved from the external
+    schema-v2 runner configuration and StageExecutionOverrides held outside the repository; both
+    are local operator inputs and neither is a repository artifact.
+  - This session records authorization and prepares Stage Start inputs only. No native
+    `StageStartAuthorization` was created, `workflowctl milestone-runner stage-start` was not run,
+    initial-start preflight did not run, and `AUTHORIZED → IN_PROGRESS` did not occur. No
+    production code or tests changed; no implementation candidate exists.
+  - Git mutation authority remains ungranted: no staging, commit, push, tag, merge,
+    reset/rebase/checkout/switch or other Git mutation. Exact baseline and preflight
+    observations: `docs/DECISION_LOG.md`, 2026-09-30 implementation-authorization entry;
+    `docs/workflow-automation/STAGE_REGISTRY.md` §5.
+  - AUTO-019 … AUTO-026 remain `NOT_STARTED` / `Planned` and unauthorized. No contract
+    amendment, scope expansion or later-stage behavior is authorized.
 
 ## AUTO-019 — Resume / Crash Recovery
 

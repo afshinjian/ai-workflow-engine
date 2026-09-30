@@ -13,6 +13,101 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-09-30 — OWNER authorized AUTO-018 / AWE-AUTO-ST-02 implementation and the Stage Start inputs were prepared
+
+**Decision (OWNER).** "I authorize AUTO-018 / AWE-AUTO-ST-02 implementation against the frozen
+contract above." Marker: `AUTO_018_IMPLEMENTATION_AUTHORIZED`.
+
+| Artifact | Path | Lines | Bytes | SHA-256 |
+|---|---|---|---|---|
+| Contract | `docs/workflow-automation/stage-prompts/AUTO-018.md` | 1008 | 76360 | `75033788e08a6c3e6b9f7f79a48d1b33043018ed646857f059bf9916b3593751` |
+| Master Plan | `docs/workflow-automation/successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md` | 1698 | 113150 | `8ab499c0240cc542e735eb5d1953dcd93994ebd87f1ef7413e9346805d613077` |
+
+Both artifacts remain OWNER-accepted, CLOSED / FROZEN and byte-unchanged. The contract's own
+historical candidate-status prose ("CONTRACT REMEDIATION CANDIDATE — NOT AUTHORIZED") is retained to
+preserve its accepted identity and does not override this authorization, the registry or the task
+record; that precedence is stated by the contract's own §1.
+
+**Observed baseline and basis.** The OWNER specified `main` at
+`75316486e78d854e3e04979c959e91a21013499b`. Before editing, HEAD and `origin/main` both matched
+exactly, `git status --short`, `git diff --cached --name-only` and `git diff --check` were empty, and
+both artifact identities matched line-for-line, byte-for-byte and by digest. The predecessor AUTO-017
+is `COMPLETE` / Done, CLOSED and FROZEN; no task was Current; registry and task mirrors agreed; the
+single independent AUTO-018 contract discovery review is complete with AUTO018-CONTRACT-R01 … R04 all
+CLOSED (`AUTO_018_CONTRACT_CLOSURE_PASS`); and no OPEN OWNER decision blocks AUTO-018 (OD-GSE-04,
+-05, -08, -09, -10 and -11 each block only their named later stage; EP-1 and EP-2 block only AUTO-023
+and AUTO-025). Configured
+`PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=.:src workflowctl verify --config self-governance.yaml` passed
+all five checks before editing (0 Current, 62 Done, 9 Planned; 36 stages across 2 registries).
+
+**Effect.** Registry `NOT_STARTED → AUTHORIZED`; task `Planned → Current`. AUTO-018 is the sole
+Current task. The registry now names `feature/auto-018-durable-lifecycle-events` from the frozen
+contract §1; the branch is registered only, not created. Initial-start preflight and
+`AUTHORIZED → IN_PROGRESS` do not occur in this session. Implementation has NOT begun, and no
+implementation candidate was created.
+
+**Registry §4 Prompt-cell reconciliation (bounded, and why).** The AUTO-018 §4 Prompt cell
+previously carried explanatory prose after the contract path. That cell is machine-parsed:
+`milestone_runner/application.py::registry_stage_entry` strips only backticks and whitespace, and
+`_registry_evidence` then resolves the cell relative to the registry's own directory and requires
+byte equality with the configured `stage.contract_path`. With the prose present the cell resolved to
+a non-path and the schema-v2 registry binding could not agree, which would refuse the Stage Start
+this authorization exists to enable. The cell is therefore reduced to exactly
+`` `stage-prompts/AUTO-018.md` ``, the same spelling every other row uses. Nothing is deleted: the
+contract's acceptance, CLOSED / FROZEN status, exact identity and review closure remain recorded in
+the §4 row's own authorization history, in `docs/TASK_QUEUE.md`'s AUTO-018 entry and in this log's
+preceding contract-acceptance entry. This is a §4 live-state reconciliation inside rule 1's
+sanctioned edit set, not an amendment of a completion record under rule 8.
+
+**Stage Start inputs prepared (not executed).** Under the OWNER's explicit selections, a schema-v2
+milestone-runner configuration and an external `StageExecutionOverrides` document were authored,
+bound to `docs/workflow-automation/STAGE_REGISTRY.md` as a `GOVERNED_REGISTRY`, and validated against
+the current repository schemas and implementation (`milestone_runner/config.py::load_runner_config`,
+`RunnerConfig.contract_binding`, `state.py::load_policy_input`, `policy.py::resolve_policy`). Both
+are local operator inputs held outside this repository — the runner refuses a policy input or artifact
+root that resolves inside the worktree (invariant 7) — and neither is a repository artifact:
+
+- Configuration: `~/.local/share/auto018-runner/config.yaml`, `schema_version: 2`. It declares
+  repository identity `ai-workflow-engine--0dc4dd83edcc` (derived from the live `origin` remote by
+  `git_inspect.derive_repository_identity`), expected branch
+  `feature/auto-018-durable-lifecycle-events`, baseline
+  `75316486e78d854e3e04979c959e91a21013499b`, the pinned contract path and digest,
+  `registry_path: docs/workflow-automation/STAGE_REGISTRY.md`, and contract-consistent
+  `execution_ceilings` of `max_remediation_cycles: 2` / `max_blockers: 3`. `review_policy` is absent,
+  as schema v2 forbids it. The allowlist is the exact seventeen-file contract §11 surface, written as
+  literal paths; the forbidden surface restates §11's exclusions. Both Git flags stay `false`.
+- Overrides: `~/.local/share/auto018-runner/stage-overrides.json`, 788 bytes, byte SHA-256
+  `8951c42c3a0bdaee716a5b6624ad8b4df01ae890bac4edc2ec01ea8fade3beba`. No
+  `project-defaults.json` exists in the artifact root, so `project_defaults_digest` resolves to null
+  and every role selection is an explicit OWNER override.
+
+**Resolved EffectiveStageExecutionPolicy.** `schema_version` 2; `contract_ceilings`
+`max_remediation_cycles: 2` / `max_blockers: 3`; resolved `max_remediation_cycles: 2` and
+`max_blockers: 3`, each at its ceiling and neither above it;
+`on_retry_exhausted: ask_owner_and_freeze`; `blocking_severities: [CRITICAL, HIGH]`;
+`defer_severities: [MEDIUM, LOW]`; `max_owner_extensions: 2`; `registry_context`
+`GOVERNED_REGISTRY` at `docs/workflow-automation/STAGE_REGISTRY.md`;
+`stage_overrides_digest b5282c31bf352022b52eb189254a4debee662a175b3f854659eae5ed1ac3dbc8`;
+`project_defaults_digest null`; roles IMPLEMENTATION `claude` / `claude-opus-5` /
+`WORKSPACE_WRITE` / 7200s, REVIEW `codex` / `gpt-6.1-sol` / `READ_ONLY` / 5400s, CORRECTION `claude` /
+`claude-opus-5` / `WORKSPACE_WRITE` / 5400s, CLOSURE `codex` / `gpt-6-sol` / `READ_ONLY` / 3600s.
+**Effective-policy digest: `afb747606f97409b9d04dcbd3f9b4ba47fe162251c7a53b8d1fc40842fb191a1`.**
+The resolver held every fixed value unchanged and refused nothing; the read-only constraint on the
+REVIEW and CLOSURE roles is satisfied. Selections are identities only: they confer no adapter
+dispatch and no runtime budget, and per-role provider/model dispatch remains AUTO-022's.
+
+**Boundaries.** Implementation authority extends only to the exact production/test paths and scope
+frozen in contract §11 and the one completion report §1 names. No scope expansion, contract
+amendment, AUTO-019 or later-stage behavior, provider-dispatch architecture (AUTO-022), or change to
+either frozen artifact is authorized. The native `StageStartAuthorization` was **not** created and
+`workflowctl milestone-runner stage-start` was **not** run; the next OWNER checkpoint is review of
+the resolved policy, its digest and the exact stage-start command. Git mutation authority remains
+ungranted: no staging, commit, push, tag, merge, reset/rebase/checkout/switch or other Git mutation.
+This session makes only the eight governance/documentation edits required by
+`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 1. No production code or tests changed; no
+implementation report or baseline test corpus was created. AUTO-019 … AUTO-026 remain `NOT_STARTED` /
+`Planned` and unauthorized. Existing OPEN decisions and deferred items are unchanged.
+
 ## 2026-09-30 — OWNER accepted and froze the AUTO-018 contract / AWE-AUTO-ST-02
 
 **Decision (OWNER).** Under the OWNER's explicit bounded contract acceptance directive,

@@ -7,7 +7,45 @@ so keep the version line's wording exact if you edit it.
 
 Current Version: 1.0.0
 
-## Latest governance activity — AUTO-018 contract OWNER-accepted and frozen
+## Latest governance activity — AUTO-018 implementation authorization recorded
+
+**OWNER authorization (2026-09-30): `AUTO_018_IMPLEMENTATION_AUTHORIZED`.** AUTO-018 /
+AWE-AUTO-ST-02 is `AUTHORIZED` in `docs/workflow-automation/STAGE_REGISTRY.md` and the sole
+`Current` task. Implementation has NOT begun; no implementation candidate was created. The
+registered branch `feature/auto-018-durable-lifecycle-events` has not been created, no native
+`StageStartAuthorization` exists, `workflowctl milestone-runner stage-start` has not been run, and
+initial-start preflight has not run.
+
+Authorization binds exactly the CLOSED / FROZEN artifacts:
+
+- Contract `docs/workflow-automation/stage-prompts/AUTO-018.md`: 1008 lines, 76360 bytes, SHA-256
+  `75033788e08a6c3e6b9f7f79a48d1b33043018ed646857f059bf9916b3593751`.
+- Master Plan `docs/workflow-automation/successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`:
+  1698 lines, 113150 bytes, SHA-256
+  `8ab499c0240cc542e735eb5d1953dcd93994ebd87f1ef7413e9346805d613077`.
+
+Implementation is limited to the exact production/test path set and scope in contract §11 and the one
+completion report §1 names. The OWNER's four per-role Stage Start selections, the execution ceilings
+`max_remediation_cycles = 2` / `max_blockers = 3`, and the resolved `EffectiveStageExecutionPolicy`
+digest `afb747606f97409b9d04dcbd3f9b4ba47fe162251c7a53b8d1fc40842fb191a1` are recorded in
+`docs/TASK_QUEUE.md`'s AUTO-018 entry. Selections are identities only: per-role provider/model
+dispatch remains AUTO-022's, and recording a selection executes nothing. The external schema-v2
+runner configuration and StageExecutionOverrides that resolve to that digest are local operator
+inputs held outside this repository, not repository artifacts.
+
+This authorization records no scope expansion, contract amendment, AUTO-019 or later-stage behavior,
+frozen-artifact changes or Git mutation authority (including staging, commit, push, tag, merge and
+reset/rebase/checkout/switch). AUTO-019 … AUTO-026 remain `NOT_STARTED` / `Planned` and unauthorized.
+The OPEN OWNER decisions OD-GSE-04, -05, -08, -09, -10 and -11 and the deferred external
+prerequisites EP-1 and EP-2 are unchanged and retain their named later-stage blockers.
+
+Only governance documentation changed, on `main` at
+`75316486e78d854e3e04979c959e91a21013499b` with `origin/main` equal and a clean worktree and empty
+index beforehand; nothing was staged, committed or pushed. Full authority and preflight record:
+`docs/DECISION_LOG.md`, 2026-09-30 implementation-authorization entry. Earlier activity sections
+below are historical; the current state is recorded above.
+
+## Prior governance activity — AUTO-018 contract OWNER-accepted and frozen
 
 On 2026-09-30, the OWNER recorded `AUTO_018_CONTRACT_OWNER_ACCEPTED`,
 `AUTO_018_CONTRACT_CLOSED` and `AUTO_018_CONTRACT_FROZEN` for
