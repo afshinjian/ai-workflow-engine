@@ -13,6 +13,64 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-09-30 — OWNER accepted and froze the AUTO-018 contract / AWE-AUTO-ST-02
+
+**Decision (OWNER).** Under the OWNER's explicit bounded contract acceptance directive,
+record `AUTO_018_CONTRACT_OWNER_ACCEPTED`, `AUTO_018_CONTRACT_CLOSED` and
+`AUTO_018_CONTRACT_FROZEN`. The Durable Lifecycle / Event Foundation contract is
+**OWNER-accepted / CLOSED / FROZEN** at exactly this identity:
+
+| Field | Value |
+|---|---|
+| Path | `docs/workflow-automation/stage-prompts/AUTO-018.md` |
+| Lines | 1008 |
+| Bytes | 76360 |
+| SHA-256 | `75033788e08a6c3e6b9f7f79a48d1b33043018ed646857f059bf9916b3593751` |
+
+**Review and closure basis.** The OWNER-provided review history records one completed
+independent contract discovery review and independent closure verdict
+`AUTO_018_CONTRACT_CLOSURE_PASS`. Its frozen finding set is exactly:
+
+| Frozen finding ID | Discovery severity / blocking classification | Final disposition |
+|---|---|---|
+| AUTO018-CONTRACT-R01 | High / blocking | CLOSED |
+| AUTO018-CONTRACT-R02 | High / blocking | CLOSED |
+| AUTO018-CONTRACT-R03 | High / blocking | CLOSED |
+| AUTO018-CONTRACT-R04 | Medium / non-blocking | CLOSED |
+
+No OWNER decision remains open for the AUTO-018 contract. This act records the supplied
+independent closure result; it performs no new discovery review or closure adjudication,
+adds no finding, and makes no claim of implementation-test evidence.
+
+**Exact-byte freeze.** AUTO-018.md is preserved byte-unchanged, following the AUTO-017
+contract-acceptance convention. Its historical remediation-candidate wording and statements
+that independent closure is outstanding are retained to preserve the accepted identity.
+This entry controls the contract's current acceptance, review completion, closure and freeze.
+Any future contract amendment requires a new recorded OWNER decision and a new explicit
+identity; this acceptance permits no amendment. AUTO-017 and the governing Master Plan also
+remain byte-unchanged at their frozen identities:
+
+| Frozen artifact | Path | SHA-256 |
+|---|---|---|
+| Predecessor contract | `docs/workflow-automation/stage-prompts/AUTO-017.md` | `50760879b2f64c395c8c3c5ee83c3bdac1a8b8456588b144c068f01d1080b1e8` |
+| Master Plan | `docs/workflow-automation/successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md` | `8ab499c0240cc542e735eb5d1953dcd93994ebd87f1ef7413e9346805d613077` |
+
+**Authority boundary.** This freezes the AUTO-018 CONTRACT only. AUTO-018 implementation
+remains `Planned` in `docs/TASK_QUEUE.md`, `NOT_STARTED` in the stage registry, and
+**unauthorized**. The Current set remains empty. No Stage Start authorization, implementation
+authorization, branch registration or lifecycle promotion is created. Separate written OWNER
+implementation authorization remains required under `STAGE_REGISTRY.md` §3 rules 1–3 and 3a.
+AUTO-019 through AUTO-026 remain `Planned` / `NOT_STARTED` and unauthorized; their authority,
+OPEN decisions and deferred prerequisites are unchanged. AUTO-019 preparation does not begin.
+No production code or tests change. Nothing is staged, committed, pushed or implemented.
+
+**Baseline observed before editing.** Branch `main`; HEAD and local `origin/main` both
+`acd517ef4ea852f7f4dcab610f8c34e93a9c3ce4`; empty index; only AUTO-018.md untracked.
+The accepted contract's line count, byte count and SHA-256 matched exactly, as did both
+frozen predecessor/Master Plan SHA-256 values above. Governance edits are limited to this
+entry, the task's contract reference, the registry's contract reference, the project-state
+summary and both changelogs. Historical log entries remain unchanged.
+
 ## 2026-09-30 — OWNER committed-state closeout of AUTO-017 / AWE-AUTO-ST-01
 
 On 2026-09-30, under the OWNER's bounded committed-state closeout authority, AUTO-017 /

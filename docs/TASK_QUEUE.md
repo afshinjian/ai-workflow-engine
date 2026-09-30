@@ -2451,8 +2451,15 @@ Alias `AWE-AUTO-ST-02`. Registered 2026-09-28 (OD-GSE-07); **not authorized**.
 - **Execution predecessor (OD-GSE-12):** AUTO-017.
 - **Open OWNER decisions or external prerequisites that block this stage:** none.
 - **Scope, exclusions and acceptance criteria:** the stage section in `docs/workflow-automation/successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`.
-- **Stage contract:** `docs/workflow-automation/stage-prompts/AUTO-018.md` does not exist yet. It must be
-  drafted and reviewed once before authorization.
+- **Stage contract:** `docs/workflow-automation/stage-prompts/AUTO-018.md` is OWNER-accepted,
+  **CLOSED / FROZEN** (2026-09-30): 1008 lines, 76360 bytes, SHA-256
+  `75033788e08a6c3e6b9f7f79a48d1b33043018ed646857f059bf9916b3593751`.
+  Markers: `AUTO_018_CONTRACT_OWNER_ACCEPTED`, `AUTO_018_CONTRACT_CLOSED`,
+  `AUTO_018_CONTRACT_FROZEN`. The single independent contract discovery review is complete;
+  AUTO018-CONTRACT-R01, AUTO018-CONTRACT-R02, AUTO018-CONTRACT-R03 and AUTO018-CONTRACT-R04
+  are all CLOSED (`AUTO_018_CONTRACT_CLOSURE_PASS`). Full binding: `docs/DECISION_LOG.md`.
+  Contract acceptance creates no Stage Start or implementation authorization; implementation
+  remains `Planned` / `NOT_STARTED` / unauthorized.
 
 ## AUTO-019 — Resume / Crash Recovery
 

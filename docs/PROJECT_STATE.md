@@ -7,7 +7,26 @@ so keep the version line's wording exact if you edit it.
 
 Current Version: 1.0.0
 
-## Latest governance activity — AUTO-017 committed-state closeout
+## Latest governance activity — AUTO-018 contract OWNER-accepted and frozen
+
+On 2026-09-30, the OWNER recorded `AUTO_018_CONTRACT_OWNER_ACCEPTED`,
+`AUTO_018_CONTRACT_CLOSED` and `AUTO_018_CONTRACT_FROZEN` for
+`docs/workflow-automation/stage-prompts/AUTO-018.md`: 1008 lines, 76360 bytes, SHA-256
+`75033788e08a6c3e6b9f7f79a48d1b33043018ed646857f059bf9916b3593751`.
+The single independent contract discovery review is complete; AUTO018-CONTRACT-R01,
+AUTO018-CONTRACT-R02, AUTO018-CONTRACT-R03 and AUTO018-CONTRACT-R04 are all CLOSED
+(`AUTO_018_CONTRACT_CLOSURE_PASS`). No OWNER contract decision remains open.
+
+The contract is **OWNER-accepted / CLOSED / FROZEN**, with its accepted bytes unchanged.
+AUTO-018 implementation remains `Planned` / `NOT_STARTED` / unauthorized; no Stage Start
+or implementation authorization is created. There are zero Current tasks. AUTO-019 through
+AUTO-026 remain unauthorized; no successor work begins. AUTO-017 and the Master Plan retain
+their frozen identities. No production code or tests change; nothing is staged, committed
+or pushed. Full acceptance and identity record: `docs/DECISION_LOG.md`, 2026-09-30.
+This entry supersedes historical contract-preparation/closure-pending wording for AUTO-018;
+prior governance activities below retain their historical meaning.
+
+## Prior governance activity — AUTO-017 committed-state closeout
 
 On 2026-09-30, under the OWNER's bounded committed-state closeout authority, AUTO-017 /
 AWE-AUTO-ST-01 is **COMPLETE / Done**, CLOSED and FROZEN at implementation commit

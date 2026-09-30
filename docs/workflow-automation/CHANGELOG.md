@@ -5,7 +5,7 @@
 | **Title** | AgentOS Workflow Automation — Changelog |
 | **Purpose** | Program-level changelog, newest first. |
 | **Status** | Draft |
-| **Version** | 2.23 |
+| **Version** | 2.24 |
 | **Owner** | Documentation & Governance session |
 | **Dependencies** | None |
 | **Related Documents** | `docs/CHANGELOG.md` (repository-level; cross-posted there) |
@@ -13,6 +13,18 @@
 ## [Unreleased]
 
 ### Added
+- AUTO-018 / AWE-AUTO-ST-02 contract OWNER-accepted, CLOSED / FROZEN (2026-09-30).
+  Markers: `AUTO_018_CONTRACT_OWNER_ACCEPTED`, `AUTO_018_CONTRACT_CLOSED`,
+  `AUTO_018_CONTRACT_FROZEN`. Accepted `docs/workflow-automation/stage-prompts/AUTO-018.md`
+  remains byte-unchanged: 1008 lines, 76360 bytes, SHA-256
+  `75033788e08a6c3e6b9f7f79a48d1b33043018ed646857f059bf9916b3593751`.
+  The single independent contract discovery review is complete; AUTO018-CONTRACT-R01,
+  AUTO018-CONTRACT-R02, AUTO018-CONTRACT-R03 and AUTO018-CONTRACT-R04 are all CLOSED
+  (`AUTO_018_CONTRACT_CLOSURE_PASS`). Exact binding and authority: `docs/DECISION_LOG.md`.
+  Registry v7.3 names the frozen contract; implementation remains Planned / NOT_STARTED /
+  unauthorized, with no Stage Start authorization. AUTO-019 through AUTO-026 remain unauthorized.
+  Governance documentation only; frozen predecessor/Master Plan unchanged; nothing staged,
+  committed, pushed or implemented.
 - AUTO-017 committed-state OWNER closeout (2026-09-30): COMPLETE / Done, CLOSED / FROZEN,
   implementation commit `1dab51d83dfe3f2975aa944dc4c0a3924cb6eed0`. Markers:
   `AUTO_017_COMMITTED_STATE_VERIFIED`, `AUTO_017_OWNER_ACCEPTED`, `AUTO_017_CLOSED`, `AUTO_017_FROZEN`.
