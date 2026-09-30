@@ -38,6 +38,7 @@ import time
 import zipfile
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, ClassVar
 
@@ -45,6 +46,8 @@ import pytest
 import yaml
 
 from ai_workflow_engine.milestone_runner.application import (
+    AdapterAdmission,
+    AdapterAdmissionKind,
     MilestoneRunnerApplication,
     ProviderBinding,
     RunRefused,
@@ -66,6 +69,13 @@ from ai_workflow_engine.milestone_runner.models import (
     StopReason,
 )
 from ai_workflow_engine.milestone_runner.plan import MilestonePlanLoader
+from ai_workflow_engine.milestone_runner.policy import (
+    EffectiveStageExecutionPolicy,
+    RegistryAuthorityKind,
+    StageStartAuthorization,
+    StageStartBinding,
+    StageStartPointer,
+)
 from ai_workflow_engine.milestone_runner.providers.base import (
     ProviderAdapter,
     ProviderRequest,
@@ -943,6 +953,236 @@ class TestStillBlockedAfterCorrection:
         application.start()
         with pytest.raises(RunRefused, match="explicit recovery command"):
             application.resume()
+
+
+# --------------------------------------------------------------------------------------
+# AUTO-017 sections 16.3 / 16.5 -- policy binding and unchanged one-round runtime
+# --------------------------------------------------------------------------------------
+
+
+@pytest.fixture
+def policy_application_factory(
+    config_factory: ConfigFactory, providers_for: ProviderFactory
+) -> ApplicationFactory:
+    """Admit this suite's exact audited ScriptedAdapter; unknown role IDs remain inert data."""
+
+    def factory(
+        *, script: Mapping[str, Any] | None = None, max_remediation_cycles: int = 1
+    ) -> MilestoneRunnerApplication:
+        path = config_factory(
+            schema_version=2,
+            stage={
+                "registry_path": None,
+                "execution_ceilings": {"max_remediation_cycles": 3, "max_blockers": 3},
+            },
+        )
+        document = yaml.safe_load(path.read_text(encoding="utf-8"))
+        del document["review_policy"]
+        path.write_text(yaml.safe_dump(document, sort_keys=True), encoding="utf-8")
+        binding = providers_for(script)
+        assert type(binding.implementation) is ScriptedAdapter
+        assert binding.review is binding.implementation
+        application = MilestoneRunnerApplication(
+            load_runner_config(path),
+            providers=binding,
+            adapter_admissions=(
+                AdapterAdmission(
+                    adapter=binding.implementation,
+                    concrete_type=ScriptedAdapter,
+                    kind=AdapterAdmissionKind.TEST_DOUBLE,
+                ),
+            ),
+            clock=lambda: datetime(2026, 9, 29, 12, 0, tzinfo=UTC),
+        )
+        application.artifact_root.mkdir(parents=True, exist_ok=True)
+        (application.artifact_root / "project-defaults.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": 2,
+                    "max_remediation_cycles": max_remediation_cycles,
+                    "roles": {
+                        role.value: {
+                            "provider_id": "unknown-provider",
+                            "model_id": "unknown/model",
+                            "timeout_seconds": 60,
+                        }
+                        for role in ProviderRole
+                    },
+                },
+                sort_keys=True,
+            ),
+            encoding="utf-8",
+        )
+        return application
+
+    return factory
+
+
+def independent_authority_digest(payload: Mapping[str, Any]) -> str:
+    """Recompute full integrity without using the production digest implementation."""
+    return hashlib.sha256(
+        json.dumps(
+            dict(payload),
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            allow_nan=False,
+        ).encode("utf-8")
+    ).hexdigest()
+
+
+class TestAuto017Tier1Policy:
+    """T-TIER1-POLICY: confirmed authority, pointer, run and immutable policy agree end to end."""
+
+    def test_confirmed_policy_governs_a_complete_tier1_run(
+        self,
+        policy_application_factory: ApplicationFactory,
+        worktree: Path,
+        plan_root: Path,
+        spawns: SpawnLog,
+        scans: ScanLog,
+    ) -> None:
+        application = policy_application_factory()
+        evidence = repository_evidence(worktree)
+        governance = governance_snapshot(worktree)
+        original_paths = set(worktree_digest(worktree))
+        spawns.clear()
+        scans.clear()
+
+        receipt = application.stage_start(stage_id=STAGE_ID, confirmation=f"START_STAGE {STAGE_ID}")
+        report = application.start()
+        record = application.status().record
+        scanned = list(scans.paths)
+
+        assert report.state is RunStatus.READY_FOR_COMMIT_APPROVAL, report.detail
+        assert report.completed_milestones == MILESTONES
+        assert record is not None and record.is_policy_governed
+        assert record.stage_start_id == receipt.stage_start_id
+        assert record.policy_digest == receipt.effective_policy_digest
+        policy_bytes = (application.artifact_root / record.run_id / "policy.json").read_bytes()
+        policy = EffectiveStageExecutionPolicy.model_validate_json(policy_bytes)
+        assert hashlib.sha256(policy_bytes).hexdigest() == record.policy_digest == policy.digest
+        assert policy.registry_context.kind is RegistryAuthorityKind.NO_GOVERNED_REGISTRY
+        assert policy.registry_context.path is None
+
+        authority_root = application.artifact_root / "stage-starts"
+        authorization_bytes = (authority_root / f"{receipt.stage_start_id}.json").read_bytes()
+        authorization = StageStartAuthorization.model_validate_json(authorization_bytes)
+        pointer = StageStartPointer.model_validate_json(
+            (authority_root / f"key-{receipt.stage_start_key}.json").read_bytes()
+        )
+        binding = StageStartBinding.model_validate_json(
+            (authority_root / f"{receipt.stage_start_id}.binding.json").read_bytes()
+        )
+        assert authorization.effective_policy.canonical_bytes() == policy_bytes
+        assert authorization.registry_context == policy.registry_context
+        assert authorization.effective_policy_digest == record.policy_digest
+        assert binding.run_id == record.run_id
+        assert binding.policy_digest == record.policy_digest
+        assert pointer.stage_start_key == binding.stage_start_key == receipt.stage_start_key
+        assert pointer.stage_start_id == binding.stage_start_id == record.stage_start_id
+        assert (
+            pointer.authorization_digest
+            == binding.authorization_digest
+            == authorization.authorization_digest
+            == receipt.authorization_digest
+        )
+        authority_payload = json.loads(authorization_bytes)
+        assert (
+            independent_authority_digest(
+                {
+                    name: value
+                    for name, value in authority_payload.items()
+                    if name != "authorization_digest"
+                }
+            )
+            == authorization.authorization_digest
+        )
+        assert (
+            independent_authority_digest(
+                {
+                    name: value
+                    for name, value in authority_payload.items()
+                    if name not in {"stage_start_id", "authorization_digest", "created_at"}
+                }
+            )
+            == receipt.stage_start_id
+        )
+        assert (
+            independent_authority_digest(
+                binding.model_dump(mode="json", exclude={"binding_digest"})
+            )
+            == binding.binding_digest
+        )
+        assert set(worktree_digest(worktree)) - original_paths == set(MILESTONE_FILES.values())
+        assert_repository_untouched_except(
+            worktree, evidence, governance, list(MILESTONE_FILES.values())
+        )
+        assert spawns.provider_processes == []
+        assert spawns.mutating_git == []
+        assert_plan_location_holds(worktree, plan_root, scanned)
+
+
+class TestAuto017BudgetsUnchanged:
+    """T-BUDGETS-UNCHANGED: max_remediation_cycles=3 is frozen, with no runtime budget effect."""
+
+    @pytest.mark.parametrize("ruling", ["CLOSED", "OPEN"])
+    def test_three_configured_cycles_still_allow_one_correction_and_one_closure(
+        self,
+        policy_application_factory: ApplicationFactory,
+        worktree: Path,
+        plan_root: Path,
+        spawns: SpawnLog,
+        scans: ScanLog,
+        ruling: str,
+    ) -> None:
+        application = policy_application_factory(
+            script=blocked_review_script(closure={"R-1": ruling}), max_remediation_cycles=3
+        )
+        evidence = repository_evidence(worktree)
+        governance = governance_snapshot(worktree)
+        spawns.clear()
+        scans.clear()
+        application.stage_start(stage_id=STAGE_ID, confirmation=f"START_STAGE {STAGE_ID}")
+        report = application.start()
+        record = application.status().record
+        assert record is not None
+        expected = (
+            RunStatus.READY_FOR_COMMIT_APPROVAL
+            if ruling == "CLOSED"
+            else RunStatus.HUMAN_INTERVENTION_REQUIRED
+        )
+        assert report.state is expected, report.detail
+        policy_bytes = (application.artifact_root / record.run_id / "policy.json").read_bytes()
+        assert json.loads(policy_bytes)["max_remediation_cycles"] == 3
+        assert (
+            record.successful_review_rounds == record.correction_round == record.closure_round == 1
+        )
+        assert [run.role for run in record.provider_runs] == [
+            *([ProviderRole.IMPLEMENTATION] * len(MILESTONES)),
+            ProviderRole.REVIEW,
+            ProviderRole.CORRECTION,
+            ProviderRole.CLOSURE,
+        ]
+        before = record.provider_runs
+        if ruling == "OPEN":
+            with pytest.raises(RunRefused, match="explicit recovery command"):
+                application.resume()
+        else:
+            assert application.resume().state is expected
+        reloaded = application.status().record
+        scanned = list(scans.paths)
+        assert reloaded is not None and reloaded.provider_runs == before
+        assert reloaded.correction_round == reloaded.closure_round == 1
+        assert (
+            application.artifact_root / record.run_id / "policy.json"
+        ).read_bytes() == policy_bytes
+        assert_repository_untouched_except(
+            worktree, evidence, governance, list(MILESTONE_FILES.values())
+        )
+        assert spawns.provider_processes == []
+        assert spawns.mutating_git == []
+        assert_plan_location_holds(worktree, plan_root, scanned)
 
 
 # --------------------------------------------------------------------------------------
@@ -2101,7 +2341,8 @@ class TestWheelContainsMilestoneRunner:
             if "__pycache__" not in source.parts
         }
         assert shipped == expected
-        assert len(expected) == 19, sorted(expected)
+        # AUTO-017 adds policy.py to the nineteen baseline modules.
+        assert len(expected) == 20, sorted(expected)
 
     def test_the_wheel_still_carries_the_three_top_level_packages(self, built_wheel: Path) -> None:
         with zipfile.ZipFile(built_wheel) as archive:

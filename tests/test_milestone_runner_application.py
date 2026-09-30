@@ -30,6 +30,7 @@ from typing import Any, ClassVar
 import pytest
 import yaml
 
+from ai_workflow_engine.exceptions import WorkflowEngineError
 from ai_workflow_engine.milestone_runner.application import (
     UNNAMED_STOP_REASON,
     ApplicationError,
@@ -69,6 +70,7 @@ from ai_workflow_engine.milestone_runner.models import (
     Finding,
     FindingSeverity,
     FindingStatus,
+    ProviderFailureClass,
     ProviderRole,
     ProviderRunRecord,
     RunRecord,
@@ -76,6 +78,7 @@ from ai_workflow_engine.milestone_runner.models import (
     StopReason,
     VerificationResult,
 )
+from ai_workflow_engine.milestone_runner.plan import MilestonePlanLoader
 from ai_workflow_engine.milestone_runner.providers.base import (
     ProviderAdapter,
     ProviderRequest,
@@ -1331,7 +1334,7 @@ class TestMutatingGitOnlyInApprovalGitModule:
 
     def test_the_other_eighteen_package_files_name_no_mutating_subcommand(self) -> None:
         sources = package_sources(exclude=frozenset({"approval_git.py"}))
-        assert len(sources) == 18, [source.name for source in sources]
+        assert len(sources) == 19, [source.name for source in sources]
         offenders: dict[str, list[str]] = {}
         for source in sources:
             hits = sorted(
@@ -2171,3 +2174,1819 @@ def _no_prototype_access(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
 
     monkeypatch.setattr(os, "open", guarded)
     yield
+
+
+class TestAuto017StartSurface:
+    def test_stage_start_requires_v2_without_writing(self, application_factory):
+        application = application_factory()
+        before = sorted(application.artifact_root.rglob("*"))
+        with pytest.raises(WorkflowEngineError):
+            application.stage_start(stage_id=STAGE_ID, confirmation=f"START_STAGE {STAGE_ID}")
+        assert sorted(application.artifact_root.rglob("*")) == before
+
+
+@pytest.fixture
+def v2_application(config_factory, providers):
+    from ai_workflow_engine.milestone_runner.application import (
+        AdapterAdmission,
+        AdapterAdmissionKind,
+    )
+
+    def factory(*, governed=False, admitted=True, selected=None, **kwargs):
+        path = config_factory()
+        document = yaml.safe_load(path.read_text())
+        document["schema_version"] = 2
+        document.pop("review_policy")
+        document["stage"].update(
+            registry_path=None, execution_ceilings={"max_remediation_cycles": 3, "max_blockers": 3}
+        )
+        root = Path(document["repository"]["root"])
+        if governed:
+            registry = root / "registry.md"
+            registry.write_text(
+                "| Stage | Title | Role | State | Branch | Prompt |\n"
+                "|---|---|---|---|---|---|\n"
+                f"| {STAGE_ID} | test | impl | AUTHORIZED | main | `{CONTRACT_PATH}` |\n"
+            )
+            git(root, "add", "registry.md")
+            git(root, "commit", "-m", "test governed registry")
+            document["repository"]["baseline_sha"] = git(root, "rev-parse", "HEAD")
+            document["stage"]["registry_path"] = "registry.md"
+        path.write_text(yaml.safe_dump(document))
+        bound = selected or providers
+        admissions = (
+            tuple(
+                AdapterAdmission(a, type(a), AdapterAdmissionKind.TEST_DOUBLE)
+                for a in (providers.implementation, providers.review)
+            )
+            if admitted
+            else ()
+        )
+        application = MilestoneRunnerApplication(
+            load_runner_config(path), providers=bound, adapter_admissions=admissions, **kwargs
+        )
+        defaults = application.artifact_root / "project-defaults.json"
+        defaults.parent.mkdir(parents=True, exist_ok=True)
+        defaults.write_text(
+            json.dumps(
+                {
+                    "schema_version": 2,
+                    "roles": {
+                        role.value: {
+                            "provider_id": "not-a-runtime-provider",
+                            "model_id": "unknown/model",
+                            "timeout_seconds": 60,
+                        }
+                        for role in ProviderRole
+                    },
+                }
+            )
+        )
+        return application
+
+    return factory
+
+
+def authorize_v2(application):
+    return application.stage_start(stage_id=STAGE_ID, confirmation=f"START_STAGE {STAGE_ID}")
+
+
+def artifact_snapshot(root):
+    return {
+        p.relative_to(root).as_posix(): (
+            ("link", os.readlink(p), p.lstat().st_mtime_ns)
+            if p.is_symlink()
+            else (
+                ("file", p.read_bytes(), p.stat().st_mtime_ns)
+                if p.is_file()
+                else ("dir", p.stat().st_mtime_ns)
+            )
+        )
+        for p in root.rglob("*")
+    }
+
+
+def assert_refusal_without_effects(application, act, reason, monkeypatch):
+    import ai_workflow_engine.milestone_runner.application as application_module
+    import ai_workflow_engine.milestone_runner.state as state_module
+
+    before = artifact_snapshot(application.artifact_root)
+    writes = []
+    calls = []
+
+    def forbidden_write(*args, **kwargs):
+        writes.append(True)
+        pytest.fail("a refused command reached a write boundary")
+
+    def forbidden_call(*args, **kwargs):
+        calls.append(True)
+        pytest.fail("a refused command invoked a provider/process")
+
+    original_popen = subprocess.Popen
+
+    def process_guard(*args, **kwargs):
+        # Phase A-3 mandates the inspector's read-only Git root check before admission.
+        argv = args[0] if args else kwargs.get("args", [])
+        if (
+            isinstance(argv, list)
+            and argv[:2] == ["git", "--no-optional-locks"]
+            and argv[-2:] == ["rev-parse", "--show-toplevel"]
+        ):
+            return original_popen(*args, **kwargs)
+        return forbidden_call(*args, **kwargs)
+
+    with monkeypatch.context() as guarded:
+        guarded.setattr(state_module, "write_redacted_artifact", forbidden_write)
+        guarded.setattr(application_module, "write_redacted_artifact", forbidden_write)
+        guarded.setattr(application, "_locked", forbidden_write)
+        guarded.setattr(subprocess, "Popen", process_guard)
+        if application._providers is not None:
+            for adapter in (application._providers.implementation, application._providers.review):
+                guarded.setattr(adapter, "invoke", forbidden_call)
+                guarded.setattr(adapter, "build_request", forbidden_call)
+        with pytest.raises(WorkflowEngineError) as error:
+            act()
+        assert error.value.stop_reason is reason
+        assert not writes and not calls
+    assert artifact_snapshot(application.artifact_root) == before
+
+
+class TestAuto017Binding:
+    def test_stage_start_clock_idempotent(self, v2_application, monkeypatch):
+        application = v2_application(clock=lambda: MOMENT)
+        first = authorize_v2(application)
+        before = artifact_snapshot(application.artifact_root)
+        application._clock = lambda: pytest.fail("idempotent replay must not sample a clock")
+        second = authorize_v2(application)
+        assert first == second
+        assert first.lines == second.lines
+        assert artifact_snapshot(application.artifact_root) == before
+
+    def test_stage_start_and_start_end_to_end(self, v2_application):
+        application = v2_application()
+        receipt = authorize_v2(application)
+        report = application.start()
+        assert report.state is RunStatus.READY_FOR_COMMIT_APPROVAL
+        store = application._read_store(report.run_id)
+        record = store.load()
+        assert record.policy_digest == receipt.effective_policy_digest
+        assert record.stage_start_id == receipt.stage_start_id
+        assert store.policy_path.read_bytes() == store.load_policy(record).canonical_bytes()
+        assert record.correction_round == 0
+        assert not (application.repository_root / "policy.json").exists()
+
+    @pytest.mark.parametrize("governed", [False, True])
+    def test_missing_authority_matrix(self, v2_application, monkeypatch, governed):
+        application = v2_application(governed=governed)
+        expected = (
+            StopReason.STAGE_START_AUTHORIZATION_CONFLICT
+            if governed
+            else StopReason.STAGE_START_NOT_AUTHORIZED
+        )
+        assert_refusal_without_effects(application, application.start, expected, monkeypatch)
+
+    @pytest.mark.parametrize("command", ["start", "doctor"])
+    def test_unknown_adapter_refused_before_any_method(self, v2_application, monkeypatch, command):
+        application = v2_application(admitted=False)
+        authorize_v2(application)
+        assert_refusal_without_effects(
+            application,
+            getattr(application, command),
+            StopReason.LIVE_PROVIDER_NOT_ENABLED,
+            monkeypatch,
+        )
+
+    def test_changed_defaults_do_not_reinterpret(self, v2_application):
+        application = v2_application()
+        receipt = authorize_v2(application)
+        (application.artifact_root / "project-defaults.json").write_text("invalid now")
+        report = application.start()
+        assert report.state is RunStatus.READY_FOR_COMMIT_APPROVAL
+        store = application._read_store(report.run_id)
+        record = store.load()
+        assert record.policy_digest == receipt.effective_policy_digest
+        before = store.policy_path.read_bytes()
+        (application.artifact_root / "project-defaults.json").write_text('{"max_blockers":1}')
+        application.resume()
+        assert store.policy_path.read_bytes() == before
+        lock = application._locked(report.run_id)
+        try:
+            session = application._session(
+                store,
+                lock,
+                MilestonePlanLoader(application.config, application.repository_root).load(),
+            )
+            assert session.reviewer.policy.max_blockers == 3
+        finally:
+            lock.release()
+
+
+def prepared_policy_run(application, *, command="resume", published=True):
+    """A bound run at the public command's mutable entry state, before authority tampering."""
+    from ai_workflow_engine.milestone_runner.policy import StageStartBinding, authority_digest
+
+    receipt = authorize_v2(application)
+    authorization = application._authority_store().read_authorization(receipt.stage_start_id)
+    assert authorization is not None
+    state = {
+        "resume": RunStatus.IMPLEMENTING,
+        "abort": RunStatus.IMPLEMENTING,
+        "reconcile_milestone": RunStatus.HUMAN_INTERVENTION_REQUIRED,
+        "reopen_milestone": RunStatus.MILESTONE_FAILED,
+        "recover_failed_review": RunStatus.HUMAN_INTERVENTION_REQUIRED,
+        "revalidate_correction": RunStatus.HUMAN_INTERVENTION_REQUIRED,
+        "approve_commit": RunStatus.READY_FOR_COMMIT_APPROVAL,
+        "approve_push": RunStatus.READY_FOR_PUSH_APPROVAL,
+    }.get(command, RunStatus.IMPLEMENTING)
+    evidence = {}
+    if command in {"reconcile_milestone", "recover_failed_review"}:
+        role = (
+            ProviderRole.IMPLEMENTATION if command == "reconcile_milestone" else ProviderRole.REVIEW
+        )
+        evidence["provider_runs"] = [
+            ProviderRunRecord(
+                sequence=1,
+                role=role,
+                provider="fake",
+                milestone_id=MILESTONE_ID if role is ProviderRole.IMPLEMENTATION else None,
+                started_at="2026-08-06T11:59:00Z",
+                completed_at="2026-08-06T12:00:00Z",
+                duration_ms=1000,
+                exit_code=1,
+                failure_class=ProviderFailureClass.AUTH_FAILED,
+                prompt_path="transcripts/0001-20260806T115900Z-fake.prompt.md",
+                stdout_path="transcripts/0001-20260806T115900Z-fake.stdout.txt",
+                stderr_path="transcripts/0001-20260806T115900Z-fake.stderr.txt",
+            )
+        ]
+    if command == "recover_failed_review":
+        evidence.update(review_attempts=1, successful_review_rounds=1, provider_failure_count=1)
+    if command == "revalidate_correction":
+        evidence["correction_round"] = 1
+    if command == "approve_commit":
+        (application.repository_root / IMPLEMENTED_PATH).write_text("verified work\n")
+        evidence.update(
+            changed_paths=[IMPLEMENTED_PATH],
+            completed_milestones=[MILESTONE_ID],
+            review_attempts=1,
+            successful_review_rounds=1,
+        )
+    record = record_for(
+        application.repository_root,
+        application.config,
+        workflow_state=state,
+        current_milestone=MILESTONE_ID,
+        stop_reason=(
+            StopReason.GOVERNANCE_CONTRADICTION
+            if state is RunStatus.HUMAN_INTERVENTION_REQUIRED
+            else None
+        ),
+        policy_digest=receipt.effective_policy_digest,
+        stage_start_id=receipt.stage_start_id,
+        **evidence,
+    )
+    application._run_id = record.run_id
+    payload = dict(
+        schema_version=2,
+        stage_start_key=receipt.stage_start_key,
+        stage_start_id=receipt.stage_start_id,
+        authorization_digest=receipt.authorization_digest,
+        policy_digest=receipt.effective_policy_digest,
+        run_id=record.run_id,
+    )
+    binding = StageStartBinding(**payload, binding_digest=authority_digest(payload))
+    from ai_workflow_engine.milestone_runner.policy import StageStartConsumptionWitness
+
+    witness_payload = {
+        **binding.model_dump(mode="json"),
+        "stage_id": authorization.stage_id,
+        "contract_sha256": authorization.contract_sha256,
+    }
+    witness = StageStartConsumptionWitness(
+        **witness_payload, witness_digest=authority_digest(witness_payload)
+    )
+    lock = application._locked(record.run_id)
+    try:
+        application._authority_store().publish_witness(witness, lock=lock)
+        application._authority_store().publish_binding(binding, lock=lock)
+        if published:
+            store = application._store(record.run_id)
+            store.publish_policy(authorization.effective_policy, lock=lock)
+            store.publish(record, lock=lock)
+            if command == "reconcile_milestone":
+                transcript = store.run_directory / record.provider_runs[-1].stdout_path
+                transcript.parent.mkdir(exist_ok=True)
+                transcript.write_text(FAKE_RESULTS["IMPLEMENTATION"])
+            record_latest_run(application.artifact_root, record.run_id)
+    finally:
+        lock.release()
+    return receipt, record
+
+
+MUTATING_V2_COMMANDS = (
+    "resume",
+    "abort",
+    "reconcile_milestone",
+    "reopen_milestone",
+    "recover_failed_review",
+    "revalidate_correction",
+    "approve_commit",
+    "approve_push",
+)
+
+
+def command_action(application, command):
+    kwargs = {
+        "abort": {"reason": "test"},
+        "reconcile_milestone": {"milestone": MILESTONE_ID, "reason": "test"},
+        "reopen_milestone": {"milestone": MILESTONE_ID, "reason": "test"},
+        "recover_failed_review": {"classification": "AUTH_FAILED", "ruling": "test"},
+    }.get(command, {})
+    return lambda: getattr(application, command)(**kwargs)
+
+
+def authority_path(application, receipt, artifact):
+    names = {
+        "pointer": f"key-{receipt.stage_start_key}.json",
+        "authorization": f"{receipt.stage_start_id}.json",
+        "binding": f"{receipt.stage_start_id}.binding.json",
+    }
+    return application.artifact_root / "stage-starts" / names[artifact]
+
+
+COMMON_HOSTILE_AUTHORITY = (
+    "missing",
+    "symlink",
+    "oversize",
+    "duplicate-equal",
+    "duplicate-different",
+    "version-missing",
+    "version-one",
+    "version-three",
+    "version-string",
+    "version-float",
+    "version-bool",
+    "version-null",
+    "unknown-field",
+    "non-object",
+    "invalid-utf8",
+    "id-traversal",
+    "id-absolute",
+    "id-drive",
+    "id-backslash",
+    "id-nul",
+    "id-upper",
+    "id-truncated",
+    "id-nonhex",
+    "key-other",
+    "pin-other",
+    "missing-required",
+    "noncanonical",
+    "valid-foreign-content",
+)
+AUTHORITY_SPECIFIC = {
+    "pointer": ("injected-run-id", "linked-foreign-authorization"),
+    "authorization": (
+        "injected-run-id",
+        "timestamp-old-pin",
+        "timestamp-new-pin",
+        "timestamp-invalid-grammar",
+        "timestamp-invalid-date",
+        "duplicate-created-at-equal",
+        "duplicate-created-at-different",
+        "nested-duplicate",
+        "nested-context-duplicate",
+        "nested-malformed",
+        "contract-traversal",
+        "registry-traversal",
+        "contract-absolute",
+        "contract-backslash",
+        "contract-noncanonical",
+        "stage-other",
+    ),
+    "binding": (
+        "duplicate-run-id-equal",
+        "duplicate-run-id-different",
+        "duplicate-binding-digest-equal",
+        "duplicate-binding-digest-different",
+        "self-digest-other",
+        "policy-pin-other",
+        "run-traversal",
+        "run-absolute",
+        "run-drive",
+        "run-backslash",
+        "run-nul",
+    ),
+}
+HOSTILE_AUTHORITY_CASES = [
+    (artifact, mutation)
+    for artifact in AUTHORITY_SPECIFIC
+    for mutation in (*COMMON_HOSTILE_AUTHORITY, *AUTHORITY_SPECIFIC[artifact])
+]
+
+
+def valid_authorization_variant(document, *, foreign_stage):
+    """An independently valid authority, with every policy/logical/full digest recomputed.
+
+    This distinguishes rejected substitution from a malformed document that could never pass
+    the authority schema in the first place.
+    """
+    from ai_workflow_engine.milestone_runner.models import canonical_digest
+    from ai_workflow_engine.milestone_runner.policy import (
+        EffectiveStageExecutionPolicy,
+        StageStartAuthorization,
+        authority_digest,
+        authority_json_bytes,
+        logical_authorization_payload,
+        stage_start_key,
+    )
+
+    changed = json.loads(json.dumps(document))
+    policy = changed["effective_policy"]
+    if foreign_stage:
+        changed["stage_id"] = policy["stage_id"] = "FOREIGN-098"
+    else:
+        blockers = 2 if policy["max_blockers"] != 2 else 1
+        changed["stage_overrides"]["max_blockers"] = blockers
+        policy["max_blockers"] = blockers
+        policy["stage_overrides_digest"] = canonical_digest(changed["stage_overrides"])
+    validated_policy = EffectiveStageExecutionPolicy.model_validate_json(
+        authority_json_bytes(policy)
+    )
+    changed["effective_policy_digest"] = validated_policy.digest
+    changed["stage_start_key"] = stage_start_key(
+        changed["repository_identity"], changed["stage_id"], changed["contract_sha256"]
+    )
+    changed["stage_start_id"] = authority_digest(logical_authorization_payload(changed))
+    changed["authorization_digest"] = authority_digest(
+        {name: value for name, value in changed.items() if name != "authorization_digest"}
+    )
+    validated = StageStartAuthorization.model_validate_json(authority_json_bytes(changed))
+    assert validated.stage_start_id != document["stage_start_id"]
+    return validated
+
+
+@pytest.mark.parametrize("command", MUTATING_V2_COMMANDS)
+@pytest.mark.parametrize("governed", [False, True])
+def test_auto017_valid_same_stage_different_policy_refuses_run_pin(
+    v2_application, monkeypatch, command, governed
+):
+    from ai_workflow_engine.milestone_runner.policy import (
+        StageStartBinding,
+        StageStartPointer,
+        authority_digest,
+        authority_json_bytes,
+    )
+
+    application = v2_application(governed=governed)
+    receipt, record = prepared_policy_run(application, command=command)
+    original = json.loads(authority_path(application, receipt, "authorization").read_bytes())
+    substituted = valid_authorization_variant(original, foreign_stage=False)
+    assert substituted.stage_id == application.config.stage.stage_id
+    assert substituted.stage_start_key == receipt.stage_start_key
+    assert substituted.effective_policy_digest != record.policy_digest
+    authority_root = application.artifact_root / "stage-starts"
+    (authority_root / f"{substituted.stage_start_id}.json").write_bytes(
+        authority_json_bytes(substituted.model_dump(mode="json"))
+    )
+    pointer = StageStartPointer(
+        schema_version=2,
+        stage_start_key=substituted.stage_start_key,
+        stage_start_id=substituted.stage_start_id,
+        authorization_digest=substituted.authorization_digest,
+    )
+    authority_path(application, receipt, "pointer").write_bytes(
+        authority_json_bytes(pointer.model_dump(mode="json"))
+    )
+    payload = {
+        **pointer.model_dump(mode="json"),
+        "policy_digest": substituted.effective_policy_digest,
+        "run_id": record.run_id,
+    }
+    binding = StageStartBinding(**payload, binding_digest=authority_digest(payload))
+    (authority_root / f"{substituted.stage_start_id}.binding.json").write_bytes(
+        authority_json_bytes(binding.model_dump(mode="json"))
+    )
+    # The entire alternate authority chain is valid and internally consistent. The existing
+    # run's immutable policy pin is what must defeat it before any progression or write.
+    assert_refusal_without_effects(
+        application,
+        command_action(application, command),
+        StopReason.POLICY_DIGEST_MISMATCH,
+        monkeypatch,
+    )
+
+
+def mutate_authority(path, artifact, mutation):
+    from ai_workflow_engine.milestone_runner.policy import authority_digest, authority_json_bytes
+
+    raw = path.read_bytes()
+    document = json.loads(raw)
+    if mutation in {"valid-foreign-content", "linked-foreign-authorization"}:
+        from ai_workflow_engine.milestone_runner.policy import StageStartBinding, StageStartPointer
+
+        authorization_document = (
+            document
+            if artifact == "authorization"
+            else json.loads((path.parent / f"{document['stage_start_id']}.json").read_bytes())
+        )
+        foreign = valid_authorization_variant(authorization_document, foreign_stage=True)
+        if artifact == "authorization":
+            replacement = foreign
+        else:
+            payload = {
+                "schema_version": 2,
+                "stage_start_key": (
+                    document["stage_start_key"]
+                    if mutation == "linked-foreign-authorization"
+                    else foreign.stage_start_key
+                ),
+                "stage_start_id": foreign.stage_start_id,
+                "authorization_digest": foreign.authorization_digest,
+            }
+            if artifact == "pointer":
+                replacement = StageStartPointer(**payload)
+                # Its linked record really exists under its own correct ID; the failed check
+                # must concern the configured key/Stage, not an absent or invalid target.
+                (path.parent / f"{foreign.stage_start_id}.json").write_bytes(
+                    authority_json_bytes(foreign.model_dump(mode="json"))
+                )
+            else:
+                payload.update(
+                    policy_digest=foreign.effective_policy_digest, run_id="foreign-valid-run"
+                )
+                replacement = StageStartBinding(**payload, binding_digest=authority_digest(payload))
+        path.write_bytes(authority_json_bytes(replacement.model_dump(mode="json")))
+        return
+    if mutation == "missing":
+        path.unlink()
+        return
+    if mutation == "symlink":
+        target = path.with_suffix(".hostile-target")
+        path.rename(target)
+        path.symlink_to(target)
+        return
+    if mutation == "oversize":
+        path.write_bytes(b"x" * (65537 if artifact == "authorization" else 4097))
+        return
+    if mutation.startswith("duplicate-"):
+        field = next(
+            (
+                key
+                for prefix, key in (
+                    ("duplicate-created-at-", "created_at"),
+                    ("duplicate-run-id-", "run_id"),
+                    ("duplicate-binding-digest-", "binding_digest"),
+                )
+                if mutation.startswith(prefix)
+            ),
+            "stage_start_id",
+        )
+        value = (
+            document[field]
+            if mutation.endswith("equal")
+            else {
+                "created_at": "2025-01-01T00:00:00Z",
+                "run_id": "another-valid-run",
+            }.get(field, "f" * 64)
+        )
+        path.write_bytes(
+            b"{" + json.dumps(field).encode() + b":" + json.dumps(value).encode() + b"," + raw[1:]
+        )
+        return
+    if mutation == "invalid-utf8":
+        path.write_bytes(b"\xff")
+        return
+    if mutation == "noncanonical":
+        path.write_bytes(raw + b"\n")
+        return
+    if mutation == "nested-duplicate":
+        path.write_bytes(
+            raw.replace(b'"effective_policy":{', b'"effective_policy":{"schema_version":2,', 1)
+        )
+        return
+    if mutation == "nested-context-duplicate":
+        path.write_bytes(
+            raw.replace(b'"registry_context":{', b'"registry_context":{"path":null,', 1)
+        )
+        return
+    versions = {
+        "version-one": 1,
+        "version-three": 3,
+        "version-string": "2",
+        "version-float": 2.0,
+        "version-bool": True,
+        "version-null": None,
+    }
+    if mutation in versions:
+        document["schema_version"] = versions[mutation]
+    elif mutation == "version-missing":
+        del document["schema_version"]
+    elif mutation == "missing-required":
+        del document["authorization_digest"]
+    elif mutation == "unknown-field":
+        document["unknown"] = "hostile"
+    elif mutation == "non-object":
+        document = []
+    elif mutation.startswith("id-") or mutation.startswith("run-"):
+        field = "run_id" if mutation.startswith("run-") else "stage_start_id"
+        document[field] = {
+            "traversal": "../outside",
+            "absolute": "/outside",
+            "drive": "C:/outside",
+            "backslash": "bad\\path",
+            "nul": "bad\x00path",
+            "upper": "A" * 64,
+            "truncated": "a" * 63,
+            "nonhex": "g" * 64,
+        }[mutation.split("-", 1)[1]]
+    elif mutation == "key-other":
+        document["stage_start_key"] = "b" * 64
+    elif mutation == "pin-other":
+        document["authorization_digest"] = "b" * 64
+    elif mutation == "injected-run-id":
+        document["run_id"] = "unexpected-run"
+    elif mutation in {"timestamp-invalid-grammar", "timestamp-invalid-date"}:
+        document["created_at"] = (
+            "not-a-timestamp" if mutation == "timestamp-invalid-grammar" else "2026-02-30T10:11:12Z"
+        )
+        # Leave no unrelated integrity defect to mask the timestamp validator itself.
+        document["authorization_digest"] = authority_digest(
+            {k: v for k, v in document.items() if k != "authorization_digest"}
+        )
+    elif mutation.startswith("timestamp-"):
+        document["created_at"] = "2026-09-29T10:11:12Z"
+        if mutation == "timestamp-new-pin":
+            document["authorization_digest"] = authority_digest(
+                {k: v for k, v in document.items() if k != "authorization_digest"}
+            )
+    elif mutation == "nested-malformed":
+        document["effective_policy"]["registry_context"] = {
+            "kind": "GOVERNED_REGISTRY",
+            "path": None,
+        }
+    elif mutation.startswith("contract-"):
+        document["contract_path"] = {
+            "traversal": "../outside",
+            "absolute": "/outside",
+            "backslash": "docs\\x",
+            "noncanonical": "./docs/x",
+        }[mutation.split("-", 1)[1]]
+    elif mutation == "registry-traversal":
+        document["registry_context"] = {"kind": "GOVERNED_REGISTRY", "path": "../outside"}
+    elif mutation == "stage-other":
+        document["stage_id"] = "ST-OTHER"
+    elif mutation == "self-digest-other":
+        document["binding_digest"] = "b" * 64
+    elif mutation == "policy-pin-other":
+        document["policy_digest"] = "b" * 64
+        document["binding_digest"] = authority_digest(
+            {k: v for k, v in document.items() if k != "binding_digest"}
+        )
+    else:
+        raise AssertionError(mutation)
+    path.write_bytes(authority_json_bytes(document))
+
+
+@pytest.mark.parametrize("artifact,mutation", HOSTILE_AUTHORITY_CASES)
+@pytest.mark.parametrize("command", ("start", *MUTATING_V2_COMMANDS))
+@pytest.mark.parametrize("governed", [False, True])
+def test_auto017_hostile_persisted_authority_matrix(
+    v2_application, monkeypatch, artifact, mutation, command, governed
+):
+    application = v2_application(governed=governed)
+    receipt, _ = prepared_policy_run(application, command=command, published=command != "start")
+    path = authority_path(application, receipt, artifact)
+    mutate_authority(path, artifact, mutation)
+    if command == "start" and artifact == "binding" and mutation == "missing":
+        assert application.start().state is RunStatus.READY_FOR_COMMIT_APPROVAL
+        return
+    expected = (
+        StopReason.STAGE_START_ALREADY_BOUND
+        if artifact == "binding"
+        else (
+            StopReason.STAGE_START_AUTHORIZATION_CONFLICT
+            if governed
+            else StopReason.STAGE_START_NOT_AUTHORIZED
+        )
+    )
+    assert_refusal_without_effects(
+        application, command_action(application, command), expected, monkeypatch
+    )
+
+
+@pytest.mark.parametrize("command", ("start", *MUTATING_V2_COMMANDS))
+@pytest.mark.parametrize(
+    "before,after",
+    [("registry.md", None), (None, "registry.md"), ("registry.md", "other-registry.md")],
+)
+def test_auto017_registry_declaration_is_frozen(
+    v2_application, monkeypatch, command, before, after
+):
+    application = v2_application(governed=before is not None)
+    if command == "start":
+        authorize_v2(application)
+    else:
+        prepared_policy_run(application, command=command)
+    document = application.config.model_dump(mode="json", exclude={"review_policy"})
+    document["stage"]["registry_path"] = after
+    application._config = RunnerConfig.model_validate(document)
+    assert_refusal_without_effects(
+        application,
+        command_action(application, command),
+        StopReason.POLICY_BINDING_MISMATCH,
+        monkeypatch,
+    )
+
+
+@pytest.mark.parametrize("command", MUTATING_V2_COMMANDS)
+def test_auto017_changed_ceilings_refuse_continuations(v2_application, monkeypatch, command):
+    application = v2_application()
+    prepared_policy_run(application, command=command)
+    document = application.config.model_dump(mode="json", exclude={"review_policy"})
+    document["stage"]["execution_ceilings"]["max_blockers"] = 2
+    application._config = RunnerConfig.model_validate(document)
+    assert_refusal_without_effects(
+        application,
+        command_action(application, command),
+        StopReason.POLICY_BINDING_MISMATCH,
+        monkeypatch,
+    )
+
+
+@pytest.mark.parametrize("artifact", ["pointer", "authorization", "binding"])
+@pytest.mark.parametrize("parent_depth", [0, 1, 2, 3])
+@pytest.mark.parametrize("command", ("start", *MUTATING_V2_COMMANDS))
+def test_auto017_symlinked_authority_ancestors_refuse(
+    v2_application, monkeypatch, artifact, parent_depth, command
+):
+    application = v2_application()
+    receipt, _ = prepared_policy_run(application, command=command, published=command != "start")
+    path = authority_path(application, receipt, artifact)
+    if parent_depth == 0:
+        target = path.with_suffix(".hostile-target")
+        mutate_authority(path, artifact, "symlink")
+    else:
+        # For a shared authority-directory ancestor, pointer validation fails first.
+        parent = path.parents[parent_depth - 1]
+        target = parent.with_name(parent.name + "-target")
+        parent.rename(target)
+        parent.symlink_to(target, target_is_directory=True)
+    reason = (
+        StopReason.STAGE_START_ALREADY_BOUND
+        if artifact == "binding" and parent_depth == 0
+        else StopReason.STAGE_START_NOT_AUTHORIZED
+    )
+    # A shared ancestor also invalidates policy.json, which §10.3 checks first.
+    if command != "start" and parent_depth >= 2:
+        reason = StopReason.POLICY_DIGEST_MISMATCH
+    real_open = os.open
+
+    def no_target_open(*args, **kwargs):
+        descriptor = real_open(*args, **kwargs)
+        opened = Path(os.readlink(f"/proc/self/fd/{descriptor}"))
+        if opened == target or opened.is_relative_to(target):
+            os.close(descriptor)
+            pytest.fail("a symlink target was opened")
+        return descriptor
+
+    with monkeypatch.context() as guarded:
+        guarded.setattr(os, "open", no_target_open)
+        assert_refusal_without_effects(
+            application, command_action(application, command), reason, monkeypatch
+        )
+
+
+@pytest.mark.parametrize("command", MUTATING_V2_COMMANDS)
+def test_auto017_valid_binding_with_wrong_run_id_refuses(v2_application, monkeypatch, command):
+    from ai_workflow_engine.milestone_runner.policy import authority_digest, authority_json_bytes
+
+    application = v2_application()
+    receipt, _ = prepared_policy_run(application, command=command)
+    path = authority_path(application, receipt, "binding")
+    document = json.loads(path.read_bytes())
+    document["run_id"] = "another-well-formed-run"
+    document["binding_digest"] = authority_digest(
+        {k: v for k, v in document.items() if k != "binding_digest"}
+    )
+    path.write_bytes(authority_json_bytes(document))
+    assert_refusal_without_effects(
+        application,
+        command_action(application, command),
+        StopReason.STAGE_START_ALREADY_BOUND,
+        monkeypatch,
+    )
+
+
+@pytest.mark.parametrize("artifact,mutation", HOSTILE_AUTHORITY_CASES)
+def test_auto017_stage_start_reuse_rejects_hostile_artifacts(
+    v2_application, monkeypatch, artifact, mutation
+):
+    application = v2_application()
+    receipt, _ = prepared_policy_run(application)
+    path = authority_path(application, receipt, artifact)
+    mutate_authority(path, artifact, mutation)
+    assert_refusal_without_effects(
+        application,
+        lambda: authorize_v2(application),
+        StopReason.STAGE_START_INPUT_CONFLICT,
+        monkeypatch,
+    )
+
+
+def test_auto017_stage_start_orphan_reuses_bytes_at_later_clock(v2_application, monkeypatch):
+    from ai_workflow_engine.milestone_runner.state import StageStartStore
+
+    application = v2_application(clock=lambda: MOMENT)
+    original = StageStartStore.publish_pointer
+    with monkeypatch.context() as crash:
+        crash.setattr(
+            StageStartStore,
+            "publish_pointer",
+            lambda *a, **k: (_ for _ in ()).throw(RuntimeError("crash")),
+        )
+        with pytest.raises(RuntimeError, match="crash"):
+            authorize_v2(application)
+    records = list((application.artifact_root / "stage-starts").glob("*.json"))
+    assert len(records) == 1
+    raw = records[0].read_bytes()
+    stamp = records[0].stat().st_mtime_ns
+    application._clock = lambda: pytest.fail("orphan reuse must not sample authorization clock")
+    receipt = authorize_v2(application)
+    assert records[0].read_bytes() == raw
+    assert records[0].stat().st_mtime_ns == stamp
+    assert receipt.created_at == "2026-08-06T12:00:00Z"
+    assert StageStartStore.publish_pointer is original
+
+
+def test_auto017_binding_crash_adopts_run_id(v2_application, monkeypatch):
+    application = v2_application()
+    receipt = authorize_v2(application)
+    with monkeypatch.context() as crash:
+        crash.setattr(
+            RunStateStore,
+            "publish_policy",
+            lambda *a, **k: (_ for _ in ()).throw(RuntimeError("crash")),
+        )
+        with pytest.raises(RuntimeError, match="crash"):
+            application.start()
+    binding = application._authority_store().read_binding(receipt.stage_start_id)
+    assert binding is not None
+    application._run_id = "different-requested-run"
+    report = application.start()
+    assert report.run_id == binding.run_id
+    assert report.state is RunStatus.READY_FOR_COMMIT_APPROVAL
+
+
+class UnrelatedSpawningAdapter:
+    TEST_DOUBLE = True
+    name = "misleading-fake"
+
+    def invoke(self, *args, **kwargs):
+        return subprocess.Popen(["must-never-execute"])
+
+    def build_request(self, *args, **kwargs):
+        return subprocess.Popen(["must-never-execute"])
+
+
+@pytest.mark.parametrize("command", ["start", "resume", "doctor"])
+@pytest.mark.parametrize(
+    "variant",
+    [
+        "unclassified",
+        "marker",
+        "replacement",
+        "subclass",
+        "live-entry",
+        "wrong-type",
+        "production",
+        "production-relabelled",
+        "mixed",
+    ],
+)
+def test_auto017_adapter_admission_fails_closed(v2_application, monkeypatch, command, variant):
+    from ai_workflow_engine.milestone_runner.application import (
+        AdapterAdmission,
+        AdapterAdmissionKind,
+    )
+
+    application = v2_application()
+    if command == "resume":
+        prepared_policy_run(application)
+    else:
+        authorize_v2(application)
+    original = application._providers
+    assert original is not None
+    if variant in {"unclassified", "marker", "mixed"}:
+        unknown = UnrelatedSpawningAdapter()
+        if variant == "unclassified":
+            unknown.TEST_DOUBLE = False
+        application._providers = ProviderBinding(unknown, original.review)
+    elif variant in {"replacement", "subclass"}:
+
+        class UnadmittedSubclass(FakeAdapter):
+            pass
+
+        original_adapter = original.implementation
+        cls = UnadmittedSubclass if variant == "subclass" else FakeAdapter
+        replacement = cls(original_adapter._script, results=FAKE_RESULTS, touch=IMPLEMENTED_PATH)
+        application._providers = ProviderBinding(replacement, original.review)
+    elif variant == "live-entry":
+        application._adapter_admissions = tuple(
+            AdapterAdmission(a, type(a), AdapterAdmissionKind.LIVE)
+            for a in (original.implementation, original.review)
+        )
+    elif variant == "wrong-type":
+        application._adapter_admissions = tuple(
+            AdapterAdmission(a, UnrelatedSpawningAdapter, AdapterAdmissionKind.TEST_DOUBLE)
+            for a in (original.implementation, original.review)
+        )
+    elif variant == "production":
+        application._providers = None
+    elif variant == "production-relabelled":
+        application._providers = ProviderBinding.from_config(application.config)
+        application._adapter_admissions = tuple(
+            AdapterAdmission(a, type(a), AdapterAdmissionKind.TEST_DOUBLE)
+            for a in (application._providers.implementation, application._providers.review)
+        )
+    assert_refusal_without_effects(
+        application,
+        getattr(application, command),
+        StopReason.LIVE_PROVIDER_NOT_ENABLED,
+        monkeypatch,
+    )
+
+
+def test_auto017_manifest_is_copied_and_provider_boundary_rechecks(v2_application, monkeypatch):
+    import ai_workflow_engine.milestone_runner.application as module
+
+    application = v2_application()
+    receipt, record = prepared_policy_run(application)
+    store = application._read_store(record.run_id)
+    lock = application._locked(record.run_id)
+    try:
+        plan = MilestonePlanLoader(application.config, application.repository_root).load()
+        session = application._session(store, lock, plan)
+        assert isinstance(session.adapter_admissions, tuple)
+        from dataclasses import replace
+
+        session = replace(
+            session, providers=ProviderBinding(UnrelatedSpawningAdapter(), session.providers.review)
+        )
+        assert_refusal_without_effects(
+            application,
+            lambda: module._invoke_provider(
+                session,
+                record,
+                role=ProviderRole.IMPLEMENTATION,
+                prompt="test",
+                milestone_id=MILESTONE_ID,
+            ),
+            StopReason.LIVE_PROVIDER_NOT_ENABLED,
+            monkeypatch,
+        )
+        assert receipt.effective_policy_digest == record.policy_digest
+    finally:
+        lock.release()
+
+
+@pytest.mark.parametrize(
+    "status", ["AUTHORIZED", "IN_PROGRESS", "NOT_STARTED", "COMPLETE", "BLOCKED"]
+)
+@pytest.mark.parametrize("native", [False, True])
+def test_auto017_authority_matrix_registry_states(v2_application, monkeypatch, status, native):
+    application = v2_application(governed=True)
+    registry = application.repository_root / "registry.md"
+    registry.write_text(registry.read_text().replace("AUTHORIZED", status))
+    if native:
+        authorize_v2(application)
+    if native and status in {"AUTHORIZED", "IN_PROGRESS"}:
+        # Registry mutations are committed in fixture setup so remaining entry conditions pass.
+        git(application.repository_root, "add", "registry.md")
+        if git(application.repository_root, "status", "--porcelain"):
+            git(application.repository_root, "commit", "-m", "test status")
+        document = application.config.model_dump(mode="json", exclude={"review_policy"})
+        document["repository"]["baseline_sha"] = git(
+            application.repository_root, "rev-parse", "HEAD"
+        )
+        application._config = RunnerConfig.model_validate(document)
+        assert application.start().state is RunStatus.READY_FOR_COMMIT_APPROVAL
+    else:
+        reason = (
+            StopReason.STAGE_START_AUTHORIZATION_CONFLICT
+            if native or status in {"AUTHORIZED", "IN_PROGRESS"}
+            else StopReason.STAGE_START_NOT_AUTHORIZED
+        )
+        assert_refusal_without_effects(application, application.start, reason, monkeypatch)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ["missing", "no-table", "no-row", "duplicate-row", "prompt-other", "log-only", "prefix"],
+)
+def test_auto017_registry_parser_fail_closed(v2_application, monkeypatch, mutation):
+    application = v2_application(governed=True)
+    authorize_v2(application)
+    registry = application.repository_root / "registry.md"
+    text = registry.read_text()
+    if mutation == "missing":
+        registry.unlink()
+    elif mutation == "no-table":
+        registry.write_text("| Stage | Status |\n|---|---|\n" + f"| {STAGE_ID} | AUTHORIZED |\n")
+    elif mutation == "duplicate-row":
+        registry.write_text(text + text.splitlines()[-1] + "\n")
+    elif mutation == "prompt-other":
+        registry.write_text(text.replace(CONTRACT_PATH, "other-contract.md"))
+    elif mutation == "log-only":
+        registry.write_text(f"Log: {STAGE_ID} AUTHORIZED\n")
+    else:
+        registry.write_text(
+            text.replace(STAGE_ID, STAGE_ID + "0" if mutation == "prefix" else "ST-OTHER")
+        )
+    assert_refusal_without_effects(
+        application, application.start, StopReason.STAGE_START_AUTHORIZATION_CONFLICT, monkeypatch
+    )
+
+
+def test_auto017_registry_parser_pinned_real_registry():
+    from ai_workflow_engine.milestone_runner.application import registry_stage_entry
+
+    text = subprocess.check_output(
+        [
+            "git",
+            "show",
+            "489885d51e0d84e60c3506fd1ae2b365440b2401:docs/workflow-automation/STAGE_REGISTRY.md",
+        ],
+        text=True,
+    )
+    for stage, status in [
+        ("AUTO-016", "COMPLETE"),
+        ("AUTO-017", "NOT_STARTED"),
+        ("AUTO-009", "COMPLETE"),
+    ]:
+        entry = registry_stage_entry(text, stage)
+        assert entry is not None
+        assert entry.state == status
+    assert (
+        registry_stage_entry(
+            "| Stage | Title | Role | State | Branch | Prompt |\n"
+            "|---|---|---|---|---|---|\n| ST-10 | t | r | AUTHORIZED | main | c.md |",
+            "ST-1",
+        )
+        is None
+    )
+
+
+@pytest.mark.parametrize("configuration_v2,record_v2", [(False, True), (True, False)])
+@pytest.mark.parametrize("command", MUTATING_V2_COMMANDS)
+def test_auto017_configuration_record_mode_mismatch(
+    v2_application, config_factory, monkeypatch, configuration_v2, record_v2, command
+):
+    application = v2_application()
+    _, record = prepared_policy_run(application, command=command)
+    if not record_v2:
+        document = record.model_dump(mode="json")
+        document.update(policy_digest=None, stage_start_id=None)
+        application._read_store(record.run_id).state_path.write_text(json.dumps(document))
+    if not configuration_v2:
+        application._config = load_runner_config(config_factory())
+    assert_refusal_without_effects(
+        application,
+        command_action(application, command),
+        StopReason.POLICY_BINDING_MISMATCH,
+        monkeypatch,
+    )
+
+
+def test_auto017_v1_lifecycle_has_no_policy_artifacts(application_factory):
+    application = application_factory()
+    report = application.start()
+    assert report.state is RunStatus.READY_FOR_COMMIT_APPROVAL
+    assert not (application.artifact_root / "stage-starts").exists()
+    assert not (application.artifact_root / report.run_id / "policy.json").exists()
+    record = application._read_store(report.run_id).load()
+    assert record.schema_version == 2
+    assert record.policy_digest is None and record.stage_start_id is None
+
+
+def test_auto017_stage_start_is_single_use(v2_application, monkeypatch):
+    application = v2_application()
+    authorize_v2(application)
+    first = application.start()
+    assert first.state is RunStatus.READY_FOR_COMMIT_APPROVAL
+    application._run_id = "different-never-published-run"
+    assert_refusal_without_effects(
+        application, application.start, StopReason.STAGE_START_ALREADY_BOUND, monkeypatch
+    )
+
+
+@pytest.mark.parametrize("command", MUTATING_V2_COMMANDS)
+def test_auto017_hostile_fixture_otherwise_mutates(v2_application, command):
+    application = v2_application()
+    _, record = prepared_policy_run(application, command=command)
+    before = application._read_store(record.run_id).state_path.read_bytes()
+    command_action(application, command)()
+    assert application._read_store(record.run_id).state_path.read_bytes() != before
+
+
+def test_auto017_invalid_plan_publishes_bound_stop_and_can_resume(v2_application, plan_root):
+    application = v2_application()
+    receipt = authorize_v2(application)
+    plan = plan_root / f"{MILESTONE_ID}.yaml"
+    original = plan.read_bytes()
+    plan.write_text("not: a valid milestone\n")
+    stopped = application.start()
+    assert stopped.stop_reason is StopReason.PLAN_COVERAGE_MISMATCH
+    record = application._read_store(stopped.run_id).load()
+    assert record.stage_start_id == receipt.stage_start_id
+    assert record.policy_digest == receipt.effective_policy_digest
+    plan.write_bytes(original)
+    resumed = application.resume()
+    assert resumed.state is RunStatus.READY_FOR_COMMIT_APPROVAL
+
+
+@pytest.mark.parametrize("command", MUTATING_V2_COMMANDS)
+@pytest.mark.parametrize("parent_depth", [0, 1, 2])
+def test_auto017_cli_run_lookup_never_reads_symlink_target(
+    v2_application, monkeypatch, command, parent_depth
+):
+    application = v2_application()
+    prepared_policy_run(application, command=command)
+    application._run_id = None
+    root = application.artifact_root
+    parent = root if parent_depth == 0 else root.parents[parent_depth - 1]
+    target = parent.with_name(parent.name + "-target")
+    parent.rename(target)
+    parent.symlink_to(target, target_is_directory=True)
+    real_open = os.open
+
+    def no_target_open(*args, **kwargs):
+        descriptor = real_open(*args, **kwargs)
+        opened = Path(os.readlink(f"/proc/self/fd/{descriptor}"))
+        if opened == target or opened.is_relative_to(target):
+            os.close(descriptor)
+            pytest.fail("CLI run lookup opened a symlink target")
+        return descriptor
+
+    with monkeypatch.context() as guarded:
+        guarded.setattr(os, "open", no_target_open)
+        assert_refusal_without_effects(
+            application,
+            command_action(application, command),
+            StopReason.POLICY_DIGEST_MISMATCH,
+            monkeypatch,
+        )
+
+
+@pytest.mark.parametrize("injected", [None, "another-requested-run"])
+@pytest.mark.parametrize("command", ["start", "stage_start"])
+def test_auto017_missing_published_binding_never_rebinds(
+    v2_application, monkeypatch, injected, command
+):
+    application = v2_application()
+    receipt, _ = prepared_policy_run(application)
+    authority_path(application, receipt, "binding").unlink()
+    application._run_id = injected
+    action = application.start if command == "start" else lambda: authorize_v2(application)
+    reason = (
+        StopReason.STAGE_START_ALREADY_BOUND
+        if command == "start"
+        else StopReason.STAGE_START_INPUT_CONFLICT
+    )
+    assert_refusal_without_effects(application, action, reason, monkeypatch)
+
+
+@pytest.mark.parametrize("mutation", ["registry", "contract"])
+def test_auto017_authority_withdrawn_during_prompt_refuses_actual_invocation(
+    v2_application, monkeypatch, mutation
+):
+    import ai_workflow_engine.milestone_runner.application as module
+
+    application = v2_application(governed=True)
+    prepared_policy_run(application)
+    render = module.render_implementation_prompt
+    calls = []
+
+    def drift(**kwargs):
+        text = render(**kwargs)
+        path = application.repository_root / (
+            "registry.md" if mutation == "registry" else CONTRACT_PATH
+        )
+        path.write_text(
+            path.read_text().replace("AUTHORIZED", "NOT_STARTED")
+            if mutation == "registry"
+            else "contract changed after the entry check\n"
+        )
+        return text
+
+    def invoke(*args, **kwargs):
+        calls.append(True)
+        pytest.fail("provider invoked after authority withdrawal")
+
+    monkeypatch.setattr(module, "render_implementation_prompt", drift)
+    monkeypatch.setattr(application._providers.implementation, "invoke", invoke)
+    expected = (
+        StopReason.STAGE_START_AUTHORIZATION_CONFLICT
+        if mutation == "registry"
+        else StopReason.STAGE_ID_NOT_AUTHORIZED
+    )
+    with pytest.raises(RunRefused) as error:
+        application.resume()
+    assert error.value.stop_reason is expected
+    assert calls == []
+    record = application.status().record
+    assert record.workflow_state is RunStatus.HUMAN_INTERVENTION_REQUIRED
+    assert record.stop_reason is expected
+    assert not record.provider_runs
+
+
+def test_auto017_registry_withdrawal_refuses_spawn_failed_retry(v2_application, monkeypatch):
+    from ai_workflow_engine.milestone_runner.providers.base import ProviderInvocation
+
+    application = v2_application(governed=True)
+    prepared_policy_run(application)
+    calls = []
+
+    def spawn_failed(*args, **kwargs):
+        calls.append(True)
+        assert len(calls) == 1, "a second provider attempt crossed withdrawn authority"
+        path = application.repository_root / "registry.md"
+        path.write_text(path.read_text().replace("AUTHORIZED", "NOT_STARTED"))
+        return ProviderInvocation(
+            record=ProviderRunRecord(
+                sequence=1,
+                role=ProviderRole.IMPLEMENTATION,
+                provider="fake",
+                milestone_id=MILESTONE_ID,
+                started_at="2026-08-06T11:59:00Z",
+                completed_at="2026-08-06T12:00:00Z",
+                duration_ms=1000,
+                exit_code=1,
+                failure_class=ProviderFailureClass.SPAWN_FAILED,
+                prompt_path="transcripts/0001-20260806T115900Z-fake.prompt.md",
+                stdout_path="transcripts/0001-20260806T115900Z-fake.stdout.txt",
+                stderr_path="transcripts/0001-20260806T115900Z-fake.stderr.txt",
+            ),
+            stdout="",
+            stderr="spawn failed",
+        )
+
+    monkeypatch.setattr(application._providers.implementation, "invoke", spawn_failed)
+    with pytest.raises(RunRefused) as error:
+        application.resume()
+    assert error.value.stop_reason is StopReason.STAGE_START_AUTHORIZATION_CONFLICT
+    record = application.status().record
+    assert record.workflow_state is RunStatus.HUMAN_INTERVENTION_REQUIRED
+    assert record.stop_reason is StopReason.STAGE_START_AUTHORIZATION_CONFLICT
+    assert len(calls) == len(record.provider_runs) == 1
+
+
+@pytest.mark.parametrize("field", ["policy_digest", "stage_start_id"])
+def test_auto017_revise_and_transition_updates_cannot_replace_policy_pins(worktree, config, field):
+    """T-REVISE-GUARD: neither general update API can mint or replace authority."""
+    record = record_for(
+        worktree,
+        config,
+        workflow_state=RunStatus.IMPLEMENTING,
+        policy_digest="a" * 64,
+        stage_start_id="b" * 64,
+    )
+    with pytest.raises(ApplicationError, match=field):
+        revise_record(record, moment=MOMENT, updates={field: "c" * 64})
+    with pytest.raises(ApplicationError, match=field):
+        transition_to(record, RunStatus.FOCUSED_VERIFYING, moment=MOMENT, updates={field: "c" * 64})
+
+
+def test_auto017_transition_preserves_both_policy_pins(worktree, config):
+    record = record_for(
+        worktree,
+        config,
+        workflow_state=RunStatus.IMPLEMENTING,
+        policy_digest="a" * 64,
+        stage_start_id="b" * 64,
+    )
+    moved = transition_to(record, RunStatus.FOCUSED_VERIFYING, moment=MOMENT)
+    assert moved.policy_digest == record.policy_digest
+    assert moved.stage_start_id == record.stage_start_id
+
+
+@pytest.mark.parametrize("command", ("start", *MUTATING_V2_COMMANDS))
+@pytest.mark.parametrize(
+    "field,value", [("contract_sha256", "e" * 64), ("contract_path", "docs/different-contract.md")]
+)
+@pytest.mark.parametrize("governed", [False, True])
+def test_auto017_contract_configuration_drift_refuses_before_mutation(
+    v2_application, monkeypatch, command, field, value, governed
+):
+    application = v2_application(governed=governed)
+    if command == "start":
+        authorize_v2(application)
+    else:
+        prepared_policy_run(application, command=command)
+    document = application.config.model_dump(mode="json", exclude={"review_policy"})
+    document["stage"][field] = value
+    application._config = RunnerConfig.model_validate(document)
+    reason = (
+        StopReason.POLICY_BINDING_MISMATCH
+        if command != "start"
+        else (
+            StopReason.STAGE_START_AUTHORIZATION_CONFLICT
+            if governed
+            else StopReason.STAGE_START_NOT_AUTHORIZED
+        )
+    )
+    assert_refusal_without_effects(
+        application, command_action(application, command), reason, monkeypatch
+    )
+
+
+def test_auto017_binding_publication_conflict_has_its_typed_refusal(v2_application, monkeypatch):
+    from ai_workflow_engine.milestone_runner.state import (
+        ExclusivePublicationConflict,
+        StageStartStore,
+    )
+
+    application = v2_application()
+    authorize_v2(application)
+
+    def conflict(*args, **kwargs):
+        raise ExclusivePublicationConflict("competing binding")
+
+    monkeypatch.setattr(StageStartStore, "publish_binding", conflict)
+    with pytest.raises(RunRefused) as error:
+        application.start()
+    assert error.value.stop_reason is StopReason.STAGE_START_ALREADY_BOUND
+    assert not list(application.artifact_root.glob("*/policy.json"))
+    assert not list(application.artifact_root.glob("*/state.json"))
+
+
+@pytest.mark.parametrize("command", MUTATING_V2_COMMANDS)
+def test_auto017_remediation_substituted_run_directory(v2_application, monkeypatch, command):
+    import shutil
+
+    application = v2_application()
+    _, record = prepared_policy_run(application, command=command)
+    destination = application.artifact_root / "substituted-run"
+    shutil.copytree(application._read_store(record.run_id).run_directory, destination)
+    application._run_id = destination.name
+    assert_refusal_without_effects(
+        application,
+        command_action(application, command),
+        StopReason.POLICY_BINDING_MISMATCH,
+        monkeypatch,
+    )
+
+
+@pytest.mark.parametrize("run_id", ["arbitrary.Owner-17", "another_run.42"])
+def test_auto017_remediation_witness_first(v2_application, monkeypatch, run_id):
+    import hashlib
+
+    import ai_workflow_engine.milestone_runner.state as module
+
+    application = v2_application(run_id=run_id)
+    receipt = authorize_v2(application)
+    witness_path = (
+        application.artifact_root / "stage-starts" / f"{receipt.stage_start_id}.consumed.json"
+    )
+    assert not witness_path.exists()
+    writes = []
+    original = module.publish_exclusively
+
+    def observe(path, payload):
+        writes.append(path.name)
+        return original(path, payload)
+
+    monkeypatch.setattr(module, "publish_exclusively", observe)
+    report = application.start()
+    assert report.run_id == run_id
+    raw = witness_path.read_bytes()
+    document = json.loads(raw)
+    digest = document.pop("witness_digest")
+
+    def canonical(value):
+        return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+
+    assert digest == hashlib.sha256(canonical(document)).hexdigest()
+    assert document == dict(
+        schema_version=2,
+        stage_start_key=receipt.stage_start_key,
+        stage_start_id=receipt.stage_start_id,
+        stage_id=STAGE_ID,
+        contract_sha256=application.config.stage.contract_sha256,
+        authorization_digest=receipt.authorization_digest,
+        policy_digest=receipt.effective_policy_digest,
+        run_id=run_id,
+        binding_digest=json.loads(authority_path(application, receipt, "binding").read_bytes())[
+            "binding_digest"
+        ],
+    )
+    assert raw == canonical({**document, "witness_digest": digest})
+    assert writes.index(witness_path.name) < writes.index(f"{receipt.stage_start_id}.binding.json")
+
+
+@pytest.mark.parametrize("loss", ["none", "binding-latest", "witness"])
+@pytest.mark.parametrize("same_id", [False, True])
+def test_auto017_remediation_witness_second_refused(v2_application, monkeypatch, loss, same_id):
+    application = v2_application()
+    receipt = authorize_v2(application)
+    report = application.start()
+    if loss == "binding-latest":
+        authority_path(application, receipt, "binding").unlink()
+        (application.artifact_root / "latest-run.json").unlink()
+    elif loss == "witness":
+        (
+            application.artifact_root / "stage-starts" / f"{receipt.stage_start_id}.consumed.json"
+        ).unlink()
+    application._run_id = report.run_id if same_id else "second-arbitrary-run"
+    assert_refusal_without_effects(
+        application,
+        application.start,
+        StopReason.STAGE_START_ALREADY_BOUND,
+        monkeypatch,
+    )
+
+
+def witness_path_for(application, receipt):
+    return application.artifact_root / "stage-starts" / f"{receipt.stage_start_id}.consumed.json"
+
+
+WITNESS_MUTATIONS = (
+    *(m for m in COMMON_HOSTILE_AUTHORITY if m != "valid-foreign-content"),
+    "foreign-witness",
+    "bad-stage",
+    "bad-run",
+    "bad-digest",
+    "self-digest",
+    "run-traversal",
+    "run-absolute",
+    "run-drive",
+    "run-backslash",
+    "run-nul",
+    *(
+        f"duplicate-{field}-{variant}"
+        for field in ("run_id", "stage_id", "witness_digest")
+        for variant in ("equal", "different")
+    ),
+    *(
+        f"repin-{field}"
+        for field in (
+            "stage_start_key",
+            "stage_start_id",
+            "authorization_digest",
+            "policy_digest",
+            "contract_sha256",
+            "stage_id",
+            "run_id",
+            "binding_digest",
+        )
+    ),
+    "binding-old-pin",
+)
+
+
+def mutate_witness(path, mutation):
+    from ai_workflow_engine.milestone_runner.policy import authority_digest, authority_json_bytes
+
+    document = json.loads(path.read_bytes())
+    if mutation.startswith("repin-"):
+        field = mutation.removeprefix("repin-")
+        document[field] = {"stage_id": "ST-WRONG", "run_id": "wrong-run"}.get(field, "b" * 64)
+    elif mutation.startswith("duplicate-") and "_" in mutation:
+        _, field, variant = mutation.split("-")
+        value = document[field] if variant == "equal" else "conflicting-value"
+        path.write_bytes(
+            b"{"
+            + json.dumps(field).encode()
+            + b":"
+            + json.dumps(value).encode()
+            + b","
+            + path.read_bytes()[1:]
+        )
+        return
+    elif mutation == "foreign-witness":
+        foreign = valid_authorization_variant(
+            json.loads((path.parent / f"{document['stage_start_id']}.json").read_bytes()),
+            foreign_stage=True,
+        )
+        document.update(
+            stage_start_id=foreign.stage_start_id,
+            stage_start_key=foreign.stage_start_key,
+            stage_id=foreign.stage_id,
+            contract_sha256=foreign.contract_sha256,
+            authorization_digest=foreign.authorization_digest,
+            policy_digest=foreign.effective_policy_digest,
+        )
+        binding = {
+            k: document[k]
+            for k in (
+                "schema_version",
+                "stage_start_key",
+                "stage_start_id",
+                "authorization_digest",
+                "policy_digest",
+                "run_id",
+            )
+        }
+        document["binding_digest"] = authority_digest(binding)
+    elif mutation in {"bad-stage", "bad-run", "bad-digest", "self-digest", "binding-old-pin"}:
+        field, value = {
+            "bad-stage": ("stage_id", "../stage"),
+            "bad-run": ("run_id", ""),
+            "bad-digest": ("policy_digest", "G" * 64),
+            "self-digest": ("witness_digest", "b" * 64),
+            "binding-old-pin": ("binding_digest", "b" * 64),
+        }[mutation]
+        document[field] = value
+        if mutation in {"self-digest", "binding-old-pin"}:
+            path.write_bytes(authority_json_bytes(document))
+            return
+    else:
+        mutate_authority(path, "witness", mutation)
+        return
+    document["witness_digest"] = authority_digest(
+        {k: v for k, v in document.items() if k != "witness_digest"}
+    )
+    path.write_bytes(authority_json_bytes(document))
+
+
+@pytest.mark.parametrize("mutation", WITNESS_MUTATIONS)
+@pytest.mark.parametrize("command", ("start", "b0-recovery", *MUTATING_V2_COMMANDS))
+def test_auto017_remediation_hostile_witness(v2_application, monkeypatch, mutation, command):
+    application = v2_application()
+    receipt, _ = prepared_policy_run(
+        application,
+        command=command,
+        published=command not in {"start", "b0-recovery"},
+    )
+    if command == "b0-recovery":
+        authority_path(application, receipt, "binding").unlink()
+        # No witness and no binding is the genuine pre-consumption case, not hostile.
+        if mutation == "missing":
+            witness_path_for(application, receipt).unlink()
+            assert application.start().state is RunStatus.READY_FOR_COMMIT_APPROVAL
+            return
+    mutate_witness(witness_path_for(application, receipt), mutation)
+    act = application.start if command == "b0-recovery" else command_action(application, command)
+    assert_refusal_without_effects(
+        application,
+        act,
+        StopReason.STAGE_START_ALREADY_BOUND,
+        monkeypatch,
+    )
+
+
+@pytest.mark.parametrize("command", ("start", *MUTATING_V2_COMMANDS))
+@pytest.mark.parametrize("loss", ["binding-latest", "witness-and-binding"])
+def test_auto017_remediation_published_consumption_loss(v2_application, monkeypatch, command, loss):
+    application = v2_application()
+    receipt, _ = prepared_policy_run(application, command=command)
+    authority_path(application, receipt, "binding").unlink()
+    if loss == "binding-latest":
+        (application.artifact_root / "latest-run.json").unlink()
+    else:
+        witness_path_for(application, receipt).unlink()
+    assert_refusal_without_effects(
+        application,
+        command_action(application, command),
+        StopReason.STAGE_START_ALREADY_BOUND,
+        monkeypatch,
+    )
+
+
+@pytest.mark.parametrize(
+    "boundary", ["before-b0", "b0-link", "after-b0", "after-b1", "after-b2", "after-b3"]
+)
+def test_auto017_remediation_witness_crash_recovery(v2_application, monkeypatch, boundary):
+    import ai_workflow_engine.milestone_runner.application as app_module
+    import ai_workflow_engine.milestone_runner.state as state_module
+
+    application = v2_application(run_id="original-arbitrary-run")
+    receipt = authorize_v2(application)
+
+    def crash(*args, **kwargs):
+        raise RuntimeError("crash boundary")
+
+    with monkeypatch.context() as fault:
+        if boundary == "b0-link":
+            fault.setattr(state_module.os, "link", crash)
+        elif boundary == "after-b3":
+            fault.setattr(app_module, "record_latest_run", crash)
+        else:
+            cls, method = {
+                "before-b0": (state_module.StageStartStore, "publish_witness"),
+                "after-b0": (state_module.StageStartStore, "publish_binding"),
+                "after-b1": (RunStateStore, "publish_policy"),
+                "after-b2": (RunStateStore, "publish"),
+            }[boundary]
+            fault.setattr(cls, method, crash)
+        with pytest.raises(RuntimeError, match="crash boundary"):
+            application.start()
+    path = witness_path_for(application, receipt)
+    before = (path.read_bytes(), path.stat().st_mtime_ns) if path.exists() else None
+    application._run_id = "different-requested-run"
+    if boundary == "after-b3":
+        assert_refusal_without_effects(
+            application,
+            application.start,
+            StopReason.STAGE_START_ALREADY_BOUND,
+            monkeypatch,
+        )
+        return
+    report = application.start()
+    assert report.state is RunStatus.READY_FOR_COMMIT_APPROVAL
+    assert report.run_id == (
+        "different-requested-run" if before is None else "original-arbitrary-run"
+    )
+    if before:
+        assert (path.read_bytes(), path.stat().st_mtime_ns) == before
+    assert (
+        json.loads(path.read_bytes())["binding_digest"]
+        == json.loads(authority_path(application, receipt, "binding").read_bytes())[
+            "binding_digest"
+        ]
+    )
+    assert_refusal_without_effects(
+        application,
+        application.start,
+        StopReason.STAGE_START_ALREADY_BOUND,
+        monkeypatch,
+    )
+
+
+@pytest.mark.parametrize("command", ("start", *MUTATING_V2_COMMANDS))
+@pytest.mark.parametrize("target", ["authority-parent", "root-parent", "run-dir", "state"])
+def test_auto017_remediation_witness_parent_links(v2_application, monkeypatch, command, target):
+    application = v2_application()
+    receipt, record = prepared_policy_run(
+        application, command=command, published=command != "start"
+    )
+    paths = {
+        "authority-parent": witness_path_for(application, receipt).parent,
+        "root-parent": application.artifact_root,
+        "run-dir": application._read_store(record.run_id).run_directory,
+        "state": application._read_store(record.run_id).state_path,
+    }
+    path = paths[target]
+    if not path.exists():
+        if target == "run-dir":
+            path.mkdir()
+        else:
+            path.parent.mkdir(exist_ok=True)
+            path.write_bytes(b"must not be read")
+    moved = path.with_name(path.name + "-real")
+    path.rename(moved)
+    path.symlink_to(moved, target_is_directory=moved.is_dir())
+    expected = StopReason.STAGE_START_ALREADY_BOUND
+    if target == "root-parent" or (command != "start" and target == "run-dir"):
+        expected = (
+            StopReason.STAGE_START_NOT_AUTHORIZED
+            if command == "start"
+            else StopReason.POLICY_DIGEST_MISMATCH
+        )
+    elif target == "authority-parent":
+        expected = StopReason.STAGE_START_NOT_AUTHORIZED
+    elif command != "start" and target == "state":
+        assert_refusal_without_effects(
+            application,
+            command_action(application, command),
+            None,
+            monkeypatch,
+        )
+        return
+    assert_refusal_without_effects(
+        application,
+        command_action(application, command),
+        expected,
+        monkeypatch,
+    )
+
+
+def test_auto017_remediation_raced_b0_never_replaces_winner(v2_application, monkeypatch):
+    import ai_workflow_engine.milestone_runner.state as state_module
+    from ai_workflow_engine.milestone_runner.policy import authority_digest, authority_json_bytes
+
+    application = v2_application(run_id="first-run")
+    receipt = authorize_v2(application)
+    path = witness_path_for(application, receipt)
+    original = state_module.os.link
+    winner = None
+
+    def competing_link(source, destination, **kwargs):
+        nonlocal winner
+        if str(destination).endswith(".consumed.json"):
+            source_path = path.parent / source
+            payload = json.loads(source_path.read_bytes())
+            payload["run_id"] = "competing-run"
+            binding = {
+                k: payload[k]
+                for k in (
+                    "schema_version",
+                    "stage_start_key",
+                    "stage_start_id",
+                    "authorization_digest",
+                    "policy_digest",
+                    "run_id",
+                )
+            }
+            payload["binding_digest"] = authority_digest(binding)
+            payload["witness_digest"] = authority_digest(
+                {k: v for k, v in payload.items() if k != "witness_digest"}
+            )
+            winner = authority_json_bytes(payload)
+            path.write_bytes(winner)
+        return original(source, destination, **kwargs)
+
+    with monkeypatch.context() as race:
+        race.setattr(state_module.os, "link", competing_link)
+        with pytest.raises(RunRefused) as error:
+            application.start()
+    assert error.value.stop_reason is StopReason.STAGE_START_ALREADY_BOUND
+    assert path.read_bytes() == winner
+    assert not authority_path(application, receipt, "binding").exists()
+    assert not application._read_store("first-run").state_path.exists()
+    assert not application._read_store("competing-run").state_path.exists()
+
+
+def test_auto017_remediation_exact_name_witness_without_enumeration(v2_application, monkeypatch):
+    application = v2_application()
+    receipt = authorize_v2(application)
+    report = application.start()
+    authority_path(application, receipt, "binding").unlink()
+    (application.artifact_root / "latest-run.json").unlink()
+    application._run_id = "another-run"
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("consumption lookup enumerated a directory")
+
+    with monkeypatch.context() as guard:
+        for method in ("glob", "rglob", "iterdir"):
+            guard.setattr(Path, method, forbidden)
+        for method in ("listdir", "scandir", "walk"):
+            guard.setattr(os, method, forbidden)
+        with pytest.raises(RunRefused) as error:
+            application._start_preflight()
+    assert error.value.stop_reason is StopReason.STAGE_START_ALREADY_BOUND
+    assert witness_path_for(application, receipt).exists()
+    assert application._read_store(report.run_id).state_path.exists()
+
+
+@pytest.mark.parametrize("boundary", ["after-b0", "after-b1"])
+def test_auto017_remediation_b0_b1_revalidation_rejects_hostile_witness(
+    v2_application,
+    monkeypatch,
+    boundary,
+):
+    application = v2_application()
+    receipt, _ = prepared_policy_run(application, published=False)
+    if boundary == "after-b0":
+        authority_path(application, receipt, "binding").unlink()
+    original = application._locked
+
+    def mutate_after_lock(run_id):
+        lock = original(run_id)
+        mutate_witness(witness_path_for(application, receipt), "repin-binding_digest")
+        return lock
+
+    monkeypatch.setattr(application, "_locked", mutate_after_lock)
+    with pytest.raises(RunRefused) as error:
+        application.start()
+    assert error.value.stop_reason is StopReason.STAGE_START_ALREADY_BOUND
+    assert not application._read_store(application._run_id).state_path.exists()
+
+
+@pytest.mark.parametrize("published", [False, True])
+@pytest.mark.parametrize("binding_present", [False, True])
+def test_auto017_remediation_missing_pointer_after_consumption(
+    v2_application,
+    monkeypatch,
+    published,
+    binding_present,
+):
+    application = v2_application()
+    receipt, _ = prepared_policy_run(application, published=published)
+    authority_path(application, receipt, "pointer").unlink()
+    if not binding_present:
+        authority_path(application, receipt, "binding").unlink()
+    assert_refusal_without_effects(
+        application,
+        lambda: authorize_v2(application),
+        StopReason.STAGE_START_INPUT_CONFLICT,
+        monkeypatch,
+    )
+
+
+def test_auto017_remediation_stage_start_cannot_repair_consumed_binding(
+    v2_application, monkeypatch
+):
+    application = v2_application()
+    receipt = authorize_v2(application)
+    application.start()
+    authority_path(application, receipt, "binding").unlink()
+    (application.artifact_root / "latest-run.json").unlink()
+    application._run_id = "unknown-run"
+    assert_refusal_without_effects(
+        application,
+        lambda: authorize_v2(application),
+        StopReason.STAGE_START_INPUT_CONFLICT,
+        monkeypatch,
+    )

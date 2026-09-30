@@ -13,6 +13,91 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-09-30 — OWNER accepted the reviewed AUTO-017 implementation candidate (uncommitted)
+
+**Decision (OWNER).** `AUTO_017_IMPLEMENTATION_OWNER_ACCEPTED`. The one independent implementation
+discovery review produced exactly AUTO017-IMPL-R01, -R02, -R03, -R04, -R05 and -R06. All six
+frozen findings are now **CLOSED** (independent verdict `AUTO_017_IMPLEMENTATION_CLOSURE_PASS`);
+no finding was added. G-1 is `AUTO_017_G1_PASS_PATH_B` under `D-AUTO017-02 = B`. The OWNER accepts
+the current unstaged, uncommitted implementation candidate reviewed under exactly these
+authoritative **CLOSED / FROZEN** identities, which remain byte-unchanged:
+
+| Artifact | Path | Lines | Bytes | SHA-256 |
+|---|---|---:|---:|---|
+| AUTO-017 contract | `docs/workflow-automation/stage-prompts/AUTO-017.md` | 1717 | 138969 | `50760879b2f64c395c8c3c5ee83c3bdac1a8b8456588b144c068f01d1080b1e8` |
+| Master Plan | `docs/workflow-automation/successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md` | 1698 | 113150 | `8ab499c0240cc542e735eb5d1953dcd93994ebd87f1ef7413e9346805d613077` |
+
+Accepted OWNER rulings: `D-AUTO017-01 = B`, `D-AUTO017-02 = B`, `D-AUTO017-03 = A`. This entry
+supersedes, for current status, the "all pending remediation" and "blocked at G-1" statements in
+the two 2026-09-29 amendment-acceptance entries below; those entries remain unchanged as
+historical records.
+
+**Boundary.** This acceptance does not authorize `git add`, commit, push, tag or merge; commit
+authority remains separate and ungranted. AUTO-017 is not complete or closed: completion requires
+the accepted candidate to be committed under separate authority and committed-state verification
+to pass. No lifecycle state is promoted; registry state remains `AUTHORIZED` and AUTO-017 remains
+the sole `Current` task. AUTO-018 remains `Planned` and unauthorized. This recording step changes
+only governance mirrors and no production code, tests or completion report. Observed HEAD:
+`8d14e4394874078289653ea26483c54e968d6df2`; nothing is staged or committed.
+
+## 2026-09-29 — OWNER accepted and froze the reviewed AUTO017-IMPL-R02 bounded contract amendment
+
+**Decision (OWNER).** `AUTO_017_R02_CONTRACT_AMENDMENT_OWNER_ACCEPTED`. The bounded amendment
+under `D-AUTO017-03 = A` received independent verdict
+`AUTO_017_R02_CONTRACT_AMENDMENT_REVIEW_PASS` with no amendment findings. The OWNER accepts and
+freezes these exact amended artifacts as the new authoritative **CLOSED / FROZEN** revisions:
+
+| Artifact | Path | Lines | Bytes | SHA-256 |
+|---|---|---:|---:|---|
+| AUTO-017 contract | `docs/workflow-automation/stage-prompts/AUTO-017.md` | 1717 | 138969 | `50760879b2f64c395c8c3c5ee83c3bdac1a8b8456588b144c068f01d1080b1e8` |
+| Master Plan | `docs/workflow-automation/successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md` | 1698 | 113150 | `8ab499c0240cc542e735eb5d1953dcd93994ebd87f1ef7413e9346805d613077` |
+
+These identities supersede the G-1 amendment identities below for current authority. Earlier
+entries remain unchanged as historical records; the accepted artifacts remain byte-unchanged.
+
+**Binding semantics.** `D-AUTO017-03 = A` requires a durable, immutable, exact-name Stage Start
+consumption witness keyed by Stage Start authorization identity, published exclusively before
+the binding. It records an arbitrary grammar-valid run ID; the run ID is not derived from the
+authorization. The witness survives loss of the binding and/or `latest-run`; an already-consumed
+authorization cannot acquire a second binding. Lookup is by exact name with no enumeration.
+There is no silent witness recreation or replacement. Contract-defined crash recovery may only
+complete the first consumption pinned by the witness. Authenticated consumption remains deferred
+to later stages.
+
+**Implementation boundary.** AUTO017-IMPL-R01..R06 remain the frozen implementation finding set,
+all pending remediation, including AUTO017-IMPL-R02. This acceptance neither completes AUTO-017
+implementation nor closes AUTO017-IMPL-R02, authorizes a commit, changes production code/tests,
+or authorizes any new implementation path. No remediation is performed in this recording session.
+AUTO-017 remains the sole `Current` task; no lifecycle state is promoted. Observed HEAD:
+`8d14e4394874078289653ea26483c54e968d6df2`. Only the acceptance/freeze governance mirrors are
+updated; nothing is staged or committed.
+
+## 2026-09-29 — OWNER accepted and froze the reviewed AUTO-017 G-1 bounded amendment
+
+**Decision (OWNER).** `AUTO_017_G1_AMENDMENT_OWNER_ACCEPTED`. The bounded amendment authorized by
+`D-AUTO017-02 = B` received independent verdict `AUTO_017_G1_AMENDMENT_REVIEW_PASS` with no
+amendment findings. The OWNER accepts and freezes these exact amended artifacts as the new
+authoritative **CLOSED / FROZEN** revisions:
+
+| Artifact | Path | Lines | Bytes | SHA-256 |
+|---|---|---:|---:|---|
+| AUTO-017 contract | `docs/workflow-automation/stage-prompts/AUTO-017.md` | 1619 | 126060 | `a139a79d2c4e35b03ea9ae7d66f87ae9500c0dc7ddcf9945745abd67976d1252` |
+| Master Plan | `docs/workflow-automation/successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md` | 1686 | 112255 | `8c28a10e9c2c0583e9ac387f8468ab89012092c204ad1f81a5450cdd0d977b8e` |
+
+These identities supersede the earlier frozen identities in the 2026-09-29 contract-acceptance
+and implementation-authorization entries for current authority; those entries remain unchanged
+as historical records. `D-AUTO017-02 = B` remains binding: the complete configured `pytest -q`
+suite must execute. Exit 0 passes normally. Independently proven `BASELINE_PREEXISTING` or
+`ENVIRONMENTAL` non-passing results may qualify under contract §17.1. `CANDIDATE_CAUSED` fails;
+`INDETERMINATE` and unattributed results block. Removing, skipping, xfail-marking or weakening a
+failing test does not qualify.
+
+**Implementation boundary.** The current AUTO-017 implementation candidate remains blocked at
+G-1 because the historical stylesheet hang is `INDETERMINATE`. This acceptance does not mark
+implementation complete, authorize an implementation commit, waive G-1, resolve the hang, or
+change production code or tests. AUTO-017 remains the sole `Current` task; no lifecycle state is
+promoted. Observed HEAD for this bounded recording: `8d14e4394874078289653ea26483c54e968d6df2`.
+
 ## 2026-09-29 — OWNER authorized AUTO-017 implementation against the frozen contract and Master Plan
 
 **Decision (OWNER).** "The OWNER now authorizes implementation of AUTO-017 against exactly these frozen

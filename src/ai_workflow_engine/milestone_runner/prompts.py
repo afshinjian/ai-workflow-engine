@@ -46,6 +46,7 @@ from pydantic import field_validator
 
 from ai_workflow_engine.milestone_runner.models import (
     MAX_IDENTIFIER_CHARS,
+    STAGE_ID_RE,
     Finding,
     FindingSeverity,
     MilestoneRunnerModel,
@@ -65,7 +66,7 @@ MAX_DATA_CHARS: Final = 200_000
 TRUNCATION_MARKER: Final = "\n[TRUNCATED BY THE RUNNER: the payload exceeded its ceiling]"
 
 _RUN_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}")
-_STAGE_ID_RE = re.compile(r"AUTO-[0-9]{3}")
+_STAGE_ID_RE = STAGE_ID_RE
 _BRANCH_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._/-]*")
 _OBJECT_ID_RE = re.compile(r"[0-9a-f]{40}|[0-9a-f]{64}")
 _SHA256_HEX_RE = re.compile(r"[0-9a-f]{64}")

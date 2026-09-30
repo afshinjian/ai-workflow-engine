@@ -53,6 +53,8 @@ from pydantic import ValidationError
 from ai_workflow_engine.exceptions import WorkflowEngineError
 from ai_workflow_engine.milestone_runner.config import RunnerConfig
 from ai_workflow_engine.milestone_runner.models import (
+    LEGACY_MILESTONE_ID_RE,
+    MILESTONE_ID_RE,
     MilestoneSpec,
     StopReason,
     normalize_repository_path,
@@ -68,7 +70,10 @@ PLANS_DIRECTORY: Final = "plans"
 
 #: A plan file is named for the milestone it defines. The grammar is closed, so listing the
 #: external root is a filter over exact names rather than a pattern search.
-PLAN_FILE_NAME_RE = re.compile(r"(?P<milestone_id>AUTO-[0-9]{3}-M[0-9]{2})\.yaml")
+PLAN_FILE_NAME_RE = re.compile(
+    r"(?P<milestone_id>" + r"(?=\.yaml\Z)".join(MILESTONE_ID_RE.pattern.split(r"\Z")) + r")\.yaml"
+)
+LEGACY_PLAN_FILE_NAME_RE = re.compile(r"(?P<milestone_id>AUTO-[0-9]{3}-M[0-9]{2})\.yaml")
 
 #: The characters that make an allowlist entry a pattern rather than a path. DEC-016-005 rule 2
 #: requires the *exact path*; an entry carrying any of these is a glob, and a glob is refused.
@@ -97,6 +102,12 @@ class PlanError(WorkflowEngineError):
 
 class PlanValidationError(PlanError):
     """The plan document is absent, unreadable, malformed, or breaks a plan-level rule."""
+
+
+class _PlanStageMismatch(PlanValidationError):
+    """A v2 milestone names a Stage other than the explicitly configured one."""
+
+    stop_reason: ClassVar[StopReason | None] = StopReason.INVALID_CONFIGURATION
 
 
 class PlanDependencyCycle(PlanValidationError):
@@ -283,6 +294,10 @@ class MilestonePlanLoader:
         self.config = config
         self.repository_root = repository_root
 
+    @property
+    def _file_name_re(self) -> re.Pattern[str]:
+        return LEGACY_PLAN_FILE_NAME_RE if self.config.schema_version == 1 else PLAN_FILE_NAME_RE
+
     def plan_root(self) -> PlanRoot:
         """This run's plan root, resolved under DEC-016-005 (see :func:`resolve_plan_root`)."""
         return resolve_plan_root(self.config, self.repository_root)
@@ -314,7 +329,7 @@ class MilestonePlanLoader:
             raise PlanValidationError(f"Cannot read the plan root {root}: {exc}") from exc
         selected: list[Path] = []
         for name in entries:
-            if PLAN_FILE_NAME_RE.fullmatch(name) is None:
+            if self._file_name_re.fullmatch(name) is None:
                 continue
             candidate = root / name
             if candidate.is_symlink() or not candidate.is_file():
@@ -339,7 +354,7 @@ class MilestonePlanLoader:
             if not _is_verbatim_path(entry):
                 continue
             parent, _, name = entry.rpartition("/")
-            if parent != directory or PLAN_FILE_NAME_RE.fullmatch(name) is None:
+            if parent != directory or self._file_name_re.fullmatch(name) is None:
                 continue
             selected.append(self.repository_root / entry)
         if not selected:
@@ -390,7 +405,23 @@ class MilestonePlanLoader:
             raise PlanValidationError(
                 f"The plan file {path} is not a valid milestone: {exc}"
             ) from exc
-        expected = PLAN_FILE_NAME_RE.fullmatch(path.name)
+        ids = [milestone.milestone_id, *milestone.depends_on]
+        for identifier in ids:
+            valid = (
+                LEGACY_MILESTONE_ID_RE.fullmatch(identifier) is not None
+                if self.config.schema_version == 1
+                else re.fullmatch(re.escape(self.config.stage.stage_id) + r"-M[0-9]{2}", identifier)
+                is not None
+            )
+            if not valid:
+                if self.config.schema_version == 2:
+                    raise _PlanStageMismatch(
+                        "milestone ID does not match the configuration mode/Stage"
+                    )
+                raise PlanValidationError(
+                    "milestone ID does not match the configuration mode/Stage"
+                )
+        expected = self._file_name_re.fullmatch(path.name)
         if expected is not None and expected.group("milestone_id") != milestone.milestone_id:
             raise PlanValidationError(
                 f"The plan file {path} defines {milestone.milestone_id}, which its name does not "

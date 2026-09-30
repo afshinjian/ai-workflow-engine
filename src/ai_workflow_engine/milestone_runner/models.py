@@ -65,7 +65,7 @@ class MilestoneRunnerModel(StrictModel):
 
 #: Section 11: `state.json` carries a `schema_version`, and an unknown version is a hard
 #: refusal (`STATE_SCHEMA_UNKNOWN`), never a best-effort read.
-STATE_SCHEMA_VERSION = 1
+STATE_SCHEMA_VERSION = 2
 
 #: Section 14: the milestone plan is a versioned schema whose unknown versions are rejected.
 PLAN_SCHEMA_VERSION = 1
@@ -242,11 +242,21 @@ class StopReason(StrEnum):
     """The typed reason a run stopped -- exactly the codes the contract names verbatim.
 
     Sections 4, 11, 12, 14 and 15 each name a code in backticks; those twelve are transcribed
-    here and nothing is invented alongside them. Section 15's cumulative-allowlist and
+    here; AUTO-017 section 14.1 names the eight additions. Section 15's cumulative-allowlist and
     forbidden-path checks are described as stops but are given no code name by the contract, so
     none is coined here: the narrower reading is implemented and the gap is reported rather than
     filled by guesswork.
     """
+
+    # AUTO-017 section 14.1 adds exactly these eight refusal codes.
+    STAGE_START_NOT_AUTHORIZED = "STAGE_START_NOT_AUTHORIZED"
+    STAGE_START_AUTHORIZATION_CONFLICT = "STAGE_START_AUTHORIZATION_CONFLICT"
+    POLICY_DIGEST_MISMATCH = "POLICY_DIGEST_MISMATCH"
+    STAGE_START_INPUT_CONFLICT = "STAGE_START_INPUT_CONFLICT"
+    STAGE_START_ALREADY_BOUND = "STAGE_START_ALREADY_BOUND"
+    STAGE_START_NOT_CONFIRMED = "STAGE_START_NOT_CONFIRMED"
+    POLICY_BINDING_MISMATCH = "POLICY_BINDING_MISMATCH"
+    LIVE_PROVIDER_NOT_ENABLED = "LIVE_PROVIDER_NOT_ENABLED"
 
     STAGE_ID_NOT_AUTHORIZED = "STAGE_ID_NOT_AUTHORIZED"
     REPOSITORY_IDENTITY_MISMATCH = "REPOSITORY_IDENTITY_MISMATCH"
@@ -355,7 +365,14 @@ MAX_PATH_CHARS = 512
 MAX_ROOT_PATH_CHARS = 4_096
 MAX_ARGUMENT_CHARS = 4_096
 
-_MILESTONE_ID_RE = re.compile(r"AUTO-[0-9]{3}-M[0-9]{2}")
+LEGACY_STAGE_ID_RE = re.compile(r"AUTO-[0-9]{3}")
+LEGACY_MILESTONE_ID_RE = re.compile(r"AUTO-[0-9]{3}-M[0-9]{2}")
+_STAGE_ID_PATTERN = r"[A-Z][A-Z0-9]{0,15}(?:-[A-Z0-9]{1,16}){0,4}"
+STAGE_ID_RE = re.compile(r"(?=.{1,64}\Z)(?!(?:.*-)?M[0-9]{2}\Z)" + _STAGE_ID_PATTERN)
+MILESTONE_ID_RE = re.compile(
+    r"(?=.{1,68}\Z)(?!(?:.*-)?M[0-9]{2}-M[0-9]{2}\Z)" + _STAGE_ID_PATTERN + r"-M[0-9]{2}"
+)
+_MILESTONE_ID_RE = MILESTONE_ID_RE
 _FINDING_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 _SHA256_HEX_RE = re.compile(r"[0-9a-f]{64}")
 _GIT_OBJECT_ID_RE = re.compile(r"[0-9a-f]{40}|[0-9a-f]{64}")
@@ -594,6 +611,11 @@ def canonical_digest(payload: object) -> str:
     List order is significant and preserved; a caller that wants order-independence sorts before
     hashing (`_sorted_unique` enforces exactly that on every list-of-paths field here).
     """
+    return hashlib.sha256(canonical_json_bytes(payload)).hexdigest()
+
+
+def canonical_json_bytes(payload: object) -> bytes:
+    """The unchanged canonical serialization used by the v1 digest."""
     canonical = _canonicalize(payload, "payload")
     text = json.dumps(
         canonical,
@@ -603,7 +625,7 @@ def canonical_digest(payload: object) -> str:
         separators=(",", ":"),
         check_circular=True,
     )
-    return hashlib.sha256(text.encode("utf-8", errors="strict")).hexdigest()
+    return text.encode("utf-8", errors="strict")
 
 
 # --------------------------------------------------------------------------------------
@@ -1137,6 +1159,8 @@ class RunRecord(MilestoneRunnerModel):
     stop_reason: StopReason | None = None
     created_at: str
     updated_at: str
+    policy_digest: str | None = None
+    stage_start_id: str | None = None
     current_milestone: str | None = None
     completed_milestones: list[str] = Field(default_factory=list)
     #: One content-addressed observation per completed milestone, in completion order. Section
@@ -1172,6 +1196,15 @@ class RunRecord(MilestoneRunnerModel):
                 f"only {STATE_SCHEMA_VERSION}"
             )
         return value
+
+    @property
+    def is_policy_governed(self) -> bool:
+        return self.policy_digest is not None
+
+    @field_validator("policy_digest", "stage_start_id")
+    @classmethod
+    def _validate_policy_identifiers(cls, value: str | None) -> str | None:
+        return None if value is None else _sha256_hex(value, "policy identifier")
 
     @field_validator("run_id", "repository_identity", "expected_branch")
     @classmethod
@@ -1232,6 +1265,8 @@ class RunRecord(MilestoneRunnerModel):
 
     @model_validator(mode="after")
     def _validate_record(self) -> "RunRecord":
+        if (self.policy_digest is None) != (self.stage_start_id is None):
+            raise ValueError("policy_digest and stage_start_id must be paired")
         if (
             self.workflow_state is RunStatus.HUMAN_INTERVENTION_REQUIRED
             and self.stop_reason is None

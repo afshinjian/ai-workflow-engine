@@ -7,7 +7,62 @@ so keep the version line's wording exact if you edit it.
 
 Current Version: 1.0.0
 
-## Latest governance activity — AUTO-017 implementation authorization recorded
+## Latest governance activity — AUTO-017 implementation candidate OWNER-accepted (uncommitted)
+
+On 2026-09-30, the OWNER recorded `AUTO_017_IMPLEMENTATION_OWNER_ACCEPTED` for the current
+unstaged, uncommitted AUTO-017 implementation candidate. The one independent implementation
+discovery review's frozen findings AUTO017-IMPL-R01..R06 are all **CLOSED**
+(`AUTO_017_IMPLEMENTATION_CLOSURE_PASS`), and G-1 is `AUTO_017_G1_PASS_PATH_B` under
+`D-AUTO017-02 = B`. The contract (1717 lines, 138969 bytes, SHA-256
+`50760879b2f64c395c8c3c5ee83c3bdac1a8b8456588b144c068f01d1080b1e8`) and Master Plan (1698 lines,
+113150 bytes, SHA-256 `8ab499c0240cc542e735eb5d1953dcd93994ebd87f1ef7413e9346805d613077`) remain
+the unchanged CLOSED / FROZEN authority. This supersedes the "pending remediation" and "blocked at
+G-1" statements in the sections below for current status.
+
+Commit authority remains separate and ungranted: no `git add`, commit, push, tag or merge is
+authorized. AUTO-017 is not complete until the accepted candidate is committed and committed-state
+verification passes. It remains `AUTHORIZED` and the sole `Current` task; AUTO-018 remains
+unauthorized. Full record: `docs/DECISION_LOG.md`, 2026-09-30.
+
+## Prior governance activity — AUTO017-IMPL-R02 contract amendment accepted and frozen
+
+On 2026-09-29, the OWNER recorded `AUTO_017_R02_CONTRACT_AMENDMENT_OWNER_ACCEPTED` under
+`D-AUTO017-03 = A`, following independent `AUTO_017_R02_CONTRACT_AMENDMENT_REVIEW_PASS` with
+no amendment findings. The new authoritative **CLOSED / FROZEN** revisions are:
+
+- AUTO-017 contract `docs/workflow-automation/stage-prompts/AUTO-017.md`: 1717 lines, 138969 bytes,
+  SHA-256 `50760879b2f64c395c8c3c5ee83c3bdac1a8b8456588b144c068f01d1080b1e8`.
+- Master Plan `docs/workflow-automation/successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`:
+  1698 lines, 113150 bytes, SHA-256
+  `8ab499c0240cc542e735eb5d1953dcd93994ebd87f1ef7413e9346805d613077`.
+
+These identities supersede the earlier identities below. Binding witness semantics and acceptance
+are recorded in `docs/DECISION_LOG.md`'s AUTO017-IMPL-R02 amendment acceptance entry.
+AUTO017-IMPL-R01..R06 remain the frozen implementation finding set, all pending remediation.
+This acceptance does not complete implementation, close AUTO017-IMPL-R02, authorize a commit
+or any new implementation path. This session changes only governance documentation and performs
+no remediation. AUTO-017 remains the sole `Current` task; no lifecycle state is promoted.
+
+## Prior governance activity — AUTO-017 G-1 amendment accepted and frozen
+
+On 2026-09-29, the OWNER recorded `AUTO_017_G1_AMENDMENT_OWNER_ACCEPTED` after independent
+`AUTO_017_G1_AMENDMENT_REVIEW_PASS` with no amendment findings. The reviewed
+`D-AUTO017-02 = B` amendment makes these the new authoritative **CLOSED / FROZEN** revisions:
+
+- AUTO-017 contract `docs/workflow-automation/stage-prompts/AUTO-017.md`: 1619 lines, 126060 bytes,
+  SHA-256 `a139a79d2c4e35b03ea9ae7d66f87ae9500c0dc7ddcf9945745abd67976d1252`.
+- Master Plan `docs/workflow-automation/successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`:
+  1686 lines, 112255 bytes, SHA-256
+  `8c28a10e9c2c0583e9ac387f8468ab89012092c204ad1f81a5450cdd0d977b8e`.
+
+`D-AUTO017-02 = B` keeps the complete configured pytest suite mandatory, with the G-1
+attribution rules in contract §17.1. The current implementation candidate remains blocked at
+G-1 by the `INDETERMINATE` historical stylesheet hang. This acceptance does not complete
+implementation, authorize its commit, waive G-1 or resolve the hang. AUTO-017 remains the sole
+`Current` task. Earlier identities and authorization facts below are historical; full current
+authority is recorded in `docs/DECISION_LOG.md`'s G-1 amendment acceptance entry.
+
+## Prior governance activity — AUTO-017 implementation authorization recorded
 
 **OWNER authorization (2026-09-29): `AUTO_017_IMPLEMENTATION_AUTHORIZED`.** AUTO-017 is `AUTHORIZED`
 in `docs/workflow-automation/STAGE_REGISTRY.md` and the sole `Current` task. Implementation has NOT

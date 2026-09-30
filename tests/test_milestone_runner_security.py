@@ -22,6 +22,7 @@ modules they guard.
 """
 
 import ast
+import hashlib
 import json
 import os
 import re
@@ -218,6 +219,42 @@ def offending(tmp_path: Path, name: str, source: str) -> ast.Module:
     path = tmp_path / name
     path.write_text(source, encoding="utf-8")
     return ast.parse(path.read_text(encoding="utf-8"))
+
+
+def import_aliases(tree: ast.AST) -> dict[str, str]:
+    """Resolve direct and qualified imports without executing the module under inspection."""
+    aliases: dict[str, str] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for imported in node.names:
+                aliases[imported.asname or imported.name.split(".")[0]] = (
+                    imported.name if imported.asname else imported.name.split(".")[0]
+                )
+        elif isinstance(node, ast.ImportFrom):
+            for imported in node.names:
+                aliases[imported.asname or imported.name] = (
+                    f"{node.module}.{imported.name}" if node.module else imported.name
+                )
+    return aliases
+
+
+def call_reference(node: ast.AST, aliases: Mapping[str, str]) -> str:
+    if isinstance(node, ast.Name):
+        return aliases.get(node.id, node.id)
+    if isinstance(node, ast.Attribute):
+        return f"{call_reference(node.value, aliases)}.{node.attr}"
+    return "<expression>"
+
+
+def scoped_nodes(
+    node: ast.AST, scope: tuple[str, ...] = ()
+) -> Iterator[tuple[tuple[str, ...], ast.AST]]:
+    """Lexical ownership includes nested functions, so a helper cannot borrow its caller's grant."""
+    if isinstance(node, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
+        scope = (*scope, node.name)
+    yield scope, node
+    for child in ast.iter_child_nodes(node):
+        yield from scoped_nodes(child, scope)
 
 
 # --------------------------------------------------------------------------------------
@@ -612,12 +649,12 @@ def mutating_git_tokens(tree: ast.AST) -> list[str]:
 
 class TestMutatingGitOnlyInApprovalGitModule:
     """Invariant 4, stated precisely rather than absolutely: (a) zero mutating Git subcommands in
-    the other eighteen files of section 8, and (b) `approval_git.py` has exactly one caller path,
-    from the two approval commands."""
+    the other eighteen baseline files plus AUTO-017's policy.py, and (b) `approval_git.py` has
+    exactly one caller path, from the two approval commands."""
 
     def test_the_other_eighteen_files_name_no_mutating_subcommand(self) -> None:
         sources = package_sources(exclude=frozenset({"approval_git.py"}))
-        assert len(sources) == 18, [source.name for source in sources]
+        assert len(sources) == 19, [source.name for source in sources]
         offenders = {
             source.name: mutating_git_tokens(parsed(source))
             for source in sources
@@ -1576,14 +1613,15 @@ ENUMERATION_CALLS: Final[frozenset[str]] = frozenset(
 )
 
 
-def enumeration_sites(tree: ast.AST) -> set[str]:
-    return {
-        node.func.attr
+def enumeration_sites(tree: ast.AST) -> list[str]:
+    """Keep multiplicity and imported aliases: two plan-root listings are two sites."""
+    aliases = import_aliases(tree)
+    return [
+        name
         for node in ast.walk(tree)
         if isinstance(node, ast.Call)
-        and isinstance(node.func, ast.Attribute)
-        and node.func.attr in ENUMERATION_CALLS
-    }
+        and (name := call_reference(node.func, aliases).rsplit(".", 1)[-1]) in ENUMERATION_CALLS
+    ]
 
 
 class TestNoPlanDiscoveryInsideTheRepository:
@@ -1608,7 +1646,7 @@ class TestNoPlanDiscoveryInsideTheRepository:
                 "    return sorted(root.rglob('*.yaml'))\n",
             )
         )
-        assert found == {"rglob"}
+        assert found == ["rglob"]
 
     def test_a_repository_local_plan_directory_is_refused(
         self, tmp_path: Path, worktree: Path, isolated_home: Path
@@ -1785,6 +1823,693 @@ class TestPrototypeDefectRegressionsAreComplete:
             if (match := re.fullmatch(r"TestP(\d+)[A-Z].*", name)) is not None
         )
         assert numbers == list(range(1, 11))
+
+
+# --------------------------------------------------------------------------------------
+# AUTO-017 sections 13, 16.3/16.4 and 19 -- additive structural security gates
+# --------------------------------------------------------------------------------------
+
+STAGE_START_SCOPE: Final = ("MilestoneRunnerApplication", "stage_start")
+AUTHORIZATION_PARSERS: Final = frozenset(
+    {
+        "model_validate",
+        "model_validate_json",
+        "model_validate_strings",
+        "parse_obj",
+        "parse_raw",
+        "generic_parser",
+    }
+)
+
+
+def generic_model_parsers(trees: Sequence[ast.AST]) -> frozenset[str]:
+    """Trace helpers that parse their model parameter, including a forwarding read helper."""
+    functions = [
+        node
+        for tree in trees
+        for node in ast.walk(tree)
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
+    ]
+    found: set[str] = set()
+    changed = True
+    while changed:
+        changed = False
+        for function in functions:
+            parameters = {
+                arg.arg
+                for arg in (
+                    *function.args.posonlyargs,
+                    *function.args.args,
+                    *function.args.kwonlyargs,
+                )
+            }
+            for node in ast.walk(function):
+                if not isinstance(node, ast.Call):
+                    continue
+                direct = (
+                    isinstance(node.func, ast.Attribute)
+                    and node.func.attr in AUTHORIZATION_PARSERS
+                    and isinstance(node.func.value, ast.Name)
+                    and node.func.value.id in parameters
+                )
+                forwarded = call_reference(node.func, {}).rsplit(".", 1)[-1] in found and any(
+                    isinstance(arg, ast.Name) and arg.id in parameters
+                    for arg in [*node.args, *(kw.value for kw in node.keywords)]
+                )
+                if (direct or forwarded) and function.name not in found:
+                    found.add(function.name)
+                    changed = True
+    return frozenset(found)
+
+
+def authorization_sites(
+    tree: ast.AST, generic_parsers: frozenset[str] = frozenset()
+) -> list[tuple[tuple[str, ...], str]]:
+    """Find authorization construction, bypass construction, copying and byte parsing.
+
+    Track imported aliases, annotated receivers and assignments to constructed authorities. A
+    ``model_copy`` on a RunRecord is unrelated; one on an authority is a new authority and must
+    obey the same ownership boundary as its constructor.
+    """
+    aliases = import_aliases(tree)
+    generic_parsers = generic_parsers | generic_model_parsers([tree])
+    authority_names = {"StageStartAuthorization"}
+    authority_names.update(
+        name for name, target in aliases.items() if target.endswith(".StageStartAuthorization")
+    )
+
+    def is_authority(node: ast.AST | None) -> bool:
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            try:
+                return is_authority(ast.parse(node.value, mode="eval"))
+            except SyntaxError:
+                return False
+        return node is not None and any(
+            (isinstance(part, ast.Name) and part.id in authority_names)
+            or (isinstance(part, ast.Attribute) and part.attr == "StageStartAuthorization")
+            for part in ast.walk(node)
+        )
+
+    typed: set[tuple[tuple[str, ...], str]] = set()
+    nodes = list(scoped_nodes(tree))
+    for scope, node in nodes:
+        if isinstance(node, ast.arg) and is_authority(node.annotation):
+            typed.add((scope, node.arg))
+        elif isinstance(node, ast.AnnAssign) and is_authority(node.annotation):
+            typed.add((scope, call_reference(node.target, {})))
+        if scope and scope[0] == "StageStartAuthorization":
+            typed.update({(scope, "self"), (scope, "cls")})
+
+    def receiver_is_authority(node: ast.AST, scope: tuple[str, ...]) -> bool:
+        reference = call_reference(node, aliases)
+        if reference.rsplit(".", 1)[-1] == "StageStartAuthorization":
+            return True
+        if isinstance(node, ast.Name) and node.id in authority_names:
+            return True
+        if any(
+            (scope[:index], call_reference(node, {})) in typed for index in range(len(scope) + 1)
+        ):
+            return True
+        if isinstance(node, ast.Call):
+            return receiver_is_authority(node.func, scope)
+        if isinstance(node, ast.Attribute) and node.attr in AUTHORIZATION_PARSERS | {
+            "model_copy",
+            "model_construct",
+        }:
+            return receiver_is_authority(node.value, scope)
+        return False
+
+    # A small fixed point handles ``alias = authority`` and constructor results without requiring
+    # a type checker or executing potentially offending production code.
+    changed = True
+    while changed:
+        changed = False
+        for scope, node in nodes:
+            if not isinstance(node, ast.Assign | ast.AnnAssign) or node.value is None:
+                continue
+            if not receiver_is_authority(node.value, scope):
+                continue
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            for target in targets:
+                key = (scope, call_reference(target, {}))
+                if key not in typed:
+                    typed.add(key)
+                    changed = True
+
+    found: list[tuple[tuple[str, ...], str]] = []
+    for scope, node in nodes:
+        if not isinstance(node, ast.Call):
+            continue
+        function = node.func
+        if isinstance(function, ast.Attribute) and function.attr in AUTHORIZATION_PARSERS | {
+            "model_construct",
+            "model_copy",
+        }:
+            if receiver_is_authority(function.value, scope):
+                found.append((scope, function.attr))
+        elif receiver_is_authority(function, scope):
+            found.append((scope, "constructor"))
+        elif call_reference(function, aliases).rsplit(".", 1)[-1] in generic_parsers and any(
+            is_authority(argument)
+            for argument in [*node.args, *(keyword.value for keyword in node.keywords)]
+        ):
+            found.append((scope, "generic_parser"))
+    return found
+
+
+class TestAuto017AuthorizationConstructionAuthority:
+    """T-INV10-AST / INV-017-8: only the explicitly confirmed entry point creates authority."""
+
+    def test_only_stage_start_constructs_and_only_state_loader_parses(self) -> None:
+        constructors: list[tuple[str, tuple[str, ...], str]] = []
+        parsers: list[tuple[str, tuple[str, ...], str]] = []
+        sources = {source: parsed(source) for source in package_sources()}
+        generic_parsers = generic_model_parsers(list(sources.values()))
+        for source, tree in sources.items():
+            for scope, operation in authorization_sites(tree, generic_parsers):
+                site = (source.name, scope, operation)
+                if operation in AUTHORIZATION_PARSERS:
+                    parsers.append(site)
+                    # State reads and the single write boundary share the same bounded,
+                    # validated loader. No other state helper may manufacture authority.
+                    assert source.name == "state.py" and scope in {
+                        ("StageStartStore", "read_authorization"),
+                        ("_validate_stage_start_payload",),
+                    }, site
+                else:
+                    constructors.append(site)
+                    assert source.name == "application.py" and scope == STAGE_START_SCOPE, site
+        assert constructors, "the real stage_start constructor must be covered"
+        assert parsers, "the real state loader must be covered"
+
+    @pytest.mark.parametrize(
+        ("body", "operation"),
+        [
+            ("return Auth(**payload)", "constructor"),
+            ("return Auth.model_construct(**payload)", "model_construct"),
+            ("return authority.model_copy(update=payload)", "model_copy"),
+            ("return Auth.model_validate_json(payload)", "model_validate_json"),
+            ("alias = authority\n    return alias.model_copy(update=payload)", "model_copy"),
+            ("alias = Auth\n    return alias(**payload)", "constructor"),
+            (
+                "def parse(payload, model):\n        return model.model_validate_json(payload)\n"
+                "    return parse(payload, Auth)",
+                "generic_parser",
+            ),
+        ],
+    )
+    def test_planted_constructor_parser_and_copy_bypasses_are_detected(
+        self, tmp_path: Path, body: str, operation: str
+    ) -> None:
+        tree = offending(
+            tmp_path,
+            "authority_offender.py",
+            "from ai_workflow_engine.milestone_runner.policy import "
+            "StageStartAuthorization as Auth\n"
+            "def unauthorized(payload, authority: Auth):\n    " + body + "\n",
+        )
+        assert authorization_sites(tree) == [(("unauthorized",), operation)]
+
+    def test_nested_helper_does_not_inherit_stage_start_authority(self, tmp_path: Path) -> None:
+        tree = offending(
+            tmp_path,
+            "nested_offender.py",
+            "class MilestoneRunnerApplication:\n"
+            "    def stage_start(self):\n"
+            "        def unauthorized():\n"
+            "            return StageStartAuthorization()\n",
+        )
+        assert authorization_sites(tree) == [((*STAGE_START_SCOPE, "unauthorized"), "constructor")]
+
+
+class TestAuto017NoEnumeration:
+    """T-NO-ENUMERATION / INV-017-13: even another listing in plan.py is forbidden."""
+
+    def test_only_the_original_plan_root_listing_exists(self) -> None:
+        sites = []
+        for source in package_sources():
+            tree = parsed(source)
+            aliases = import_aliases(tree)
+            for scope, node in scoped_nodes(tree):
+                if not isinstance(node, ast.Call):
+                    continue
+                name = call_reference(node.func, aliases)
+                if name.rsplit(".", 1)[-1] in ENUMERATION_CALLS:
+                    sites.append((str(source.relative_to(PACKAGE_ROOT)), scope, ast.unparse(node)))
+        assert sites == [
+            ("plan.py", ("MilestonePlanLoader", "_external_plan_paths"), "os.listdir(root)")
+        ]
+
+    def test_aliases_bare_glob_and_repeated_listings_are_detected(self, tmp_path: Path) -> None:
+        tree = offending(
+            tmp_path,
+            "enumeration_offender.py",
+            "from os import listdir as scan\nfrom glob import glob\n"
+            "scan('stage-starts')\nscan('stage-starts')\nglob('*.json')\n",
+        )
+        assert enumeration_sites(tree) == ["listdir", "listdir", "glob"]
+
+
+def successor_literals(tree: ast.AST) -> list[str]:
+    return [
+        literal
+        for literal in code_string_literals(tree)
+        if re.fullmatch(r"[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-[0-9]{2,3}", literal)
+    ]
+
+
+class TestAuto017NoSuccessorSelection:
+    """T-NO-SUCCESSOR / INV-017-9: there is no hard-coded current or successor Stage ID."""
+
+    def test_package_contains_no_stage_id_literal(self) -> None:
+        for source in package_sources():
+            assert successor_literals(parsed(source)) == [], source.name
+
+    def test_exact_contract_grammar_and_docstring_exclusion(self, tmp_path: Path) -> None:
+        tree = offending(
+            tmp_path,
+            "successor_offender.py",
+            '"""AUTO-018"""\n'
+            'stages = ["AUTO-018", "AWE-AUTO-ST-01", "DEMO-123", "A9-B2-00"]\n'
+            'ordinary = ["AUTO-1", "AUTO-1000", "prefix AUTO-018", "AUTO-018 suffix", "auto-018"]\n'
+            'class Documentation:\n    """AUTO-019"""\n'
+            '    def explain(self):\n        """AUTO-020"""\n',
+        )
+        assert successor_literals(tree) == ["AUTO-018", "AWE-AUTO-ST-01", "DEMO-123", "A9-B2-00"]
+
+
+def resolution_sites(tree: ast.AST) -> list[tuple[tuple[str, ...], str]]:
+    aliases = import_aliases(tree)
+    return [
+        (scope, name)
+        for scope, node in scoped_nodes(tree)
+        if isinstance(node, ast.Call)
+        and (name := call_reference(node.func, aliases).rsplit(".", 1)[-1])
+        in {"resolve_policy", "load_policy_input"}
+    ]
+
+
+class TestAuto017NoReresolution:
+    """T-NO-RESOLVE / INV-017-2: defaults and overrides are read only for Stage Start."""
+
+    def test_resolution_and_input_reads_belong_only_to_stage_start(self) -> None:
+        observed: list[str] = []
+        for source in package_sources():
+            for scope, operation in resolution_sites(parsed(source)):
+                assert source.name == "application.py" and scope == STAGE_START_SCOPE, (
+                    source.name,
+                    scope,
+                    operation,
+                )
+                observed.append(operation)
+        assert observed.count("resolve_policy") == 1
+        assert (
+            observed.count("load_policy_input") == 2
+        ), "defaults and explicit overrides use reader"
+
+    def test_aliased_resolver_and_defaults_reader_in_resume_are_detected(
+        self, tmp_path: Path
+    ) -> None:
+        tree = offending(
+            tmp_path,
+            "resolution_offender.py",
+            "from ai_workflow_engine.milestone_runner.policy import resolve_policy as resolve\n"
+            "from ai_workflow_engine.milestone_runner.state import load_policy_input as read\n"
+            "class MilestoneRunnerApplication:\n"
+            "    def resume(self):\n        return resolve(read('project-defaults.json'))\n",
+        )
+        assert resolution_sites(tree) == [
+            (("MilestoneRunnerApplication", "resume"), "resolve_policy"),
+            (("MilestoneRunnerApplication", "resume"), "load_policy_input"),
+        ]
+
+
+PURE_POLICY_IMPORTS: Final = frozenset(
+    {
+        "hashlib",
+        "json",
+        "re",
+        "collections.abc",
+        "datetime",
+        "enum",
+        "types",
+        "typing",
+        "pydantic",
+        "ai_workflow_engine.milestone_runner.models",
+    }
+)
+
+
+def impure_policy_sites(tree: ast.AST) -> list[str]:
+    aliases = import_aliases(tree)
+    found: list[str] = []
+    for node in ast.walk(tree):
+        imports: list[str] = []
+        if isinstance(node, ast.Import):
+            imports = [item.name for item in node.names]
+        elif isinstance(node, ast.ImportFrom):
+            imports = [node.module or "<relative>"]
+        found.extend(f"import {name}" for name in imports if name not in PURE_POLICY_IMPORTS)
+        if isinstance(node, ast.Call):
+            name = call_reference(node.func, aliases)
+            if name.startswith("datetime.") and name != "datetime.datetime.strptime":
+                found.append(f"non-parser datetime call {name}")
+            if name.rsplit(".", 1)[-1] in {
+                "open",
+                "read",
+                "read_text",
+                "read_bytes",
+                "write",
+                "write_text",
+                "write_bytes",
+                "Popen",
+                "run",
+                "system",
+                "popen",
+                "exec",
+                "eval",
+                "__import__",
+                "now",
+                "utcnow",
+            }:
+                found.append(f"call {name}")
+    return found
+
+
+class TestAuto017PolicyPurity:
+    """Section 9: policy models and resolution cannot observe files, providers or processes."""
+
+    def test_policy_has_only_pure_imports_and_no_io(self) -> None:
+        assert impure_policy_sites(parsed(PACKAGE_ROOT / "policy.py")) == []
+
+    def test_timestamp_parser_is_pure_but_clock_reads_are_not(self) -> None:
+        parser = ast.parse(
+            "from datetime import datetime\n" "datetime.strptime(value, '%Y-%m-%dT%H:%M:%SZ')\n"
+        )
+        assert impure_policy_sites(parser) == []
+        for method in ("now", "utcnow", "today"):
+            clock = ast.parse(f"from datetime import datetime as dt\ndt.{method}()\n")
+            assert impure_policy_sites(clock)
+
+    def test_impure_imports_and_hidden_io_aliases_are_detected(self, tmp_path: Path) -> None:
+        tree = offending(
+            tmp_path,
+            "policy_offender.py",
+            "import subprocess\nfrom pathlib import Path\n"
+            "from ai_workflow_engine.milestone_runner import config\n"
+            "from ai_workflow_engine.milestone_runner.providers import base\n"
+            "from builtins import open as read_file\n"
+            "read_file('defaults.json')\nPath('defaults.json').read_text()\n"
+            "subprocess.Popen(['provider'])\n",
+        )
+        found = impure_policy_sites(tree)
+        assert len([site for site in found if site.startswith("import ")]) == 5
+        assert {site for site in found if site.startswith("call ")} == {
+            "call builtins.open",
+            "call <expression>.read_text",
+            "call subprocess.Popen",
+        }
+
+
+# Frozen from the contract's 489885d51e0d84e60c3506fd1ae2b365440b2401 baseline, using
+# ast_snapshot_digest(node) and ast.get_source_segment, respectively. These
+# literals never derive expectations from the implementation under test or a moving Git ref.
+# The source hash additionally enforces INV-017-11's byte-identity requirement.
+AUTO016_NODE_SNAPSHOTS: Final[Mapping[str, tuple[str, str]]] = {
+    "models.py:RunStatus": (
+        "22fc40d1fae7762ab00cba0636819b9500aee0d2484da1b2dc2e24457f3e8de2",
+        "d04dc5df307ccc8ac20ece0f5a3bf21c3486a0b1bc77d5737be0fbdb455ee1a0",
+    ),
+    "models.py:TERMINAL_RUN_STATES": (
+        "304295b10c8453137b532e11588a46e6677487ee715c113a964f2948f6edd431",
+        "c95b1cb3fc66e46ddfe2e87cdaf336f3a434148a89881a139bc255904c4995c0",
+    ),
+    "models.py:_LIVE_RUN_STATES": (
+        "676b6126eb4e15c6205bd2abe7d89b739eeeb2bf9351d1670d4a2d35889028ba",
+        "f1da14a76f5230322167b00afdad4f641e75e372dcf8a83cc06214c4d7cd84c9",
+    ),
+    "models.py:ALLOWED_RUN_TRANSITIONS": (
+        "16547b1311d1a92441929e2219f1e49c92b42ad7edc59ef9962b3808c71e0b2d",
+        "436196b69ab781be67cbe5876eda4aab5e9b259f0295ea3438997779cb85609b",
+    ),
+    "config.py:MAX_FULL_REVIEWS_CEILING": (
+        "5b2bfc92db0b57fd9d4bbcb6c53ad00ec909dc1732ae3c4db87c0ca40256fcec",
+        "927325f1e2bfbc624b5f5e34f589fed0b5c6a4e29598bf0aa6f028fca39e7c32",
+    ),
+    "config.py:MAX_CORRECTION_ROUNDS_CEILING": (
+        "f63d0f7e5654eecad9a031fc9b226325775e52b06d982582dee88a7a4175e91d",
+        "206bd4682aa1e3362701f1e44c71c89b61785ba550dbd0ffb8534da528455133",
+    ),
+    "config.py:MAX_CLOSURE_REVIEWS_CEILING": (
+        "2ebc4ef51d5346e03c423a78e19e5d85d275cb0869c5150a75f85c317f41fc1e",
+        "47b3221caf00f9238f0840179519f2701ed9353edb814eddea7cd00ddf4d2bc3",
+    ),
+    "config.py:MAX_BLOCKERS_CEILING": (
+        "4cb20e196ef7decc6724d64ca0a8156617abeb390f2f224818ffd6099d7a50c6",
+        "da44ebf6286b0ef6794dd31ca9b78da659fd97198a3b8e48dcf92c4e5d67f1f6",
+    ),
+    "state.py:ResumeAction": (
+        "7504f31a948b679ab41698e613a5781b7580d7058f0fe84e6b23975abfa592ac",
+        "33bca295dda47d7226dc9ad796d18877de4138a330427a875654d5f7487071aa",
+    ),
+    "application.py:_registry_authorizes": (
+        "f7500ca3c4f2390c12c5b920fe0fbacdca43ce00c69d79acb0578f89521f58ee",
+        "6e24b9e2228113813f7f8edd8ea131598d6c495a87438042ab1922b27b23eb8f",
+    ),
+    "application.py:ProviderBinding": (
+        "a04764117534b54a51056dd4807a28eb0912f4111511239ecc6df503c57a754b",
+        "4678d402c5b9171a5e00dfacb549ed80d0c8938130f009270aa97dd2bdb03a65",
+    ),
+}
+
+AUTO016_UNCHANGED_MODULES: Final[Mapping[str, str]] = {
+    "review.py": "21805cdbc40e9a8e0adafd5af1c6091c0c78195f918df86451d70c65667e4cb7",
+    "approval_git.py": "6a5f61c6939bffd67d6fe03cd66edafc0fb015058635d43013f221f0cc6ecd59",
+    "recovery.py": "5afb170155ddc36074630c6e1a3c4702f88e431d042c9a6363437926a53712a0",
+    "lock.py": "cef2c3dfb924c1647a19b4acd876b45a0393ddbbdb02770aeededdd9f18a112b",
+    "results.py": "bd4a78d46bedb946d049478a777e2c07dd71b380cc8aa42cec089c15a3cf6819",
+    "scope.py": "d678241596de41f2da64613f9e61bab1bbac1dfe24c6fd99157366764d8d5525",
+    "verification.py": "b08cbc196a266edafe40d4a771a919a275107e5938ba3b9771a782f7dd1fab95",
+    "git_inspect.py": "edd9a5835de3d91fd053760541dc97e6eee0bd39d15ee06e8c9774cab94be04d",
+    "__init__.py": "4976e32965a6485653bd9607001ee2c08fa35e6ec3ac871c95b32849702ff146",
+    "providers/__init__.py": "27edb2358ebb1d6842eb3da7f0c2c6ab37d209a2642f5ec66342522d3f4795a0",
+    "providers/base.py": "4ebe4f39f48fdc8cfd6ddff79573243a48ae980135047c55c0ce751e046638e6",
+    "providers/claude_cli.py": "ff226ecb592c518077eda54db3ab9b31b32249a6eb89fc8bf7e0a5f87b40395d",
+    "providers/codex_cli.py": "bd64791106af480e0947db57e04f869f310d7e5c9dec6722f84af5a5dfa8abd8",
+}
+
+
+def ast_snapshot_digest(node: ast.AST) -> str:
+    """Pin AST semantics consistently across supported Python versions.
+
+    Python 3.13 changed ast.dump's handling of empty fields; Python 3.12 added an empty
+    type_params field to ordinary definitions. Neither should change the baseline comparison.
+    """
+
+    def normalized(value: Any) -> Any:
+        if isinstance(value, ast.AST):
+            return {
+                "node": type(value).__name__,
+                "fields": {
+                    name: normalized(field)
+                    for name, field in ast.iter_fields(value)
+                    if not (name == "type_params" and field == [])
+                },
+            }
+        if isinstance(value, list):
+            return [normalized(item) for item in value]
+        if value is None or isinstance(value, str | int | float | bool):
+            return value
+        return {"literal_type": type(value).__name__, "representation": repr(value)}
+
+    return hashlib.sha256(
+        json.dumps(normalized(node), sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+
+
+def node_snapshots(source: str) -> dict[str, tuple[str, str]]:
+    snapshots: dict[str, tuple[str, str]] = {}
+    for node in ast.parse(source).body:
+        name = None
+        if isinstance(node, ast.ClassDef | ast.FunctionDef):
+            name = node.name
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            name = node.target.id
+        elif isinstance(node, ast.Assign) and len(node.targets) == 1:
+            if isinstance(node.targets[0], ast.Name):
+                name = node.targets[0].id
+        if name is not None:
+            assert name not in snapshots, f"duplicate definition shadows {name}"
+            segment = ast.get_source_segment(source, node)
+            assert segment is not None
+            snapshots[name] = (
+                ast_snapshot_digest(node),
+                hashlib.sha256(segment.encode()).hexdigest(),
+            )
+    return snapshots
+
+
+class TestAuto017TransitionsAndBudgetsUnchanged:
+    """T-TRANSITIONS-UNCHANGED / INV-017-11 and section 19's retained runtime vocabulary."""
+
+    @pytest.mark.parametrize("identity", AUTO016_NODE_SNAPSHOTS)
+    def test_frozen_ast_and_source_equal_pinned_auto016_baseline(self, identity: str) -> None:
+        module, name = identity.split(":")
+        snapshots = node_snapshots((PACKAGE_ROOT / module).read_text(encoding="utf-8"))
+        assert snapshots[name] == AUTO016_NODE_SNAPSHOTS[identity], identity
+
+    @pytest.mark.parametrize("module", AUTO016_UNCHANGED_MODULES)
+    def test_excluded_runtime_modules_are_byte_identical(self, module: str) -> None:
+        assert hashlib.sha256((PACKAGE_ROOT / module).read_bytes()).hexdigest() == (
+            AUTO016_UNCHANGED_MODULES[module]
+        )
+
+    def test_all_runtime_ceiling_constants_are_in_the_snapshot(self) -> None:
+        observed = {
+            f"{source.name}:{name}"
+            for source in package_sources()
+            for name in node_snapshots(source.read_text(encoding="utf-8"))
+            if re.fullmatch(r"MAX_.*_CEILING", name)
+        }
+        assert observed == {name for name in AUTO016_NODE_SNAPSHOTS if "_CEILING" in name}
+
+    def test_detector_rejects_a_planted_budget_raise(self, tmp_path: Path) -> None:
+        path = tmp_path / "ceiling_offender.py"
+        path.write_text("MAX_CORRECTION_ROUNDS_CEILING: Final = 3\n", encoding="utf-8")
+        found = node_snapshots(path.read_text(encoding="utf-8"))["MAX_CORRECTION_ROUNDS_CEILING"]
+        expected = AUTO016_NODE_SNAPSHOTS["config.py:MAX_CORRECTION_ROUNDS_CEILING"]
+        assert found[0] != expected[0] and found[1] != expected[1]
+
+    def test_detector_rejects_a_planted_transition_edge(self) -> None:
+        source = (PACKAGE_ROOT / "models.py").read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        target = next(
+            node
+            for node in tree.body
+            if isinstance(node, ast.AnnAssign)
+            and isinstance(node.target, ast.Name)
+            and node.target.id == "ALLOWED_RUN_TRANSITIONS"
+        )
+        assert isinstance(target.value, ast.Call) and isinstance(target.value.args[0], ast.Set)
+        target.value.args[0].elts.append(
+            ast.parse("(RunStatus.CLOSURE_VERIFYING, RunStatus.NEEDS_CORRECTION)", mode="eval").body
+        )
+        found = ast_snapshot_digest(target)
+        assert found != AUTO016_NODE_SNAPSHOTS["models.py:ALLOWED_RUN_TRANSITIONS"][0]
+
+
+EXCLUDED_AUTO017_SYMBOLS: Final = frozenset(
+    {
+        "state_version",
+        "last_event_id",
+        "OWNER_DECISION_REQUIRED",
+        "PendingDecision",
+        "AMBIGUOUS_RECOVERY",
+        "FINDING_SET_FROZEN",
+        "DecisionRequest",
+        "DecisionResponse",
+        "EXTEND_REMEDIATION",
+        "KEEP_FROZEN",
+        "ABORT_STAGE",
+        "AMEND_STAGE_CONTRACT",
+        "SUPERSEDED",
+        "ModelProvenance",
+        "RunEnvelope",
+        "ExecutionPort",
+        "POST_REMEDIATION_VERIFICATION_FAILED",
+        "RETRY_CYCLE",
+        "reported_model",
+        "closure_scope",
+        "auto_commit",
+        "auto_push",
+        "worktree_disposition",
+        "carry_forward",
+        "patch_export",
+        "attestation",
+        "nonce",
+        "expiry",
+        "principal_registry",
+        "telegram",
+        "hermes",
+    }
+)
+FROZEN_WITHOUT_RUNTIME_EFFECT: Final = frozenset(
+    {"max_remediation_cycles", "max_owner_extensions", "on_retry_exhausted", "roles"}
+)
+
+
+def excluded_policy_symbols(tree: ast.AST) -> set[str]:
+    names = set(code_string_literals(tree))
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name):
+            names.add(node.id)
+        elif isinstance(node, ast.Attribute):
+            names.add(node.attr)
+        elif isinstance(node, ast.ClassDef | ast.FunctionDef | ast.arg | ast.keyword):
+            name = node.name if isinstance(node, ast.ClassDef | ast.FunctionDef) else node.arg
+            if name is not None:
+                names.add(name)
+    return names & EXCLUDED_AUTO017_SYMBOLS
+
+
+def runtime_frozen_field_reads(tree: ast.AST) -> set[str]:
+    fields = {
+        node.attr
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Attribute) and isinstance(node.ctx, ast.Load)
+    }
+    # Include dictionary-style and getattr reads; fields recorded by the pure schema/resolver
+    # remain allowed there, but execution code must not branch or dispatch on them.
+    for node in ast.walk(tree):
+        value: ast.AST | None = None
+        if isinstance(node, ast.Subscript):
+            value = node.slice
+        elif (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "getattr"
+            and len(node.args) > 1
+        ):
+            value = node.args[1]
+        if isinstance(value, ast.Constant) and isinstance(value.value, str):
+            fields.add(value.value)
+    return fields & FROZEN_WITHOUT_RUNTIME_EFFECT
+
+
+class TestAuto017DeferredFeaturesStayAbsent:
+    """T-OPEN / INV-017-12 / section 19: later-stage semantics cannot arrive as placeholders."""
+
+    def test_package_has_no_deferred_decision_fields_or_vocabulary(self) -> None:
+        for source in package_sources():
+            assert excluded_policy_symbols(parsed(source)) == set(), source.name
+
+    def test_execution_never_consumes_fields_frozen_for_later_stages(self) -> None:
+        for source in package_sources(exclude=frozenset({"policy.py", "config.py"})):
+            if source.relative_to(PACKAGE_ROOT).as_posix() == "providers/base.py":
+                # The baseline adapter's supported-role check is unrelated to policy.roles.
+                # Exact module identity prevents this exception admitting new policy dispatch.
+                assert hashlib.sha256(source.read_bytes()).hexdigest() == (
+                    AUTO016_UNCHANGED_MODULES["providers/base.py"]
+                )
+                assert runtime_frozen_field_reads(parsed(source)) == {"roles"}
+            else:
+                assert runtime_frozen_field_reads(parsed(source)) == set(), source.name
+
+    def test_planted_future_schema_and_runtime_dispatch_are_detected(self, tmp_path: Path) -> None:
+        tree = offending(
+            tmp_path,
+            "future_feature_offender.py",
+            "class DecisionRequest:\n    nonce: str\n"
+            "def next_round(policy):\n"
+            "    return policy.roles, policy['max_remediation_cycles'], "
+            "getattr(policy, 'max_owner_extensions')\n",
+        )
+        assert excluded_policy_symbols(tree) == {"DecisionRequest", "nonce"}
+        assert runtime_frozen_field_reads(tree) == {
+            "roles",
+            "max_remediation_cycles",
+            "max_owner_extensions",
+        }
 
 
 @pytest.fixture(autouse=True)

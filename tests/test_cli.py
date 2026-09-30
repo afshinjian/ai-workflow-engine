@@ -3402,3 +3402,157 @@ class TestNoBusinessLogicInCliHandlers:
         for option in milestone_options:
             assert option.startswith("--"), option
             assert option == option.lower(), option
+
+
+# AUTO-017 adds exactly one thin command; all prior registrations remain required.
+MR_COMMANDS["stage-start"] = "stage_start"
+
+
+@pytest.fixture
+def mr_v2_config(mr_config_factory, mr_plan_root):
+    config = mr_config_factory()
+    document = yaml.safe_load(config.read_text())
+    document["schema_version"] = 2
+    document.pop("review_policy")
+    document["stage"].update(
+        registry_path=None, execution_ceilings={"max_remediation_cycles": 3, "max_blockers": 3}
+    )
+    config.write_text(yaml.safe_dump(document))
+    defaults = mr_plan_root.parent / "project-defaults.json"
+    defaults.write_text(
+        json.dumps(
+            {
+                "schema_version": 2,
+                "roles": {
+                    role: {
+                        "provider_id": "unknown-provider",
+                        "model_id": "unknown/model",
+                        "timeout_seconds": 60,
+                    }
+                    for role in ("IMPLEMENTATION", "REVIEW", "CORRECTION", "CLOSURE")
+                },
+            }
+        )
+    )
+    return config
+
+
+@pytest.mark.parametrize("reply", ["", "START_STAGE wrong\n", "yes\n"])
+def test_auto017_cli_stage_start_requires_exact_confirmation(mr_v2_config, mr_plan_root, reply):
+    before = {p: p.read_bytes() for p in mr_plan_root.parent.rglob("*") if p.is_file()}
+    result = runner.invoke(
+        app,
+        [
+            "milestone-runner",
+            "stage-start",
+            "--config",
+            str(mr_v2_config),
+            "--stage-id",
+            MR_STAGE_ID,
+        ],
+        input=reply,
+    )
+    assert result.exit_code == 1, result.output
+    assert "STAGE_START_NOT_CONFIRMED" in result.stderr
+    assert {p: p.read_bytes() for p in mr_plan_root.parent.rglob("*") if p.is_file()} == before
+
+
+def test_auto017_cli_stage_start_receipt_replay_and_conflict(mr_v2_config, mr_plan_root, tmp_path):
+    args = [
+        "milestone-runner",
+        "stage-start",
+        "--config",
+        str(mr_v2_config),
+        "--stage-id",
+        MR_STAGE_ID,
+    ]
+    first = runner.invoke(app, args, input=f"START_STAGE {MR_STAGE_ID}\n")
+    assert first.exit_code == 0, first.output
+    second = runner.invoke(app, args, input=f"START_STAGE {MR_STAGE_ID}\n")
+    assert second.exit_code == 0, second.output
+    assert first.stdout == second.stdout
+    before = {
+        p: (p.read_bytes(), p.stat().st_mtime_ns)
+        for p in mr_plan_root.parent.rglob("*")
+        if p.is_file()
+    }
+    override = tmp_path / "stage-override.json"
+    override.write_text('{"schema_version":2,"max_blockers":1}')
+    conflict = runner.invoke(
+        app, [*args, "--overrides", str(override)], input=f"START_STAGE {MR_STAGE_ID}\n"
+    )
+    assert conflict.exit_code == 1
+    assert "STAGE_START_INPUT_CONFLICT" in conflict.stderr
+    assert {
+        p: (p.read_bytes(), p.stat().st_mtime_ns)
+        for p in mr_plan_root.parent.rglob("*")
+        if p.is_file()
+    } == before
+
+
+def test_auto017_cli_stage_start_v1_and_inside_override_refused(
+    mr_config, mr_v2_config, mr_worktree
+):
+    base = ["milestone-runner", "stage-start", "--stage-id", MR_STAGE_ID]
+    assert runner.invoke(app, [*base, "--config", str(mr_config)]).exit_code == 1
+    inside = mr_worktree / "override.json"
+    inside.write_text('{"schema_version":2}')
+    result = runner.invoke(app, [*base, "--config", str(mr_v2_config), "--overrides", str(inside)])
+    assert result.exit_code == 1
+    assert "INVALID_CONFIGURATION" in result.stderr
+
+
+def test_auto017_cli_unreadable_configuration_is_operational(tmp_path):
+    result = runner.invoke(
+        app,
+        [
+            "milestone-runner",
+            "stage-start",
+            "--config",
+            str(tmp_path / "absent"),
+            "--stage-id",
+            MR_STAGE_ID,
+        ],
+    )
+    assert result.exit_code == 2
+
+
+def test_auto017_existing_cli_handlers_and_options_byte_unchanged():
+    path = "src/ai_workflow_engine/cli.py"
+    baseline = subprocess.check_output(
+        ["git", "show", f"8d14e4394874078289653ea26483c54e968d6df2:{path}"], text=True
+    )
+    current = (Path(__file__).resolve().parents[1] / path).read_text()
+    old = ast.parse(baseline)
+    new = ast.parse(current)
+    originals = {
+        n.name: ast.get_source_segment(baseline, n)
+        for n in old.body
+        if isinstance(n, ast.FunctionDef) and n.name.startswith("milestone_runner_")
+    }
+    observed = {
+        n.name: ast.get_source_segment(current, n)
+        for n in new.body
+        if isinstance(n, ast.FunctionDef)
+    }
+    assert all(observed[name] == source for name, source in originals.items())
+
+
+def test_auto017_existing_cli_help_matches_baseline(monkeypatch):
+    import types
+
+    path = "src/ai_workflow_engine/cli.py"
+    source = subprocess.check_output(
+        ["git", "show", f"8d14e4394874078289653ea26483c54e968d6df2:{path}"], text=True
+    )
+    baseline = types.ModuleType("_auto017_baseline_cli")
+    monkeypatch.setitem(sys.modules, baseline.__name__, baseline)
+    exec(compile(source, path, "exec"), baseline.__dict__)
+    for command in MR_COMMANDS:
+        if command == "stage-start":
+            continue
+        argv = ["milestone-runner", command, "--help"]
+        expected = runner.invoke(baseline.app, argv, color=False, terminal_width=100)
+        observed = runner.invoke(app, argv, color=False, terminal_width=100)
+        assert expected.exit_code == observed.exit_code == 0
+        assert observed.stdout == expected.stdout, command

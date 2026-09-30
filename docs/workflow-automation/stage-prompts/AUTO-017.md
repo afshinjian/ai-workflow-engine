@@ -41,7 +41,7 @@ appear to differ, the Master Plan governs. The implementer stops and reports the
 
 | Input | Identity | Role |
 |---|---|---|
-| Master Plan (Revision 2, OWNER-accepted, CLOSED/FROZEN, with bounded D-AUTO017-01 amendment) | 1675 lines, 111414 bytes, SHA-256 `8ca4d72d9f2487f9a39f52c8dca653d74c1257b993878200f4305c97eb4ed3f7` | Sole governing architecture. AUTO-017 is at lines 446–548; §6.1 records the ruling. |
+| Master Plan (Revision 2, OWNER-accepted, CLOSED/FROZEN, with bounded D-AUTO017-01, D-AUTO017-02 and D-AUTO017-03 amendments) | 1698 lines, 113150 bytes, SHA-256 `8ab499c0240cc542e735eb5d1953dcd93994ebd87f1ef7413e9346805d613077` | Sole governing architecture. AUTO-017 is at lines 446–548; §6.1 records all three rulings. |
 | AUTO-016 contract (Revision 4) | SHA-256 `56f6a8f5720f30543f5b0623f5cb52ffa2cc45cbe51be8c5f9b9f5f256b90a7e` | The contract this stage amends (§18.3). |
 | `STAGE_REGISTRY.md` (v7.0) at the contract baseline | SHA-256 `b2874e760d513eac2eb898876074fdd320d259dd3875bfad7b528a5788044462` | Rules 1–3, 3a and 10. §4 row format (§11.4). |
 | SSP (`stage-prompts/README.md`, v1.4) at the contract baseline | SHA-256 `5d5a6acf786fe5929b31befae9f60256f9d0bc71abccb3b6f23927cd998ad398` | Standard Stage Protocol, applied by reference. It is not duplicated here. |
@@ -56,6 +56,27 @@ Only AUTO-017 acceptance 5 and the ruling record in Master Plan §6.1 are amende
 `STAGE_START_AUTHORIZATION_CONFLICT`. The amended identity above supersedes the former pin.
 The Master Plan §6.1 entry is the minimum governance record; no separate lifecycle mirror changes.
 
+**Bounded completion-gate amendment (D-AUTO017-02).** The OWNER's `D-AUTO017-02 = B` amends only
+AUTO-017 G-1's treatment of independently proven baseline or environmental non-passing results.
+The full-suite execution remains mandatory. Master Plan §6.1 records this ruling; §17 defines its
+evidence and outcome requirements. The pre-amendment Master Plan identity above was 1675 lines,
+111414 bytes, SHA-256 `8ca4d72d9f2487f9a39f52c8dca653d74c1257b993878200f4305c97eb4ed3f7`.
+The amended identity in the table supersedes that pin for G-12. No implementation scope, accepted
+OD-GSE ruling, OPEN decision, successor ownership or lifecycle status changes.
+
+**Bounded single-use amendment (D-AUTO017-03).** The OWNER's `D-AUTO017-03 = A` resolves the
+contract conflict that halted remediation of frozen implementation finding `AUTO017-IMPL-R02`:
+with the binding as the only exact-name single-use record, loss of the binding and of the mutable
+`latest-run` pointer left no exact-name evidence that the authorization had been consumed, so a
+second binding could be created without enumeration. This amendment adds only the durable Stage
+Start consumption witness (§10.2 B-0, §10.3(6), §10.7, §10.8, §11.3 A-5, INV-017-6, §14.2, §14.3
+and §16.2–§16.4). It remediates no other finding. Master Plan §6.1 records the ruling. The
+pre-amendment Master Plan identity was 1686 lines, 112255 bytes, SHA-256
+`8c28a10e9c2c0583e9ac387f8468ab89012092c204ad1f81a5450cdd0d977b8e`; the table above supersedes that
+pin for G-12. The witness is implemented within the already-authorized A1, A4 and A5 production
+paths and T1, T3, T4 and T6 test paths; no path is added. No accepted OD-GSE ruling, OPEN decision,
+`StopReason` member, run state, transition, successor ownership or lifecycle status changes.
+
 ### 2.1 Accepted OWNER decisions (CLOSED; binding; not reopened)
 
 | ID | Ruling as it binds AUTO-017 |
@@ -67,6 +88,8 @@ The Master Plan §6.1 entry is the minimum governance record; no separate lifecy
 | OD-GSE-07 | The Registry ID is `AUTO-017`, and `AWE-AUTO-ST-01` is a preserved alias. |
 | OD-GSE-12 | The execution predecessor is AUTO-016 and the successor is AUTO-018. The numbering is preserved. |
 | D-AUTO017-01 = B | Accepted and CLOSED (OWNER, 2026-09-29). Registry authorizes Stage + no matching AWE-native Stage Start authorization → `STAGE_START_AUTHORIZATION_CONFLICT`. This resolves OI-017-2 and AUTO017-R01; it is not reopened. |
+| D-AUTO017-02 = B | Accepted and CLOSED (OWNER, 2026-09-29). Execute the full `pytest -q` suite; G-1 may also pass on independently evidenced `BASELINE_PREEXISTING`/`ENVIRONMENTAL` results under §17. `CANDIDATE_CAUSED`, `INDETERMINATE` or unattributed results block. No test weakening is authorized. |
+| D-AUTO017-03 = A | Accepted and CLOSED (OWNER, 2026-09-29). AUTO-017 adds a durable exact-name Stage Start consumption witness keyed by the Stage Start authorization identity (§10.7). The consuming `run_id` is recorded, never derived from the authorization, and keeps the existing grammar-valid arbitrary run-ID semantics. Resolves the contract conflict blocking `AUTO017-IMPL-R02` only. |
 
 ### 2.2 OPEN OWNER decisions (not decided; not encoded)
 
@@ -601,11 +624,30 @@ defaults cannot reinterpret an already-started Stage" holds by construction. It 
 
 Phase A runs in full (§11.3). Then, under the run lock:
 
+0. **B-0 (D-AUTO017-03).** `stage-starts/<stage_start_id>.consumed.json`, the closed consumption
+   witness in §10.7, is published **exclusively** (§10.6) **before** the binding. It records the
+   consuming `run_id` and pins the digest of the exact binding B-1 will publish. It is the durable
+   single-use record of the authorization:
+   - If Phase A found no witness and no binding (first consumption), `start` uses its own
+     grammar-valid run ID `R` (injected or from `new_run_id`, exactly as today; never derived from
+     the authorization), forms the B-1 binding for `R` in memory, and publishes the witness.
+     `IDENTICAL_EXISTS` continues; an `ExclusivePublicationConflict` (a concurrent or hostile
+     different witness) is `STAGE_START_ALREADY_BOUND`, and B-1 onward is not attempted.
+   - If Phase A found a valid witness naming a run `R` with **no published `state.json`**, `start`
+     **adopts `R` as its run ID** and skips publication (the witness is never rewritten).
+   - A witness naming a run with a published `state.json`, an invalid witness, or a binding without
+     a witness never reaches Phase B (§11.3 A-5).
 1. **B-1.** `stage-starts/<stage_start_id>.binding.json`, the closed binding document in §10.7,
-   is published **exclusively** (§10.6), pinning the authorization and policy digests and `run_id`:
-   - If it already exists, validates fully under §10.8, and names a run `R` that has **no published `state.json`**: a previous `start`
-     crashed before B-3, and no run ever executed. `start` **adopts `R` as its run ID** and continues
-     at B-2. It does not mint a new random ID, which would burn the authorization.
+   is published **exclusively** (§10.6), pinning the authorization and policy digests and `run_id`.
+   Its `binding_digest` must equal the witness's `binding_digest` before publication; otherwise
+   `STAGE_START_ALREADY_BOUND`, and nothing is written:
+   - If it is absent and the witness names `R` with no published `state.json` (a crash after B-0),
+     `start` publishes exactly the binding the witness pins for `R`. This completes the one recorded
+     consumption; it is not a rebind, and never occurs for a run with a published `state.json`.
+   - If it already exists, validates fully under §10.8, equals the witness's pins, and names a run
+     `R` that has **no published `state.json`**: a previous `start` crashed before B-3, and no run
+     ever executed. `start` **adopts `R` as its run ID** and continues at B-2. It does not mint a
+     new random ID, which would burn the authorization.
    - If it names a run that has a published `state.json`: `STAGE_START_ALREADY_BOUND`.
 2. **B-2.** `<run-id>/policy.json` = `effective_policy.canonical_bytes()` is published
    **exclusively**:
@@ -639,7 +681,10 @@ command) must, before acting:
    its embedded policy to `policy.json`. Otherwise `POLICY_DIGEST_MISMATCH`;
 6. require the validated binding (§10.8) to name this `run_id`, Stage Start key/ID, authorization
    digest and policy digest. Missing, malformed or mismatched binding is
-   `STAGE_START_ALREADY_BOUND`;
+   `STAGE_START_ALREADY_BOUND`. Require, by exact name, the validated consumption witness (§10.8)
+   to name the same `run_id`, key/ID, Stage ID, contract digest, authorization digest, policy digest
+   and the binding's `binding_digest`. A missing, malformed or mismatched witness is
+   `STAGE_START_ALREADY_BOUND`; it is never republished or repaired, and neither is the binding;
 7. require the policy's `repository_identity`, `stage_id`, `contract_path`, `contract_sha256` and
    `contract_ceilings`, plus `registry_context`, to equal the current v2 configuration's normalized
    binding. Otherwise `POLICY_BINDING_MISMATCH`;
@@ -719,7 +764,7 @@ without ever replacing:
 - Redaction of a policy byte would change the digest. The next load then refuses the policy
   (fail-closed), and the §7.4 grammars make that practically unreachable.
 - `publish_atomically` remains the only *replacing* primitive and is never used for `policy.json`,
-  `stage-starts/*.json` or `*.binding.json`.
+  `stage-starts/*.json`, `*.binding.json` or `*.consumed.json`.
 
 ### 10.7 Durable layout added (exact names; read by exact name; never enumerated)
 
@@ -729,6 +774,7 @@ without ever replacing:
     stage-starts/<stage_start_id>.json           StageStartAuthorization (exclusive, immutable)
     stage-starts/key-<stage_start_key>.json      StageStartPointer (exclusive; fields below)
     stage-starts/<stage_start_id>.binding.json   StageStartBinding (exclusive; fields below)
+    stage-starts/<stage_start_id>.consumed.json  StageStartConsumptionWitness (exclusive, immutable; D-AUTO017-03)
     <run-id>/policy.json                         EffectiveStageExecutionPolicy canonical bytes (exclusive)
     <run-id>/state.json                          schema_version 2
 ```
@@ -736,8 +782,9 @@ without ever replacing:
 - **The key pointer is a refinement of Master Plan §2.3.** The package never enumerates a
   directory (AUTO-016 invariant 19, applied package-wide; `application.latest_run_id`). `start`
   therefore finds the authorization by exact name: it computes `stage_start_key` from the
-  configuration and reads `key-<key>.json`. The binding file makes the authorization **single-use**
-  without a scan.
+  configuration and reads `key-<key>.json`. The consumption witness, published before the binding,
+  makes the authorization **single-use** without a scan (D-AUTO017-03); the binding records the
+  run's pins. Both names derive only from the validated `stage_start_id`.
 - Every directory component is checked no-follow and outside the repository, as today.
 - A `<stage_start_id>`, a `<stage_start_key>` or a run ID that does not match its grammar is never
   used as a path.
@@ -753,11 +800,35 @@ Closed strict documents (all fields required, no extras; `schema_version` is exa
   obeys the existing store's run-ID grammar. `binding_digest` is `authority_digest` of all its
   fields except `binding_digest`, and must validate before adoption or continuation. Digest-shaped
   fields are 64 lowercase hex. On continuation, `run_id` must equal the loaded run's ID.
+- `StageStartConsumptionWitness` (D-AUTO017-03): `schema_version`, `stage_start_key`,
+  `stage_start_id`, `stage_id`, `contract_sha256`, `authorization_digest`, `policy_digest`,
+  `run_id`, `binding_digest`, `witness_digest`. Its exact filename is
+  `<stage_start_id>.consumed.json`, where `stage_start_id` is the validated authorization's logical
+  ID; the filename, `stage_start_id` and `stage_start_key` must match the authorization and pointer.
+  `stage_id` (§7.10 grammar) and `contract_sha256` must equal the authorization's, its embedded
+  policy's and the configured Stage/contract. `authorization_digest` and `policy_digest` must
+  equal the authorization's pins, and `policy_digest` the run's policy where one is published.
+  `run_id` obeys the existing store's run-ID grammar; it is the consuming run's ID, recorded and
+  never derived from the authorization. `binding_digest` is the `binding_digest` of the exact
+  `StageStartBinding` for that `run_id`, computable before B-1 because every binding field is known
+  at B-0. `witness_digest` is `authority_digest` of all its fields except `witness_digest`. The
+  published bytes are `authority_json_bytes` of the complete witness, read under
+  `MAX_STAGE_START_REFERENCE_BYTES`. Digest-shaped fields are 64 lowercase hex.
+- The witness is absent before the first successful B-0, is written only by B-0 of `start`, and is
+  never rewritten, replaced, removed or reconstructed. `stage-start` neither writes nor removes it.
+  It survives loss of the mutable `latest-run` pointer and of the binding: its presence alone
+  proves consumption and names the consuming run. No v2 run exists before AUTO-017 completion, so
+  there is no witness-less legacy binding to accept.
+- **Residual boundary (stated honestly).** Like every §10.8 integrity check, the witness is local
+  tamper-evidence, not authenticated attribution. An actor able to delete or consistently rewrite
+  every consumption artifact (witness and binding) in the state root is outside this guarantee;
+  authenticated, append-only consumption remains AUTO-018/AUTO-024 scope.
 
 ### 10.8 Hostile-input boundary for persisted Stage Start artifacts (AUTO017-R05)
 
-Every read of a pointer, authorization or binding (including idempotent `stage-start`, Phase A,
-B-1 adoption and every mutating continuation) must use the same bounded, no-follow reader in
+Every read of a pointer, authorization, binding or consumption witness (including idempotent
+`stage-start`, Phase A, B-0/B-1 adoption and every mutating continuation) must use the same
+bounded, no-follow reader in
 `state.py`. Check every directory component and final artifact without following symlinks; require
 a regular file, read at most its §7.3 limit plus one byte, and refuse oversize. Require strict
 UTF-8, duplicate-key-free JSON at **every depth**, object root, exact schema/version, all required
@@ -770,12 +841,15 @@ No permissive parser, directory scan, repair or normalization of hostile persist
 | Key/pointer | Exact expected key and filename; linked ID/digest matches the authorization; authorization matches repository/Stage/contract/policy context | Authority matrix §11.3 (`STAGE_START_AUTHORIZATION_CONFLICT` when registry authorizes; otherwise `STAGE_START_NOT_AUTHORIZED`) |
 | Authorization | Logical ID and full integrity digest, timestamp, pointer pin, embedded policy digest, repository/Stage/contract/registry context, and loaded run's Stage Start ID/policy where available | Authority matrix for invalid/untrusted authority; `POLICY_DIGEST_MISMATCH` for a valid authorization against a different pinned run policy; `POLICY_BINDING_MISMATCH` for valid frozen context against changed configuration |
 | Binding | Self-digest, exact filename/ID/key, authorization/policy digests, run-ID grammar and expected run ID where already published | `STAGE_START_ALREADY_BOUND` |
+| Consumption witness | Self-digest, exact filename/ID/key, Stage ID, contract digest, authorization/policy digests, run-ID grammar, `binding_digest` equal to the present binding's (or to the binding it pins for its `run_id` when absent), and expected run ID where already published. The exact-name, no-follow `<run_id>/state.json` presence check uses only the validated `run_id`. | `STAGE_START_ALREADY_BOUND` |
 
 On `stage-start` reuse, a malformed, missing referenced, substituted or mismatched artifact is
 `STAGE_START_INPUT_CONFLICT` and is never replaced. Absence permits only the explicitly defined
 initial publications in §11.2 and B-1: a missing reference required by an existing pointer/run
 is corruption, not permission to recreate it. Initial absence of an unbound binding is normal;
-its absence from a published run refuses. The record-without-pointer crash window is the one
+its absence from a published run refuses. Absence of the witness is normal only when the binding is
+also absent (no consumption yet); a binding without a witness, or a published run without its
+witness, refuses. A witness is required wherever a binding or published v2 run exists. The record-without-pointer crash window is the one
 explicit orphan reuse in §11.2, not a repair of an existing pointer's missing target.
 
 Every hostile-artifact refusal is raised **before any write**, including a stop publication,
@@ -875,7 +949,7 @@ win over `D-AUTO017-01 = B`. Exactly one typed `RunRefused` is authoritative:
 | A-2 | Require matching repository, Stage, contract path/digest, ceilings and frozen registry context. Apply the authority matrix below; valid authority with changed registry context or ceilings is a configuration-binding mismatch. | Matrix below; context/ceiling drift is `POLICY_BINDING_MISMATCH` |
 | A-3 | The contract pin verifies against the worktree. | `STAGE_ID_NOT_AUTHORIZED` |
 | A-4 | Registry agreement (§11.4). | `STAGE_START_AUTHORIZATION_CONFLICT` |
-| A-5 | Binding is initially absent, or validates in full (§10.8) and names a run with no published `state.json`, which is then adopted (§10.2 B-1). Never adopt a malformed binding. | `STAGE_START_ALREADY_BOUND` |
+| A-5 | Read the consumption witness and binding by exact name (§10.7/§10.8; no enumeration, no `latest-run` reliance). Proceed only if (a) both are absent (first consumption), or (b) the witness validates in full, names a run with no published `state.json`, and the binding is absent or validates and equals the witness's pins; that run is then adopted (§10.2 B-0/B-1). A witness naming a published run, an invalid witness, a binding without a witness, or a witness/binding mismatch refuses. Never adopt a malformed artifact. | `STAGE_START_ALREADY_BOUND` |
 | A-6 | Live-provider refusal (§10.5). | `LIVE_PROVIDER_NOT_ENABLED` |
 
 | Frozen/declarative registry authority | Matching valid AWE-native record | Result (A-2/A-4) |
@@ -976,7 +1050,7 @@ Each invariant has at least one named negative test (§16).
 | INV-017-3 | `policy_digest` and `stage_start_id` are set only in the v2 `start` path on a never-published record. `revise_record` refuses both names, as it refuses `workflow_state`, and `transition_to` preserves both. |
 | INV-017-4 | A v1 configuration never produces a policy-governed run, and a supervised record never becomes policy-governed. |
 | INV-017-5 | Configuration and record modes never mix (§8.3 table). |
-| INV-017-6 | A `StageStartAuthorization` binds at most one run (binding file, exclusive). |
+| INV-017-6 | A `StageStartAuthorization` binds at most one run. The exclusive, immutable consumption witness (D-AUTO017-03), published before the exclusive binding, is the durable single-use record; loss of `latest-run` or of the binding never permits a second consumption. |
 | INV-017-7 | `stage-start` never overwrites. A differing logical input for an existing key is refused; an identical rerun reuses the existing timestamp, bytes, integrity digest and receipt. |
 | INV-017-8 (INV-10, local form) | Only `MilestoneRunnerApplication.stage_start` constructs `StageStartAuthorization(...)`, by call, `model_construct` or `model_copy`. Only the `state.py` loader parses one from bytes (AST test; Master Plan acceptance 6). |
 | INV-017-9 | Nothing in AWE selects, derives, proposes or names a Stage ID other than the one the OWNER typed in `--stage-id` and confirmed. The output never names another Stage. |
@@ -1010,7 +1084,7 @@ AUTO-017 §14.1 names them. `INVALID_CONFIGURATION`, `STATE_SCHEMA_UNKNOWN` and
 | `STAGE_START_NOT_AUTHORIZED` | §11.3 matrix: no matching native authority and registry does not authorize, or explicit no-governed-registry; §10.3(4) uses the same matrix | none; never the registry-authorizes/no-record case |
 | `STAGE_ID_NOT_AUTHORIZED` | `stage-start` step 3; `start` A-3 | none (at a later boundary: a published stop, as today) |
 | `STAGE_START_AUTHORIZATION_CONFLICT` | §11.3 A-2/A-4 matrix, including registry authorizes + no matching native record (D-AUTO017-01 = B); §10.3(4/8) | none at start or on untrusted-artifact refusal; only valid authority with later registry-status disagreement publishes the existing durable stop |
-| `STAGE_START_ALREADY_BOUND` | `start` A-5 / B-1; §10.3(6) | none |
+| `STAGE_START_ALREADY_BOUND` | `start` A-5 / B-0 / B-1; §10.3(6), including every consumption-witness failure | none; the witness and binding are never published, repaired or replaced by a refusal |
 | `LIVE_PROVIDER_NOT_ENABLED` | §10.5 explicit adapter admission at `start`, `resume`, `doctor` and invocation boundaries | none; zero adapter/provider/process invocations |
 | `POLICY_DIGEST_MISMATCH` | `load()` §10.3(1–3); B-2; §10.3(5) | none |
 | `POLICY_BINDING_MISMATCH` | mode mix (§8.3); `start` A-2; §10.3(7), including registry-context drift | none |
@@ -1028,9 +1102,17 @@ following:
 |---|---|---|
 | `stage-start` step 10 (record written, no key) | `stage-start` with identical input at a later clock | exact logical-ID path reuses validated record bytes/timestamp/digest; key created; same ID and receipt |
 | `stage-start` step 10 | `stage-start` with different input | a new record and key are created; the orphan is harmless |
+| `start` before B-0 (Phase A or an uncommitted B-0 link) | `start` with any grammar-valid run ID | no witness or binding exists; nothing was consumed; first consumption proceeds normally |
+| `start` B-0 (witness, no binding) | `start` again, with any injected run ID | the witness's run ID is adopted (A-5); B-1 publishes exactly the binding the witness pins; never a new run ID |
 | `start` B-1 (binding, no policy) | `start` again | the bound run ID is adopted (A-5); B-2 creates the policy |
-| `start` B-3 (run published) | `start` for another run bound to the same authorization | `STAGE_START_ALREADY_BOUND` |
 | `start` B-2 (policy, no state) | `start` again with the same `run_id` | B-2 `IDENTICAL_EXISTS`; B-3 publishes |
+| `start` B-3 (run published, no `latest-run`) | `start` for another run bound to the same authorization | `STAGE_START_ALREADY_BOUND` from the witness; `latest-run` is not recreated by AUTO-017 |
+| after B-3: binding and/or `latest-run` lost, witness and state remain | `start` with any run ID; mutating continuation of the run | `STAGE_START_ALREADY_BOUND`; no rebind, no second witness; the continuation refuses the missing binding (§10.3(6)) |
+| witness missing while a binding or published run exists | `start`; mutating continuation | `STAGE_START_ALREADY_BOUND`; the witness is never republished |
+
+No recovery step guesses a run ID, derives one from the authorization, enumerates a directory, or
+issues a second consumption. The only forward completions are those of the single run the witness
+already names, and only while that run has no published `state.json`.
 
 The baseline `start` refuses once a `latest-run` pointer names a published run. That behavior is
 **unchanged**.
@@ -1250,12 +1332,13 @@ default suite with no live provider, network, Hermes or Telegram.
 | T-PAIRING | Exactly one of `policy_digest`/`stage_start_id` set is refused. |
 | T-POLICY-TAMPER (Master Plan acceptance 3) | After publication, each of these makes `load()` fail with `POLICY_DIGEST_MISMATCH`: flip one byte, append a newline, reformat with indentation, reorder keys, delete the file, replace it with a symlink, or substitute another valid policy. |
 | T-EXCLUSIVE | `publish_exclusively` creates; identical bytes give `IDENTICAL_EXISTS`; different bytes raise and leave the original intact; no temp file remains in any outcome; the redaction boundary is applied. |
-| T-NO-REPLACE | `policy.json`, `stage-starts/*.json` and `*.binding.json` are never written through `publish_atomically` (AST test). |
+| T-NO-REPLACE | `policy.json`, `stage-starts/*.json`, `*.binding.json` and `*.consumed.json` are never written through `publish_atomically` (AST test). |
 | T-WRITE-AST | The updated write-primitive AST tests: `os.link` appears only inside `publish_exclusively`, and `PERMITTED_REMOVALS` is unchanged. |
 | T-REVISE-GUARD | `revise_record` refuses `policy_digest` and `stage_start_id`; `transition_to` preserves both. |
 | T-START-POINTER-HOSTILE | Execute every applicable cell of the pointer column in the hostile-artifact matrix below, through `start` and all mutating continuation entry points. |
 | T-START-AUTH-HOSTILE | Execute every authorization-column cell below, including timestamp tampering and substituted valid authorization, through `start` and all mutating continuations. |
 | T-START-BINDING-HOSTILE | Execute every binding-column cell below, through `start` adoption and all mutating continuations. |
+| T-START-WITNESS-HOSTILE (D-AUTO017-03) | Execute every consumption-witness cell in the witness matrix below, through Phase A, B-0/B-1 adoption and all mutating continuations. Each is `STAGE_START_ALREADY_BOUND` with the zero-write assertions below. |
 
 **Required hostile-artifact matrix (AUTO017-R05).** Each cell is an independent negative test with
 otherwise valid authority. Exercise `resume`, `abort`, recovery commands and approval commands
@@ -1282,6 +1365,23 @@ mismatches use the more specific digest/binding codes in §10.8. Binding failure
 | Mismatched policy/config digest | Pointer with wrong authorization digest; substitute a valid same-Stage authorization whose policy differs from the run pin | Wrong embedded policy digest, valid different policy against `record.policy_digest`, or config contract digest/ceilings/registry context drift | Wrong policy or authorization digest, even with valid binding self-digest |
 | Malformed/hostile path | Traversal/absolute/drive/backslash/NUL/separator-bearing key/ID; reject before path construction | Hostile `contract_path` or governed registry path, including traversal, absolute, control, backslash and noncanonical forms | Traversal/absolute/drive/backslash/NUL/separator-bearing run ID or Stage Start ID; reject before path construction |
 
+**Consumption-witness matrix (D-AUTO017-03).** Same rules as the matrix above; each row is an
+independent negative test and always refuses `STAGE_START_ALREADY_BOUND`:
+
+| Mutation | Consumption witness |
+|---|---|
+| Missing artifact | Remove from a published run, or while a binding exists; never republished |
+| Symlink | Final witness and each parent component separately; the `<run_id>/state.json` presence check does not follow a symlinked run directory or state file |
+| Oversize | `MAX_STAGE_START_REFERENCE_BYTES + 1` bytes |
+| Duplicate JSON keys | Duplicate run ID, Stage ID or digest, equal and conflicting values |
+| Invalid schema | Missing required field, unknown field, non-object root; schema 1, 3, string, float, bool or null; invalid UTF-8; noncanonical bytes |
+| Invalid ID/grammar | Invalid key/ID/digests, Stage ID and run ID; never used as a path |
+| Substituted content | Another authorization's valid witness at the expected filename; changed `witness_digest`; valid self-digest with mismatched key/ID, authorization, policy or contract pins |
+| Mismatched run ID | Substituted `run_id` with unchanged self-digest; with recomputed self-digest against a present binding or a loaded published run |
+| Mismatched binding digest | Substituted `binding_digest`, with and without recomputed self-digest, against a present binding and against the binding it pins when absent |
+| Mismatched Stage ID | Well-formed wrong `stage_id` against authorization, policy and configuration |
+| Malformed/hostile path | Traversal/absolute/drive/backslash/NUL/separator-bearing run ID or Stage Start ID; reject before path construction |
+
 Every negative case asserts the exact typed code and **zero writes**, unchanged existing bytes/
 mtimes and file set, no run/Stage progression, and zero adapter/provider/process calls. Install
 write-boundary and invocation spies before the command; snapshots alone are insufficient. Verify
@@ -1299,6 +1399,13 @@ state. Symlink targets are never read or written, and hostile payloads remain re
 | T-REGISTRY-PARSER | `registry_stage_entry` against the **real** `STAGE_REGISTRY.md` text at the contract baseline: `AUTO-016 → COMPLETE`, `AUTO-017 → NOT_STARTED`, `AUTO-009 → COMPLETE`. A log row naming a stage never counts. `ST-1` never matches `ST-10`. |
 | T-START-BINDS | A successful Phase A/B: `policy.json` bytes equal `authorization.effective_policy.canonical_bytes()`; `state.json` carries `schema_version 2`, `policy_digest` and `stage_start_id`; the binding file names the run. |
 | T-START-SINGLE-USE | Once the bound run has published `state.json`, a second run (a different injected `run_id`) against the same authorization is refused `STAGE_START_ALREADY_BOUND`, and the first run is untouched. A crash injected after B-1 followed by `start` adopts the bound run ID. |
+| T-WITNESS-FIRST (D-AUTO017-03) | Before `start`, and after `stage-start` alone, no witness exists. The first successful `start` publishes the witness before the binding (write-order spy), with canonical bytes, valid `witness_digest`, the Stage ID, contract/authorization/policy pins, the injected arbitrary grammar-valid `run_id` and the published binding's `binding_digest`. Two different injected run IDs in separate state roots are each recorded verbatim; no code path derives `run_id` from the authorization. |
+| T-WITNESS-SECOND-REFUSED | With the witness present and the first run published, a second `start` with a different injected run ID, and with the same run ID, is `STAGE_START_ALREADY_BOUND`; witness, binding, policy and state bytes/mtimes are unchanged. |
+| T-WITNESS-BINDING-LATEST-LOST | After a published run, delete the binding and `latest-run`; the witness remains. A second `start` with a different run ID refuses `STAGE_START_ALREADY_BOUND`, publishes no binding, witness, policy, state or pointer, and the refusal is reached from the exact-name witness read. |
+| T-WITNESS-STATE-SURVIVES (AUTO017-IMPL-R02 scenario) | Authoritative `state.json` and `policy.json` remain; binding and `latest-run` are deleted; the witness remains. `start` (new and original run IDs) and every mutating continuation of the original run refuse `STAGE_START_ALREADY_BOUND` with zero writes; no rebind, no second witness. |
+| T-WITNESS-REQUIRED | Binding present with witness absent (before and after state publication) refuses at `start` and at every mutating continuation; the witness is never published late. |
+| T-WITNESS-CRASH | Crash injection at each §14.3 boundary: before B-0 (including a failed B-0 link) → nothing consumed and a fresh `start` succeeds; after B-0 → `start` with a different injected run ID adopts the witness's run ID and publishes exactly the pinned binding; after B-1 → adoption; after B-2 → `IDENTICAL_EXISTS`; after B-3 without `latest-run` → refusal. At every boundary at most one witness and one binding ever exist, and exactly one run ID is ever bound. |
+| T-WITNESS-RECOVERY | After a B-0 crash, recovery completes the recorded first consumption end to end (binding, policy, state), and a subsequent second `start` refuses. A concurrent/raced B-0 with a different witness is `ExclusivePublicationConflict` → `STAGE_START_ALREADY_BOUND` and never overwrites. |
 | T-FREEZE-DEFAULTS (brief: "changed defaults do not reinterpret") | Change `project-defaults.json` (1) between `stage-start` and `start`, and (2) between `start` and `resume`. In both cases `policy.json`, `policy_digest` and the `ReviewPolicy.max_blockers` in effect equal the confirmed policy. |
 | T-FREEZE-CONFIG | Changing `execution_ceilings` in the configuration after `start` makes `resume` fail with `POLICY_BINDING_MISMATCH`. The frozen policy is never recomputed. |
 | T-FREEZE-REGISTRY-PATH-NULL | Freeze governed path A, then set config `registry_path: null`: `POLICY_BINDING_MISMATCH` both between `stage-start`/`start` and before every mutating continuation on a published run. Zero writes, no progression/provider calls; authority bytes unchanged. |
@@ -1318,7 +1425,7 @@ state. Symlink targets are never read or written, and hostile payloads remain re
 | ID | Test |
 |---|---|
 | T-INV10-AST (acceptance 6) | Only `MilestoneRunnerApplication.stage_start` constructs `StageStartAuthorization`, and only the `state.py` loader parses one. A planted offender module is detected. |
-| T-NO-ENUMERATION | The only directory enumeration in the package remains the baseline `os.listdir` in `plan.py` (the plan root). No new `os.listdir`, `os.scandir`, `Path.iterdir`, `glob` or `rglob` anywhere; in particular none touches `stage-starts/`. |
+| T-NO-ENUMERATION | The only directory enumeration in the package remains the baseline `os.listdir` in `plan.py` (the plan root). No new `os.listdir`, `os.scandir`, `Path.iterdir`, `glob` or `rglob` anywhere; in particular none touches `stage-starts/`. The D-AUTO017-03 witness tests run with enumeration primitives patched to fail, proving the witness is found by exact name only. |
 | T-NO-SUCCESSOR | No non-docstring string literal in the package fully matches `[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-[0-9]{2,3}` (there are none at the baseline, verified). `stage-start` output names only the confirmed Stage. |
 | T-CLI-STAGE-START | Typed confirmation `START_STAGE <id>` is required. A wrong line or closed stdin exits 1 with `STAGE_START_NOT_CONFIRMED` and writes nothing. An identical re-run exits 0 with the same ID. A differing re-run exits 1 with `STAGE_START_INPUT_CONFLICT` and leaves the files byte-identical. A v1 configuration exits 1. An overrides file inside the repository exits 1. An unreadable configuration exits 2. |
 | T-CLI-UNCHANGED | Every existing `milestone-runner` command's options and help text are unchanged (snapshot of the baseline `--help` output). |
@@ -1334,11 +1441,12 @@ state. Symlink targets are never read or written, and hostile payloads remain re
 ## 17. Machine-Verifiable Acceptance Gates
 
 The implementation is COMPLETE only if every gate passes and is recorded with its exact output in the
-completion report.
+completion report. G-1 has the two pass paths in §17.1; an exception is not a waiver of G-1 or of
+any other gate.
 
 | Gate | Command / check | Pass condition |
 |---|---|---|
-| G-1 | `pytest -q` | exit 0; every §16 ID maps to at least one passing test |
+| G-1 | Execute the configured complete `pytest -q` suite; adjudicate under §17.1 | PASS by exit 0 (path A), or by the independent, durable attribution exception (path B). Every §16 ID maps to at least one passing targeted test under either path. |
 | G-2 | `pytest -q -m live_cli -rs` | exit 0 (skips allowed, as today) |
 | G-3 | `ruff check .` | exit 0 |
 | G-4 | `black --check .` | exit 0 (whole tree; pre-commit skips untracked files) |
@@ -1353,6 +1461,59 @@ completion report.
 | G-13 | Digest vectors and v1 corpus SHA-256 recorded in the report | present |
 | G-14 | Process proof: no `claude` or `codex` subprocess spawned by any non-live test | as AUTO-016 §25 |
 | G-15 | §15.2 exact pinned-baseline generator in comparison mode; T-V1-CORPUS-PROVENANCE | byte-for-byte equality to checked-in T2; 21155 bytes; SHA-256 `c1a1c044526528e04251f5c9fcadbbe246e0fbb5874e2e11420172abbd17b41c`; baseline validation and all 19 v2 migration cases pass |
+
+### 17.1 G-1 full-suite attribution exception (D-AUTO017-02 = B)
+
+The configured complete `pytest -q` suite **must be executed** and its command, environment,
+complete result inventory, exit status and raw output recorded in the completion report. Path A
+passes when that execution completes with exit 0. Path B may pass despite a nonzero result only
+when every non-passing test/result (including failures, errors, interruptions, timeouts and hangs)
+is identified by exact test node ID or collection/process phase and independently attributed as
+`BASELINE_PREEXISTING` or `ENVIRONMENTAL`; the report records the exact observed result and proof
+for each. A run that cannot establish what happened to the complete configured suite cannot pass
+by path B until complete coverage and every non-passing outcome are evidenced.
+
+The only attribution values are `BASELINE_PREEXISTING` (the same failure demonstrated on the
+pre-candidate baseline under a comparable environment), `ENVIRONMENTAL` (an external execution
+constraint independently demonstrated to cause the result), `CANDIDATE_CAUSED` (a regression
+caused by the AUTO-017 candidate), and `INDETERMINATE` (cause or current result unresolved).
+Unattributed results are blocking. A `CANDIDATE_CAUSED` result fails G-1; an `INDETERMINATE` or
+unattributed result keeps G-1 blocked. An implementer's own classification is not sufficient:
+attribution and supporting comparison or environmental proof must be produced by a reviewer
+independent of the implementer, with reviewer identity, commands, baseline/candidate revisions,
+environment and raw results durably recorded or linked in the completion report.
+
+Path B additionally requires no candidate-caused regression, all targeted AUTO-017 tests in §16
+passing, and all remaining AUTO-017 gates (G-2–G-15, including static, type and governance checks)
+passing. Neither path permits removing, ignoring, skipping, xfail-marking, weakening or rewriting
+a failing test; G-10's no-removal comparison and the report must establish the unchanged
+collection and disposition of affected tests. The exception changes only the AUTO-017 completion
+gate's treatment of proven baseline/environmental results.
+
+The following contract-level outcome matrix defines G-1 adjudication. The completion report must
+identify the applicable case(s) and their evidence; this matrix does not change production or
+implementation tests:
+
+| Case | Evidence / required G-1 outcome |
+|---|---|
+| Full suite exit 0 | Complete run and exit 0 → PASS (path A). |
+| Baseline-preexisting failure only | Independent same-failure baseline comparison and all path B conditions → may PASS. |
+| Environmental failure only | Independent external-cause proof and all path B conditions → may PASS. |
+| Candidate-caused failure | Candidate regression evidence → FAIL. |
+| Indeterminate failure or hang | Unresolved cause/result → BLOCK. |
+| Baseline-preexisting plus environmental only | Each exact result independently proven and all path B conditions → may PASS. |
+| Baseline-preexisting plus one indeterminate | Even one unresolved result → BLOCK. |
+| Baseline-preexisting plus one candidate-caused | Even one candidate regression → FAIL. |
+| Implementer self-attribution only | No independent attribution evidence → BLOCK. |
+| Removed, skipped, xfail-marked or weakened failing test | Neither pass path qualifies → BLOCK. |
+
+For the current candidate, the historical hang in
+`agentos_dashboard/tests/test_web_overview.py::test_static_stylesheet_is_served_from_this_app`
+is `INDETERMINATE` despite subsequent candidate and baseline PASS reproductions. G-1 remains
+blocked until independent evidence reclassifies that result as `BASELINE_PREEXISTING` or
+`ENVIRONMENTAL`, shows it is not an actual current non-passing result of the required complete
+suite execution, or the complete suite finishes with exit 0. This ruling alone does not promote
+the candidate.
 
 ---
 
@@ -1388,8 +1549,8 @@ completion report.
 | Acceptance 4 | T-V1-CORPUS, T-V1-CORPUS-PROVENANCE, G-15 |
 | Acceptance 5 / 5a / 5b | T-START-NO-RECORD / T-START-REGISTRY-* / T-CFG-V2-REVIEW-POLICY |
 | Acceptance 6 | T-INV10-AST |
-| Restart/idempotency | §7.8, §11.2 steps 8–12, §14.3, T-CLI-STAGE-START, T-STAGE-START-CLOCK-IDEMPOTENT |
-| Evidence required | G-13, the completion report |
+| Restart/idempotency | §7.8, §11.2 steps 8–12, §14.3, T-CLI-STAGE-START, T-STAGE-START-CLOCK-IDEMPOTENT; single use (D-AUTO017-03): §10.2 B-0, T-WITNESS-*, T-START-WITNESS-HOSTILE |
+| Evidence required | G-13, G-1/§17.1, the completion report |
 | Completion marker | T-TIER1-POLICY |
 | Must NOT be implemented early | §19, INV-017-11, INV-017-12, T-OPEN |
 | §2.1 rules 3–5 | INV-017-9, §19 |
@@ -1516,7 +1677,11 @@ OWNER ruling; OI-017-1 and OI-017-3 remain deferred as stated. No additional dec
 
 AUTO-017 is COMPLETE only when all of the following hold:
 
-1. Every §17 gate is PASS and recorded in `docs/reports/workflow-automation/AUTO-017-completion-report.md`.
+1. Every §17 gate is PASS, including G-1 under one of §17.1's two paths, and recorded in
+   `docs/reports/workflow-automation/AUTO-017-completion-report.md`. For path B, the report
+   includes the complete suite inventory, exact non-passing results, independent attribution,
+   supporting evidence and all targeted/static/type/governance gate results. Any
+   `CANDIDATE_CAUSED`, `INDETERMINATE` or unattributed result prevents completion.
    The report also records the digest vectors, the v1 corpus identity and exact isolated baseline
    generation/comparison commands (G-15), the
    Tier-1 `policy.json` digest, the changed-path audit, and a per-acceptance-criterion PASS/FAIL.

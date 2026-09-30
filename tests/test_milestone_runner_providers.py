@@ -551,7 +551,7 @@ class TestProviderSpawnOnlyFromProvidersSubpackage:
         assert observed == {name: set(targets) for name, targets in SPAWN_CAPABILITIES.items()}
 
     def test_every_other_module_of_section_eight_spawns_nothing(self) -> None:
-        """Fifteen of the nineteen files hold no spawn capability whatsoever."""
+        """Sixteen of the twenty files, including policy.py, hold no spawn capability."""
         every = {path.relative_to(PACKAGE_ROOT).as_posix() for path in package_sources()}
         silent = {
             path.relative_to(PACKAGE_ROOT).as_posix()
@@ -559,7 +559,7 @@ class TestProviderSpawnOnlyFromProvidersSubpackage:
             if not any(target in SPAWN_PRIMITIVES for target in call_targets(tree))
         }
         assert silent == every - set(SPAWN_CAPABILITIES)
-        assert len(silent) == 15
+        assert len(silent) == 16
 
     def test_the_provider_capability_is_the_subpackage_and_nothing_else(self) -> None:
         """Invariant 20 stated as ownership: `subprocess.Popen` is the provider spawn."""
@@ -2051,6 +2051,7 @@ def test_the_package_has_no_module_beyond_the_contracts_surface() -> None:
     section_8_files = {
         "__init__.py",
         "models.py",
+        "policy.py",
         "config.py",
         "plan.py",
         "state.py",

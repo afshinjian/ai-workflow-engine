@@ -1475,6 +1475,29 @@ source-of-truth rule is unchanged. This paragraph is the governance record of th
 The amended frozen identity is recorded in the AUTO-017 contract §2 and its remediation handoff.
 No other architecture, OWNER decision, stage authorization or lifecycle status changes.
 
+#### Bounded AUTO-017 completion-gate ruling — D-AUTO017-02 (OWNER, 2026-09-29)
+
+`D-AUTO017-02 = B` is accepted and closed. AUTO-017 must execute its complete configured
+`pytest -q` suite. Its G-1 gate passes on exit 0, or when every non-passing result is durably and
+independently attributed to `BASELINE_PREEXISTING` or `ENVIRONMENTAL`, with exact affected tests and
+results recorded, no candidate-caused regression, and all AUTO-017 targeted, static, type and
+governance gates passing. `CANDIDATE_CAUSED`, `INDETERMINATE` and unattributed results block G-1;
+implementer self-attribution is insufficient. This ruling permits no test removal, skip, xfail or
+weakening. The AUTO-017 contract §17 defines the evidence and outcome matrix. No other stage gate,
+architecture, OWNER decision, stage authorization or lifecycle status changes.
+
+#### Bounded AUTO-017 single-use ruling — D-AUTO017-03 (OWNER, 2026-09-29)
+
+`D-AUTO017-03 = A` is accepted and closed. AUTO-017 adds a durable, immutable, exact-name Stage
+Start consumption witness, `stage-starts/<stage-start-id>.consumed.json`, keyed by the Stage Start
+authorization identity and published exclusively before the run binding. It records the consuming
+run ID, which remains an arbitrary grammar-valid run ID and is never derived from the
+authorization. The witness, not the mutable `latest-run` pointer or the binding alone, proves that
+an authorization was consumed; it is read by exact name, never enumerated, and never repaired or
+replaced. It lies within the existing `stage-starts/*.json` addition above. The AUTO-017 contract
+§10 defines its schema, crash semantics and refusals. No other architecture, OWNER decision, stage
+authorization or lifecycle status changes.
+
 ### 6.2 Still OPEN (not decided; each blocks only the stage named)
 
 These are listed in the order in which they become blocking.

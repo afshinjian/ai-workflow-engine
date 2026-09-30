@@ -110,7 +110,7 @@ from collections.abc import Iterable, Sequence
 from datetime import datetime, timedelta
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, ClassVar, Final
+from typing import Any, ClassVar, Final, TypeVar
 
 from pydantic import Field, ValidationError, field_validator
 
@@ -136,6 +136,17 @@ from ai_workflow_engine.milestone_runner.models import (
     canonical_digest,
     normalize_repository_path,
 )
+from ai_workflow_engine.milestone_runner.policy import (
+    MAX_POLICY_INPUT_BYTES,
+    MAX_STAGE_START_BYTES,
+    MAX_STAGE_START_REFERENCE_BYTES,
+    EffectiveStageExecutionPolicy,
+    StageStartAuthorization,
+    StageStartBinding,
+    StageStartConsumptionWitness,
+    StageStartPointer,
+    authority_json_bytes,
+)
 from ai_workflow_engine.successor_planning.redaction import RedactionFinding, redact_text
 
 #: Section 11's external artifact root, shared with the plan root `plan.py` derives.
@@ -144,6 +155,10 @@ MILESTONE_RUNS_DIRECTORY: Final = "milestone-runs"
 
 #: Section 11's per-run layout. Every one of these is read and written by exact name.
 STATE_FILE_NAME: Final = "state.json"
+POLICY_FILE_NAME: Final = "policy.json"
+STAGE_STARTS_DIRECTORY: Final = "stage-starts"
+_AUTHORITY_ID_RE = re.compile(r"[0-9a-f]{64}")
+_PolicyModel = TypeVar("_PolicyModel", bound=MilestoneRunnerModel)
 PLAN_SNAPSHOT_FILE_NAME: Final = "plan.json"
 TRANSCRIPTS_DIRECTORY: Final = "transcripts"
 
@@ -241,6 +256,31 @@ class StatePublicationFailure(StateError):
 
 class StateCorrupted(StateError):
     """The persisted document is unreadable, ambiguous, or fails the closed schema."""
+
+
+class PolicyDigestMismatch(StateError):
+    """A frozen policy is absent, malformed or differs from its exact-byte pin."""
+
+    stop_reason: StopReason | None = StopReason.POLICY_DIGEST_MISMATCH
+
+
+class PolicyBindingMismatch(StateError):
+    """A governed record belongs to a different run directory."""
+
+    stop_reason: StopReason | None = StopReason.POLICY_BINDING_MISMATCH
+
+
+class AuthorityArtifactInvalid(StateError):
+    """Untrusted authority could not be read or validated; no raw input is exposed."""
+
+
+class ExclusivePublicationConflict(StatePublicationFailure):
+    """An immutable artifact already exists with different or untrusted bytes."""
+
+
+class ExclusiveOutcome(StrEnum):
+    CREATED = "CREATED"
+    IDENTICAL_EXISTS = "IDENTICAL_EXISTS"
 
 
 class StateSchemaUnknown(StateError):
@@ -431,6 +471,72 @@ def publish_atomically(path: Path, payload: bytes) -> None:
     _fsync_directory(directory)
 
 
+def publish_exclusively(path: Path, payload: bytes) -> ExclusiveOutcome:
+    """Publish without replacement; unlink the private temporary in every outcome.
+
+    Only the redaction boundary calls this primitive. A hard-link creation is the
+    atomic absence check: there is no check-then-replace window.
+    """
+    descriptors: list[int] = []
+    temporary = f"{TEMP_FILE_PREFIX}{uuid.uuid4().hex}"
+    created = False
+    try:
+        absolute = path if path.is_absolute() else Path.cwd() / path
+        parent = os.open(absolute.anchor, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        descriptors.append(parent)
+        for part in absolute.parts[1:-1]:
+            parent = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent)
+            descriptors.append(parent)
+        descriptor = os.open(
+            temporary,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+            ARTIFACT_MODE,
+            dir_fd=parent,
+        )
+        created = True
+        try:
+            _write_all(descriptor, payload)
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+        try:
+            os.link(
+                temporary,
+                absolute.name,
+                src_dir_fd=parent,
+                dst_dir_fd=parent,
+                follow_symlinks=False,
+            )
+        except FileExistsError:
+            try:
+                descriptor = os.open(
+                    absolute.name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=parent
+                )
+                try:
+                    existing = _read_authority_descriptor(descriptor, MAX_ARTIFACT_BYTES)
+                finally:
+                    os.close(descriptor)
+            except (OSError, StateError):
+                raise ExclusivePublicationConflict(
+                    "Existing immutable artifact is invalid"
+                ) from None
+            if existing != payload:
+                raise ExclusivePublicationConflict("Existing immutable artifact differs") from None
+            return ExclusiveOutcome.IDENTICAL_EXISTS
+        os.fsync(parent)
+        return ExclusiveOutcome.CREATED
+    except OSError:
+        raise StatePublicationFailure("Exclusive publication failed") from None
+    finally:
+        if created:
+            try:
+                os.unlink(temporary, dir_fd=parent)
+            except OSError:
+                pass
+        for descriptor in reversed(descriptors):
+            os.close(descriptor)
+
+
 # --------------------------------------------------------------------------------------
 # Section 17a -- the single enforced redaction write boundary
 # --------------------------------------------------------------------------------------
@@ -451,6 +557,7 @@ class RedactedWrite(MilestoneRunnerModel):
     relative_path: str | None = None
     byte_count: int = Field(ge=0)
     findings: list[RedactionFinding] = Field(default_factory=list)
+    exclusive_outcome: ExclusiveOutcome | None = None
 
     @property
     def redacted(self) -> bool:
@@ -459,7 +566,7 @@ class RedactedWrite(MilestoneRunnerModel):
 
 
 def write_redacted_artifact(
-    path: Path, text: str, *, relative_path: str | None = None
+    path: Path, text: str, *, relative_path: str | None = None, exclusive: bool = False
 ) -> RedactedWrite:
     """Redact `text`, then publish it atomically at `path` -- the only way bytes reach disk.
 
@@ -481,12 +588,20 @@ def write_redacted_artifact(
         raise StatePublicationFailure(
             f"{path} would be {len(payload)} bytes, above the {MAX_ARTIFACT_BYTES}-byte ceiling"
         )
-    publish_atomically(path, payload)
+    outcome = None
+    if exclusive:
+        # Authorization bytes must still validate after the mandatory, lossy redactor.
+        if path.parent.name == STAGE_STARTS_DIRECTORY:
+            _validate_stage_start_payload(path, payload)
+        outcome = publish_exclusively(path, payload)
+    else:
+        publish_atomically(path, payload)
     return RedactedWrite(
         path=str(path),
         relative_path=relative_path,
         byte_count=len(payload),
         findings=list(findings),
+        exclusive_outcome=outcome,
     )
 
 
@@ -914,6 +1029,238 @@ def _read_bounded_if_present(path: Path, ceiling: int) -> bytes | None:
     return _read_bounded(path, ceiling)
 
 
+def _read_authority_descriptor(descriptor: int, ceiling: int) -> bytes:
+    """Read from an already anchored no-follow file descriptor."""
+    status = os.fstat(descriptor)
+    if not stat.S_ISREG(status.st_mode) or status.st_size > ceiling:
+        raise AuthorityArtifactInvalid("Authority artifact is not a bounded regular file")
+    chunks: list[bytes] = []
+    remaining = ceiling + 1
+    while remaining:
+        chunk = os.read(descriptor, remaining)
+        if not chunk:
+            break
+        chunks.append(chunk)
+        remaining -= len(chunk)
+    payload = b"".join(chunks)
+    if len(payload) > ceiling:
+        raise AuthorityArtifactInvalid("Authority artifact exceeds its byte limit")
+    return payload
+
+
+def read_authority_bytes(path: Path, ceiling: int, *, optional: bool = False) -> bytes | None:
+    """Read bounded regular-file bytes with each component opened relative and no-follow.
+
+    O_NONBLOCK avoids hanging on a substituted FIFO before the regular-file check.
+    Optional means ENOENT only; links, directories and unreadable input always refuse.
+    Diagnostics deliberately carry neither the path nor an underlying hostile error.
+    """
+    descriptors: list[int] = []
+    try:
+        absolute = path if path.is_absolute() else Path.cwd() / path
+        descriptor = os.open(absolute.anchor, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        descriptors.append(descriptor)
+        for part in absolute.parts[1:-1]:
+            descriptor = os.open(
+                part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=descriptor
+            )
+            descriptors.append(descriptor)
+        descriptor = os.open(
+            absolute.name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=descriptor
+        )
+        descriptors.append(descriptor)
+        return _read_authority_descriptor(descriptor, ceiling)
+    except FileNotFoundError:
+        if optional:
+            return None
+        raise AuthorityArtifactInvalid("Required authority artifact is absent") from None
+    except (OSError, ValueError):
+        raise AuthorityArtifactInvalid("Authority artifact cannot be read safely") from None
+    finally:
+        for descriptor in reversed(descriptors):
+            os.close(descriptor)
+
+
+def _validate_authority_payload(
+    payload: bytes, model: type[_PolicyModel], *, canonical: bool = True
+) -> _PolicyModel:
+    """Validate hostile JSON before exposing a model or a value usable as a path."""
+    try:
+        document = _loads_rejecting_duplicate_keys(payload.decode("utf-8", errors="strict"))
+        if not isinstance(document, dict):
+            raise ValueError("object required")
+        if type(document.get("schema_version")) is not int or document["schema_version"] != 2:
+            raise ValueError("schema version invalid")
+        result = model.model_validate_json(payload)
+        if canonical and authority_json_bytes(result.model_dump(mode="json")) != payload:
+            raise ValueError("canonical bytes required")
+        return result
+    except (ValueError, RecursionError):
+        raise AuthorityArtifactInvalid(
+            "Authority artifact has invalid content or integrity"
+        ) from None
+
+
+def load_policy_input(
+    path: Path, model: type[_PolicyModel], *, optional: bool = False
+) -> tuple[_PolicyModel | None, str | None]:
+    """Read OWNER-authored inputs, pinning exact bytes rather than normalized JSON."""
+    payload = read_authority_bytes(path, MAX_POLICY_INPUT_BYTES, optional=optional)
+    if payload is None:
+        return None, None
+    return (
+        _validate_authority_payload(payload, model, canonical=False),
+        hashlib.sha256(payload).hexdigest(),
+    )
+
+
+def _validate_stage_start_payload(path: Path, payload: bytes) -> MilestoneRunnerModel:
+    """Validate the closed exact-name Stage Start layout, including its filename pin."""
+    if path.name.startswith("key-") and path.name.endswith(".json"):
+        if len(payload) > MAX_STAGE_START_REFERENCE_BYTES:
+            raise AuthorityArtifactInvalid("Stage Start pointer exceeds its byte limit")
+        pointer = _validate_authority_payload(payload, StageStartPointer)
+        if path.name != f"key-{pointer.stage_start_key}.json":
+            raise AuthorityArtifactInvalid("Stage Start pointer filename mismatch")
+        return pointer
+    if path.name.endswith(".consumed.json"):
+        if len(payload) > MAX_STAGE_START_REFERENCE_BYTES:
+            raise AuthorityArtifactInvalid("Stage Start witness exceeds its byte limit")
+        witness = _validate_authority_payload(payload, StageStartConsumptionWitness)
+        if path.name != f"{witness.stage_start_id}.consumed.json":
+            raise AuthorityArtifactInvalid("Stage Start witness filename mismatch")
+        return witness
+    if path.name.endswith(".binding.json"):
+        if len(payload) > MAX_STAGE_START_REFERENCE_BYTES:
+            raise AuthorityArtifactInvalid("Stage Start binding exceeds its byte limit")
+        binding = _validate_authority_payload(payload, StageStartBinding)
+        if path.name != f"{binding.stage_start_id}.binding.json":
+            raise AuthorityArtifactInvalid("Stage Start binding filename mismatch")
+        return binding
+    if len(payload) > MAX_STAGE_START_BYTES:
+        raise AuthorityArtifactInvalid("Stage Start authorization exceeds its byte limit")
+    authorization = _validate_authority_payload(payload, StageStartAuthorization)
+    if path.name != f"{authorization.stage_start_id}.json":
+        raise AuthorityArtifactInvalid("Stage Start authorization filename mismatch")
+    return authorization
+
+
+class StageStartStore:
+    """Exact-name immutable Stage Start artifacts under a repository-scoped root.
+
+    Construction is inert. Read methods make all hostile-input checks themselves so
+    the application can select the applicable authority-matrix refusal.
+    """
+
+    def __init__(self, artifact_root: Path, repository_root: Path) -> None:
+        self.artifact_root = artifact_root
+        self.repository_root = repository_root
+
+    @property
+    def directory(self) -> Path:
+        return self.artifact_root / STAGE_STARTS_DIRECTORY
+
+    def _path(
+        self,
+        identifier: str,
+        *,
+        pointer: bool = False,
+        binding: bool = False,
+        witness: bool = False,
+    ) -> Path:
+        if _AUTHORITY_ID_RE.fullmatch(identifier) is None:
+            raise AuthorityArtifactInvalid("Stage Start identifier is invalid")
+        try:
+            reject_repository_containment(self.artifact_root, self.repository_root)
+        except StateError:
+            raise AuthorityArtifactInvalid("Stage Start root is invalid") from None
+        name = (
+            f"key-{identifier}.json"
+            if pointer
+            else (
+                f"{identifier}.binding.json"
+                if binding
+                else f"{identifier}.consumed.json" if witness else f"{identifier}.json"
+            )
+        )
+        return self.directory / name
+
+    def read_pointer(self, key: str) -> StageStartPointer | None:
+        path = self._path(key, pointer=True)
+        payload = read_authority_bytes(path, MAX_STAGE_START_REFERENCE_BYTES, optional=True)
+        if payload is None:
+            return None
+        result = _validate_authority_payload(payload, StageStartPointer)
+        if result.stage_start_key != key:
+            raise AuthorityArtifactInvalid("Stage Start pointer key mismatch")
+        return result
+
+    def read_authorization(self, identifier: str) -> StageStartAuthorization | None:
+        path = self._path(identifier)
+        payload = read_authority_bytes(path, MAX_STAGE_START_BYTES, optional=True)
+        if payload is None:
+            return None
+        result = _validate_authority_payload(payload, StageStartAuthorization)
+        if result.stage_start_id != identifier:
+            raise AuthorityArtifactInvalid("Stage Start authorization ID mismatch")
+        return result
+
+    def read_binding(self, identifier: str) -> StageStartBinding | None:
+        path = self._path(identifier, binding=True)
+        payload = read_authority_bytes(path, MAX_STAGE_START_REFERENCE_BYTES, optional=True)
+        if payload is None:
+            return None
+        result = _validate_authority_payload(payload, StageStartBinding)
+        if result.stage_start_id != identifier:
+            raise AuthorityArtifactInvalid("Stage Start binding ID mismatch")
+        return result
+
+    def read_witness(self, identifier: str) -> StageStartConsumptionWitness | None:
+        path = self._path(identifier, witness=True)
+        payload = read_authority_bytes(path, MAX_STAGE_START_REFERENCE_BYTES, optional=True)
+        if payload is None:
+            return None
+        result = _validate_authority_payload(payload, StageStartConsumptionWitness)
+        if result.stage_start_id != identifier:
+            raise AuthorityArtifactInvalid("Stage Start witness ID mismatch")
+        return result
+
+    def publish_witness(
+        self, witness: StageStartConsumptionWitness, *, lock: RunLock
+    ) -> RedactedWrite:
+        return self._publish(self._path(witness.stage_start_id, witness=True), witness, lock=lock)
+
+    def _publish(
+        self, path: Path, document: MilestoneRunnerModel, *, lock: RunLock
+    ) -> RedactedWrite:
+        if (
+            not lock.is_held
+            or lock.artifact_root != self.artifact_root
+            or lock.repository_identity != self.artifact_root.name
+        ):
+            raise StatePublicationFailure(
+                "Stage Start publication requires the repository run lock"
+            )
+        reject_symlink_components(path, "The Stage Start artifact")
+        reject_repository_containment(self.artifact_root, self.repository_root)
+        payload = authority_json_bytes(document.model_dump(mode="json"))
+        _validate_stage_start_payload(path, payload)
+        _create_directory(self.directory)
+        reject_symlink_components(path, "The Stage Start artifact")
+        return write_redacted_artifact(path, payload.decode("utf-8"), exclusive=True)
+
+    def publish_authorization(
+        self, authorization: StageStartAuthorization, *, lock: RunLock
+    ) -> RedactedWrite:
+        return self._publish(self._path(authorization.stage_start_id), authorization, lock=lock)
+
+    def publish_pointer(self, pointer: StageStartPointer, *, lock: RunLock) -> RedactedWrite:
+        return self._publish(self._path(pointer.stage_start_key, pointer=True), pointer, lock=lock)
+
+    def publish_binding(self, binding: StageStartBinding, *, lock: RunLock) -> RedactedWrite:
+        return self._publish(self._path(binding.stage_start_id, binding=True), binding, lock=lock)
+
+
 # --------------------------------------------------------------------------------------
 # Section 11 -- the store
 # --------------------------------------------------------------------------------------
@@ -1001,6 +1348,10 @@ class RunStateStore:
         return self._run_directory / STATE_FILE_NAME
 
     @property
+    def policy_path(self) -> Path:
+        return self._run_directory / POLICY_FILE_NAME
+
+    @property
     def provider_intent_path(self) -> Path:
         """Where this run's durable pre-invocation evidence lives (section 13)."""
         return self._run_directory / PROVIDER_INTENT_FILE_NAME
@@ -1067,6 +1418,40 @@ class RunStateStore:
             record.model_dump_json(indent=2),
             relative_path=STATE_FILE_NAME,
         )
+
+    def publish_policy(
+        self, policy: EffectiveStageExecutionPolicy, *, lock: RunLock
+    ) -> RedactedWrite:
+        """Freeze canonical policy bytes exclusively, under the repository run lock."""
+        self._require_lock(lock)
+        if policy.repository_identity != self.repository_id:
+            raise PolicyDigestMismatch("Policy repository does not match the run store")
+        try:
+            return write_redacted_artifact(
+                self.policy_path,
+                policy.canonical_bytes().decode("utf-8"),
+                relative_path=POLICY_FILE_NAME,
+                exclusive=True,
+            )
+        except ExclusivePublicationConflict:
+            raise PolicyDigestMismatch(
+                "Frozen policy publication conflicts with existing bytes"
+            ) from None
+
+    def load_policy(self, record: RunRecord) -> EffectiveStageExecutionPolicy:
+        """Verify exact-byte pin, strict schema and canonical policy on every governed load."""
+        try:
+            payload = read_authority_bytes(self.policy_path, MAX_STAGE_START_BYTES)
+            if payload is None or hashlib.sha256(payload).hexdigest() != record.policy_digest:
+                raise AuthorityArtifactInvalid("Policy pin mismatch")
+            policy = _validate_authority_payload(payload, EffectiveStageExecutionPolicy)
+            if policy.canonical_bytes() != payload:
+                raise AuthorityArtifactInvalid("Policy serialization mismatch")
+            return policy
+        except StateError:
+            raise PolicyDigestMismatch(
+                "Frozen policy is absent, invalid or differs from its pin"
+            ) from None
 
     def publish_plan_snapshot(self, document: str, *, lock: RunLock) -> RedactedWrite:
         """Publish the resolved plan snapshot (section 11) at `plan.json`.
@@ -1258,16 +1643,28 @@ class RunStateStore:
             raise StateCorrupted(f"{self.state_path} is not a JSON object")
 
         version = document.get("schema_version")
-        if version != STATE_SCHEMA_VERSION:
+        if type(version) is not int or version not in {1, STATE_SCHEMA_VERSION}:
             raise StateSchemaUnknown(
                 f"{self.state_path} carries schema_version {version!r}; this build understands "
                 f"only {STATE_SCHEMA_VERSION}, and an unknown version is a hard refusal rather "
                 "than a best-effort read"
             )
         try:
-            return RunRecord.model_validate_json(text)
+            if version == 1:
+                if "policy_digest" in document or "stage_start_id" in document:
+                    raise StateCorrupted("A schema-v1 record cannot carry policy fields")
+                document.update(
+                    schema_version=STATE_SCHEMA_VERSION, policy_digest=None, stage_start_id=None
+                )
+                text = json.dumps(document)
+            record = RunRecord.model_validate_json(text)
         except ValidationError as exc:
             raise StateCorrupted(f"{self.state_path} is not a valid run record: {exc}") from exc
+        if record.is_policy_governed:
+            if record.run_id != self.run_id:
+                raise PolicyBindingMismatch("Governed record does not belong to this run")
+            self.load_policy(record)
+        return record
 
     # -- section 13 ---------------------------------------------------------------------
 

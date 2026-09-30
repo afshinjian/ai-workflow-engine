@@ -618,6 +618,14 @@ class TestProviderFailureTaxonomy:
             "LOCK_CONTENTION",
             "STATE_SCHEMA_UNKNOWN",
             "OUT_OF_MILESTONE_SCOPE",
+            "STAGE_START_NOT_AUTHORIZED",
+            "STAGE_START_AUTHORIZATION_CONFLICT",
+            "POLICY_DIGEST_MISMATCH",
+            "STAGE_START_INPUT_CONFLICT",
+            "STAGE_START_ALREADY_BOUND",
+            "STAGE_START_NOT_CONFIRMED",
+            "POLICY_BINDING_MISMATCH",
+            "LIVE_PROVIDER_NOT_ENABLED",
         }
 
 
@@ -673,8 +681,16 @@ class TestMilestoneSpec:
         ["AUTO-16-M01", "AUTO-016-M1", "auto-016-m01", "AUTO-016", "AUTO-016-M01 ", ""],
     )
     def test_the_milestone_id_grammar_is_closed(self, identifier: str) -> None:
-        with pytest.raises(ValidationError):
-            MilestoneSpec.model_validate({**VALID_MILESTONE, "milestone_id": identifier})
+        if identifier == "AUTO-16-M01":
+            # AUTO-017 §7.10 generalizes the Stage grammar while preserving this
+            # baseline test case as an explicit assertion of the changed behavior.
+            milestone = MilestoneSpec.model_validate(
+                {**VALID_MILESTONE, "milestone_id": identifier}
+            )
+            assert milestone.milestone_id == identifier
+        else:
+            with pytest.raises(ValidationError):
+                MilestoneSpec.model_validate({**VALID_MILESTONE, "milestone_id": identifier})
 
     def test_a_milestone_cannot_depend_on_itself(self) -> None:
         with pytest.raises(ValidationError, match="must not depend on itself"):
@@ -823,7 +839,7 @@ class TestRunRecord:
             "review_recoveries",
             "revalidations",
         }
-        assert set(RunRecord.model_fields) == expected
+        assert set(RunRecord.model_fields) == expected | {"policy_digest", "stage_start_id"}
 
     def test_an_unknown_field_raises_rather_than_being_ignored(self) -> None:
         with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
@@ -2220,7 +2236,7 @@ class TestSecretShapedProviderOutputNeverReachesDisk:
         import inspect
 
         parameters = inspect.signature(write_redacted_artifact).parameters
-        assert set(parameters) == {"path", "text", "relative_path"}
+        assert set(parameters) == {"path", "text", "relative_path", "exclusive"}
 
 
 class TestRedactionEventIsRecordedNotSilent:
@@ -2331,6 +2347,7 @@ class TestAllStateWritesGoThroughTheRedactionBoundary:
             "write_text",
             "write_bytes",
             "writelines",
+            "link",
         }
     )
 
@@ -2375,7 +2392,7 @@ class TestAllStateWritesGoThroughTheRedactionBoundary:
 
     def test_every_write_in_state_py_sits_inside_the_publication_protocol(self) -> None:
         functions = {name for name, _ in self._mutations(STATE_SOURCE)}
-        assert functions <= {"_write_all", "publish_atomically"}, functions
+        assert functions <= {"_write_all", "publish_atomically", "publish_exclusively"}, functions
 
     def test_publish_atomically_has_exactly_one_caller_and_it_redacts_first(self) -> None:
         callers: list[str | None] = []
@@ -3310,3 +3327,820 @@ class TestStateModuleBoundary:
                 assert node.arg != "shell"
             if isinstance(node, ast.Attribute):
                 assert node.attr != "system"
+
+
+class TestAuto017Migration:
+    @pytest.mark.parametrize("index", range(19))
+    def test_pinned_v1_corpus_upgrades_without_a_write(self, tmp_path, index):
+        corpus = json.loads(
+            (Path(__file__).parent / "milestone_runner_state_v1_corpus.json").read_bytes()
+        )
+        document = corpus["documents"][index]
+        path = tmp_path / "state.json"
+        path.write_text(json.dumps(document))
+        before = (path.read_bytes(), path.stat().st_mtime_ns)
+        store = RunStateStore(
+            run_directory=tmp_path,
+            repository_root=tmp_path / "repo",
+            repository_id=document["repository_identity"],
+            run_id=document["run_id"],
+        )
+        record = store.load()
+        assert record.schema_version == 2
+        assert not record.is_policy_governed
+        assert (path.read_bytes(), path.stat().st_mtime_ns) == before
+        assert record.model_dump(mode="json", exclude={"policy_digest", "stage_start_id"}) == {
+            **document,
+            "schema_version": 2,
+        }
+
+    @pytest.mark.parametrize("version", [0, 3, "1", 1.0, True, None])
+    def test_exact_state_version_dispatch(self, tmp_path, version):
+        document = run_record().model_dump(mode="json")
+        document["schema_version"] = version
+        (tmp_path / "state.json").write_text(json.dumps(document))
+        store = RunStateStore(
+            run_directory=tmp_path,
+            repository_root=tmp_path / "repo",
+            repository_id=document["repository_identity"],
+            run_id=document["run_id"],
+        )
+        with pytest.raises(StateSchemaUnknown):
+            store.load()
+
+
+# AUTO-017 §16.2: independently exercise the persistence and hostile-read boundary.
+def auto017_authority_documents() -> tuple[Any, Any, Any, Any]:
+    from ai_workflow_engine.milestone_runner.policy import (
+        ProjectExecutionDefaults,
+        RoleSelection,
+        StageContractBinding,
+        StageExecutionOverrides,
+        StageStartAuthorization,
+        StageStartBinding,
+        StageStartPointer,
+        authority_digest,
+        authority_json_bytes,
+        logical_authorization_payload,
+        resolve_policy,
+        stage_start_key,
+    )
+
+    overrides = StageExecutionOverrides(schema_version=2)
+    policy = resolve_policy(
+        ProjectExecutionDefaults(
+            schema_version=2,
+            roles={
+                role: RoleSelection(
+                    provider_id="unlisted-provider", model_id="unknown/model:v9", timeout_seconds=60
+                )
+                for role in ProviderRole
+            },
+        ),
+        overrides,
+        StageContractBinding(
+            repository_identity=M03_IDENTITY,
+            stage_id="ST-07",
+            contract_path="docs/contract.md",
+            contract_sha256="a" * 64,
+            ceilings={"max_remediation_cycles": 3, "max_blockers": 3},
+            registry_context={"kind": "NO_GOVERNED_REGISTRY", "path": None},
+        ),
+        project_defaults_digest=None,
+    )
+    payload = {
+        key: policy.model_dump(mode="json")[key]
+        for key in (
+            "schema_version",
+            "repository_identity",
+            "stage_id",
+            "contract_path",
+            "contract_sha256",
+            "contract_ceilings",
+            "registry_context",
+        )
+    }
+    payload.update(
+        stage_start_key=stage_start_key(M03_IDENTITY, "ST-07", "a" * 64),
+        principal="LOCAL_CLI",
+        stage_overrides=overrides.model_dump(mode="json"),
+        effective_policy=policy.model_dump(mode="json"),
+        effective_policy_digest=policy.digest,
+        created_at="2026-09-29T12:00:00Z",
+    )
+    payload["stage_start_id"] = authority_digest(logical_authorization_payload(payload))
+    payload["authorization_digest"] = authority_digest(payload)
+    authorization = StageStartAuthorization.model_validate_json(authority_json_bytes(payload))
+    pointer = StageStartPointer(
+        schema_version=2,
+        stage_start_key=authorization.stage_start_key,
+        stage_start_id=authorization.stage_start_id,
+        authorization_digest=authorization.authorization_digest,
+    )
+    binding_payload = {
+        **pointer.model_dump(mode="json"),
+        "policy_digest": policy.digest,
+        "run_id": M03_RUN_ID,
+    }
+    binding = StageStartBinding(**binding_payload, binding_digest=authority_digest(binding_payload))
+    return policy, authorization, pointer, binding
+
+
+class TestAuto017CorpusProvenance:
+    def test_exact_frozen_baseline_generator_reproduces_corpus(self) -> None:
+        """T-V1-CORPUS-PROVENANCE: execute the unchanged isolated Git-blob recipe."""
+        contract = (
+            REPOSITORY_ROOT / "docs/workflow-automation/stage-prompts/AUTO-017.md"
+        ).read_text()
+        section = contract.split("<!-- AUTO017-V1-CORPUS-GENERATOR-BEGIN -->", 1)[1]
+        command = section.split("```bash\n", 1)[1].split("\n```", 1)[0]
+        command = command.replace(
+            "PYTHONDONTWRITEBYTECODE=1 python -I -B - <<'PY'",
+            "PYTHONDONTWRITEBYTECODE=1 python -I -B - "
+            "tests/milestone_runner_state_v1_corpus.json <<'PY'",
+            1,
+        )
+        # The frozen recipe mandates a separate reference environment. The main suite
+        # may run under the project's supported Python; locate the mandated interpreter
+        # from the inherited executable search path without changing the recipe itself.
+        reference = None
+        candidates = [Path(entry) / "python" for entry in os.environ["PATH"].split(os.pathsep)]
+        if os.environ.get("CONDA_EXE"):
+            candidates.append(Path(os.environ["CONDA_EXE"]).parent / "python")
+        for candidate in dict.fromkeys(candidates):
+            if not candidate.is_file() or not os.access(candidate, os.X_OK):
+                continue
+            probe = subprocess.run(
+                [
+                    str(candidate),
+                    "-I",
+                    "-B",
+                    "-c",
+                    "import sys,pydantic; print(sys.version_info[:3],pydantic.__version__)",
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            if probe.returncode == 0 and probe.stdout.strip() == "(3, 13, 5) 2.11.7":
+                reference = candidate
+                break
+        assert (
+            reference is not None
+        ), "Corpus provenance requires CPython 3.13.5 and pydantic 2.11.7"
+        environment = {
+            **os.environ,
+            "PATH": str(reference.parent) + os.pathsep + os.environ["PATH"],
+        }
+        result = subprocess.run(
+            ["bash", "-c", command],
+            cwd=REPOSITORY_ROOT,
+            text=True,
+            capture_output=True,
+            check=True,
+            env=environment,
+        )
+        expected = "c1a1c044526528e04251f5c9fcadbbe246e0fbb5874e2e11420172abbd17b41c"
+        assert result.stdout == f"PASS: 21155 bytes; SHA-256 {expected}\n"
+        data = (Path(__file__).parent / "milestone_runner_state_v1_corpus.json").read_bytes()
+        assert len(data) == 21155
+        assert hashlib.sha256(data).hexdigest() == expected
+        assert len(json.loads(data)["documents"]) == 19
+
+    @pytest.mark.parametrize("field", ["policy_digest", "stage_start_id"])
+    @pytest.mark.parametrize("value", [None, "a" * 64])
+    def test_v1_policy_fields_are_poison_even_when_null(
+        self, store: RunStateStore, field: str, value: str | None
+    ) -> None:
+        document = run_record().model_dump(mode="json", exclude={"policy_digest", "stage_start_id"})
+        document.update(schema_version=1, **{field: value})
+        store.state_path.write_text(json.dumps(document))
+        before = (store.state_path.read_bytes(), store.state_path.stat().st_mtime_ns)
+        with pytest.raises(StateCorrupted):
+            store.load()
+        assert (store.state_path.read_bytes(), store.state_path.stat().st_mtime_ns) == before
+
+    @pytest.mark.parametrize("index", range(19))
+    def test_first_mutating_publication_writes_supervised_v2(
+        self, store: RunStateStore, held_lock: RunLock, index: int
+    ) -> None:
+        corpus = json.loads(
+            (Path(__file__).parent / "milestone_runner_state_v1_corpus.json").read_bytes()
+        )
+        document = corpus["documents"][index]
+        store.state_path.write_text(json.dumps(document))
+        record = store.load()
+        # The corpus deliberately retains its baseline run and repository identifiers.
+        corpus_store = RunStateStore(
+            run_directory=store.run_directory,
+            repository_root=store.repository_root,
+            repository_id=record.repository_identity,
+            run_id=record.run_id,
+        )
+        corpus_lock = RunLock(
+            run_id=record.run_id,
+            repository_identity=record.repository_identity,
+            artifact_root=store.artifact_root / "corpus-lock",
+        )
+        with corpus_lock:
+            corpus_store.publish(record, lock=corpus_lock)
+        published = json.loads(store.state_path.read_bytes())
+        assert published["schema_version"] == 2
+        assert published["policy_digest"] is None and published["stage_start_id"] is None
+
+
+class TestAuto017ExclusivePublication:
+    @pytest.mark.parametrize("initial", [None, b"safe text", b"different"])
+    def test_exclusive_outcomes_leave_original_and_no_temporary(
+        self, tmp_path: Path, initial: bytes | None
+    ) -> None:
+        from ai_workflow_engine.milestone_runner.state import (
+            ExclusiveOutcome,
+            ExclusivePublicationConflict,
+            publish_exclusively,
+        )
+
+        target = tmp_path / "artifact"
+        if initial is not None:
+            target.write_bytes(initial)
+        if initial == b"different":
+            with pytest.raises(ExclusivePublicationConflict):
+                publish_exclusively(target, b"safe text")
+            assert target.read_bytes() == initial
+        else:
+            outcome = publish_exclusively(target, b"safe text")
+            assert outcome is (
+                ExclusiveOutcome.CREATED if initial is None else ExclusiveOutcome.IDENTICAL_EXISTS
+            )
+            assert target.read_bytes() == b"safe text"
+        assert sorted(p.name for p in tmp_path.iterdir()) == ["artifact"]
+
+    @pytest.mark.parametrize("failure", ["write", "fsync", "link"])
+    def test_each_prepublication_failure_removes_temporary(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: str
+    ) -> None:
+        from ai_workflow_engine.milestone_runner import state
+
+        target = tmp_path / "artifact"
+
+        def fail(*args: Any, **kwargs: Any) -> Any:
+            raise OSError("injected failure")
+
+        monkeypatch.setattr(state.os, failure, fail)
+        with pytest.raises(StatePublicationFailure):
+            state.publish_exclusively(target, b"payload")
+        assert list(tmp_path.iterdir()) == []
+
+    def test_exclusive_boundary_redacts_before_linking(self, tmp_path: Path) -> None:
+        from ai_workflow_engine.milestone_runner.state import ExclusiveOutcome
+
+        path = tmp_path / "artifact"
+        result = write_redacted_artifact(path, SECRET_STDOUT, exclusive=True)
+        assert result.redacted
+        assert result.exclusive_outcome is ExclusiveOutcome.CREATED
+        assert b"[REDACTED:" in path.read_bytes()
+        assert SECRET_STDOUT.encode() != path.read_bytes()
+
+    def test_existing_symlink_is_never_read_or_replaced(self, tmp_path: Path) -> None:
+        from ai_workflow_engine.milestone_runner.state import (
+            ExclusivePublicationConflict,
+            publish_exclusively,
+        )
+
+        target = tmp_path / "target"
+        target.write_bytes(b"same")
+        link = tmp_path / "artifact"
+        link.symlink_to(target)
+        with pytest.raises(ExclusivePublicationConflict):
+            publish_exclusively(link, b"same")
+        assert link.is_symlink() and target.read_bytes() == b"same"
+        assert not list(tmp_path.glob(f"{TEMP_FILE_PREFIX}*"))
+
+
+class TestAuto017PolicyFreeze:
+    @pytest.mark.parametrize(
+        "mutation",
+        [
+            "flip",
+            "newline",
+            "indent",
+            "reorder",
+            "missing",
+            "symlink",
+            "valid-other",
+            "oversize",
+            "directory",
+            "parent-symlink",
+            "schema",
+            "duplicate",
+            "noncanonical-pin",
+        ],
+    )
+    def test_every_policy_mutation_refuses_without_writes(
+        self,
+        store: RunStateStore,
+        held_lock: RunLock,
+        worktree: Path,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        mutation: str,
+    ) -> None:
+        from ai_workflow_engine.milestone_runner import state
+
+        policy, authorization, _, _ = auto017_authority_documents()
+        record = durable_record(
+            worktree,
+            "a" * 40,
+            policy_digest=policy.digest,
+            stage_start_id=authorization.stage_start_id,
+        )
+        store.publish_policy(policy, lock=held_lock)
+        store.publish(record, lock=held_lock)
+        assert store.load_policy(store.load()) == policy
+        original = store.policy_path.read_bytes()
+        payload = json.loads(original)
+        if mutation == "flip":
+            store.policy_path.write_bytes(original.replace(b"ST-07", b"ST-08"))
+        elif mutation == "newline":
+            store.policy_path.write_bytes(original + b"\n")
+        elif mutation == "indent":
+            store.policy_path.write_text(json.dumps(payload, indent=2))
+        elif mutation == "reorder":
+            store.policy_path.write_text(json.dumps(dict(reversed(list(payload.items())))))
+        elif mutation in {"missing", "symlink", "directory"}:
+            store.policy_path.unlink()
+            if mutation == "symlink":
+                target = tmp_path / "policy-target.json"
+                target.write_bytes(original)
+                store.policy_path.symlink_to(target)
+            elif mutation == "directory":
+                store.policy_path.mkdir()
+        elif mutation == "valid-other":
+            payload["max_blockers"] = 2
+            store.policy_path.write_text(json.dumps(payload))
+        elif mutation == "oversize":
+            store.policy_path.write_bytes(b"x" * (state.MAX_STAGE_START_BYTES + 1))
+        elif mutation == "parent-symlink":
+            moved = store.run_directory.with_name("saved-run")
+            store.run_directory.rename(moved)
+            store.run_directory.symlink_to(moved, target_is_directory=True)
+        else:
+            if mutation == "schema":
+                payload["schema_version"] = True
+                new_bytes = json.dumps(payload).encode()
+            elif mutation == "duplicate":
+                new_bytes = original[:-1] + b',"schema_version":2}'
+            else:
+                new_bytes = original + b"\n"
+            store.policy_path.write_bytes(new_bytes)
+            record_payload = record.model_dump(mode="json")
+            record_payload["policy_digest"] = hashlib.sha256(new_bytes).hexdigest()
+            store.state_path.write_text(json.dumps(record_payload))
+        before = (store.state_path.read_bytes(), store.state_path.stat().st_mtime_ns)
+
+        def forbidden(*args: Any, **kwargs: Any) -> Any:
+            pytest.fail("a failed policy load attempted publication")
+
+        monkeypatch.setattr(state, "write_redacted_artifact", forbidden)
+        with pytest.raises(state.PolicyDigestMismatch) as refusal:
+            store.load()
+        assert refusal.value.stop_reason is StopReason.POLICY_DIGEST_MISMATCH
+        assert (store.state_path.read_bytes(), store.state_path.stat().st_mtime_ns) == before
+
+    def test_policy_publication_is_immutable_and_lock_required(
+        self, store: RunStateStore, held_lock: RunLock
+    ) -> None:
+        from ai_workflow_engine.milestone_runner.policy import EffectiveStageExecutionPolicy
+        from ai_workflow_engine.milestone_runner.state import ExclusiveOutcome, PolicyDigestMismatch
+
+        policy, _, _, _ = auto017_authority_documents()
+        assert (
+            store.publish_policy(policy, lock=held_lock).exclusive_outcome
+            is ExclusiveOutcome.CREATED
+        )
+        before = (store.policy_path.read_bytes(), store.policy_path.stat().st_mtime_ns)
+        assert (
+            store.publish_policy(policy, lock=held_lock).exclusive_outcome
+            is ExclusiveOutcome.IDENTICAL_EXISTS
+        )
+        assert (store.policy_path.read_bytes(), store.policy_path.stat().st_mtime_ns) == before
+        payload = policy.model_dump(mode="json")
+        payload["max_blockers"] = 2
+        with pytest.raises(PolicyDigestMismatch):
+            store.publish_policy(
+                EffectiveStageExecutionPolicy.model_validate_json(json.dumps(payload)),
+                lock=held_lock,
+            )
+        with pytest.raises(StatePublicationFailure):
+            store.publish_policy(policy, lock=lock_for_store(store))
+        assert (store.policy_path.read_bytes(), store.policy_path.stat().st_mtime_ns) == before
+
+
+class TestAuto017HostileAuthority:
+    @pytest.mark.parametrize("kind", ["pointer", "authorization", "binding"])
+    @pytest.mark.parametrize(
+        "mutation",
+        [
+            "oversize",
+            "invalid-utf8",
+            "non-object",
+            "unknown-field",
+            "missing-field",
+            "version-1",
+            "version-3",
+            "version-string",
+            "version-float",
+            "version-bool",
+            "version-null",
+            "duplicate-equal",
+            "duplicate-conflicting",
+            "noncanonical",
+            "invalid-id",
+            "substituted-id",
+            "symlink-final",
+            "symlink-parent",
+            "symlink-root",
+            "directory",
+            "fifo",
+            "wrong-digest",
+            "traversal-id",
+        ],
+    )
+    def test_hostile_artifact_matrix_at_reader_boundary(
+        self,
+        store: RunStateStore,
+        held_lock: RunLock,
+        tmp_path: Path,
+        kind: str,
+        mutation: str,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from ai_workflow_engine.milestone_runner import state
+        from ai_workflow_engine.milestone_runner.policy import authority_json_bytes
+
+        _, authorization, pointer, binding = auto017_authority_documents()
+        authority_store = state.StageStartStore(store.artifact_root, store.repository_root)
+        for document, publisher in (
+            (authorization, authority_store.publish_authorization),
+            (pointer, authority_store.publish_pointer),
+            (binding, authority_store.publish_binding),
+        ):
+            publisher(document, lock=held_lock)
+        document = {"pointer": pointer, "authorization": authorization, "binding": binding}[kind]
+        identifier = pointer.stage_start_key if kind == "pointer" else authorization.stage_start_id
+        name = (
+            f"key-{identifier}.json"
+            if kind == "pointer"
+            else f"{identifier}.binding.json" if kind == "binding" else f"{identifier}.json"
+        )
+        path = authority_store.directory / name
+        original = path.read_bytes()
+        payload = json.loads(original)
+        if mutation == "oversize":
+            limit = (
+                state.MAX_STAGE_START_BYTES
+                if kind == "authorization"
+                else state.MAX_STAGE_START_REFERENCE_BYTES
+            )
+            path.write_bytes(b"x" * (limit + 1))
+        elif mutation == "invalid-utf8":
+            path.write_bytes(b"\xff")
+        elif mutation == "non-object":
+            path.write_bytes(b"[]")
+        elif mutation == "unknown-field":
+            path.write_bytes(
+                authority_json_bytes({**payload, "secret-hostile-extra": "raw-hostile-marker"})
+            )
+        elif mutation == "missing-field":
+            payload.pop("schema_version")
+            path.write_bytes(authority_json_bytes(payload))
+        elif mutation.startswith("version-"):
+            payload["schema_version"] = {
+                "version-1": 1,
+                "version-3": 3,
+                "version-string": "2",
+                "version-float": 2.0,
+                "version-bool": True,
+                "version-null": None,
+            }[mutation]
+            path.write_bytes(authority_json_bytes(payload))
+        elif mutation.startswith("duplicate-"):
+            value = "2" if mutation == "duplicate-equal" else "1"
+            path.write_bytes(original[:-1] + f',"schema_version":{value}}}'.encode())
+        elif mutation == "noncanonical":
+            path.write_bytes(original + b"\n")
+        elif mutation in {"invalid-id", "traversal-id", "substituted-id"}:
+            # Pointer filename pins its key; the other two pin the logical ID.
+            field = "stage_start_key" if kind == "pointer" else "stage_start_id"
+            payload[field] = {
+                "invalid-id": "ABC",
+                "traversal-id": "../escape",
+                "substituted-id": "f" * 64,
+            }[mutation]
+            path.write_bytes(authority_json_bytes(payload))
+        elif mutation == "wrong-digest":
+            field = "binding_digest" if kind == "binding" else "authorization_digest"
+            # A pointer digest has no self-pin; bad grammar is its local refusal.
+            payload[field] = "not-a-digest" if kind == "pointer" else "f" * 64
+            path.write_bytes(authority_json_bytes(payload))
+        elif mutation in {"symlink-final", "directory", "fifo"}:
+            path.unlink()
+            if mutation == "symlink-final":
+                target = tmp_path / "outside.json"
+                target.write_bytes(original)
+                path.symlink_to(target)
+            elif mutation == "directory":
+                path.mkdir()
+            else:
+                os.mkfifo(path)
+        elif mutation == "symlink-parent":
+            moved = authority_store.directory.with_name("moved-authority")
+            authority_store.directory.rename(moved)
+            authority_store.directory.symlink_to(moved, target_is_directory=True)
+        else:
+            moved = store.artifact_root.with_name("moved-root")
+            store.artifact_root.rename(moved)
+            store.artifact_root.symlink_to(moved, target_is_directory=True)
+
+        def forbidden(*args: Any, **kwargs: Any) -> Any:
+            pytest.fail("authority read attempted a write")
+
+        monkeypatch.setattr(state, "write_redacted_artifact", forbidden)
+        reader = getattr(authority_store, f"read_{kind}")
+        with pytest.raises(state.AuthorityArtifactInvalid) as refusal:
+            reader(identifier)
+        assert "raw-hostile-marker" not in str(refusal.value)
+        assert "secret-hostile-extra" not in str(refusal.value)
+        assert document.schema_version == 2
+
+    @pytest.mark.parametrize("kind", ["pointer", "authorization", "binding"])
+    @pytest.mark.parametrize(
+        "identifier",
+        ["../secret", "/absolute", "C:drive", "a\\b", "a/b", "a\x00b", "A" * 64, "a" * 63],
+    )
+    def test_hostile_requested_identifier_never_reaches_path_or_reader(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, kind: str, identifier: str
+    ) -> None:
+        from ai_workflow_engine.milestone_runner import state
+
+        authority_store = state.StageStartStore(tmp_path / "root", tmp_path / "repository")
+
+        def forbidden(*args: Any, **kwargs: Any) -> Any:
+            pytest.fail("hostile identifier reached filesystem reader")
+
+        monkeypatch.setattr(state, "read_authority_bytes", forbidden)
+        with pytest.raises(state.AuthorityArtifactInvalid):
+            getattr(authority_store, f"read_{kind}")(identifier)
+
+    @pytest.mark.parametrize("field", ["created_at", "registry_context", "effective_policy"])
+    def test_nested_duplicates_and_timestamp_tampering_refuse(
+        self, store: RunStateStore, held_lock: RunLock, field: str
+    ) -> None:
+        from ai_workflow_engine.milestone_runner import state
+
+        _, authorization, _, _ = auto017_authority_documents()
+        authority_store = state.StageStartStore(store.artifact_root, store.repository_root)
+        authority_store.publish_authorization(authorization, lock=held_lock)
+        path = authority_store.directory / f"{authorization.stage_start_id}.json"
+        payload = path.read_bytes()
+        if field == "created_at":
+            payload = payload.replace(b"2026-09-29T12:00:00Z", b"2026-09-29T12:00:01Z")
+        elif field == "registry_context":
+            payload = payload.replace(
+                b'"kind":"NO_GOVERNED_REGISTRY"',
+                b'"kind":"NO_GOVERNED_REGISTRY","kind":"NO_GOVERNED_REGISTRY"',
+                1,
+            )
+        else:
+            payload = payload.replace(
+                b'"max_owner_extensions":2', b'"max_owner_extensions":2,"max_owner_extensions":2', 1
+            )
+        path.write_bytes(payload)
+        with pytest.raises(state.AuthorityArtifactInvalid):
+            authority_store.read_authorization(authorization.stage_start_id)
+
+    def test_authorization_redaction_is_validated_before_publication(
+        self, store: RunStateStore, held_lock: RunLock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from ai_workflow_engine.milestone_runner import state
+
+        _, authorization, _, _ = auto017_authority_documents()
+        authority_store = state.StageStartStore(store.artifact_root, store.repository_root)
+
+        def altered(text: str) -> tuple[str, tuple[Any, ...]]:
+            return text.replace("unknown/model:v9", "redacted/model:v9"), ()
+
+        monkeypatch.setattr(state, "redact_text", altered)
+        with pytest.raises(state.AuthorityArtifactInvalid):
+            authority_store.publish_authorization(authorization, lock=held_lock)
+        assert not (authority_store.directory / f"{authorization.stage_start_id}.json").exists()
+        assert not list(authority_store.directory.glob(f"{TEMP_FILE_PREFIX}*"))
+
+    def test_valid_authority_roundtrips_and_republication_keeps_bytes_and_mtime(
+        self, store: RunStateStore, held_lock: RunLock
+    ) -> None:
+        from ai_workflow_engine.milestone_runner import state
+
+        _, authorization, pointer, binding = auto017_authority_documents()
+        authority_store = state.StageStartStore(store.artifact_root, store.repository_root)
+        for kind, document, identifier in (
+            ("authorization", authorization, authorization.stage_start_id),
+            ("pointer", pointer, pointer.stage_start_key),
+            ("binding", binding, binding.stage_start_id),
+        ):
+            publisher = getattr(authority_store, f"publish_{kind}")
+            assert getattr(authority_store, f"read_{kind}")(identifier) is None
+            with pytest.raises(StatePublicationFailure):
+                publisher(document, lock=lock_for_store(store))
+            result = publisher(document, lock=held_lock)
+            path = Path(result.path)
+            before = (path.read_bytes(), path.stat().st_mtime_ns)
+            assert getattr(authority_store, f"read_{kind}")(identifier) == document
+            assert (
+                publisher(document, lock=held_lock).exclusive_outcome
+                is state.ExclusiveOutcome.IDENTICAL_EXISTS
+            )
+            assert (path.read_bytes(), path.stat().st_mtime_ns) == before
+
+
+class TestAuto017AuthorityReaderAndInputs:
+    def test_short_reads_are_joined_and_growth_past_bound_refuses(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from ai_workflow_engine.milestone_runner import state
+
+        path = tmp_path / "input"
+        path.write_bytes(b"123456")
+        real_read = os.read
+        monkeypatch.setattr(state.os, "read", lambda fd, count: real_read(fd, min(count, 2)))
+        assert state.read_authority_bytes(path, 6) == b"123456"
+        real_fstat = os.fstat
+
+        def stale_size(fd: int) -> Any:
+            status = list(real_fstat(fd))
+            status[6] = 0
+            return os.stat_result(status)
+
+        monkeypatch.setattr(state.os, "fstat", stale_size)
+        with pytest.raises(state.AuthorityArtifactInvalid):
+            state.read_authority_bytes(path, 5)
+
+    def test_dotdot_never_hides_a_symlink_component(self, tmp_path: Path) -> None:
+        from ai_workflow_engine.milestone_runner import state
+
+        (tmp_path / "real").mkdir()
+        (tmp_path / "link").symlink_to(tmp_path / "real", target_is_directory=True)
+        (tmp_path / "input").write_bytes(b"payload")
+        with pytest.raises(state.AuthorityArtifactInvalid):
+            state.read_authority_bytes(tmp_path / "link" / ".." / "input", 100)
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            '{"schema_version":2,"schema_version":2}',
+            '{"schema_version":2,"roles":{"REVIEW":{"provider_id":"x","provider_id":"x"}}}',
+            '{"schema_version":true}',
+            "[]",
+            '{"schema_version":2,"secret-hostile-extra":"raw-hostile-marker"}',
+        ],
+    )
+    def test_inputs_reject_ambiguous_or_invalid_json_without_raw_errors(
+        self, tmp_path: Path, text: str
+    ) -> None:
+        from ai_workflow_engine.milestone_runner import state
+        from ai_workflow_engine.milestone_runner.policy import ProjectExecutionDefaults
+
+        path = tmp_path / "defaults.json"
+        path.write_text(text)
+        with pytest.raises(state.AuthorityArtifactInvalid) as refusal:
+            state.load_policy_input(path, ProjectExecutionDefaults)
+        assert "raw-hostile-marker" not in str(refusal.value)
+
+    def test_input_digest_covers_raw_bytes_and_optional_only_means_absence(
+        self, tmp_path: Path
+    ) -> None:
+        from ai_workflow_engine.milestone_runner import state
+        from ai_workflow_engine.milestone_runner.policy import ProjectExecutionDefaults
+
+        path = tmp_path / "defaults.json"
+        assert state.load_policy_input(path, ProjectExecutionDefaults, optional=True) == (
+            None,
+            None,
+        )
+        raw = b'{ "schema_version": 2 }\n'
+        path.write_bytes(raw)
+        value, digest = state.load_policy_input(path, ProjectExecutionDefaults, optional=True)
+        assert value is not None and value.schema_version == 2
+        assert digest == hashlib.sha256(raw).hexdigest()
+        path.unlink()
+        path.mkdir()
+        with pytest.raises(state.AuthorityArtifactInvalid):
+            state.load_policy_input(path, ProjectExecutionDefaults, optional=True)
+
+    def test_deeply_nested_hostile_json_has_a_generic_error(self, tmp_path: Path) -> None:
+        from ai_workflow_engine.milestone_runner import state
+        from ai_workflow_engine.milestone_runner.policy import ProjectExecutionDefaults
+
+        path = tmp_path / "defaults.json"
+        path.write_bytes(b'{"schema_version":2,"nested":' + b"[" * 2000 + b"0" + b"]" * 2000 + b"}")
+        with pytest.raises(state.AuthorityArtifactInvalid):
+            state.load_policy_input(path, ProjectExecutionDefaults)
+
+
+class TestAuto017ExclusiveWriteStructure:
+    def test_exclusive_primitive_has_only_the_redaction_boundary_as_caller(self) -> None:
+        callers = []
+        for source in PACKAGE_DIRECTORY.rglob("*.py"):
+            tree = ast.parse(source.read_text())
+            enclosing = TestAllStateWritesGoThroughTheRedactionBoundary._enclosing(tree)
+            for node in ast.walk(tree):
+                if (
+                    isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Name)
+                    and node.func.id == "publish_exclusively"
+                ):
+                    callers.append(enclosing[node])
+        assert callers == ["write_redacted_artifact"]
+
+    def test_only_exclusive_primitive_links_and_no_immutable_writer_replaces(self) -> None:
+        tree = ast.parse(STATE_SOURCE.read_text())
+        enclosing = TestAllStateWritesGoThroughTheRedactionBoundary._enclosing(tree)
+        links = [
+            enclosing[node]
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "os"
+            and node.func.attr == "link"
+        ]
+        assert links == ["publish_exclusively"]
+        immutable_writers = {"publish_policy", "_publish"}
+        boundaries = []
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Name):
+                continue
+            if enclosing[node] in immutable_writers:
+                assert node.func.id != "publish_atomically"
+                if node.func.id == "write_redacted_artifact":
+                    boundaries.append(enclosing[node])
+                    assert any(
+                        k.arg == "exclusive"
+                        and isinstance(k.value, ast.Constant)
+                        and k.value.value is True
+                        for k in node.keywords
+                    )
+        assert set(boundaries) == immutable_writers
+
+
+@pytest.mark.parametrize("field", ["policy_digest", "stage_start_id"])
+def test_auto017_run_record_requires_both_policy_pins(field):
+    """T-PAIRING: a single policy pin cannot produce a governed or supervised record."""
+    document = run_record().model_dump(mode="json")
+    document[field] = "a" * 64
+    with pytest.raises(ValidationError, match="must be paired"):
+        RunRecord.model_validate_json(json.dumps(document))
+
+
+@pytest.mark.parametrize("filename", ["authority.json", "policy.json"])
+@pytest.mark.parametrize("boundary", ["temporary", "link"])
+def test_auto017_remediation_parent_swap_cannot_escape(tmp_path, monkeypatch, filename, boundary):
+    from ai_workflow_engine.milestone_runner import state
+
+    parent = tmp_path / "intended"
+    parent.mkdir()
+    moved = tmp_path / "original-directory"
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    swapped = False
+    original_open = os.open
+    original_link = os.link
+
+    def swap():
+        nonlocal swapped
+        if not swapped:
+            parent.rename(moved)
+            parent.symlink_to(outside, target_is_directory=True)
+            swapped = True
+
+    def controlled_open(path, flags, *args, **kwargs):
+        if boundary == "temporary" and flags & os.O_CREAT:
+            swap()
+        return original_open(path, flags, *args, **kwargs)
+
+    def controlled_link(*args, **kwargs):
+        if boundary == "link":
+            swap()
+        return original_link(*args, **kwargs)
+
+    monkeypatch.setattr(os, "open", controlled_open)
+    monkeypatch.setattr(os, "link", controlled_link)
+    try:
+        state.publish_exclusively(parent / filename, b"immutable bytes")
+    except StatePublicationFailure:
+        pass
+    assert swapped
+    assert list(outside.iterdir()) == []
+    assert not list(moved.glob(f"{TEMP_FILE_PREFIX}*"))
+    if (moved / filename).exists():
+        assert (moved / filename).read_bytes() == b"immutable bytes"

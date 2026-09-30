@@ -1654,3 +1654,18 @@ app.add_typer(auto_app, name="auto")
 
 def main() -> None:
     app()
+
+
+@milestone_runner_app.command("stage-start")
+def milestone_runner_stage_start(
+    config: MilestoneRunnerConfigOption,
+    stage_id: Annotated[str, typer.Option("--stage-id")],
+    overrides: Annotated[Path | None, typer.Option("--overrides", dir_okay=False)] = None,
+) -> None:
+    """Confirm and freeze the execution policy for an explicitly named Stage."""
+    application = _milestone_runner_application(config)
+    receipt = _milestone_runner_protected(
+        lambda: application.stage_start(stage_id=stage_id, overrides_path=overrides),
+        command="milestone-runner-stage-start",
+    )
+    _print_milestone_runner(receipt.lines)

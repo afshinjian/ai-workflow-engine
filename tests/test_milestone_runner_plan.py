@@ -1219,3 +1219,102 @@ class TestCapabilityModeUnrepresentable:
                     assert (
                         forbidden not in node.value
                     ), f"{module.name} carries {forbidden!r} in an actionable string constant"
+
+
+class TestVersionedMilestoneGrammar:
+    """AUTO-017 T-STAGE-ID: generalized IDs preserve the v1 accept/refuse set."""
+
+    @staticmethod
+    def v2_loader(repository: Path, stage_id: str) -> MilestonePlanLoader:
+        payload = runner_config_payload(repository)
+        payload["schema_version"] = 2
+        payload.pop("review_policy")
+        payload["stage"].update(
+            stage_id=stage_id,
+            registry_path=None,
+            execution_ceilings={"max_remediation_cycles": 3, "max_blockers": 3},
+        )
+        return MilestonePlanLoader(RunnerConfig.model_validate(payload), repository)
+
+    @pytest.mark.parametrize(
+        "stage_id",
+        [
+            "ST-07",
+            "AWE-AUTO-ST-01",
+            "PROJ1-STAGE-2",
+            "A",
+            "A" * 16 + "-" + "B" * 16 + "-" + "C" * 16 + "-" + "D" * 13,
+        ],
+    )
+    def test_v2_loads_generalized_ids_and_dependencies(
+        self, repository: Path, external_plan_root: Path, stage_id: str
+    ) -> None:
+        write_milestone(external_plan_root, milestone_id=stage_id + "-M01")
+        write_milestone(
+            external_plan_root,
+            milestone_id=stage_id + "-M02",
+            depends_on=[stage_id + "-M01"],
+        )
+        plan = self.v2_loader(repository, stage_id).load()
+        assert plan.milestone_ids == (stage_id + "-M01", stage_id + "-M02")
+        assert all(milestone.schema_version == 1 for milestone in plan.milestones)
+
+    @pytest.mark.parametrize("milestone_id", ["ST-08-M01", "ST-070-M01", "AUTO-016-M01"])
+    def test_v2_refuses_a_different_stage_prefix(
+        self, repository: Path, external_plan_root: Path, milestone_id: str
+    ) -> None:
+        write_milestone(external_plan_root, milestone_id=milestone_id)
+        with pytest.raises(PlanValidationError) as error:
+            self.v2_loader(repository, "ST-07").load()
+        assert error.value.stop_reason is StopReason.INVALID_CONFIGURATION
+
+    def test_v2_refuses_cross_stage_dependency(
+        self, repository: Path, external_plan_root: Path
+    ) -> None:
+        write_milestone(external_plan_root, milestone_id="ST-07-M01", depends_on=["ST-08-M01"])
+        with pytest.raises(PlanValidationError, match="configuration mode/Stage"):
+            self.v2_loader(repository, "ST-07").load()
+
+    def test_v1_external_listing_keeps_legacy_filename_filter(
+        self, repository: Path, external_plan_root: Path
+    ) -> None:
+        write_milestone(external_plan_root)
+        # As at the baseline, other filenames are ignored, regardless of their content.
+        (external_plan_root / "ST-07-M01.yaml").write_text("not: a milestone", encoding="utf-8")
+        assert loader(repository).load().milestone_ids == ("AUTO-016-M01",)
+
+    @pytest.mark.parametrize("field", ["milestone_id", "depends_on"])
+    def test_v1_refuses_generalized_ids_in_legacy_named_document(
+        self, repository: Path, external_plan_root: Path, field: str
+    ) -> None:
+        path = write_milestone(external_plan_root)
+        payload = milestone_payload()
+        payload[field] = "ST-07-M01" if field == "milestone_id" else ["ST-07-M01"]
+        path.write_text(yaml.safe_dump(payload), encoding="utf-8")
+        with pytest.raises(PlanValidationError) as error:
+            loader(repository).load()
+        assert error.value.stop_reason is None  # Same schema-error classification as v1.
+
+    def test_v1_retains_legacy_cross_stage_acceptance(
+        self, repository: Path, external_plan_root: Path
+    ) -> None:
+        # The v1 loader never required its IDs' prefix to equal config.stage.stage_id.
+        write_milestone(external_plan_root, milestone_id="AUTO-999-M01")
+        assert loader(repository).load().milestone_ids == ("AUTO-999-M01",)
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "ST-M01-M01.yaml",
+            "M01-M01.yaml",
+            "ST-07-M1.yaml",
+            "ST-07-M001.yaml",
+            "ST-07-M01.yml",
+            "st-07-M01.yaml",
+            "ST-07-M01.yaml.extra",
+        ],
+    )
+    def test_v2_file_filter_refuses_malformed_names(self, name: str) -> None:
+        from ai_workflow_engine.milestone_runner.plan import PLAN_FILE_NAME_RE
+
+        assert PLAN_FILE_NAME_RE.fullmatch(name) is None

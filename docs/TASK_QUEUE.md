@@ -2326,8 +2326,9 @@ The order of acts for each stage is fixed by `docs/workflow-automation/STAGE_REG
   At that acceptance, AUTO-017 still required its own contract preparation, one bounded review, and
   separate OWNER implementation authorization. Those acts are now recorded in its task entry below.
 
-  **Amended identity (OWNER-accepted 2026-09-29, `D-AUTO017-01 = B`).** This is now the authoritative
-  CLOSED / FROZEN revision. It supersedes the identity above, which is retained as the historical record.
+  **Amended identity (OWNER-accepted 2026-09-29, `D-AUTO017-01 = B`).** This was the authoritative
+  CLOSED / FROZEN revision before the later G-1 amendment recorded below. It superseded the identity
+  above, which is retained as the historical record.
   - lines: 1675
   - bytes: 111414
   - SHA-256: `8ca4d72d9f2487f9a39f52c8dca653d74c1257b993878200f4305c97eb4ed3f7`
@@ -2351,7 +2352,7 @@ stage named in its entry below. This is the same rule as `STAGE_REGISTRY.md` §3
 
 Status: Current
 
-Alias `AWE-AUTO-ST-01`. Registered 2026-09-28 (OD-GSE-07); **AUTHORIZED, implementation not begun**
+Alias `AWE-AUTO-ST-01`. Registered 2026-09-28 (OD-GSE-07); **AUTHORIZED, implementation candidate OWNER-accepted, uncommitted**
 (OWNER, 2026-09-29; `AUTO_017_IMPLEMENTATION_AUTHORIZED`).
 - **Execution predecessor (OD-GSE-12):** AUTO-016 (`COMPLETE`).
 - **Open OWNER decisions or external prerequisites that block this stage:** none (OD-GSE-01, -02, -03, -06, -07 accepted).
@@ -2380,6 +2381,44 @@ Alias `AWE-AUTO-ST-01`. Registered 2026-09-28 (OD-GSE-07); **AUTHORIZED, impleme
   not created. Git mutation authority remains ungranted: no staging, commit, push, tag, merge,
   reset/rebase/checkout/switch or other Git mutation. Exact baseline and preflight observations:
   `docs/DECISION_LOG.md`, 2026-09-29 implementation-authorization entry; registry §5.
+
+  **G-1 amendment OWNER acceptance (2026-09-29).** `AUTO_017_G1_AMENDMENT_OWNER_ACCEPTED`
+  follows independent `AUTO_017_G1_AMENDMENT_REVIEW_PASS` with no amendment findings. The new
+  authoritative **CLOSED / FROZEN** contract is 1619 lines, 126060 bytes, SHA-256
+  `a139a79d2c4e35b03ea9ae7d66f87ae9500c0dc7ddcf9945745abd67976d1252`; the new
+  authoritative **CLOSED / FROZEN** Master Plan is 1686 lines, 112255 bytes, SHA-256
+  `8c28a10e9c2c0583e9ac387f8468ab89012092c204ad1f81a5450cdd0d977b8e`.
+  Both retain the paths named above. Earlier identities remain historical. `D-AUTO017-02 = B`
+  preserves the mandatory complete suite and contract §17.1 attribution rules. The current
+  implementation candidate remains blocked at G-1 by the `INDETERMINATE` historical stylesheet
+  hang. No implementation completion, commit authorization, G-1 waiver, hang resolution or
+  lifecycle promotion follows from this amendment acceptance (`docs/DECISION_LOG.md`, 2026-09-29).
+
+  **AUTO017-IMPL-R02 contract amendment OWNER acceptance (2026-09-29).**
+  `AUTO_017_R02_CONTRACT_AMENDMENT_OWNER_ACCEPTED` records acceptance and freeze under
+  `D-AUTO017-03 = A`, following independent `AUTO_017_R02_CONTRACT_AMENDMENT_REVIEW_PASS`
+  with no amendment findings. The new authoritative **CLOSED / FROZEN** identities, superseding
+  the earlier identities above at the same paths, are:
+  - AUTO-017 contract: 1717 lines, 138969 bytes, SHA-256
+    `50760879b2f64c395c8c3c5ee83c3bdac1a8b8456588b144c068f01d1080b1e8`.
+  - Master Plan: 1698 lines, 113150 bytes, SHA-256
+    `8ab499c0240cc542e735eb5d1953dcd93994ebd87f1ef7413e9346805d613077`.
+
+  Full acceptance and binding witness semantics: `docs/DECISION_LOG.md`'s AUTO017-IMPL-R02
+  amendment acceptance entry. AUTO017-IMPL-R01..R06 remain the frozen implementation finding
+  set, all pending remediation. This acceptance does not complete implementation, close
+  AUTO017-IMPL-R02, authorize a commit or any new implementation path. This session performs
+  no remediation and changes no production code/tests; no lifecycle state is promoted.
+
+  **Implementation candidate OWNER acceptance (2026-09-30).** `AUTO_017_IMPLEMENTATION_OWNER_ACCEPTED`.
+  The one independent implementation discovery review's frozen findings AUTO017-IMPL-R01..R06 are
+  all **CLOSED** (`AUTO_017_IMPLEMENTATION_CLOSURE_PASS`); G-1 is `AUTO_017_G1_PASS_PATH_B` under
+  `D-AUTO017-02 = B`. The accepted candidate is unstaged and uncommitted and was reviewed against the
+  unchanged 1717-line contract and 1698-line Master Plan identities above. This supersedes the
+  earlier "pending remediation" and "blocked at G-1" statements for current status. Commit authority
+  remains separate and ungranted: no `git add`, commit, push, tag or merge. AUTO-017 is not complete
+  until the accepted candidate is committed and committed-state verification passes; no lifecycle
+  state is promoted and AUTO-018 remains unauthorized (`docs/DECISION_LOG.md`, 2026-09-30).
 
 ## AUTO-018 — Durable Lifecycle / Event Foundation
 

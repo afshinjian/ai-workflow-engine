@@ -45,14 +45,16 @@ reported rather than filled by guesswork; the narrower reading is implemented, e
 
 import json
 import os
+import posixpath
 import re
 import secrets
 import sys
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
+from enum import StrEnum
 from pathlib import Path
-from typing import Any, Final
+from typing import Any, Final, Never
 
 from pydantic import ValidationError
 
@@ -93,8 +95,24 @@ from ai_workflow_engine.milestone_runner.models import (
     RunStatus,
     StopReason,
     VerificationResult,
+    normalize_repository_path,
 )
 from ai_workflow_engine.milestone_runner.plan import MilestonePlan, MilestonePlanLoader, PlanError
+from ai_workflow_engine.milestone_runner.policy import (
+    EffectiveStageExecutionPolicy,
+    ProjectExecutionDefaults,
+    RegistryAuthorityContext,
+    StageExecutionOverrides,
+    StageStartAuthorization,
+    StageStartBinding,
+    StageStartConsumptionWitness,
+    StageStartPointer,
+    StartPrincipal,
+    authority_digest,
+    logical_authorization_payload,
+    resolve_policy,
+    stage_start_key,
+)
 from ai_workflow_engine.milestone_runner.prompts import (
     PromptContext,
     render_closure_prompt,
@@ -133,11 +151,19 @@ from ai_workflow_engine.milestone_runner.review import (
 )
 from ai_workflow_engine.milestone_runner.scope import ScopeGuard
 from ai_workflow_engine.milestone_runner.state import (
+    AuthorityArtifactInvalid,
+    ExclusivePublicationConflict,
+    PolicyDigestMismatch,
     RedactedWrite,
     ResumeAction,
     RunStateStore,
+    StageStartStore,
     StateError,
     artifact_root_for,
+    load_policy_input,
+    read_authority_bytes,
+    reject_repository_containment,
+    reject_symlink_components,
     write_redacted_artifact,
 )
 from ai_workflow_engine.milestone_runner.verification import (
@@ -234,6 +260,10 @@ class TransitionRefused(ApplicationError):
 class RunRefused(ApplicationError):
     """A command was invoked against a run that cannot serve it (sections 5, 10, 13, 20)."""
 
+    def __init__(self, message: str, *, stop_reason: StopReason | None = None) -> None:
+        self.stop_reason = stop_reason
+        super().__init__(f"{stop_reason.value}: {message}" if stop_reason else message)
+
 
 # --------------------------------------------------------------------------------------
 # Section 10 -- the only two functions that build a new run record
@@ -303,7 +333,7 @@ def transition_to(
         "updated_at": _now(moment),
     }
     for name, value in (updates or {}).items():
-        if name in {"workflow_state", "stop_reason"}:
+        if name in {"workflow_state", "stop_reason", "policy_digest", "stage_start_id"}:
             raise ApplicationError(
                 f"{name!r} is set by the transition itself and never by an update mapping"
             )
@@ -326,7 +356,7 @@ def revise_record(
     """
     payload: dict[str, Any] = {"updated_at": _now(moment)}
     for name, value in updates.items():
-        if name in {"workflow_state", "stop_reason"}:
+        if name in {"workflow_state", "stop_reason", "policy_digest", "stage_start_id"}:
             raise ApplicationError(
                 f"{name!r} moves only through transition_to: the application is the sole "
                 "transition authority (section 10)"
@@ -598,7 +628,17 @@ def run_preflight(
     evidence: RepositoryEvidence | None = None
     plan: MilestonePlan | None = None
 
-    authorized, registry_detail = _registry_authorizes(repository_root, config.stage.stage_id)
+    registry_reason = StopReason.STAGE_ID_NOT_AUTHORIZED
+    if config.schema_version == 2:
+        binding = config.contract_binding()
+        _, authorized = _registry_evidence(
+            repository_root, binding.registry_context, binding.stage_id, binding.contract_path
+        )
+        registry_detail = "frozen registry context agreement"
+        if not authorized:
+            registry_reason = StopReason.STAGE_START_AUTHORIZATION_CONFLICT
+    else:
+        authorized, registry_detail = _registry_authorizes(repository_root, config.stage.stage_id)
     if authorized:
         try:
             digest = inspector.verify_contract_pin(
@@ -607,13 +647,14 @@ def run_preflight(
             registry_detail = f"{registry_detail}; the contract pins to {digest}"
         except GitInspectionError as exc:
             authorized, registry_detail = False, str(exc)
+            registry_reason = StopReason.STAGE_ID_NOT_AUTHORIZED
     conditions.append(
         EntryCondition(
             number=1,
             name="stage authorized and contract pinned",
             satisfied=authorized,
             detail=registry_detail,
-            stop_reason=None if authorized else StopReason.STAGE_ID_NOT_AUTHORIZED,
+            stop_reason=None if authorized else registry_reason,
         )
     )
 
@@ -930,6 +971,353 @@ class ProviderBinding:
         return self.review
 
 
+# AUTO-017 authority is read before any mutating entry point obtains its lock.
+
+
+@dataclass(frozen=True, slots=True)
+class RegistryStageEntry:
+    state: str
+    prompt: str
+
+
+def registry_stage_entry(text: str, stage_id: str) -> RegistryStageEntry | None:
+    """Read exact Stage cells only in the declared six-column registry table."""
+    header = "| Stage | Title | Role | State | Branch | Prompt |"
+    lines = text.splitlines()
+    entries: list[RegistryStageEntry] = []
+    index = 0
+    while index < len(lines):
+        if lines[index].strip() != header or index + 1 >= len(lines):
+            index += 1
+            continue
+        delimiter = lines[index + 1].strip().strip("|").split("|")
+        if len(delimiter) != 6 or any(
+            re.fullmatch(r":?-{3,}:?", c.strip()) is None for c in delimiter
+        ):
+            return None
+        index += 2
+        while index < len(lines) and lines[index].strip().startswith("|"):
+            row = lines[index].strip()
+            if not row.endswith("|"):
+                return None
+            cells = [cell.strip() for cell in row[1:-1].split("|")]
+            if len(cells) != 6:
+                return None
+            if cells[0] == stage_id:
+                entries.append(RegistryStageEntry(cells[3], cells[5].strip("` \t")))
+            index += 1
+    return entries[0] if len(entries) == 1 else None
+
+
+def _registry_evidence(
+    repository_root: Path, context: RegistryAuthorityContext, stage_id: str, contract_path: str
+) -> tuple[bool, bool]:
+    """Return status authorization and contract agreement separately for the refusal matrix."""
+    if context.path is None:
+        return False, True
+    try:
+        raw = read_authority_bytes(repository_root / context.path, MAX_REGISTRY_BYTES)
+        assert raw is not None
+        entry = registry_stage_entry(raw.decode("utf-8"), stage_id)
+        if entry is None:
+            return False, False
+        authorized = entry.state in AUTHORIZED_REGISTRY_STATUSES
+        if entry.prompt.startswith("/"):
+            return authorized, False
+        prompt = normalize_repository_path(
+            posixpath.normpath(posixpath.join(posixpath.dirname(context.path), entry.prompt)),
+            "registry prompt",
+        )
+        return authorized, authorized and prompt == contract_path
+    except (StateError, ValueError, OSError):
+        return False, False
+
+
+def _refuse(reason: StopReason, detail: str) -> Never:
+    raise RunRefused(detail, stop_reason=reason)
+
+
+def live_provider_execution_enabled() -> bool:
+    """FA-5a is unevidenced. AUTO-023 replaces this closed live-provider gate."""
+    return False
+
+
+class AdapterAdmissionKind(StrEnum):
+    TEST_DOUBLE = "TEST_DOUBLE"
+    LIVE = "LIVE"
+
+
+@dataclass(frozen=True, slots=True)
+class AdapterAdmission:
+    adapter: ProviderAdapter
+    concrete_type: type[ProviderAdapter]
+    kind: AdapterAdmissionKind
+
+
+def _admit_adapters(
+    config: RunnerConfig,
+    providers: ProviderBinding | None,
+    admissions: tuple[AdapterAdmission, ...],
+) -> None:
+    if config.schema_version != 2:
+        return
+    if providers is None:
+        _refuse(StopReason.LIVE_PROVIDER_NOT_ENABLED, "production provider binding is disabled")
+    for adapter in (providers.implementation, providers.review):
+        if issubclass(type(adapter), (ClaudeCLIAdapter, CodexCLIAdapter)) or not any(
+            entry.adapter is adapter
+            and entry.concrete_type is type(adapter)
+            and entry.kind is AdapterAdmissionKind.TEST_DOUBLE
+            for entry in admissions
+        ):
+            _refuse(
+                StopReason.LIVE_PROVIDER_NOT_ENABLED, "adapter lacks exact test-double admission"
+            )
+
+
+def _check_policy_configuration(
+    policy: EffectiveStageExecutionPolicy, config: RunnerConfig
+) -> None:
+    binding = config.contract_binding()
+    for name in (
+        "repository_identity",
+        "stage_id",
+        "contract_path",
+        "contract_sha256",
+        "registry_context",
+    ):
+        if getattr(policy, name) != getattr(binding, name):
+            _refuse(StopReason.POLICY_BINDING_MISMATCH, "frozen policy and configuration disagree")
+    if policy.contract_ceilings != binding.ceilings:
+        _refuse(StopReason.POLICY_BINDING_MISMATCH, "contract ceilings changed after Stage Start")
+
+
+def _read_start_authority(
+    config: RunnerConfig,
+    repository_root: Path,
+    authority_store: StageStartStore,
+    *,
+    record: RunRecord | None = None,
+    policy: EffectiveStageExecutionPolicy | None = None,
+    check_registry: bool = True,
+) -> StageStartAuthorization:
+    binding = config.contract_binding()
+    if policy is not None:
+        _check_policy_configuration(policy, config)
+    context = policy.registry_context if policy is not None else binding.registry_context
+    key = stage_start_key(binding.repository_identity, binding.stage_id, binding.contract_sha256)
+    authorization: StageStartAuthorization | None = None
+    try:
+        pointer = authority_store.read_pointer(key)
+        if pointer is not None:
+            candidate = authority_store.read_authorization(pointer.stage_start_id)
+            if (
+                candidate is not None
+                and candidate.stage_start_key == key
+                and candidate.authorization_digest == pointer.authorization_digest
+            ):
+                authorization = candidate
+    except StateError:
+        authorization = None
+    # Valid frozen declarations are compared before consulting any registry path.
+    if authorization is not None:
+        if (
+            authorization.registry_context != binding.registry_context
+            or authorization.contract_ceilings != binding.ceilings
+        ):
+            _refuse(StopReason.POLICY_BINDING_MISMATCH, "frozen Stage Start context changed")
+        if any(
+            getattr(authorization, name) != getattr(binding, name)
+            for name in ("repository_identity", "stage_id", "contract_path", "contract_sha256")
+        ):
+            authorization = None
+    if authorization is None:
+        authorized, _ = _registry_evidence(
+            repository_root, context, binding.stage_id, binding.contract_path
+        )
+        _refuse(
+            (
+                StopReason.STAGE_START_AUTHORIZATION_CONFLICT
+                if authorized
+                else StopReason.STAGE_START_NOT_AUTHORIZED
+            ),
+            "matching valid Stage Start authority is required",
+        )
+    if record is not None:
+        if authorization.effective_policy_digest != record.policy_digest:
+            _refuse(StopReason.POLICY_DIGEST_MISMATCH, "authorization does not pin the run policy")
+        if record.stage_start_id != authorization.stage_start_id:
+            authorized, _ = _registry_evidence(
+                repository_root, context, binding.stage_id, binding.contract_path
+            )
+            _refuse(
+                (
+                    StopReason.STAGE_START_AUTHORIZATION_CONFLICT
+                    if authorized
+                    else StopReason.STAGE_START_NOT_AUTHORIZED
+                ),
+                "authorization does not name the run Stage Start",
+            )
+    if (
+        policy is not None
+        and authorization.effective_policy.canonical_bytes() != policy.canonical_bytes()
+    ):
+        _refuse(StopReason.POLICY_DIGEST_MISMATCH, "embedded policy differs from run policy")
+    if check_registry:
+        _, agrees = _registry_evidence(
+            repository_root,
+            authorization.registry_context,
+            authorization.stage_id,
+            authorization.contract_path,
+        )
+        if not agrees:
+            _refuse(
+                StopReason.STAGE_START_AUTHORIZATION_CONFLICT,
+                "governed registry disagrees with Stage Start",
+            )
+    return authorization
+
+
+def _read_start_binding(
+    authority_store: StageStartStore,
+    authorization: StageStartAuthorization,
+    *,
+    expected_run_id: str | None = None,
+) -> StageStartBinding | None:
+    try:
+        binding = authority_store.read_binding(authorization.stage_start_id)
+        if binding is None:
+            if expected_run_id is not None:
+                raise AuthorityArtifactInvalid("required binding is absent")
+            return None
+        if (
+            binding.stage_start_key != authorization.stage_start_key
+            or binding.authorization_digest != authorization.authorization_digest
+            or binding.policy_digest != authorization.effective_policy_digest
+            or (expected_run_id is not None and binding.run_id != expected_run_id)
+        ):
+            raise AuthorityArtifactInvalid("binding pins disagree")
+        return binding
+    except StateError:
+        _refuse(
+            StopReason.STAGE_START_ALREADY_BOUND, "Stage Start binding is invalid or unavailable"
+        )
+
+
+def _binding_for(authorization: StageStartAuthorization, run_id: str) -> StageStartBinding:
+    payload: dict[str, Any] = dict(
+        schema_version=2,
+        stage_start_key=authorization.stage_start_key,
+        stage_start_id=authorization.stage_start_id,
+        authorization_digest=authorization.authorization_digest,
+        policy_digest=authorization.effective_policy_digest,
+        run_id=run_id,
+    )
+    return StageStartBinding(**payload, binding_digest=authority_digest(payload))
+
+
+def _read_start_consumption(
+    authority_store: StageStartStore,
+    authorization: StageStartAuthorization,
+    *,
+    expected_run_id: str | None = None,
+) -> StageStartConsumptionWitness | None:
+    """Validate exact-name consumption evidence before adopting any recorded run ID."""
+    binding = _read_start_binding(authority_store, authorization, expected_run_id=expected_run_id)
+    try:
+        witness = authority_store.read_witness(authorization.stage_start_id)
+        if witness is None:
+            if binding is not None or expected_run_id is not None:
+                raise AuthorityArtifactInvalid("required consumption witness is absent")
+            return None
+        expected_binding = _binding_for(authorization, witness.run_id)
+        if (
+            witness.stage_start_key != authorization.stage_start_key
+            or witness.stage_id != authorization.stage_id
+            or witness.contract_sha256 != authorization.contract_sha256
+            or witness.authorization_digest != authorization.authorization_digest
+            or witness.policy_digest != authorization.effective_policy_digest
+            or witness.binding_digest != expected_binding.binding_digest
+            or (binding is not None and binding != expected_binding)
+            or (expected_run_id is not None and witness.run_id != expected_run_id)
+        ):
+            raise AuthorityArtifactInvalid("consumption witness pins disagree")
+        return witness
+    except StateError:
+        _refuse(
+            StopReason.STAGE_START_ALREADY_BOUND,
+            "Stage Start consumption witness is invalid or unavailable",
+        )
+
+
+def _continuation_authority(
+    config: RunnerConfig,
+    store: RunStateStore,
+    *,
+    check_registry: bool = True,
+) -> EffectiveStageExecutionPolicy | None:
+    if config.schema_version == 2:
+        # Do not let the legacy state reader traverse a shared authority-root link first.
+        try:
+            reject_symlink_components(store.run_directory, "policy-governed run directory")
+        except StateError:
+            _refuse(StopReason.POLICY_DIGEST_MISMATCH, "run policy ancestry is untrusted")
+    record = store.load()
+    if record.is_policy_governed != (config.schema_version == 2):
+        _refuse(StopReason.POLICY_BINDING_MISMATCH, "configuration and run modes differ")
+    if not record.is_policy_governed:
+        return None
+    policy = store.load_policy(record)
+    authority_store = StageStartStore(store.artifact_root, store.repository_root)
+    authorization = _read_start_authority(
+        config,
+        store.repository_root,
+        authority_store,
+        record=record,
+        policy=policy,
+        check_registry=False,
+    )
+    _read_start_consumption(authority_store, authorization, expected_run_id=record.run_id)
+    if check_registry:
+        _, agrees = _registry_evidence(
+            store.repository_root,
+            policy.registry_context,
+            policy.stage_id,
+            policy.contract_path,
+        )
+        if not agrees:
+            _refuse(
+                StopReason.STAGE_START_AUTHORIZATION_CONFLICT,
+                "governed registry disagrees with Stage Start",
+            )
+    return policy
+
+
+@dataclass(frozen=True, slots=True)
+class StageStartReceipt:
+    stage_start_id: str
+    stage_start_key: str
+    effective_policy_digest: str
+    authorization_digest: str
+    created_at: str
+
+    @classmethod
+    def of(cls, authorization: StageStartAuthorization) -> "StageStartReceipt":
+        return cls(**{name: getattr(authorization, name) for name in cls.__dataclass_fields__})
+
+    @property
+    def lines(self) -> tuple[str, ...]:
+        return tuple(f"{name}: {getattr(self, name)}" for name in self.__dataclass_fields__)
+
+
+def prompt_for_stage_start(stage_id: str) -> str | None:
+    try:
+        print(f"Type START_STAGE {stage_id}: ", file=sys.stderr, end="")
+        return input()
+    except (EOFError, OSError):
+        return None
+
+
 @dataclass(frozen=True, slots=True)
 class RunSession:
     """Everything one driving command needs, resolved once and held immutably."""
@@ -947,6 +1335,8 @@ class RunSession:
     plan: MilestonePlan
     environment: Mapping[str, str]
     clock: Callable[[], datetime]
+    adapter_admissions: tuple[AdapterAdmission, ...] = ()
+    start_authorization: StageStartAuthorization | None = None
 
     def moment(self) -> datetime:
         return self.clock()
@@ -1025,6 +1415,9 @@ def _boundary(
     milestone: MilestoneSpec | None = None,
 ) -> PreflightReport:
     """Re-verify section 4 at a milestone boundary or before a provider invocation."""
+    _admit_adapters(session.config, session.providers, session.adapter_admissions)
+    if record.is_policy_governed or session.config.schema_version == 2:
+        _continuation_authority(session.config, session.store, check_registry=False)
     return run_preflight(
         session.config,
         repository_root=session.repository_root,
@@ -1040,6 +1433,19 @@ def _boundary(
 def _stopped_at_boundary(
     session: RunSession, record: RunRecord, report: PreflightReport
 ) -> RunRecord:
+    if record.is_policy_governed and record.workflow_state is RunStatus.PREFLIGHT:
+        # AUTO-017 §11.3: a bound initial-entry refusal remains resumable once fixed.
+        # No execution has begun, so retain PREFLIGHT and its existing outbound edge.
+        return _publish(
+            session,
+            _rebuild(
+                record,
+                {
+                    "updated_at": _now(session.moment()),
+                    "stop_reason": (report.stop_reason or UNNAMED_STOP_REASON).value,
+                },
+            ),
+        )
     return _stop(
         session,
         record,
@@ -1059,6 +1465,34 @@ class _Invoked:
     record: RunRecord
     invocation: ProviderInvocation | None
     detail: str
+
+
+def _provider_authority_boundary(session: RunSession, record: RunRecord) -> None:
+    """Recheck frozen authority and entry condition 1 at the actual invocation boundary."""
+    _admit_adapters(session.config, session.providers, session.adapter_admissions)
+    if not record.is_policy_governed and session.config.schema_version != 2:
+        return
+    policy = _continuation_authority(session.config, session.store, check_registry=False)
+    assert policy is not None
+    _, agrees = _registry_evidence(
+        session.repository_root, policy.registry_context, policy.stage_id, policy.contract_path
+    )
+    reason = None if agrees else StopReason.STAGE_START_AUTHORIZATION_CONFLICT
+    if reason is None:
+        try:
+            session.inspector.verify_contract_pin(policy.contract_path, policy.contract_sha256)
+        except GitInspectionError:
+            reason = StopReason.STAGE_ID_NOT_AUTHORIZED
+    if reason is not None:
+        detail = "frozen Stage Start entry condition changed before provider invocation"
+        _stop(
+            session,
+            record,
+            state=RunStatus.HUMAN_INTERVENTION_REQUIRED,
+            detail=detail,
+            stop_reason=reason,
+        )
+        _refuse(reason, detail)
 
 
 def _invoke_provider(
@@ -1090,12 +1524,16 @@ def _invoke_provider(
     ever existed -- whereas the opposite order would leave an in-flight record with no evidence to
     reconcile it against, which is a stop an operator would have to clear by hand.
     """
+    _admit_adapters(session.config, session.providers, session.adapter_admissions)
+    if record.is_policy_governed or session.config.schema_version == 2:
+        _continuation_authority(session.config, session.store, check_registry=False)
     origin = record.workflow_state
     adapter = session.providers.for_role(role)
     attempts = 0
     invocation: ProviderInvocation | None = None
     detail = ""
     while True:
+        _provider_authority_boundary(session, record)
         waiting = transition_to(record, RunStatus.PROVIDER_WAIT, moment=session.moment())
         record = _publish(session, waiting)
         started = False
@@ -1775,15 +2213,21 @@ def start_run(session: RunSession, *, moment: datetime) -> RunReport:
     the milestone loop begins. A refused condition publishes the stop rather than raising, so the
     refusal is as durable as a success.
     """
-    report = run_preflight(
-        session.config,
-        repository_root=session.repository_root,
-        inspector=session.inspector,
-        environment=session.environment,
-        executor=session.executor,
-        lock_held=session.lock.is_held,
-    )
-    evidence = report.evidence
+    authorization = session.start_authorization
+    if session.config.schema_version == 2 and authorization is None:
+        _refuse(StopReason.STAGE_START_NOT_AUTHORIZED, "start requires a frozen authorization")
+    report = None
+    evidence = None
+    if authorization is None:
+        report = run_preflight(
+            session.config,
+            repository_root=session.repository_root,
+            inspector=session.inspector,
+            environment=session.environment,
+            executor=session.executor,
+            lock_held=session.lock.is_held,
+        )
+        evidence = report.evidence
     now = _now(moment)
     record = RunRecord(
         schema_version=STATE_SCHEMA_VERSION,
@@ -1793,6 +2237,8 @@ def start_run(session: RunSession, *, moment: datetime) -> RunReport:
         expected_branch=session.config.repository.expected_branch,
         baseline_sha=session.config.repository.baseline_sha,
         contract_sha256=session.config.stage.contract_sha256,
+        policy_digest=authorization.effective_policy_digest if authorization is not None else None,
+        stage_start_id=authorization.stage_start_id if authorization is not None else None,
         workflow_state=RunStatus.IDLE,
         created_at=now,
         updated_at=now,
@@ -1803,6 +2249,16 @@ def start_run(session: RunSession, *, moment: datetime) -> RunReport:
     # The run is real from here on, so it becomes findable from here on: a crash anywhere below
     # still leaves `resume` and `status` a pointer to follow (section 9).
     record_latest_run(session.store.artifact_root, session.store.run_id)
+    if authorization is not None:
+        try:
+            session = replace(
+                session,
+                plan=MilestonePlanLoader(session.config, session.repository_root).load(),
+            )
+        except PlanError:
+            # The ordinary entry-condition evaluator below supplies the durable typed stop.
+            # B-3 must already be published even when the plan is absent or malformed.
+            pass
     session.store.publish_plan_snapshot(
         json.dumps(
             {
@@ -1815,6 +2271,15 @@ def start_run(session: RunSession, *, moment: datetime) -> RunReport:
         ),
         lock=session.lock,
     )
+    if report is None:
+        report = run_preflight(
+            session.config,
+            repository_root=session.repository_root,
+            inspector=session.inspector,
+            environment=session.environment,
+            executor=session.executor,
+            lock_held=session.lock.is_held,
+        )
     if not report.satisfied:
         record = _stopped_at_boundary(session, record, report)
         return RunReport.of(record, report.summary)
@@ -1838,6 +2303,9 @@ def resume_run(session: RunSession, *, moment: datetime) -> RunReport:
     touched on this path -- the run stops where it stands, with the worktree as it was found.
     """
     record = session.store.load()
+    _admit_adapters(session.config, session.providers, session.adapter_admissions)
+    if record.is_policy_governed or session.config.schema_version == 2:
+        _continuation_authority(session.config, session.store)
     if record.workflow_state in _TERMINAL_STATES:
         raise RunRefused(
             f"Run {record.run_id} is {record.workflow_state.value}; a terminal state has no "
@@ -2019,11 +2487,15 @@ class MilestoneRunnerApplication:
         clock: Callable[[], datetime] | None = None,
         run_id: str | None = None,
         confirmation_reader: Callable[[ApprovalOperation], str | None] | None = None,
+        stage_confirmation_reader: Callable[[str], str | None] | None = None,
+        adapter_admissions: Sequence[AdapterAdmission] = (),
     ) -> None:
         self._config = config
         self._repository_root = repository_root or Path(config.repository.root)
         self._clock: Callable[[], datetime] = clock or (lambda: datetime.now(UTC))
         self._providers = providers
+        self._adapter_admissions = tuple(adapter_admissions)
+        self._stage_confirmation_reader = stage_confirmation_reader or prompt_for_stage_start
         self._run_id = run_id
         self._confirmation_reader = confirmation_reader or prompt_for_confirmation
         self._inspector = GitReadOnlyInspector(self._repository_root)
@@ -2050,10 +2522,31 @@ class MilestoneRunnerApplication:
     def artifact_root(self) -> Path:
         return artifact_root_for(self._config.repository.identity)
 
+    def _latest_run_id(self) -> str | None:
+        if self.config.schema_version == 1:
+            return latest_run_id(self.artifact_root)
+        try:
+            raw = read_authority_bytes(
+                self.artifact_root / LATEST_RUN_POINTER, MAX_POINTER_BYTES, optional=True
+            )
+            if raw is None:
+                return None
+            document = json.loads(raw.decode("utf-8"))
+            identifier = document.get("run_id") if isinstance(document, dict) else None
+            if not isinstance(identifier, str) or _RUN_ID_RE.fullmatch(identifier) is None:
+                return None
+            state_path = self.artifact_root / identifier / "state.json"
+            reject_symlink_components(state_path, "policy-governed run state")
+            return identifier if state_path.is_file() else None
+        except StateError:
+            _refuse(StopReason.POLICY_DIGEST_MISMATCH, "run pointer ancestry is untrusted")
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            return None
+
     def _resolve_run_id(self, *, create: bool) -> str:
         if self._run_id is not None:
             return self._run_id
-        existing = latest_run_id(self.artifact_root)
+        existing = self._latest_run_id()
         if existing is not None and not create:
             return existing
         if create:
@@ -2070,7 +2563,31 @@ class MilestoneRunnerApplication:
             repository_root=self._repository_root,
         )
 
-    def _session(self, store: RunStateStore, lock: RunLock, plan: MilestonePlan) -> RunSession:
+    def _session(
+        self,
+        store: RunStateStore,
+        lock: RunLock,
+        plan: MilestonePlan,
+        *,
+        authorization: StageStartAuthorization | None = None,
+    ) -> RunSession:
+        if self.config.schema_version == 2:
+            frozen = (
+                authorization.effective_policy
+                if authorization is not None
+                else store.load_policy(store.load())
+            )
+            review_policy = ReviewPolicy(
+                max_full_reviews=1,
+                max_correction_rounds=1,
+                max_closure_reviews=1,
+                max_blockers=frozen.max_blockers,
+                blocking_severities=tuple(frozen.blocking_severities),
+                defer_severities=tuple(frozen.defer_severities),
+            )
+        else:
+            assert self.config.review_policy is not None
+            review_policy = ReviewPolicy.from_settings(self.config.review_policy)
         return RunSession(
             config=self._config,
             repository_root=self._repository_root,
@@ -2091,13 +2608,309 @@ class MilestoneRunnerApplication:
                 allowed_environment_variables=self._config.providers.allowed_environment_variables,
             ),
             providers=self._providers or ProviderBinding.from_config(self._config),
-            reviewer=ReviewCoordinator(
-                policy=ReviewPolicy.from_settings(self._config.review_policy)
-            ),
+            reviewer=ReviewCoordinator(policy=review_policy),
             plan=plan,
             environment=self._environment,
             clock=self._clock,
+            adapter_admissions=self._adapter_admissions,
+            start_authorization=authorization,
         )
+
+    def _authority_store(self) -> StageStartStore:
+        return StageStartStore(self.artifact_root, self.repository_root)
+
+    def _read_store(self, run_id: str) -> RunStateStore:
+        if _RUN_ID_RE.fullmatch(run_id) is None:
+            _refuse(StopReason.POLICY_BINDING_MISMATCH, "invalid run identity")
+        return RunStateStore(
+            run_directory=self.artifact_root / run_id,
+            repository_root=self.repository_root,
+            repository_id=self.config.repository.identity,
+            run_id=run_id,
+        )
+
+    def _pre_mutation(self, run_id: str, *, admit: bool = False) -> None:
+        store = self._read_store(run_id)
+        _continuation_authority(self.config, store)
+        if admit:
+            _admit_adapters(self.config, self._providers, self._adapter_admissions)
+
+    def _has_published_start(self, stage_start_id: str) -> bool:
+        # Exact known names only: losing a binding never permits a published run to rebind.
+        for run_id in (self._run_id, self._latest_run_id()):
+            if run_id is None:
+                continue
+            store = self._read_store(run_id)
+            raw = read_authority_bytes(store.state_path, 1 << 24, optional=True)
+            if raw is not None and store.load().stage_start_id == stage_start_id:
+                return True
+        return False
+
+    def _existing_start_input(
+        self,
+        logical_id: str,
+        key: str,
+        logical: Mapping[str, Any],
+    ) -> tuple[StageStartAuthorization | None, bool]:
+        authority_store = self._authority_store()
+        try:
+            pointer = authority_store.read_pointer(key)
+            if pointer is not None and pointer.stage_start_id != logical_id:
+                raise AuthorityArtifactInvalid("key already names different logical input")
+            record = authority_store.read_authorization(logical_id)
+            if pointer is not None and record is None:
+                raise AuthorityArtifactInvalid("pointer target missing")
+            if record is not None:
+                if logical_authorization_payload(record.model_dump(mode="json")) != logical:
+                    raise AuthorityArtifactInvalid("logical input differs")
+                if (
+                    pointer is not None
+                    and pointer.authorization_digest != record.authorization_digest
+                ):
+                    raise AuthorityArtifactInvalid("pointer integrity pin differs")
+                witness = _read_start_consumption(authority_store, record)
+                bound = _read_start_binding(authority_store, record)
+                published = self._has_published_start(record.stage_start_id)
+                if witness is not None:
+                    published = (
+                        published
+                        or read_authority_bytes(
+                            self._read_store(witness.run_id).state_path, 1 << 24, optional=True
+                        )
+                        is not None
+                    )
+                if pointer is None and (witness is not None or bound is not None or published):
+                    raise AuthorityArtifactInvalid("published authority lost its pointer")
+                if bound is None and published:
+                    raise AuthorityArtifactInvalid("published run lost its required binding")
+            return record, pointer is not None
+        except (StateError, RunRefused):
+            _refuse(
+                StopReason.STAGE_START_INPUT_CONFLICT,
+                "existing Stage Start input is invalid or different",
+            )
+
+    def stage_start(
+        self,
+        *,
+        stage_id: str,
+        overrides_path: Path | None = None,
+        confirmation: str | None = None,
+    ) -> StageStartReceipt:
+        """Ingest only an explicitly named and confirmed local OWNER Stage Start."""
+        if self.config.schema_version != 2:
+            _refuse(
+                StopReason.INVALID_CONFIGURATION, "stage-start requires a schema-v2 configuration"
+            )
+        if stage_id != self.config.stage.stage_id:
+            _refuse(StopReason.INVALID_CONFIGURATION, "stage-id must exactly match configuration")
+        try:
+            self._inspector.verify_contract_pin(
+                self.config.stage.contract_path, self.config.stage.contract_sha256
+            )
+        except GitInspectionError:
+            _refuse(StopReason.STAGE_ID_NOT_AUTHORIZED, "contract pin does not verify")
+        try:
+            reject_repository_containment(self.artifact_root, self.repository_root)
+            defaults, defaults_digest = load_policy_input(
+                self.artifact_root / "project-defaults.json",
+                ProjectExecutionDefaults,
+                optional=True,
+            )
+            overrides = StageExecutionOverrides(schema_version=2)
+            if overrides_path is not None:
+                reject_symlink_components(overrides_path, "Stage overrides")
+                reject_repository_containment(overrides_path, self.repository_root)
+                loaded, _ = load_policy_input(overrides_path, StageExecutionOverrides)
+                if loaded is None:
+                    raise ValueError("overrides absent")
+                overrides = loaded
+            policy = resolve_policy(
+                defaults,
+                overrides,
+                self.config.contract_binding(),
+                project_defaults_digest=defaults_digest,
+            )
+        except (StateError, ValueError, OSError):
+            _refuse(StopReason.INVALID_CONFIGURATION, "policy inputs are invalid or unreadable")
+        print(json.dumps(policy.model_dump(mode="json"), indent=2), file=sys.stderr)
+        print(f"Stage: {stage_id}\nPolicy digest: {policy.digest}", file=sys.stderr)
+        reply = (
+            confirmation if confirmation is not None else self._stage_confirmation_reader(stage_id)
+        )
+        if reply != f"START_STAGE {stage_id}":
+            _refuse(
+                StopReason.STAGE_START_NOT_CONFIRMED, "exact Stage Start confirmation is required"
+            )
+        logical: dict[str, Any] = {
+            "schema_version": 2,
+            "principal": StartPrincipal.LOCAL_CLI.value,
+            "repository_identity": policy.repository_identity,
+            "stage_id": stage_id,
+            "contract_path": policy.contract_path,
+            "contract_sha256": policy.contract_sha256,
+            "contract_ceilings": policy.contract_ceilings.model_dump(mode="json"),
+            "registry_context": policy.registry_context.model_dump(mode="json"),
+            "stage_overrides": overrides.model_dump(mode="json"),
+            "effective_policy": policy.model_dump(mode="json"),
+            "effective_policy_digest": policy.digest,
+            "stage_start_key": stage_start_key(
+                policy.repository_identity, stage_id, policy.contract_sha256
+            ),
+        }
+        logical_id = authority_digest(logical)
+        key = str(logical["stage_start_key"])
+        existing, pointed = self._existing_start_input(logical_id, key, logical)
+        if existing is not None and pointed:
+            repeated, still_pointed = self._existing_start_input(logical_id, key, logical)
+            if repeated != existing or not still_pointed:
+                _refuse(
+                    StopReason.STAGE_START_INPUT_CONFLICT, "Stage Start changed during validation"
+                )
+            return StageStartReceipt.of(existing)
+        lock = self._locked(new_run_id(datetime.now(UTC)))
+        try:
+            existing, _ = self._existing_start_input(logical_id, key, logical)
+            authority_store = self._authority_store()
+            if existing is None:
+                payload = {
+                    **logical,
+                    "stage_start_id": logical_id,
+                    "created_at": _now(self._clock()),
+                }
+                payload["authorization_digest"] = authority_digest(payload)
+                existing = StageStartAuthorization(**payload)
+                try:
+                    authority_store.publish_authorization(existing, lock=lock)
+                except ExclusivePublicationConflict:
+                    existing, _ = self._existing_start_input(logical_id, key, logical)
+                    if existing is None:
+                        _refuse(
+                            StopReason.STAGE_START_INPUT_CONFLICT, "publication winner is missing"
+                        )
+            pointer = StageStartPointer(
+                schema_version=2,
+                stage_start_key=key,
+                stage_start_id=logical_id,
+                authorization_digest=existing.authorization_digest,
+            )
+            authority_store.publish_pointer(pointer, lock=lock)
+            verified, pointed = self._existing_start_input(logical_id, key, logical)
+            if verified != existing or not pointed:
+                _refuse(
+                    StopReason.STAGE_START_INPUT_CONFLICT,
+                    "publication failed integrity verification",
+                )
+            return StageStartReceipt.of(existing)
+        except StateError:
+            _refuse(StopReason.STAGE_START_INPUT_CONFLICT, "Stage Start publication refused")
+        finally:
+            lock.release()
+
+    def _start_preflight(
+        self,
+    ) -> tuple[StageStartAuthorization, StageStartConsumptionWitness | None]:
+        authority_store = self._authority_store()
+        authorization = _read_start_authority(
+            self.config, self.repository_root, authority_store, check_registry=False
+        )
+        try:
+            self._inspector.verify_contract_pin(
+                self.config.stage.contract_path, self.config.stage.contract_sha256
+            )
+        except GitInspectionError:
+            _refuse(StopReason.STAGE_ID_NOT_AUTHORIZED, "contract pin does not verify")
+        _, agrees = _registry_evidence(
+            self.repository_root,
+            authorization.registry_context,
+            authorization.stage_id,
+            authorization.contract_path,
+        )
+        if not agrees:
+            _refuse(
+                StopReason.STAGE_START_AUTHORIZATION_CONFLICT,
+                "governed registry disagrees with Stage Start",
+            )
+        witness = _read_start_consumption(authority_store, authorization)
+        if witness is None:
+            try:
+                if self._has_published_start(authorization.stage_start_id):
+                    raise AuthorityArtifactInvalid("published run lost its consumption evidence")
+            except (StateError, RunRefused):
+                _refuse(StopReason.STAGE_START_ALREADY_BOUND, "consumption evidence unavailable")
+        if witness is not None:
+            try:
+                published = read_authority_bytes(
+                    self._read_store(witness.run_id).state_path, 1 << 24, optional=True
+                )
+            except StateError:
+                _refuse(StopReason.STAGE_START_ALREADY_BOUND, "consuming run state is untrusted")
+            if published is not None:
+                _refuse(
+                    StopReason.STAGE_START_ALREADY_BOUND, "Stage Start already has a published run"
+                )
+            try:
+                raw = read_authority_bytes(
+                    self._read_store(witness.run_id).policy_path, 65536, optional=True
+                )
+                if raw is not None and raw != authorization.effective_policy.canonical_bytes():
+                    raise PolicyDigestMismatch("existing policy differs")
+            except StateError:
+                _refuse(StopReason.POLICY_DIGEST_MISMATCH, "existing policy is invalid")
+        _admit_adapters(self.config, self._providers, self._adapter_admissions)
+        return authorization, witness
+
+    def _start_policy_run(self) -> RunReport:
+        authorization, witness = self._start_preflight()
+        run_id = witness.run_id if witness is not None else self._resolve_run_id(create=True)
+        store = self._read_store(run_id)
+        if store.exists():
+            raise RunRefused("run is already published; start never reopens it")
+        lock = self._locked(run_id)
+        try:
+            repeated, consumed = self._start_preflight()
+            if repeated != authorization:
+                _refuse(StopReason.STAGE_START_INPUT_CONFLICT, "authority changed during start")
+            if consumed is not None:
+                run_id = consumed.run_id
+            binding = _binding_for(authorization, run_id)
+            authority_store = self._authority_store()
+            try:
+                if consumed is None:
+                    payload = {
+                        **binding.model_dump(mode="json"),
+                        "stage_id": authorization.stage_id,
+                        "contract_sha256": authorization.contract_sha256,
+                    }
+                    consumed = StageStartConsumptionWitness(
+                        **payload, witness_digest=authority_digest(payload)
+                    )
+                    authority_store.publish_witness(consumed, lock=lock)
+                # Re-read after B-0: adoption never normalizes or repairs hostile evidence.
+                verified = _read_start_consumption(authority_store, authorization)
+                if verified != consumed or consumed.binding_digest != binding.binding_digest:
+                    raise AuthorityArtifactInvalid("consumption changed before binding")
+                if authority_store.read_binding(authorization.stage_start_id) is None:
+                    authority_store.publish_binding(binding, lock=lock)
+            except StateError:
+                _refuse(
+                    StopReason.STAGE_START_ALREADY_BOUND,
+                    "Stage Start consumption publication conflicts or is unavailable",
+                )
+            store = self._store(run_id)
+            try:
+                store.publish_policy(authorization.effective_policy, lock=lock)
+            except StateError:
+                _refuse(
+                    StopReason.POLICY_DIGEST_MISMATCH,
+                    "policy publication differs from frozen bytes",
+                )
+            return start_run(
+                self._session(store, lock, MilestonePlan((), ()), authorization=authorization),
+                moment=self._clock(),
+            )
+        finally:
+            lock.release()
 
     def _locked(self, run_id: str) -> RunLock:
         """Acquire the run lock for this canonical repository, or refuse (section 12)."""
@@ -2116,6 +2929,7 @@ class MilestoneRunnerApplication:
 
     def doctor(self) -> PreflightReport:
         """`doctor`: evaluate section 4's entry conditions, and change nothing."""
+        _admit_adapters(self.config, self._providers, self._adapter_admissions)
         return run_preflight(
             self._config,
             repository_root=self._repository_root,
@@ -2143,7 +2957,7 @@ class MilestoneRunnerApplication:
     def status(self) -> StatusReport:
         """`status`: read the durable record. Safe against a torn read because publication is
         atomic, which is exactly the trade section 12 records for the read-only commands."""
-        run_id = self._run_id or latest_run_id(self.artifact_root)
+        run_id = self._run_id or self._latest_run_id()
         if run_id is None:
             return StatusReport(
                 run_id=None,
@@ -2153,7 +2967,7 @@ class MilestoneRunnerApplication:
                 ),
             )
         try:
-            record = self._store(run_id).load()
+            record = self._read_store(run_id).load()
         except StateError as exc:
             return StatusReport(run_id=run_id, record=None, detail=str(exc))
         return StatusReport(
@@ -2200,7 +3014,12 @@ class MilestoneRunnerApplication:
 
     def start(self) -> RunReport:
         """`start`: acquire the lock, publish the initial state, and drive section 5's flow."""
+        if self.config.schema_version == 2:
+            return self._start_policy_run()
         run_id = self._resolve_run_id(create=True)
+        existing = self._read_store(run_id)
+        if existing.exists():
+            _continuation_authority(self.config, existing)
         lock = self._locked(run_id)
         try:
             store = self._store(run_id)
@@ -2217,10 +3036,12 @@ class MilestoneRunnerApplication:
     def resume(self) -> RunReport:
         """`resume`: re-verify section 4, reconcile recorded evidence, and continue."""
         run_id = self._resolve_run_id(create=False)
+        self._pre_mutation(run_id, admit=True)
         lock = self._locked(run_id)
         try:
             store = self._store(run_id)
             plan = MilestonePlanLoader(self._config, self._repository_root).load()
+            self._pre_mutation(run_id, admit=True)
             return resume_run(self._session(store, lock, plan), moment=self._clock())
         finally:
             lock.release()
@@ -2228,9 +3049,11 @@ class MilestoneRunnerApplication:
     def abort(self, *, reason: str) -> RunReport:
         """`abort`: stop the run at `ABORTED`, holding the run lock (prototype defect P-6)."""
         run_id = self._resolve_run_id(create=False)
+        self._pre_mutation(run_id)
         lock = self._locked(run_id)
         try:
             store = self._store(run_id)
+            _continuation_authority(self.config, store)
             record = store.load()
             aborted = transition_to(record, RunStatus.ABORTED, moment=self._clock())
             store.publish(aborted, lock=lock)
@@ -2311,9 +3134,11 @@ class MilestoneRunnerApplication:
         the application's act -- section 10's sole transition authority, applied to recovery too.
         """
         run_id = self._resolve_run_id(create=False)
+        self._pre_mutation(run_id)
         lock = self._locked(run_id)
         try:
             store = self._store(run_id)
+            _continuation_authority(self.config, store)
             record = store.load()
             evidence = self._inspector.evidence()
             context = RecoveryContext.observed(evidence, self._clock())
@@ -2353,9 +3178,11 @@ class MilestoneRunnerApplication:
             else RunStatus.READY_FOR_PUSH_APPROVAL
         )
         run_id = self._resolve_run_id(create=False)
+        self._pre_mutation(run_id)
         lock = self._locked(run_id)
         try:
             store = self._store(run_id)
+            _continuation_authority(self.config, store)
             record = store.load()
             if record.workflow_state is not required_state:
                 raise RunRefused(

@@ -42,7 +42,14 @@ from pathlib import Path
 from typing import Any, ClassVar, Final
 
 import yaml
-from pydantic import Field, ValidationError, ValidationInfo, field_validator, model_validator
+from pydantic import (
+    Field,
+    SerializeAsAny,
+    ValidationError,
+    ValidationInfo,
+    field_validator,
+    model_validator,
+)
 
 from ai_workflow_engine.exceptions import WorkflowEngineError
 from ai_workflow_engine.milestone_runner.models import (
@@ -51,10 +58,17 @@ from ai_workflow_engine.milestone_runner.models import (
     MAX_ARGUMENT_CHARS,
     MAX_IDENTIFIER_CHARS,
     MAX_ROOT_PATH_CHARS,
+    STAGE_ID_RE,
     FindingSeverity,
     MilestoneRunnerModel,
     StopReason,
     normalize_repository_path,
+)
+from ai_workflow_engine.milestone_runner.policy import (
+    ContractExecutionCeilings,
+    RegistryAuthorityContext,
+    RegistryAuthorityKind,
+    StageContractBinding,
 )
 
 #: Section 21: the configuration document is versioned exactly as the plan and the state record
@@ -478,6 +492,34 @@ class VerificationSettings(MilestoneRunnerModel):
     final: list[VerificationCommandSettings] = Field(min_length=1)
 
 
+class StageSettingsV2(StageSettings):
+    """Explicit registry declaration and pin-adjacent contract ceilings."""
+
+    registry_path: str | None
+    execution_ceilings: ContractExecutionCeilings
+
+    @field_validator("stage_id")
+    @classmethod
+    def _validate_stage_id(cls, value: str) -> str:
+        return _scalar(value, "stage.stage_id", STAGE_ID_RE, 64)
+
+    @field_validator("registry_path")
+    @classmethod
+    def _registry_path(cls, value: str | None) -> str | None:
+        return None if value is None else _repository_relative(value, "stage.registry_path")
+
+    @property
+    def registry_context(self) -> RegistryAuthorityContext:
+        return RegistryAuthorityContext(
+            kind=(
+                RegistryAuthorityKind.NO_GOVERNED_REGISTRY
+                if self.registry_path is None
+                else RegistryAuthorityKind.GOVERNED_REGISTRY
+            ),
+            path=self.registry_path,
+        )
+
+
 class RunnerConfig(MilestoneRunnerModel):
     """The validated runner configuration of section 21.
 
@@ -490,9 +532,9 @@ class RunnerConfig(MilestoneRunnerModel):
 
     schema_version: int
     repository: RepositorySettings
-    stage: StageSettings
+    stage: SerializeAsAny[StageSettings]
     allowlist: AllowlistSettings
-    review_policy: ReviewPolicySettings
+    review_policy: ReviewPolicySettings | None = None
     providers: ProvidersSettings
     verification: VerificationSettings
     git: GitSettings = Field(default_factory=GitSettings)
@@ -500,12 +542,46 @@ class RunnerConfig(MilestoneRunnerModel):
     @field_validator("schema_version")
     @classmethod
     def _validate_schema_version(cls, value: int) -> int:
-        if value != CONFIG_SCHEMA_VERSION:
+        if type(value) is not int or value not in {1, 2}:
             raise ValueError(
                 f"configuration schema_version {value} is unknown; this build understands "
                 f"only {CONFIG_SCHEMA_VERSION}"
             )
         return value
+
+    @model_validator(mode="before")
+    @classmethod
+    def _version_dispatch(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return value
+        version = value.get("schema_version")
+        if type(version) is not int or version not in {1, 2}:
+            raise ValueError("configuration schema_version must be exact integer 1 or 2")
+        if version == 2 and "review_policy" in value:
+            raise ValueError("review_policy is forbidden in schema v2")
+        if version == 1 and ("review_policy" not in value or value["review_policy"] is None):
+            raise ValueError("review_policy is required in schema v1")
+        payload = dict(value)
+        stage_model = StageSettings if version == 1 else StageSettingsV2
+        if "stage" not in payload:
+            raise ValueError("stage is required")
+        stage = payload.get("stage")
+        if isinstance(stage, MilestoneRunnerModel):
+            stage = stage.model_dump()
+        payload["stage"] = stage_model.model_validate(stage)
+        return payload
+
+    def contract_binding(self) -> StageContractBinding:
+        if not isinstance(self.stage, StageSettingsV2):
+            raise InvalidRunnerConfiguration("a policy binding requires schema v2")
+        return StageContractBinding(
+            repository_identity=self.repository.identity,
+            stage_id=self.stage.stage_id,
+            contract_path=self.stage.contract_path,
+            contract_sha256=self.stage.contract_sha256,
+            ceilings=self.stage.execution_ceilings,
+            registry_context=self.stage.registry_context,
+        )
 
     @model_validator(mode="after")
     def _validate_contract_is_not_forbidden(self) -> "RunnerConfig":
@@ -515,6 +591,11 @@ class RunnerConfig(MilestoneRunnerModel):
         run edit the document that bounds it. That is a scope question, not a taste question, so
         it is refused at load rather than caught later by the guard.
         """
+        if (
+            isinstance(self.stage, StageSettingsV2)
+            and self.stage.registry_path in self.allowlist.allowed_paths
+        ):
+            raise ValueError("stage.registry_path must not be writable")
         if self.stage.contract_path in self.allowlist.allowed_paths:
             raise ValueError(
                 f"stage.contract_path {self.stage.contract_path!r} must not appear in "
@@ -560,6 +641,11 @@ def load_runner_config(path: Path) -> RunnerConfig:
     if not isinstance(document, dict):
         raise InvalidRunnerConfiguration(
             f"The runner configuration {path} must be a YAML mapping at its root"
+        )
+    version = document.get("schema_version")
+    if type(version) is not int or version not in {1, 2}:
+        raise InvalidRunnerConfiguration(
+            "configuration schema_version must be exact integer 1 or 2"
         )
     try:
         return RunnerConfig.model_validate(document)
