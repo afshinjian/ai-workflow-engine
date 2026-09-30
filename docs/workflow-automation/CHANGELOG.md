@@ -13,6 +13,13 @@
 ## [Unreleased]
 
 ### Added
+- AUTO-017 committed-state OWNER closeout (2026-09-30): COMPLETE / Done, CLOSED / FROZEN,
+  implementation commit `1dab51d83dfe3f2975aa944dc4c0a3924cb6eed0`. Markers:
+  `AUTO_017_COMMITTED_STATE_VERIFIED`, `AUTO_017_OWNER_ACCEPTED`, `AUTO_017_CLOSED`, `AUTO_017_FROZEN`.
+  AUTO017-IMPL-R01 through AUTO017-IMPL-R06 remain CLOSED; G-1 remains `AUTO_017_G1_PASS_PATH_B`.
+  Frozen contract and Master Plan identities remain bound and unchanged (`docs/DECISION_LOG.md`).
+  Zero Current tasks; AUTO-018 remains NOT_STARTED / Planned and implementation unauthorized.
+  Governance documentation only; no successor preparation, staging or commit.
 - AUTO-017 implementation authorization recorded (OWNER, 2026-09-29):
   `AUTO_017_IMPLEMENTATION_AUTHORIZED`. `STAGE_REGISTRY.md` v7.2 records `NOT_STARTED → AUTHORIZED`
   and the contract's named branch (registered only, not created); the task and mirrors move

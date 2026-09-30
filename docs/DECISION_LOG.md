@@ -13,6 +13,54 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-09-30 — OWNER committed-state closeout of AUTO-017 / AWE-AUTO-ST-01
+
+On 2026-09-30, under the OWNER's bounded committed-state closeout authority, AUTO-017 /
+AWE-AUTO-ST-01 is **COMPLETE / Done**, CLOSED and FROZEN at implementation commit
+`1dab51d83dfe3f2975aa944dc4c0a3924cb6eed0`. Recorded markers:
+`AUTO_017_COMMITTED_STATE_VERIFIED`, `AUTO_017_OWNER_ACCEPTED`, `AUTO_017_CLOSED`, `AUTO_017_FROZEN`.
+
+Prior acceptance `AUTO_017_IMPLEMENTATION_OWNER_ACCEPTED` and independent closure
+`AUTO_017_IMPLEMENTATION_CLOSURE_PASS` remain controlling: AUTO017-IMPL-R01 through
+AUTO017-IMPL-R06 are all **CLOSED**. G-1 remains `AUTO_017_G1_PASS_PATH_B` under
+`D-AUTO017-02 = B`; no discovery, implementation review or test suite is rerun by this closeout.
+
+AUTO-017 is no longer Current; the Current set is empty. AUTO-018 remains
+`NOT_STARTED` / `Planned`, implementation unauthorized. No AUTO-018 preparation or
+implementation is authorized or performed. No production code or tests change, and
+nothing is staged or committed in this closeout.
+
+**Authority and transition.** The OWNER explicitly authorized this bounded closeout against
+implementation HEAD `1dab51d83dfe3f2975aa944dc4c0a3924cb6eed0`. Registry `AUTHORIZED → COMPLETE`;
+task `Current → Done`. This records the actual previously recorded registry state without inventing
+intermediate lifecycle acts. This entry supersedes the prior candidate-acceptance entry's
+uncommitted, incomplete and pending committed-state verification statements for current status;
+that entry remains unchanged. No merge, publication or additional Git authority is claimed.
+
+**Frozen binding.** Both artifacts match these identities in the committed tree and worktree:
+
+| Frozen artifact | Path | Lines | Bytes | SHA-256 |
+|---|---|---:|---:|---|
+| AUTO-017 contract | `docs/workflow-automation/stage-prompts/AUTO-017.md` | 1717 | 138969 | `50760879b2f64c395c8c3c5ee83c3bdac1a8b8456588b144c068f01d1080b1e8` |
+| Master Plan | `docs/workflow-automation/successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md` | 1698 | 113150 | `8ab499c0240cc542e735eb5d1953dcd93994ebd87f1ef7413e9346805d613077` |
+
+Accepted OWNER rulings remain `D-AUTO017-01 = B`, `D-AUTO017-02 = B`, `D-AUTO017-03 = A`.
+
+**Committed-state preconditions observed before edits.** `git status --short` and
+`git diff --cached --name-only` produced no output; `git diff --check` passed; `git rev-parse HEAD`
+returned the exact implementation SHA above. No implementation or frozen-artifact edits are made.
+The report's earlier remediation evidence remains historical and its G-1 Path B disposition is
+carried forward from the accepted independent review, not newly adjudicated here.
+
+**Post-edit verification.** `git diff --check` passed. The required command
+`PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=.:src ~/miniconda3/envs/ai-workflow-engine/bin/workflowctl verify --config self-governance.yaml`
+returned **PASS**: git, task-state, governance, registries and handover all PASS;
+0 Current, 62 Done, 9 Planned; 36 stages across 2 registries; 1 handover manifest record.
+`git diff --cached --name-only` remained empty; `git rev-parse HEAD` remained
+`1dab51d83dfe3f2975aa944dc4c0a3924cb6eed0`. The final diff is limited to the task queue,
+its two mirrors, project state, this decision log, both changelogs, the AUTO registry and a
+controlling-status note in the completion report. Frozen artifacts and AUTO-018 records are unchanged.
+
 ## 2026-09-30 — OWNER accepted the reviewed AUTO-017 implementation candidate (uncommitted)
 
 **Decision (OWNER).** `AUTO_017_IMPLEMENTATION_OWNER_ACCEPTED`. The one independent implementation

@@ -1,5 +1,30 @@
 # AUTO-017 implementation remediation report
 
+## Committed-state closeout — 2026-09-30 (controlling status)
+
+Under the OWNER's bounded committed-state closeout authority, AUTO-017 / AWE-AUTO-ST-01 is
+**COMPLETE / Done**, CLOSED and FROZEN at implementation commit
+`1dab51d83dfe3f2975aa944dc4c0a3924cb6eed0`. Recorded markers:
+`AUTO_017_COMMITTED_STATE_VERIFIED`, `AUTO_017_OWNER_ACCEPTED`, `AUTO_017_CLOSED`, `AUTO_017_FROZEN`.
+
+Prior `AUTO_017_IMPLEMENTATION_OWNER_ACCEPTED` and independent
+`AUTO_017_IMPLEMENTATION_CLOSURE_PASS` remain controlling. AUTO017-IMPL-R01 through
+AUTO017-IMPL-R06 are all **CLOSED**; G-1 remains `AUTO_017_G1_PASS_PATH_B` under
+`D-AUTO017-02 = B`. The frozen identities in the table below remain unchanged and bound to
+this committed implementation. Pre-edit checks confirmed the exact clean implementation HEAD
+and empty index. Post-edit governance verification is recorded in `docs/DECISION_LOG.md`'s
+same-date committed-state closeout entry.
+
+There are zero Current tasks. AUTO-018 remains NOT_STARTED / Planned, implementation unauthorized;
+no successor preparation is performed. This closeout changes no production code or tests, reruns
+no discovery, implementation review or test suite, and stages or commits nothing.
+
+The remediation report below is preserved as evidence from its earlier execution. Its baseline HEAD,
+unstaged/uncommitted descriptions and pending independent closure/OWNER approval statements are
+historical and superseded by this closeout; its accepted G-1 Path B result remains controlling.
+
+---
+
 This is the unstaged remediation candidate for exactly `AUTO017-IMPL-R01` through
 `AUTO017-IMPL-R06`. No discovery was reopened, no finding ID added, and no Stage lifecycle
 or Git-history authority was exercised. The original report is preserved below as explicitly

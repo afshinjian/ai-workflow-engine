@@ -2350,10 +2350,33 @@ stage named in its entry below. This is the same rule as `STAGE_REGISTRY.md` §3
 
 ## AUTO-017 — Schema v2 + Stage Execution Policy
 
-Status: Current
+Status: Done
 
-Alias `AWE-AUTO-ST-01`. Registered 2026-09-28 (OD-GSE-07); **AUTHORIZED, implementation candidate OWNER-accepted, uncommitted**
-(OWNER, 2026-09-29; `AUTO_017_IMPLEMENTATION_AUTHORIZED`).
+Alias `AWE-AUTO-ST-01`. Registered 2026-09-28 (OD-GSE-07); **COMPLETE, OWNER-accepted, CLOSED / FROZEN**
+(OWNER closeout, 2026-09-30), implementation commit `1dab51d83dfe3f2975aa944dc4c0a3924cb6eed0`.
+
+On 2026-09-30, under the OWNER's bounded committed-state closeout authority, AUTO-017 /
+AWE-AUTO-ST-01 is **COMPLETE / Done**, CLOSED and FROZEN at implementation commit
+`1dab51d83dfe3f2975aa944dc4c0a3924cb6eed0`. Recorded markers:
+`AUTO_017_COMMITTED_STATE_VERIFIED`, `AUTO_017_OWNER_ACCEPTED`, `AUTO_017_CLOSED`, `AUTO_017_FROZEN`.
+
+Prior acceptance `AUTO_017_IMPLEMENTATION_OWNER_ACCEPTED` and independent closure
+`AUTO_017_IMPLEMENTATION_CLOSURE_PASS` remain controlling: AUTO017-IMPL-R01 through
+AUTO017-IMPL-R06 are all **CLOSED**. G-1 remains `AUTO_017_G1_PASS_PATH_B` under
+`D-AUTO017-02 = B`; no discovery, implementation review or test suite is rerun by this closeout.
+
+AUTO-017 is no longer Current; the Current set is empty. AUTO-018 remains
+`NOT_STARTED` / `Planned`, implementation unauthorized. No AUTO-018 preparation or
+implementation is authorized or performed. No production code or tests change, and
+nothing is staged or committed in this closeout.
+
+The authoritative frozen contract and Master Plan identities are the 1717-line and 1698-line
+identities in the R02 amendment record below; both remain byte-unchanged. Full committed-state
+closeout and verification record: `docs/DECISION_LOG.md`, 2026-09-30.
+
+The earlier authorization and acceptance records below are historical; this closeout supersedes
+their lifecycle, uncommitted-candidate and pending-verification statements for current status.
+
 - **Execution predecessor (OD-GSE-12):** AUTO-016 (`COMPLETE`).
 - **Open OWNER decisions or external prerequisites that block this stage:** none (OD-GSE-01, -02, -03, -06, -07 accepted).
 - **Scope, exclusions and acceptance criteria:** the stage section in `docs/workflow-automation/successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`.

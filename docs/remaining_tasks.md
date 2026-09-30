@@ -130,7 +130,6 @@ every later roadmap phase remain unauthorized. Completion report:
 
 | Task | Title | Status |
 |---|---|---|
-| AUTO-017 | Schema v2 + Stage Execution Policy (alias AWE-AUTO-ST-01) | Current |
 | AUTO-018 | Durable Lifecycle / Event Foundation (alias AWE-AUTO-ST-02) | Planned |
 | AUTO-019 | Resume / Crash Recovery (alias AWE-AUTO-ST-03) | Planned |
 | AUTO-020 | 1..3 Bounded Remediation Cycles (alias AWE-AUTO-ST-04) | Planned |
@@ -382,6 +381,9 @@ required at that act. Record: `docs/DECISION_LOG.md`, 2026-09-29.
 
 ## AUTO-017 implementation authorization — 2026-09-29
 
+Historical authorization record; its lifecycle statements are superseded by the 2026-09-30
+committed-state closeout below.
+
 The OWNER recorded `AUTO_017_IMPLEMENTATION_AUTHORIZED`, bound to the exact CLOSED / FROZEN contract
 and Master Plan identities in `docs/TASK_QUEUE.md`'s AUTO-017 entry and `docs/DECISION_LOG.md`'s
 implementation-authorization entry. AUTO-017 is now `AUTHORIZED` in the registry and the sole `Current`
@@ -390,3 +392,11 @@ Only the production/test paths and scope frozen in contract §§5–6 are author
 This governance step grants no scope expansion, later-stage behavior, frozen-artifact edits or Git
 mutation authority, including staging, commit, push, tag, merge and reset/rebase/checkout/switch.
 AUTO-018 … AUTO-026 remain unauthorized and `Planned`.
+
+## AUTO-017 committed-state closeout — 2026-09-30
+
+AUTO-017 is COMPLETE / Done, CLOSED and FROZEN at implementation commit
+`1dab51d83dfe3f2975aa944dc4c0a3924cb6eed0` and has been removed from the remaining-work table.
+There are zero Current tasks. AUTO-018 remains NOT_STARTED / Planned and implementation
+unauthorized; no successor preparation is authorized. Closeout markers, the six CLOSED
+implementation findings, G-1 Path B and frozen identities: `docs/DECISION_LOG.md`.

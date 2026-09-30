@@ -7,7 +7,28 @@ so keep the version line's wording exact if you edit it.
 
 Current Version: 1.0.0
 
-## Latest governance activity — AUTO-017 implementation candidate OWNER-accepted (uncommitted)
+## Latest governance activity — AUTO-017 committed-state closeout
+
+On 2026-09-30, under the OWNER's bounded committed-state closeout authority, AUTO-017 /
+AWE-AUTO-ST-01 is **COMPLETE / Done**, CLOSED and FROZEN at implementation commit
+`1dab51d83dfe3f2975aa944dc4c0a3924cb6eed0`. Recorded markers:
+`AUTO_017_COMMITTED_STATE_VERIFIED`, `AUTO_017_OWNER_ACCEPTED`, `AUTO_017_CLOSED`, `AUTO_017_FROZEN`.
+
+Prior acceptance `AUTO_017_IMPLEMENTATION_OWNER_ACCEPTED` and independent closure
+`AUTO_017_IMPLEMENTATION_CLOSURE_PASS` remain controlling: AUTO017-IMPL-R01 through
+AUTO017-IMPL-R06 are all **CLOSED**. G-1 remains `AUTO_017_G1_PASS_PATH_B` under
+`D-AUTO017-02 = B`; no discovery, implementation review or test suite is rerun by this closeout.
+
+AUTO-017 is no longer Current; the Current set is empty. AUTO-018 remains
+`NOT_STARTED` / `Planned`, implementation unauthorized. No AUTO-018 preparation or
+implementation is authorized or performed. No production code or tests change, and
+nothing is staged or committed in this closeout.
+
+Both frozen artifacts retain the identities recorded below and in `docs/DECISION_LOG.md`'s
+2026-09-30 committed-state closeout entry. That entry is the controlling current-state record;
+earlier lifecycle, pending-remediation, blocked-G-1 and uncommitted statements below are historical.
+
+## Prior governance activity — AUTO-017 implementation candidate OWNER-accepted (uncommitted)
 
 On 2026-09-30, the OWNER recorded `AUTO_017_IMPLEMENTATION_OWNER_ACCEPTED` for the current
 unstaged, uncommitted AUTO-017 implementation candidate. The one independent implementation
