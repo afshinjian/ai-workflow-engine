@@ -48,6 +48,21 @@ different files and both would succeed, which is precisely the failure
 `agentos_workflow/orchestrator/lock.py`'s own docstring records having had to fix. Where the two
 sections disagree the narrower, more restrictive reading is implemented -- repository-scoped
 exclusion -- and the file keeps section 11's `run.lock` name.
+
+Continuing ownership (AUTO-018 section 7.4)
+-------------------------------------------
+`is_held` and an equal repository-identity string are necessary and not sufficient. A hold is on
+one inode, reached through one storage ancestry, for one canonical repository; if the lock file,
+the repository-scoped root, an ancestor of it or the target repository root is renamed away and
+replaced, the old descriptor still holds a perfectly good `flock` on a file nobody else contends
+for any more. Acquisition therefore captures an ownership context -- the canonical path and
+`(st_dev, st_ino)` identity of the storage anchor, the repository-scoped root and the lock inode,
+plus the canonical target-repository root when the holder names one -- and retains no-follow
+descriptors for the storage ancestry. :meth:`RunLock.verify_ownership` re-walks the current paths
+no-follow and refuses with :class:`LockOwnershipLost` on any disagreement, and a detected loss
+invalidates the hold for the rest of the invocation. Nothing here rebinds a hold to a replacement
+path, recreates a lock, steals another hold, adds a lease or consults a PID: the flock domain and
+the metadata and release semantics above are unchanged.
 """
 
 import errno
@@ -56,6 +71,8 @@ import os
 import re
 import socket
 import stat
+from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from types import TracebackType
@@ -128,6 +145,51 @@ class LockContention(LockError):
     def __init__(self, message: str, *, holder: "LockHolder | None" = None) -> None:
         super().__init__(message)
         self.holder = holder
+
+
+class LockOwnershipLost(LockError):
+    """The held lock no longer matches its canonical storage root, lock inode or repository root.
+
+    AUTO-018 section 7.4 (R02). Raised when a hold's retained ownership context disagrees with the
+    current no-follow path walk, when a store at another root asks this hold for authority, or
+    once the hold has been invalidated. The holder must not publish, confirm, append a stop or
+    reach another effect; it may only release its own original descriptor, which never unlinks
+    either lock path.
+    """
+
+    stop_reason: ClassVar[StopReason | None] = StopReason.LOCK_OWNERSHIP_LOST
+
+
+@dataclass(frozen=True, slots=True)
+class _Identity:
+    """One filesystem object's `(st_dev, st_ino)` identity."""
+
+    device: int
+    inode: int
+
+    @classmethod
+    def of(cls, status: os.stat_result) -> "_Identity":
+        return cls(device=status.st_dev, inode=status.st_ino)
+
+
+@dataclass(slots=True)
+class _Ownership:
+    """What a hold was acquired against, retained for the whole invocation (section 7.4).
+
+    `anchor_fd` and `root_fd` are no-follow directory descriptors for the storage ancestry this
+    hold addressed; publication derives its parent descriptors from `root_fd`, so a write can never
+    silently follow a replacement path to a different directory.
+    """
+
+    anchor_path: str
+    anchor_fd: int
+    anchor: _Identity
+    root_name: str
+    root_fd: int
+    root: _Identity
+    lock: _Identity
+    repository_path: str | None
+    repository: _Identity | None
 
 
 class LockHolder(MilestoneRunnerModel):
@@ -293,7 +355,10 @@ class RunLock:
         self._repository_identity = repository_identity
         self._artifact_root = artifact_root
         self._lock_path = artifact_root / RUN_LOCK_FILE_NAME
+        self._repository_root: Path | None = None
         self._descriptor: int | None = None
+        self._ownership: _Ownership | None = None
+        self._lost = False
 
     @property
     def run_id(self) -> str:
@@ -313,9 +378,35 @@ class RunLock:
         return self._lock_path
 
     @property
+    def repository_root(self) -> Path | None:
+        """The target repository this hold was acquired for, when its holder named one."""
+        return self._repository_root
+
+    def bind_repository_root(self, repository_root: Path) -> "RunLock":
+        """Name the target repository root the ownership context must also bind (section 7.4).
+
+        Only before acquisition, and only once: the flock domain and the lock path stay a pure
+        function of the artifact root, so this never selects which file is locked -- it adds the
+        canonical repository root to what a hold is later verified against.
+        """
+        if self._descriptor is not None or self._repository_root is not None:
+            raise LockStateError("A repository root is bound once, before acquisition")
+        self._repository_root = repository_root
+        return self
+
+    @property
+    def binds_repository(self) -> bool:
+        """Whether the ownership context also binds the canonical target-repository root."""
+        return self._repository_root is not None
+
+    @property
     def is_held(self) -> bool:
-        """Whether *this instance* holds the lock. Never a claim about any other process."""
-        return self._descriptor is not None
+        """Whether *this instance* holds the lock. Never a claim about any other process.
+
+        A hold whose ownership was found lost (section 7.4) no longer counts as held for any
+        writer, although its original descriptor stays open until :meth:`release`.
+        """
+        return self._descriptor is not None and not self._lost
 
     def acquire(self) -> LockHolder:
         """Take the lock, or refuse with :class:`LockContention` naming the holding run.
@@ -327,7 +418,7 @@ class RunLock:
         if self._descriptor is not None:
             raise LockStateError(f"This instance already holds {self._lock_path}")
 
-        descriptor = self._open_confined(create=True)
+        anchor_path, anchor_fd, root_fd, descriptor = self._open_confined_retaining()
         try:
             fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError as exc:
@@ -335,6 +426,8 @@ class RunLock:
             # only decides how the refusal is worded.
             holder = self._read_holder(descriptor)
             os.close(descriptor)
+            os.close(root_fd)
+            os.close(anchor_fd)
             named = (
                 f" It is held by run {holder.run_id} (recorded at {holder.acquired_at})."
                 if holder is not None
@@ -347,6 +440,8 @@ class RunLock:
             ) from exc
         except BaseException:
             os.close(descriptor)
+            os.close(root_fd)
+            os.close(anchor_fd)
             raise
 
         # The flock is now held by `descriptor`. Everything below is bookkeeping that can still
@@ -362,14 +457,19 @@ class RunLock:
                 acquired_at=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
             )
             self._write_holder(descriptor, holder)
+            ownership = self._capture_ownership(anchor_path, anchor_fd, root_fd, descriptor)
         except BaseException:
             try:
                 fcntl.flock(descriptor, fcntl.LOCK_UN)
             finally:
                 os.close(descriptor)
+                os.close(root_fd)
+                os.close(anchor_fd)
             raise
 
         self._descriptor = descriptor
+        self._ownership = ownership
+        self._lost = False
         return holder
 
     def release(self) -> None:
@@ -383,11 +483,16 @@ class RunLock:
         if self._descriptor is None:
             return
         descriptor = self._descriptor
+        ownership = self._ownership
         self._descriptor = None
+        self._ownership = None
         try:
             fcntl.flock(descriptor, fcntl.LOCK_UN)
         finally:
             os.close(descriptor)
+            if ownership is not None:
+                os.close(ownership.root_fd)
+                os.close(ownership.anchor_fd)
 
     def read_holder(self) -> LockHolder | None:
         """Read the recorded holder without attempting acquisition -- diagnostic only.
@@ -442,6 +547,216 @@ class RunLock:
                 os.close(root_fd)
         finally:
             os.close(anchor_fd)
+
+    def _open_confined_retaining(self) -> tuple[str, int, int, int]:
+        """:meth:`_open_confined` for acquisition, retaining the two ancestry descriptors.
+
+        The same anchored, component-by-component no-follow walk -- through the unchanged
+        :func:`_open_directory_component` and :func:`_open_lock_file_component` -- except that the
+        anchor and repository-scoped root descriptors stay open, because section 7.4 derives every
+        governed publication's parent descriptor from them for as long as the hold lasts.
+        """
+        anchor = os.path.realpath(self._artifact_root.parent)
+        os.makedirs(anchor, mode=LOCK_DIRECTORY_MODE, exist_ok=True)
+        anchor_fd = os.open(anchor, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            root_fd = _open_directory_component(anchor_fd, self._artifact_root.name, create=True)
+        except BaseException:
+            os.close(anchor_fd)
+            raise
+        try:
+            descriptor = _open_lock_file_component(root_fd, RUN_LOCK_FILE_NAME, create=True)
+        except BaseException:
+            os.close(root_fd)
+            os.close(anchor_fd)
+            raise
+        return anchor, anchor_fd, root_fd, descriptor
+
+    def _capture_ownership(
+        self, anchor_path: str, anchor_fd: int, root_fd: int, descriptor: int
+    ) -> _Ownership:
+        """Record the identities this hold was acquired against (section 7.4)."""
+        repository_path: str | None = None
+        repository: _Identity | None = None
+        if self._repository_root is not None:
+            repository_path = os.path.realpath(self._repository_root)
+            try:
+                repository_fd = os.open(
+                    repository_path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+                )
+            except OSError as exc:
+                raise LockPathRefused(
+                    "The target repository root cannot be bound to the run lock"
+                ) from exc
+            try:
+                repository = _Identity.of(os.fstat(repository_fd))
+            finally:
+                os.close(repository_fd)
+        return _Ownership(
+            anchor_path=anchor_path,
+            anchor_fd=anchor_fd,
+            anchor=_Identity.of(os.fstat(anchor_fd)),
+            root_name=self._artifact_root.name,
+            root_fd=root_fd,
+            root=_Identity.of(os.fstat(root_fd)),
+            lock=_Identity.of(os.fstat(descriptor)),
+            repository_path=repository_path,
+            repository=repository,
+        )
+
+    def _lose(self, detail: str) -> LockOwnershipLost:
+        """Invalidate this hold for the rest of the invocation and describe why (section 7.4)."""
+        self._lost = True
+        return LockOwnershipLost(
+            f"The run lock for {self._repository_identity} no longer owns its canonical storage: "
+            f"{detail}. Nothing further is published or executed under this hold."
+        )
+
+    def verify_ownership(
+        self, *, storage_root: Path | None = None, repository_root: Path | None = None
+    ) -> None:
+        """Refuse unless this hold still owns the canonical roots and lock inode it was taken on.
+
+        `storage_root` is the repository-scoped root a store addresses, and `repository_root` the
+        target repository a governed command acts on. A root other than the one this hold was
+        acquired under never inherits its authority, even with an equal identity string. The
+        current no-follow walk must reach the captured anchor, root and lock inode, the lock
+        descriptor must still be the single-link regular file the flock is on, and a bound
+        repository root must still be the captured directory. Any disagreement -- a missing,
+        replaced or renamed-away component, an unexpected file type, a shared lock inode or a lost
+        hold -- invalidates this hold and raises :class:`LockOwnershipLost`.
+        """
+        ownership = self._ownership
+        descriptor = self._descriptor
+        if descriptor is None or ownership is None:
+            raise LockOwnershipLost(
+                f"The run lock for {self._repository_identity} is not held by this instance"
+            )
+        if self._lost:
+            raise LockOwnershipLost(
+                f"The run lock for {self._repository_identity} was invalidated earlier in this "
+                "invocation and authorizes nothing further"
+            )
+        try:
+            if storage_root is not None and (
+                os.path.realpath(storage_root.parent) != ownership.anchor_path
+                or storage_root.name != ownership.root_name
+            ):
+                raise self._lose(f"it was acquired under another storage root than {storage_root}")
+            if repository_root is not None and ownership.repository_path is not None:
+                if os.path.realpath(repository_root) != ownership.repository_path:
+                    raise self._lose("it was acquired for another repository root")
+            status = os.fstat(descriptor)
+            if (
+                not stat.S_ISREG(status.st_mode)
+                or status.st_nlink != 1
+                or _Identity.of(status) != ownership.lock
+            ):
+                raise self._lose("the held lock inode is no longer the single-name lock file")
+            if os.path.realpath(ownership.anchor_path) != ownership.anchor_path:
+                raise self._lose("an ancestor of the storage root was replaced")
+            anchor_fd = os.open(ownership.anchor_path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+            try:
+                if _Identity.of(os.fstat(anchor_fd)) != ownership.anchor:
+                    raise self._lose("the storage anchor directory was replaced")
+                root_fd = os.open(
+                    ownership.root_name,
+                    os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                    dir_fd=anchor_fd,
+                )
+                try:
+                    if _Identity.of(os.fstat(root_fd)) != ownership.root:
+                        raise self._lose("the repository-scoped storage root was replaced")
+                    lock_fd = os.open(
+                        RUN_LOCK_FILE_NAME,
+                        os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
+                        dir_fd=root_fd,
+                    )
+                    try:
+                        current = os.fstat(lock_fd)
+                        if (
+                            not stat.S_ISREG(current.st_mode)
+                            or current.st_nlink != 1
+                            or _Identity.of(current) != ownership.lock
+                        ):
+                            raise self._lose("the lock file was replaced")
+                    finally:
+                        os.close(lock_fd)
+                finally:
+                    os.close(root_fd)
+            finally:
+                os.close(anchor_fd)
+            if _Identity.of(os.fstat(ownership.root_fd)) != ownership.root:
+                raise self._lose("the retained storage root descriptor changed")
+            if ownership.repository_path is not None:
+                if os.path.realpath(ownership.repository_path) != ownership.repository_path:
+                    raise self._lose("an ancestor of the target repository root was replaced")
+                repository_fd = os.open(
+                    ownership.repository_path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+                )
+                try:
+                    if _Identity.of(os.fstat(repository_fd)) != ownership.repository:
+                        raise self._lose("the target repository root was replaced")
+                finally:
+                    os.close(repository_fd)
+        except LockOwnershipLost:
+            raise
+        except OSError as exc:
+            raise self._lose(
+                f"a canonical component could not be re-walked ({exc.strerror})"
+            ) from exc
+
+    def verify_descriptor_ancestry(
+        self, *, storage_root: Path, names: Sequence[str], descriptors: Sequence[int]
+    ) -> None:
+        """Refuse unless every opened child directory is still the canonical one at its name.
+
+        Section 7.4 binds publication to the addressed storage ancestry, not only to its root:
+        `descriptors[i]` was opened no-follow as `names[i]` below the previous descriptor (the
+        retained storage root first). If any of them was renamed away, replaced, or no longer
+        sits at its canonical name, a write through it would land in a detached directory, so the
+        hold is invalidated with :class:`LockOwnershipLost` exactly as for a replaced root.
+        """
+        if len(names) != len(descriptors):
+            raise LockStateError("Every verified descriptor names its canonical component")
+        self.verify_ownership(storage_root=storage_root)
+        assert self._ownership is not None
+        parent = self._ownership.root_fd
+        try:
+            for name, descriptor in zip(names, descriptors, strict=True):
+                current = os.stat(name, dir_fd=parent, follow_symlinks=False)
+                held = os.fstat(descriptor)
+                if not stat.S_ISDIR(current.st_mode) or _Identity.of(current) != _Identity.of(held):
+                    raise self._lose(
+                        f"the addressed storage directory {name!r} was replaced or renamed away"
+                    )
+                parent = descriptor
+        except LockOwnershipLost:
+            raise
+        except OSError as exc:
+            raise self._lose(
+                f"an addressed storage directory could not be re-walked ({exc.strerror})"
+            ) from exc
+
+    def invalidate(self, detail: str) -> LockOwnershipLost:
+        """Invalidate this hold for a namespace loss a caller detected below the storage root.
+
+        Section 7.4 / R02: a governed child directory that is no longer the one this hold bound
+        at its canonical name -- renamed away, replaced, or redirected through a symlink -- is the
+        same lost ownership context as a replaced root. The caller raises the returned error.
+        """
+        return self._lose(detail)
+
+    def storage_root_descriptor(self, *, storage_root: Path) -> int:
+        """The retained no-follow descriptor of the repository-scoped root, after verification.
+
+        Section 7.4: governed publication derives its parent descriptors from this rather than
+        reopening a pathname. The descriptor belongs to the hold; a caller never closes it and
+        never uses it after :meth:`release`.
+        """
+        self.verify_ownership(storage_root=storage_root)
+        assert self._ownership is not None
+        return self._ownership.root_fd
 
     # -- metadata: written to the locked descriptor, read positionally --------------------
 

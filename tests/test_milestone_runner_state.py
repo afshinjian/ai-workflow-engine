@@ -41,6 +41,7 @@ from ai_workflow_engine.milestone_runner.models import (
     BLOCKING_SEVERITIES,
     DEFERRED_SEVERITIES,
     DIGEST_EXCLUDED_FIELDS,
+    EVENT_BACKED_STATE_SCHEMA_VERSION,
     PLAN_SCHEMA_VERSION,
     RETRYABLE_PROVIDER_FAILURE_CLASSES,
     RUN_COUNTER_FIELDS,
@@ -626,6 +627,15 @@ class TestProviderFailureTaxonomy:
             "STAGE_START_NOT_CONFIRMED",
             "POLICY_BINDING_MISMATCH",
             "LIVE_PROVIDER_NOT_ENABLED",
+            # AUTO-018 section 9 adds exactly these eight storage refusals, and nothing else.
+            "EVENT_CHAIN_BROKEN",
+            "EVENT_CONFLICT",
+            "OPERATION_RECORD_INVALID",
+            "OPERATION_RECORD_CONFLICT",
+            "LIFECYCLE_SCHEMA_UNKNOWN",
+            "APPLICATION_MUTATION_INCOMPLETE",
+            "LOCK_OWNERSHIP_LOST",
+            "PUBLICATION_UNCERTAIN",
         }
 
 
@@ -1892,7 +1902,7 @@ class TestCrashBeforeRenameLeavesNoPartialState:
     """
 
     @staticmethod
-    def _crash(source: Any, destination: Any) -> None:
+    def _crash(source: Any, destination: Any, **_descriptor_relative: Any) -> None:
         raise OSError("the machine lost power between the write and the rename")
 
     def test_a_crash_before_the_rename_leaves_the_previous_document_intact(
@@ -1988,7 +1998,7 @@ class TestCrashAfterFsyncBeforeRenameRecoverable:
             fsynced.append(descriptor)
             real_fsync(descriptor)
 
-        def crash(source: Any, destination: Any) -> None:
+        def crash(source: Any, destination: Any, **_descriptor_relative: Any) -> None:
             raise OSError("power lost after the data was durable but before the rename")
 
         monkeypatch.setattr(os, "fsync", counting_fsync)
@@ -2117,7 +2127,9 @@ class TestStateSchemaUnknownIsAHardRefusal:
         self, store: RunStateStore, held_lock: RunLock, worktree: Path
     ) -> None:
         store.publish(durable_record(worktree, "a" * 40), lock=held_lock)
-        self._tamper(store, schema_version=STATE_SCHEMA_VERSION + 1)
+        # AUTO-018 section 10.1 defines wire version 3 for event-backed runs, so the first
+        # version this build does not know is the one after it.
+        self._tamper(store, schema_version=EVENT_BACKED_STATE_SCHEMA_VERSION + 1)
 
         with pytest.raises(StateSchemaUnknown) as refusal:
             store.load()
@@ -2236,7 +2248,18 @@ class TestSecretShapedProviderOutputNeverReachesDisk:
         import inspect
 
         parameters = inspect.signature(write_redacted_artifact).parameters
-        assert set(parameters) == {"path", "text", "relative_path", "exclusive"}
+        # AUTO-018 adds exactly two parameters, neither of which skips redaction: `target` binds
+        # the publication to the verified hold's descriptors, and `refuse_redaction` makes the
+        # boundary stricter (it refuses integrity-bound bytes the redactor would still change).
+        assert set(parameters) == {
+            "path",
+            "text",
+            "relative_path",
+            "exclusive",
+            "target",
+            "refuse_redaction",
+        }
+        assert parameters["refuse_redaction"].default is False
 
 
 class TestRedactionEventIsRecordedNotSilent:
@@ -3354,7 +3377,7 @@ class TestAuto017Migration:
             "schema_version": 2,
         }
 
-    @pytest.mark.parametrize("version", [0, 3, "1", 1.0, True, None])
+    @pytest.mark.parametrize("version", [0, 4, "1", "3", 3.0, 1.0, True, None])
     def test_exact_state_version_dispatch(self, tmp_path, version):
         document = run_record().model_dump(mode="json")
         document["schema_version"] = version
@@ -3530,9 +3553,13 @@ class TestAuto017CorpusProvenance:
         document = corpus["documents"][index]
         store.state_path.write_text(json.dumps(document))
         record = store.load()
-        # The corpus deliberately retains its baseline run and repository identifiers.
+        # The corpus deliberately retains its baseline run and repository identifiers. AUTO-018
+        # section 7.4 (R01): its lock must own the storage root the store publishes under, so the
+        # corpus store lives below the corpus lock's own root rather than another root's.
+        corpus_root = store.artifact_root / "corpus-lock"
+        (corpus_root / record.run_id).mkdir(parents=True)
         corpus_store = RunStateStore(
-            run_directory=store.run_directory,
+            run_directory=corpus_root / record.run_id,
             repository_root=store.repository_root,
             repository_id=record.repository_identity,
             run_id=record.run_id,
@@ -3540,11 +3567,11 @@ class TestAuto017CorpusProvenance:
         corpus_lock = RunLock(
             run_id=record.run_id,
             repository_identity=record.repository_identity,
-            artifact_root=store.artifact_root / "corpus-lock",
+            artifact_root=corpus_root,
         )
         with corpus_lock:
             corpus_store.publish(record, lock=corpus_lock)
-        published = json.loads(store.state_path.read_bytes())
+        published = json.loads(corpus_store.state_path.read_bytes())
         assert published["schema_version"] == 2
         assert published["policy_digest"] is None and published["stage_start_id"] is None
 
@@ -4144,3 +4171,775 @@ def test_auto017_remediation_parent_swap_cannot_escape(tmp_path, monkeypatch, fi
     assert not list(moved.glob(f"{TEMP_FILE_PREFIX}*"))
     if (moved / filename).exists():
         assert (moved / filename).read_bytes() == b"immutable bytes"
+
+
+# ======================================================================================
+# AUTO-018: state wire version 3, the v2 compatibility corpus and lifecycle storage
+# ======================================================================================
+
+import sys  # noqa: E402
+
+from ai_workflow_engine.milestone_runner.events import (  # noqa: E402
+    EVENTS_DIRECTORY,
+    PUBLICATION_WITNESS_FILE_NAME,
+    EventChainBroken,
+    EventConflict,
+    EventPins,
+    EventStore,
+    LifecycleEventType,
+    LifecycleSchemaUnknown,
+    fold,
+    projection_bytes,
+)
+from ai_workflow_engine.milestone_runner.models import (  # noqa: E402
+    EventBackedStateTip,
+    split_event_backed_state_document,
+)
+from ai_workflow_engine.milestone_runner.state import (  # noqa: E402
+    LifecycleReadContention,
+    PublicationUncertain,
+)
+
+V2_CORPUS = Path(__file__).parent / "milestone_runner_state_v2_corpus.json"
+CORPUS_IDENTITY = "demo-repo--2059e82cffa9"
+CORPUS_STAGE_START = "5" * 64
+
+
+def v2_corpus() -> dict[str, Any]:
+    return json.loads(V2_CORPUS.read_bytes())
+
+
+def corpus_store(home: Path, document: dict[str, Any], *, policy: bool = True) -> RunStateStore:
+    """Lay one corpus snapshot out exactly as the baseline published it."""
+    raw = document["text"].encode("utf-8")
+    run_id = json.loads(raw)["run_id"]
+    repository = home.parent / "worktree"
+    repository.mkdir(exist_ok=True)
+    store = RunStateStore.pin(
+        repository_id=CORPUS_IDENTITY, run_id=run_id, repository_root=repository
+    )
+    store.state_path.write_bytes(raw)
+    if document["governed"] and policy:
+        store.policy_path.write_text(v2_corpus()["policy"]["text"], encoding="utf-8")
+        authority = store.artifact_root / "stage-starts"
+        authority.mkdir(exist_ok=True)
+        for suffix in (".json", ".binding.json", ".consumed.json"):
+            (authority / f"{CORPUS_STAGE_START}{suffix}").write_text("{}", encoding="utf-8")
+    return store
+
+
+def corpus_pins(record: RunRecord) -> EventPins:
+    assert record.policy_digest is not None and record.stage_start_id is not None
+    return EventPins(
+        repository_identity=CORPUS_IDENTITY,
+        stage_id="AUTO-099",
+        run_id=record.run_id,
+        contract_sha256=record.contract_sha256,
+        policy_digest=record.policy_digest,
+        stage_start_id=record.stage_start_id,
+    )
+
+
+def directory_state(root: Path) -> dict[str, tuple[bytes, int]]:
+    return {
+        path.relative_to(root).as_posix(): (path.read_bytes(), path.stat().st_mtime_ns)
+        for path in sorted(root.rglob("*"))
+        if path.is_file() and path.name != "run.lock"
+    }
+
+
+class TestAuto018V2CorpusProvenance:
+    """T-COMPAT provenance: the corpus is the baseline's own output, re-derived independently."""
+
+    def test_every_document_carries_its_exact_byte_identity(self) -> None:
+        corpus = v2_corpus()
+        assert len(corpus["documents"]) == 18
+        assert {document["governed"] for document in corpus["documents"]} == {True, False}
+        for document in corpus["documents"]:
+            raw = document["text"].encode("utf-8")
+            assert len(raw) == document["byte_count"]
+            assert hashlib.sha256(raw).hexdigest() == document["sha256"]
+            assert json.loads(raw)["schema_version"] == document["schema_version"] == 2
+        policy = corpus["policy"]
+        assert hashlib.sha256(policy["text"].encode()).hexdigest() == policy["sha256"]
+
+    def test_the_embedded_generator_reproduces_the_corpus_from_the_isolated_baseline(
+        self, tmp_path: Path
+    ) -> None:
+        corpus = v2_corpus()
+        provenance = corpus["provenance"]
+        generator = provenance["generator_source"]
+        assert hashlib.sha256(generator.encode()).hexdigest() == provenance["generator_sha256"]
+        baseline = tmp_path / "isolated-baseline"
+        baseline.mkdir()
+        archive = subprocess.run(
+            [
+                "git",
+                "-C",
+                str(REPOSITORY_ROOT),
+                "archive",
+                provenance["baseline_commit"],
+                "src/ai_workflow_engine",
+            ],
+            capture_output=True,
+            check=True,
+        )
+        subprocess.run(["tar", "-x", "-C", str(baseline)], input=archive.stdout, check=True)
+        script = tmp_path / "generator.py"
+        script.write_text(generator, encoding="utf-8")
+        result = subprocess.run(
+            [sys.executable, "-I", "-B", str(script), str(baseline / "src")],
+            capture_output=True,
+            check=True,
+        )
+        assert hashlib.sha256(result.stdout).hexdigest() == provenance["generated_output_sha256"]
+        regenerated = json.loads(result.stdout)
+        assert regenerated["documents"] == corpus["documents"]
+        assert regenerated["policy"] == corpus["policy"]
+
+
+class TestAuto018V2CorpusCompatibility:
+    """T-COMPAT: frozen baseline v2 documents keep their meaning; no read-side writes."""
+
+    @pytest.mark.parametrize("index", range(18))
+    def test_every_baseline_v2_document_reads_without_a_write(
+        self, isolated_home: Path, index: int
+    ) -> None:
+        document = v2_corpus()["documents"][index]
+        store = corpus_store(isolated_home, document)
+        before = directory_state(store.artifact_root)
+        record = store.load()
+        assert record.is_policy_governed is document["governed"]
+        assert record.model_dump_json(indent=2).encode() == document["text"].encode()
+        assert directory_state(store.artifact_root) == before
+        assert not store.lifecycle_present()
+
+    @pytest.mark.parametrize("index", range(9))
+    def test_supervised_v2_publication_is_unchanged(self, isolated_home: Path, index: int) -> None:
+        document = v2_corpus()["documents"][index]
+        assert not document["governed"]
+        store = corpus_store(isolated_home, document)
+        record = store.load()
+        lock = RunLock(
+            run_id=record.run_id,
+            repository_identity=CORPUS_IDENTITY,
+            artifact_root=store.artifact_root,
+        )
+        with lock:
+            store.publish(record, lock=lock)
+        assert store.state_path.read_bytes() == document["text"].encode()
+        assert not store.lifecycle_present()
+
+    @pytest.mark.parametrize("index", range(9, 18))
+    def test_a_governed_v2_snapshot_bridges_once_with_its_exact_digest(
+        self, isolated_home: Path, index: int
+    ) -> None:
+        document = v2_corpus()["documents"][index]
+        assert document["governed"]
+        store = corpus_store(isolated_home, document)
+        record = store.load()
+        lock = RunLock(
+            run_id=record.run_id,
+            repository_identity=CORPUS_IDENTITY,
+            artifact_root=store.artifact_root,
+        ).bind_repository_root(store.repository_root)
+        with lock:
+            events = store.begin_lifecycle(lock, corpus_pins(record))
+            assert store.bridge_snapshot(events) == record
+        view = store.load_lifecycle()
+        genesis = view.events[0][0]
+        assert genesis.event_type is LifecycleEventType.RUN_BASELINED
+        assert genesis.payload.source_sha256 == document["sha256"]
+        assert genesis.payload.source_byte_count == document["byte_count"]
+        assert genesis.payload.record == record
+        assert [event.event_type.value for event, _ in view.events] == [
+            "RUN_BASELINED",
+            "STAGE_START_BOUND",
+            "POLICY_PUBLISHED",
+        ]
+        assert view.record == record
+        published = json.loads(store.state_path.read_bytes())
+        assert published["schema_version"] == 3 and published["state_version"] == 3
+        # A second bridge is impossible: the chain, not state.json, now governs the run.
+        with lock:
+            with pytest.raises(EventConflict, match="already has lifecycle evidence"):
+                store.begin_lifecycle(lock, corpus_pins(record))
+
+    def test_a_v3_projection_round_trips_to_the_same_record(self, isolated_home: Path) -> None:
+        document = v2_corpus()["documents"][12]
+        store = corpus_store(isolated_home, document)
+        record = store.load()
+        lock = RunLock(
+            run_id=record.run_id,
+            repository_identity=CORPUS_IDENTITY,
+            artifact_root=store.artifact_root,
+        ).bind_repository_root(store.repository_root)
+        with lock:
+            store.bridge_snapshot(store.begin_lifecycle(lock, corpus_pins(record)))
+        raw = store.state_path.read_bytes()
+        body, tip = split_event_backed_state_document(json.loads(raw))
+        assert body == record
+        assert tip == EventBackedStateTip(
+            schema_version=3, state_version=3, last_event_id=store.load_lifecycle().state.event_id
+        )
+
+    @pytest.mark.parametrize(
+        "mutation",
+        [
+            {"state_version": 3},
+            {"last_event_id": "a" * 64},
+        ],
+    )
+    def test_v3_fields_cannot_be_smuggled_into_a_v2_document(
+        self, isolated_home: Path, mutation: dict[str, Any]
+    ) -> None:
+        document = v2_corpus()["documents"][0]
+        store = corpus_store(isolated_home, document)
+        store.state_path.write_text(json.dumps({**json.loads(document["text"]), **mutation}))
+        with pytest.raises(StateCorrupted):
+            store.load()
+
+    @pytest.mark.parametrize("governed", [False, True])
+    def test_a_v3_label_without_its_chain_is_never_read_as_state_only(
+        self, isolated_home: Path, governed: bool
+    ) -> None:
+        document = v2_corpus()["documents"][9 if governed else 0]
+        store = corpus_store(isolated_home, document)
+        relabelled = {**json.loads(document["text"]), "schema_version": 3}
+        store.state_path.write_text(json.dumps(relabelled))
+        with pytest.raises(EventChainBroken):
+            store.load()
+
+    def test_version_3_is_never_a_supervised_document(self) -> None:
+        supervised = json.loads(v2_corpus()["documents"][0]["text"])
+        with pytest.raises(ValueError):
+            split_event_backed_state_document(
+                {**supervised, "schema_version": 3, "state_version": 1, "last_event_id": "a" * 64}
+            )
+
+    @pytest.mark.parametrize("version", [True, "3", 3.0, 4, None])
+    def test_tip_versions_are_exact_integers(self, version: Any) -> None:
+        governed = json.loads(v2_corpus()["documents"][9]["text"])
+        with pytest.raises((ValueError, ValidationError)):
+            split_event_backed_state_document(
+                {
+                    **governed,
+                    "schema_version": version,
+                    "state_version": 1,
+                    "last_event_id": "a" * 64,
+                }
+            )
+
+
+@pytest.fixture
+def lifecycle_run(isolated_home: Path) -> Iterator[tuple[RunStateStore, RunLock, EventStore]]:
+    """A bridged corpus run, held under a bound lock, ready for more events."""
+    document = v2_corpus()["documents"][12]
+    store = corpus_store(isolated_home, document)
+    record = store.load()
+    lock = RunLock(
+        run_id=record.run_id, repository_identity=CORPUS_IDENTITY, artifact_root=store.artifact_root
+    ).bind_repository_root(store.repository_root)
+    lock.acquire()
+    try:
+        events = store.begin_lifecycle(lock, corpus_pins(record))
+        store.bridge_snapshot(events)
+        yield store, lock, events
+    finally:
+        lock.release()
+
+
+class TestAuto018Redaction:
+    """T-REDACTION at the lifecycle boundary: digests cover final redacted bytes, findings are
+    counted, and a structural change by the final pass refuses publication."""
+
+    SECRET = "ghp_" + "A" * 36
+
+    def test_secret_text_is_redacted_before_any_digest_and_counted(
+        self, lifecycle_run: tuple[RunStateStore, RunLock, EventStore]
+    ) -> None:
+        from ai_workflow_engine.milestone_runner.events import redact_record
+
+        store, _, events = lifecycle_run
+        before = events.record
+        noisy = before.model_copy(
+            update={
+                "deferred_findings": [
+                    *before.deferred_findings,
+                    Finding(
+                        finding_id="R-9",
+                        severity=FindingSeverity.LOW,
+                        title="A leak",
+                        summary=f"The provider printed {self.SECRET} here.",
+                        status=FindingStatus.DEFERRED,
+                    ),
+                ]
+            }
+        )
+        clean, findings = redact_record(noisy)
+        assert findings and findings[0].pattern_name == "github_token"
+        events.record_update(before, clean, clean.updated_at)
+        assert self.SECRET not in every_byte_under(store.run_directory)
+        view = store.load_lifecycle(lock=lifecycle_run[1])
+        assert "[REDACTED:github_token]" in view.record.deferred_findings[-1].summary
+
+    def test_a_final_pass_that_would_change_bytes_refuses_publication(
+        self, lifecycle_run: tuple[RunStateStore, RunLock, EventStore]
+    ) -> None:
+        store, _, events = lifecycle_run
+        before = events.record
+        leaking = before.model_copy(update={"changed_paths": [f"src/{self.SECRET}.py"]})
+        names = sorted(path.name for path in (store.run_directory / EVENTS_DIRECTORY).iterdir())
+        with pytest.raises(StatePublicationFailure, match="redaction"):
+            events.record_update(before, leaking, leaking.updated_at)
+        assert self.SECRET not in every_byte_under(store.run_directory)
+        assert (
+            sorted(path.name for path in (store.run_directory / EVENTS_DIRECTORY).iterdir())
+            == names
+        )
+
+
+class TestAuto018HostileLifecycleFiles:
+    """T-HOSTILE-IO for events, the witness and the projection."""
+
+    @pytest.fixture
+    def held_view(
+        self, lifecycle_run: tuple[RunStateStore, RunLock, EventStore]
+    ) -> tuple[RunStateStore, RunLock]:
+        store, lock, _ = lifecycle_run
+        return store, lock
+
+    @staticmethod
+    def _witness(store: RunStateStore) -> Path:
+        return store.run_directory / PUBLICATION_WITNESS_FILE_NAME
+
+    @staticmethod
+    def _event(store: RunStateStore) -> Path:
+        return sorted((store.run_directory / EVENTS_DIRECTORY).iterdir())[-1]
+
+    @pytest.mark.parametrize("target", ["witness", "event"])
+    def test_a_symlinked_final_component(
+        self, held_view: tuple[RunStateStore, RunLock], tmp_path: Path, target: str
+    ) -> None:
+        store, lock = held_view
+        path = self._witness(store) if target == "witness" else self._event(store)
+        outside = tmp_path / "outside"
+        outside.write_bytes(path.read_bytes())
+        path.unlink()
+        path.symlink_to(outside)
+        with pytest.raises(EventChainBroken):
+            store.load_lifecycle(lock=lock)
+
+    def test_a_symlinked_events_directory(
+        self, held_view: tuple[RunStateStore, RunLock], tmp_path: Path
+    ) -> None:
+        store, lock = held_view
+        events = store.run_directory / EVENTS_DIRECTORY
+        moved = tmp_path / "moved-events"
+        events.rename(moved)
+        events.symlink_to(moved, target_is_directory=True)
+        with pytest.raises(EventChainBroken):
+            store.load_lifecycle(lock=lock)
+
+    def test_a_swapped_run_directory_parent_is_refused_under_the_lock(
+        self, held_view: tuple[RunStateStore, RunLock], tmp_path: Path
+    ) -> None:
+        store, lock = held_view
+        moved = tmp_path / "moved-run"
+        store.run_directory.rename(moved)
+        store.run_directory.symlink_to(moved, target_is_directory=True)
+        with pytest.raises(EventChainBroken):
+            store.load_lifecycle(lock=lock)
+
+    @pytest.mark.parametrize("kind", ["fifo", "directory"])
+    @pytest.mark.parametrize("target", ["witness", "event"])
+    def test_a_non_regular_file_does_not_hang(
+        self, held_view: tuple[RunStateStore, RunLock], kind: str, target: str
+    ) -> None:
+        store, lock = held_view
+        path = self._witness(store) if target == "witness" else self._event(store)
+        path.unlink()
+        os.mkfifo(path) if kind == "fifo" else path.mkdir()
+        with pytest.raises(EventChainBroken):
+            store.load_lifecycle(lock=lock)
+
+    @pytest.mark.parametrize(
+        "mutate",
+        [
+            lambda raw: raw + b"\n",
+            lambda raw: b"\xff" + raw[1:],
+            lambda raw: raw.replace(
+                b'"schema_version":1', b'"schema_version":1,"schema_version":1', 1
+            ),
+            lambda raw: raw.replace(b'"sequence":', b'"sequence":"', 1),
+            lambda raw: raw[: len(raw) // 2],
+            lambda raw: b" " * (17 << 20),
+        ],
+    )
+    def test_altered_witness_bytes_refuse(
+        self, held_view: tuple[RunStateStore, RunLock], mutate: Any
+    ) -> None:
+        store, lock = held_view
+        witness = self._witness(store)
+        witness.write_bytes(mutate(witness.read_bytes()))
+        with pytest.raises(EventChainBroken):
+            store.load_lifecycle(lock=lock)
+
+    def test_an_unknown_witness_version_is_its_own_refusal(
+        self, held_view: tuple[RunStateStore, RunLock]
+    ) -> None:
+        store, lock = held_view
+        witness = self._witness(store)
+        document = json.loads(witness.read_bytes())
+        document["schema_version"] = 2
+        witness.write_text(json.dumps(document))
+        with pytest.raises(LifecycleSchemaUnknown):
+            store.load_lifecycle(lock=lock)
+
+    def test_an_oversized_event_is_refused_before_allocation(
+        self, held_view: tuple[RunStateStore, RunLock]
+    ) -> None:
+        store, lock = held_view
+        self._event(store).write_bytes(b" " * (17 << 20))
+        with pytest.raises(EventChainBroken):
+            store.load_lifecycle(lock=lock)
+
+    @pytest.mark.parametrize("kind", ["fifo", "symlink", "oversize", "garbage"])
+    def test_a_hostile_projection_is_only_a_damaged_cache(
+        self, held_view: tuple[RunStateStore, RunLock], tmp_path: Path, kind: str
+    ) -> None:
+        store, lock = held_view
+        view = store.load_lifecycle(lock=lock)
+        store.state_path.unlink()
+        if kind == "fifo":
+            os.mkfifo(store.state_path)
+        elif kind == "symlink":
+            outside = tmp_path / "outside-state.json"
+            outside.write_text("{}")
+            store.state_path.symlink_to(outside)
+        elif kind == "oversize":
+            store.state_path.write_bytes(b" " * (9 << 20))
+        else:
+            store.state_path.write_bytes(b"\x00garbage")
+        reread = store.load_lifecycle(lock=lock)
+        assert reread.record == view.record
+        assert reread.projection.value == "DAMAGED"
+        if kind == "symlink":
+            # The write boundary refuses a symlinked canonical name outright: nothing is
+            # repaired through it and its target is never written.
+            with pytest.raises(StateRootRefused):
+                store.open_lifecycle(lock)
+            assert (tmp_path / "outside-state.json").read_text() == "{}"
+            return
+        store.open_lifecycle(lock)
+        assert store.state_path.is_file() and not store.state_path.is_symlink()
+        state = fold(view.events)
+        assert store.state_path.read_bytes() == projection_bytes(
+            state.record, state_version=state.sequence, last_event_id=state.event_id
+        )
+
+
+class TestAuto018WitnessDurability:
+    """T-PUBLICATION-UNCERTAIN for the witness: the replace is uncertain, never no-effect, and a
+    later holder confirms a relied-upon witness only through its own barriers."""
+
+    def test_a_witness_replace_followed_by_a_failed_barrier_is_uncertain(
+        self,
+        lifecycle_run: tuple[RunStateStore, RunLock, EventStore],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        store, lock, events = lifecycle_run
+        real_replace, real_fsync = os.replace, os.fsync
+        armed = {"value": False}
+
+        def replace(source: Any, destination: Any, **kwargs: Any) -> None:
+            real_replace(source, destination, **kwargs)
+            if destination == PUBLICATION_WITNESS_FILE_NAME:
+                armed["value"] = True
+
+        def fsync(descriptor: int) -> None:
+            if armed["value"] and os.fstat(descriptor).st_ino == store.run_directory.stat().st_ino:
+                raise OSError(5, "Input/output error")
+            real_fsync(descriptor)
+
+        before = events.record
+        after = before.model_copy(update={"changed_paths": ["src/new.py"]})
+        with monkeypatch.context() as fault:
+            fault.setattr(os, "replace", replace)
+            fault.setattr(os, "fsync", fsync)
+            with pytest.raises(PublicationUncertain) as uncertain:
+                events.record_update(before, after, after.updated_at)
+        assert uncertain.value.barrier == "directory_fsync"
+        assert uncertain.value.address.endswith(PUBLICATION_WITNESS_FILE_NAME)
+        # The witness now names an event that was never linked: §7.2's incomplete publication.
+        with pytest.raises(EventChainBroken, match="missing"):
+            store.load_lifecycle(lock=lock)
+
+    def test_a_relied_upon_witness_is_confirmed_by_the_later_holder(
+        self,
+        lifecycle_run: tuple[RunStateStore, RunLock, EventStore],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        store, lock, _ = lifecycle_run
+        witness = store.run_directory / PUBLICATION_WITNESS_FILE_NAME
+        before = (witness.read_bytes(), witness.stat().st_mtime_ns)
+        lock.release()
+        later = RunLock(
+            run_id=store.run_id,
+            repository_identity=CORPUS_IDENTITY,
+            artifact_root=store.artifact_root,
+        ).bind_repository_root(store.repository_root)
+        later.acquire()
+        try:
+            real_fsync = os.fsync
+            inode = witness.stat().st_ino
+            synced: list[int] = []
+
+            def failing(descriptor: int) -> None:
+                if os.fstat(descriptor).st_ino == inode:
+                    raise OSError(5, "Input/output error")
+                real_fsync(descriptor)
+
+            with monkeypatch.context() as fault:
+                fault.setattr(os, "fsync", failing)
+                with pytest.raises(PublicationUncertain):
+                    store.open_lifecycle(later)
+
+            def recording(descriptor: int) -> None:
+                synced.append(os.fstat(descriptor).st_ino)
+                real_fsync(descriptor)
+
+            with monkeypatch.context() as fault:
+                fault.setattr(os, "fsync", recording)
+                store.open_lifecycle(later)
+            assert inode in synced
+            assert (witness.read_bytes(), witness.stat().st_mtime_ns) == before
+        finally:
+            later.release()
+
+    def test_an_unlocked_read_during_a_live_hold_is_contention_not_corruption(
+        self, lifecycle_run: tuple[RunStateStore, RunLock, EventStore]
+    ) -> None:
+        store, _, _ = lifecycle_run
+        (store.run_directory / PUBLICATION_WITNESS_FILE_NAME).unlink()
+        with pytest.raises(LifecycleReadContention):
+            store.load()
+
+
+# ======================================================================================
+# AUTO-018 remediation cycle 1 -- AUTO018-IMPL-R01: every shared writer binds its hold
+# ======================================================================================
+
+from ai_workflow_engine.milestone_runner.application import (  # noqa: E402
+    LATEST_RUN_POINTER,
+    RunRefused,
+    record_latest_run,
+)
+from ai_workflow_engine.milestone_runner.lock import LockOwnershipLost  # noqa: E402
+
+R01_WRITERS = (
+    "state",
+    "plan",
+    "intent",
+    "transcript_sequence",
+    "transcript",
+    "latest_run",
+)
+
+
+def r01_write(
+    writer: str,
+    store: RunStateStore,
+    lock: RunLock,
+    worktree: Path,
+    inspector: GitReadOnlyInspector,
+) -> None:
+    """Invoke one shared governed writer through `lock`."""
+    if writer == "state":
+        store.publish(durable_record(worktree, "a" * 40), lock=lock)
+    elif writer == "plan":
+        store.publish_plan_snapshot('{"plan": 1}', lock=lock)
+    elif writer == "intent":
+        record_intent(store, lock, inspector)
+    elif writer == "transcript_sequence":
+        store.next_transcript_sequence(lock=lock)
+    elif writer == "transcript":
+        store.write_transcript(
+            sequence=1,
+            label="fake-implementation",
+            kind=TranscriptKind.STDOUT,
+            text="output",
+            moment=datetime(2026, 8, 5, 21, 39, tzinfo=UTC),
+            lock=lock,
+        )
+    else:
+        assert writer == "latest_run"
+        record_latest_run(store.artifact_root, store.run_id, lock=lock)
+
+
+def r01_snapshot(*roots: Path) -> dict[str, tuple[bytes, int]]:
+    return {
+        f"{root}:{path.relative_to(root)}": (path.read_bytes(), path.stat().st_mtime_ns)
+        for root in roots
+        if root.exists()
+        for path in sorted(root.rglob("*"))
+        if path.is_file() and path.name != "run.lock"
+    }
+
+
+class TestAuto018R01SharedWritersBindTheHold:
+    """AUTO018-IMPL-R01: plan, intent, transcripts, sequence, state and latest-run publication.
+
+    `is_held` and an equal repository-identity string are not enough: a lock at another root, a
+    released or replaced hold, and a replaced storage root refuse before any byte is written,
+    and a loss detected after the replace prevents a successful return.
+    """
+
+    @pytest.mark.parametrize("writer", R01_WRITERS)
+    def test_the_owning_hold_publishes_normally(
+        self,
+        store: RunStateStore,
+        held_lock: RunLock,
+        worktree: Path,
+        inspector: GitReadOnlyInspector,
+        writer: str,
+    ) -> None:
+        r01_write(writer, store, held_lock, worktree, inspector)
+        assert held_lock.is_held
+
+    @pytest.mark.parametrize("writer", R01_WRITERS)
+    def test_a_lock_at_another_root_with_the_same_identity_refuses(
+        self,
+        store: RunStateStore,
+        tmp_path: Path,
+        worktree: Path,
+        inspector: GitReadOnlyInspector,
+        writer: str,
+    ) -> None:
+        other = RunLock(
+            run_id=store.run_id,
+            repository_identity=store.repository_id,
+            artifact_root=tmp_path / "elsewhere" / store.repository_id,
+        )
+        before = r01_snapshot(store.artifact_root)
+        with other:
+            with pytest.raises((LockOwnershipLost, RunRefused)):
+                r01_write(writer, store, other, worktree, inspector)
+        assert r01_snapshot(store.artifact_root) == before
+
+    @pytest.mark.parametrize("writer", R01_WRITERS)
+    def test_a_released_hold_refuses(
+        self,
+        store: RunStateStore,
+        worktree: Path,
+        inspector: GitReadOnlyInspector,
+        writer: str,
+    ) -> None:
+        lock = lock_for_store(store)
+        lock.acquire()
+        lock.release()
+        before = r01_snapshot(store.artifact_root)
+        with pytest.raises((StatePublicationFailure, LockOwnershipLost, RunRefused)):
+            r01_write(writer, store, lock, worktree, inspector)
+        assert r01_snapshot(store.artifact_root) == before
+
+    @pytest.mark.parametrize("writer", R01_WRITERS)
+    @pytest.mark.parametrize("replaced", ["lock_file", "storage_root"])
+    def test_a_replaced_lock_or_root_refuses_before_writing(
+        self,
+        store: RunStateStore,
+        held_lock: RunLock,
+        worktree: Path,
+        inspector: GitReadOnlyInspector,
+        writer: str,
+        replaced: str,
+    ) -> None:
+        root = store.artifact_root
+        if replaced == "lock_file":
+            lock_path = root / "run.lock"
+            lock_path.rename(root / "run.lock.renamed-away")
+            lock_path.write_bytes(b"")
+            old = root
+        else:
+            old = root.with_name(root.name + ".renamed-away")
+            root.rename(old)
+            (root / store.run_id / "transcripts").mkdir(parents=True)
+        before = r01_snapshot(root, old)
+        with pytest.raises(LockOwnershipLost) as lost:
+            r01_write(writer, store, held_lock, worktree, inspector)
+        assert lost.value.stop_reason is StopReason.LOCK_OWNERSHIP_LOST
+        assert r01_snapshot(root, old) == before
+        assert not held_lock.is_held
+
+    @pytest.mark.parametrize(
+        "writer", ["state", "plan", "intent", "transcript_sequence", "latest_run"]
+    )
+    def test_a_loss_detected_after_the_replace_prevents_success(
+        self,
+        store: RunStateStore,
+        held_lock: RunLock,
+        worktree: Path,
+        inspector: GitReadOnlyInspector,
+        monkeypatch: pytest.MonkeyPatch,
+        writer: str,
+    ) -> None:
+        real_replace = os.replace
+        root = store.artifact_root
+
+        def replace_then_lose(source: Any, destination: Any, **kwargs: Any) -> None:
+            real_replace(source, destination, **kwargs)
+            lock_path = root / "run.lock"
+            if not (root / "run.lock.renamed-away").exists():
+                lock_path.rename(root / "run.lock.renamed-away")
+                lock_path.write_bytes(b"")
+
+        monkeypatch.setattr(os, "replace", replace_then_lose)
+        with pytest.raises(LockOwnershipLost):
+            r01_write(writer, store, held_lock, worktree, inspector)
+
+    def test_the_transcript_writer_detects_a_loss_after_its_link(
+        self,
+        store: RunStateStore,
+        held_lock: RunLock,
+        worktree: Path,
+        inspector: GitReadOnlyInspector,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Transcripts publish through the atomic replace, so the same post-publication check."""
+        real_replace = os.replace
+        root = store.artifact_root
+        sequence = store.next_transcript_sequence(lock=held_lock)
+
+        def replace_then_lose(source: Any, destination: Any, **kwargs: Any) -> None:
+            real_replace(source, destination, **kwargs)
+            if str(destination).endswith(".txt"):
+                (root / "run.lock").rename(root / "run.lock.renamed-away")
+                (root / "run.lock").write_bytes(b"")
+
+        monkeypatch.setattr(os, "replace", replace_then_lose)
+        with pytest.raises(LockOwnershipLost):
+            store.write_transcript(
+                sequence=sequence,
+                label="fake-implementation",
+                kind=TranscriptKind.STDOUT,
+                text="output",
+                moment=datetime(2026, 8, 5, 21, 39, tzinfo=UTC),
+                lock=held_lock,
+            )
+
+    def test_the_latest_run_pointer_is_written_through_the_hold(
+        self, store: RunStateStore, held_lock: RunLock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import ai_workflow_engine.milestone_runner.application as app_module
+
+        seen: list[Any] = []
+        real = app_module.write_redacted_artifact
+
+        def spy(*args: Any, **kwargs: Any) -> Any:
+            seen.append(kwargs.get("target"))
+            return real(*args, **kwargs)
+
+        monkeypatch.setattr(app_module, "write_redacted_artifact", spy)
+        record_latest_run(store.artifact_root, store.run_id, lock=held_lock)
+        assert seen and seen[0] is not None and seen[0].lock is held_lock
+        assert (store.artifact_root / LATEST_RUN_POINTER).is_file()

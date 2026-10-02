@@ -100,13 +100,15 @@ survives a crash and a resume without being carried in memory, and two transcrip
 second are two files.
 """
 
+import fcntl
 import hashlib
 import json
 import os
 import re
 import stat
 import uuid
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import StrEnum
 from pathlib import Path
@@ -115,13 +117,46 @@ from typing import Any, ClassVar, Final, TypeVar
 from pydantic import Field, ValidationError, field_validator
 
 from ai_workflow_engine.exceptions import WorkflowEngineError
+from ai_workflow_engine.milestone_runner.events import (
+    EVENTS_DIRECTORY,
+    MAX_LIFECYCLE_DOCUMENT_BYTES,
+    PUBLICATION_WITNESS_FILE_NAME,
+    ChainEntry,
+    DurableEvidenceReference,
+    EventChainBroken,
+    EventConflict,
+    EventPins,
+    EventStore,
+    EvidenceKind,
+    EvidenceRoot,
+    FoldState,
+    LifecycleEvent,
+    LifecycleSchemaUnknown,
+    OperationRecordConflict,
+    OperationRecordInvalid,
+    ProjectionStatus,
+    StoredChain,
+    check_operation_artifact,
+    check_witness,
+    classify_run_evidence_path,
+    fold_step,
+    model_bytes,
+    parse_event_bytes,
+    parse_event_file_name,
+    parse_witness_bytes,
+    projection_bytes,
+    projection_status,
+    stage_start_reference_path,
+    strict_json_loads,
+)
 from ai_workflow_engine.milestone_runner.git_inspect import (
     RepositoryDrift,
     RepositoryEvidence,
     derive_repository_identity,
 )
-from ai_workflow_engine.milestone_runner.lock import RunLock
+from ai_workflow_engine.milestone_runner.lock import RUN_LOCK_FILE_NAME, RunLock
 from ai_workflow_engine.milestone_runner.models import (
+    EVENT_BACKED_STATE_SCHEMA_VERSION,
     STATE_SCHEMA_VERSION,
     UNREADABLE_DIGEST,
     Finding,
@@ -135,6 +170,14 @@ from ai_workflow_engine.milestone_runner.models import (
     StopReason,
     canonical_digest,
     normalize_repository_path,
+)
+from ai_workflow_engine.milestone_runner.operations import (
+    APPLIED_FILE_NAME,
+    ARTIFACT_MODELS,
+    OPERATION_ARTIFACT_PATH_RE,
+    OperationPins,
+    applied_receipt,
+    operation_artifact_path,
 )
 from ai_workflow_engine.milestone_runner.policy import (
     MAX_POLICY_INPUT_BYTES,
@@ -283,6 +326,66 @@ class ExclusiveOutcome(StrEnum):
     IDENTICAL_EXISTS = "IDENTICAL_EXISTS"
 
 
+class PublicationOutcome(StrEnum):
+    """AUTO-018 section 7.5's typed publication outcomes.
+
+    `CREATED` and `IDENTICAL_EXISTS` describe content placement; neither is a durability verdict.
+    `DURABLE` is returned only once the file and directory barriers succeeded on the verified
+    descriptors. `NOT_PUBLISHED` requires proof that no canonical publication occurred, and is
+    what :class:`StatePublicationFailure` means. Anything else is `UNCERTAIN`.
+    """
+
+    NOT_PUBLISHED = "NOT_PUBLISHED"
+    DURABLE = "DURABLE"
+    UNCERTAIN = "UNCERTAIN"
+
+
+class PublicationUncertain(StateError):
+    """Canonical bytes may be visible, but a required durability barrier failed (section 7.5).
+
+    Never a no-effect write failure: it is deliberately not a :class:`StatePublicationFailure`,
+    whose meaning is that nothing reached a canonical path. It carries what is known about the
+    artifact without needing another durable write to report it.
+    """
+
+    stop_reason: StopReason | None = StopReason.PUBLICATION_UNCERTAIN
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        address: str,
+        expected_sha256: str | None = None,
+        barrier: str,
+    ) -> None:
+        super().__init__(message)
+        self.address = address
+        self.expected_sha256 = expected_sha256
+        self.barrier = barrier
+
+
+class EvidenceUnavailable(StateError):
+    """A relied-upon durable artifact is missing, unreadable or differs from its digest."""
+
+
+class LifecycleReadContention(StateError):
+    """An unlocked reader could not obtain a consistent view while a writer was active.
+
+    Retryable. No write or workflow action follows it; a mutating command establishes its final
+    integrity verdict under the held lock (AUTO-018 section 6).
+    """
+
+    stop_reason: StopReason | None = StopReason.LOCK_CONTENTION
+
+
+class LifecycleAuthorityMismatch(AuthorityArtifactInvalid):
+    """An authority artifact an event bound no longer matches its digest. Events never heal it."""
+
+    def __init__(self, message: str, *, stop_reason: StopReason) -> None:
+        super().__init__(message)
+        self.stop_reason = stop_reason
+
+
 class StateSchemaUnknown(StateError):
     """`state.json` carries a `schema_version` this build does not understand (section 11).
 
@@ -422,7 +525,109 @@ def _fsync_directory(directory: Path) -> None:
         os.close(descriptor)
 
 
-def publish_atomically(path: Path, payload: bytes) -> None:
+@dataclass(frozen=True, slots=True)
+class DurableTarget:
+    """Where one governed publication lands, addressed through a verified hold (AUTO-018 7.4).
+
+    `parts` are the directories below the repository-scoped storage root, in order, and `name`
+    the canonical file name. Every descriptor a publication uses is derived from the lock's
+    retained storage-root descriptor, never from an independently reopened pathname, and
+    :meth:`guard` re-verifies the hold's ownership -- and that every opened child directory is
+    still the canonical directory at its name -- before creating a directory, opening a write
+    target, linking or replacing a canonical file, and around every durability barrier.
+
+    `create_parents` is false for a writer whose directories already exist by construction (the
+    baseline run-directory writers): a missing directory stays a refusal there, exactly as before,
+    rather than being recreated.
+    """
+
+    lock: RunLock
+    storage_root: Path
+    repository_root: Path | None
+    parts: tuple[str, ...]
+    name: str
+    create_parents: bool = True
+
+    @property
+    def address(self) -> str:
+        return "/".join((*self.parts, self.name))
+
+    def guard(self, descriptors: Sequence[int] = ()) -> None:
+        """Re-verify the hold and the namespace binding of every child descriptor opened so far.
+
+        A renamed-away or replaced child directory means the write would land in a detached
+        directory; that is a lost ownership context (section 7.4), never a success.
+        """
+        self.lock.verify_ownership(
+            storage_root=self.storage_root, repository_root=self.repository_root
+        )
+        if descriptors:
+            self.lock.verify_descriptor_ancestry(
+                storage_root=self.storage_root,
+                names=self.parts[: len(descriptors)],
+                descriptors=descriptors,
+            )
+
+    def open_parent(self, *, create: bool = True) -> tuple[list[int], int]:
+        """Walk `parts` no-follow from the retained root, creating (and fsyncing) as needed.
+
+        Returns the descriptors to close and the parent descriptor, which is the root's own
+        retained descriptor -- never closed by a caller -- when `parts` is empty. A directory
+        found already present is *not* assumed durable: whether an earlier creation's parent
+        fsync succeeded is unknowable from its visibility (section 7.5), so every publication
+        re-establishes the whole ancestry with :func:`_fsync_ancestry` before it succeeds.
+        """
+        create = create and self.create_parents
+        self.guard()
+        current = self.lock.storage_root_descriptor(storage_root=self.storage_root)
+        descriptors: list[int] = []
+        try:
+            for part in self.parts:
+                try:
+                    opened = os.open(
+                        part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=current
+                    )
+                except FileNotFoundError:
+                    if not create:
+                        raise
+                    self.guard(descriptors)
+                    try:
+                        os.mkdir(part, DIRECTORY_MODE, dir_fd=current)
+                    except FileExistsError:
+                        pass
+                    opened = os.open(
+                        part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=current
+                    )
+                    # A new directory entry is not durable until its parent is fsynced.
+                    os.fsync(current)
+                descriptors.append(opened)
+                current = opened
+                self.guard(descriptors)
+        except BaseException:
+            for descriptor in reversed(descriptors):
+                os.close(descriptor)
+            raise
+        return descriptors, current
+
+    def ancestry_descriptors(self, descriptors: Sequence[int]) -> list[int]:
+        """The parent and every ancestor up to the storage root, nearest first."""
+        root = self.lock.storage_root_descriptor(storage_root=self.storage_root)
+        return [*reversed(descriptors), root]
+
+
+def _fsync_ancestry(target: DurableTarget, descriptors: Sequence[int]) -> None:
+    """Fsync the parent and every ancestor up to the storage root, then re-verify the binding.
+
+    Section 7.5 / R04: a directory left visible by an earlier publication whose parent fsync
+    failed is indistinguishable from a durable one, so no publication or confirmation succeeds
+    until the whole addressed ancestry has passed its barrier on the verified descriptors.
+    """
+    for directory in target.ancestry_descriptors(descriptors):
+        os.fsync(directory)
+    target.guard(descriptors)
+
+
+def publish_atomically(path: Path, payload: bytes, *, target: DurableTarget | None = None) -> None:
     """Publish `payload` at `path` so no crash point leaves a torn document (invariant 9).
 
     The protocol is section 11's, exactly: a namespaced temporary file **in the same directory**
@@ -436,9 +641,70 @@ def publish_atomically(path: Path, payload: bytes) -> None:
     leaves it behind, which is harmless: its name is dot-prefixed and namespaced and matches no
     grammar any reader here consults.
 
+    With a :class:`DurableTarget` (AUTO-018 sections 7.4 and 7.5) every step runs on descriptors
+    derived from the verified hold, ownership is re-verified before and after the replace, and a
+    failed barrier after the replace is :class:`PublicationUncertain` -- never swallowed and never
+    reported as a no-effect failure.
+
     This is the mechanism, not the boundary. Section 17a's boundary is
     :func:`write_redacted_artifact`, which is the only caller of this function in the package.
     """
+    if target is not None:
+        descriptors: list[int] = []
+        temporary = Path(f"{TEMP_FILE_PREFIX}{uuid.uuid4().hex}")
+        replaced = False
+        created = False
+        parent = -1
+        try:
+            descriptors, parent = target.open_parent()
+            target.guard(descriptors)
+            descriptor = os.open(
+                temporary,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                ARTIFACT_MODE,
+                dir_fd=parent,
+            )
+            created = True
+            try:
+                _write_all(descriptor, payload)
+                os.fsync(descriptor)
+                inode = os.fstat(descriptor).st_ino
+            finally:
+                os.close(descriptor)
+            target.guard(descriptors)
+            os.replace(temporary, target.name, src_dir_fd=parent, dst_dir_fd=parent)
+            replaced = True
+            target.guard(descriptors)
+            _fsync_ancestry(target, descriptors)
+            if os.stat(target.name, dir_fd=parent, follow_symlinks=False).st_ino != inode:
+                raise PublicationUncertain(
+                    f"{target.address} no longer names the replaced file",
+                    address=target.address,
+                    expected_sha256=hashlib.sha256(payload).hexdigest(),
+                    barrier="canonical_inode_recheck",
+                )
+            return
+        except OSError as exc:
+            if replaced:
+                raise PublicationUncertain(
+                    f"{target.address} was replaced but its directory barrier failed: "
+                    f"{exc.strerror}",
+                    address=target.address,
+                    expected_sha256=hashlib.sha256(payload).hexdigest(),
+                    barrier="directory_fsync",
+                ) from None
+            raise StatePublicationFailure(
+                f"{target.address} could not be published: {exc.strerror}"
+            ) from None
+        finally:
+            if created and not replaced and parent >= 0:
+                try:
+                    os.unlink(temporary, dir_fd=parent)
+                except OSError:
+                    pass
+            for opened in reversed(descriptors):
+                os.close(opened)
+
     directory = path.parent
     temporary = directory / f"{TEMP_FILE_PREFIX}{uuid.uuid4().hex}"
     try:
@@ -471,22 +737,38 @@ def publish_atomically(path: Path, payload: bytes) -> None:
     _fsync_directory(directory)
 
 
-def publish_exclusively(path: Path, payload: bytes) -> ExclusiveOutcome:
+def publish_exclusively(
+    path: Path, payload: bytes, *, target: DurableTarget | None = None
+) -> ExclusiveOutcome:
     """Publish without replacement; unlink the private temporary in every outcome.
 
     Only the redaction boundary calls this primitive. A hard-link creation is the
     atomic absence check: there is no check-then-replace window.
+
+    With a :class:`DurableTarget`, the parent descriptor is derived from the verified hold,
+    ownership is re-verified around the link, and success means `DURABLE`: the file and every
+    directory barrier succeeded. The identical-existing branch is not durable merely because the
+    bytes compare equal -- its file and directory are fsynced too, or it is
+    :class:`PublicationUncertain`. A barrier failing after the link made the bytes visible is
+    `UNCERTAIN`, never a no-effect failure.
     """
     descriptors: list[int] = []
     temporary = f"{TEMP_FILE_PREFIX}{uuid.uuid4().hex}"
     created = False
+    visible = False
+    parent = -1
+    name = path.name if target is None else target.name
     try:
-        absolute = path if path.is_absolute() else Path.cwd() / path
-        parent = os.open(absolute.anchor, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
-        descriptors.append(parent)
-        for part in absolute.parts[1:-1]:
-            parent = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent)
+        if target is None:
+            absolute = path if path.is_absolute() else Path.cwd() / path
+            parent = os.open(absolute.anchor, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
             descriptors.append(parent)
+            for part in absolute.parts[1:-1]:
+                parent = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent)
+                descriptors.append(parent)
+        else:
+            descriptors, parent = target.open_parent()
+            target.guard(descriptors)
         descriptor = os.open(
             temporary,
             os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
@@ -497,12 +779,15 @@ def publish_exclusively(path: Path, payload: bytes) -> ExclusiveOutcome:
         try:
             _write_all(descriptor, payload)
             os.fsync(descriptor)
+            inode = os.fstat(descriptor).st_ino
         finally:
             os.close(descriptor)
+        if target is not None:
+            target.guard(descriptors)
         try:
             os.link(
                 temporary,
-                absolute.name,
+                name,
                 src_dir_fd=parent,
                 dst_dir_fd=parent,
                 follow_symlinks=False,
@@ -510,7 +795,7 @@ def publish_exclusively(path: Path, payload: bytes) -> ExclusiveOutcome:
         except FileExistsError:
             try:
                 descriptor = os.open(
-                    absolute.name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=parent
+                    name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=parent
                 )
                 try:
                     existing = _read_authority_descriptor(descriptor, MAX_ARTIFACT_BYTES)
@@ -522,10 +807,32 @@ def publish_exclusively(path: Path, payload: bytes) -> ExclusiveOutcome:
                 ) from None
             if existing != payload:
                 raise ExclusivePublicationConflict("Existing immutable artifact differs") from None
+            if target is not None:
+                _confirm_identical_existing(target, descriptors, parent, name, payload)
             return ExclusiveOutcome.IDENTICAL_EXISTS
-        os.fsync(parent)
+        visible = True
+        if target is not None:
+            target.guard(descriptors)
+            _fsync_ancestry(target, descriptors)
+        else:
+            os.fsync(parent)
+        if target is not None:
+            if os.stat(name, dir_fd=parent, follow_symlinks=False).st_ino != inode:
+                raise PublicationUncertain(
+                    f"{target.address} no longer names the linked file",
+                    address=target.address,
+                    expected_sha256=hashlib.sha256(payload).hexdigest(),
+                    barrier="canonical_inode_recheck",
+                )
         return ExclusiveOutcome.CREATED
-    except OSError:
+    except OSError as exc:
+        if visible and target is not None:
+            raise PublicationUncertain(
+                f"{target.address} was linked but its directory barrier failed: {exc.strerror}",
+                address=target.address,
+                expected_sha256=hashlib.sha256(payload).hexdigest(),
+                barrier="directory_fsync",
+            ) from None
         raise StatePublicationFailure("Exclusive publication failed") from None
     finally:
         if created:
@@ -535,6 +842,98 @@ def publish_exclusively(path: Path, payload: bytes) -> ExclusiveOutcome:
                 pass
         for descriptor in reversed(descriptors):
             os.close(descriptor)
+
+
+def _confirm_identical_existing(
+    target: DurableTarget, descriptors: Sequence[int], parent: int, name: str, payload: bytes
+) -> None:
+    """Section 7.5: an identical existing artifact is durable only after its own barriers.
+
+    The file, its parent and every ancestor up to the storage root: the artifact's visibility
+    says nothing about whether the publication that made it visible ever confirmed them.
+    """
+    try:
+        target.guard(descriptors)
+        descriptor = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=parent)
+        try:
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+        _fsync_ancestry(target, descriptors)
+    except OSError as exc:
+        raise PublicationUncertain(
+            f"{target.address} exists with identical bytes, but its durability could not be "
+            f"confirmed: {exc.strerror}",
+            address=target.address,
+            expected_sha256=hashlib.sha256(payload).hexdigest(),
+            barrier="identical_existing_fsync",
+        ) from None
+
+
+def confirm_durable(
+    target: DurableTarget, *, expected_sha256: str, ceiling: int = MAX_ARTIFACT_BYTES
+) -> None:
+    """Confirm existing bytes durable under the current verified hold (AUTO-018 section 7.5).
+
+    Reopens through the descriptor context, strictly checks the bytes against their digest,
+    fsyncs the exact regular-file descriptor, its parent and every ancestor up to the storage
+    root, and rechecks the canonical inode before reporting success. It rewrites nothing:
+    content, identity and modification times are untouched. A missing or conflicting file keeps
+    its typed refusal (:class:`EvidenceUnavailable`); a failed barrier is
+    :class:`PublicationUncertain`, and nothing reports success from byte equality alone.
+    """
+    descriptors: list[int] = []
+    try:
+        try:
+            descriptors, parent = target.open_parent(create=False)
+            descriptor = os.open(
+                target.name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=parent
+            )
+        except FileNotFoundError:
+            raise EvidenceUnavailable(f"{target.address} is missing") from None
+        except OSError as exc:
+            raise EvidenceUnavailable(
+                f"{target.address} cannot be reopened safely: {exc.strerror}"
+            ) from None
+        try:
+            status = os.fstat(descriptor)
+            if not stat.S_ISREG(status.st_mode) or status.st_size > ceiling:
+                raise EvidenceUnavailable(f"{target.address} is not a bounded regular file")
+            digest = hashlib.sha256()
+            remaining = ceiling + 1
+            while remaining:
+                chunk = os.read(descriptor, min(remaining, _FINGERPRINT_CHUNK_BYTES))
+                if not chunk:
+                    break
+                digest.update(chunk)
+                remaining -= len(chunk)
+            if remaining == 0 or digest.hexdigest() != expected_sha256:
+                raise EvidenceUnavailable(f"{target.address} differs from its recorded digest")
+            try:
+                target.guard(descriptors)
+                os.fsync(descriptor)
+                _fsync_ancestry(target, descriptors)
+                current = os.stat(target.name, dir_fd=parent, follow_symlinks=False)
+            except OSError as exc:
+                raise PublicationUncertain(
+                    f"{target.address} is intact but its durability could not be confirmed: "
+                    f"{exc.strerror}",
+                    address=target.address,
+                    expected_sha256=expected_sha256,
+                    barrier="confirmation_fsync",
+                ) from None
+            if (current.st_dev, current.st_ino) != (status.st_dev, status.st_ino):
+                raise PublicationUncertain(
+                    f"{target.address} was replaced during confirmation",
+                    address=target.address,
+                    expected_sha256=expected_sha256,
+                    barrier="canonical_inode_recheck",
+                )
+        finally:
+            os.close(descriptor)
+    finally:
+        for opened in reversed(descriptors):
+            os.close(opened)
 
 
 # --------------------------------------------------------------------------------------
@@ -558,6 +957,10 @@ class RedactedWrite(MilestoneRunnerModel):
     byte_count: int = Field(ge=0)
     findings: list[RedactionFinding] = Field(default_factory=list)
     exclusive_outcome: ExclusiveOutcome | None = None
+    #: AUTO-018: the SHA-256 of the final redacted bytes, and -- for a descriptor-bound governed
+    #: publication only -- the durability verdict, which is always `DURABLE` when set.
+    sha256: str | None = None
+    durability: PublicationOutcome | None = None
 
     @property
     def redacted(self) -> bool:
@@ -566,7 +969,13 @@ class RedactedWrite(MilestoneRunnerModel):
 
 
 def write_redacted_artifact(
-    path: Path, text: str, *, relative_path: str | None = None, exclusive: bool = False
+    path: Path,
+    text: str,
+    *,
+    relative_path: str | None = None,
+    exclusive: bool = False,
+    target: DurableTarget | None = None,
+    refuse_redaction: bool = False,
 ) -> RedactedWrite:
     """Redact `text`, then publish it atomically at `path` -- the only way bytes reach disk.
 
@@ -580,9 +989,19 @@ def write_redacted_artifact(
     marker and the original bytes are discarded, not encoded. It is defense in depth and not a
     proof of cleanliness -- it recognizes a bounded set of well-known secret shapes, and a novel
     format may survive it.
+
+    `target` makes the publication descriptor-bound and durable (AUTO-018 sections 7.4, 7.5).
+    `refuse_redaction` is for integrity-serialized documents whose free text was redacted before
+    their digests were computed: if this mandatory final pass would still change a byte, the
+    structure or identity would change, so nothing is published.
     """
     reject_symlink_components(path, "The artifact")
     redacted, findings = redact_text(text)
+    if refuse_redaction and (findings or redacted != text):
+        raise StatePublicationFailure(
+            f"{path.name}: the final redaction pass would change integrity-bound bytes, so the "
+            "document is refused rather than published with a different identity"
+        )
     payload = redacted.encode("utf-8")
     if len(payload) > MAX_ARTIFACT_BYTES:
         raise StatePublicationFailure(
@@ -593,15 +1012,17 @@ def write_redacted_artifact(
         # Authorization bytes must still validate after the mandatory, lossy redactor.
         if path.parent.name == STAGE_STARTS_DIRECTORY:
             _validate_stage_start_payload(path, payload)
-        outcome = publish_exclusively(path, payload)
+        outcome = publish_exclusively(path, payload, target=target)
     else:
-        publish_atomically(path, payload)
+        publish_atomically(path, payload, target=target)
     return RedactedWrite(
         path=str(path),
         relative_path=relative_path,
         byte_count=len(payload),
         findings=list(findings),
         exclusive_outcome=outcome,
+        sha256=hashlib.sha256(payload).hexdigest(),
+        durability=None if target is None else PublicationOutcome.DURABLE,
     )
 
 
@@ -631,7 +1052,9 @@ def _read_transcript_sequence(counter: Path) -> int:
     return value
 
 
-def next_transcript_sequence(transcripts_directory: Path) -> int:
+def next_transcript_sequence(
+    transcripts_directory: Path, *, target: "DurableTarget | None" = None
+) -> int:
     """Allocate the next monotonic per-run transcript sequence number (defect P-9).
 
     The counter is a durable file rather than a directory listing, for two independent reasons.
@@ -645,7 +1068,8 @@ def next_transcript_sequence(transcripts_directory: Path) -> int:
     Allocation is durable, so this call writes -- through the section 17a boundary like every
     other byte, where redaction is a no-op on an integer but the invariant stays literally true.
     The run lock is the serialization: :meth:`RunStateStore.next_transcript_sequence` demands one,
-    so two allocations never interleave.
+    so two allocations never interleave, and passes the hold's `target` so the counter is
+    published through the verified ownership context (AUTO-018 section 7.4).
     """
     counter = transcripts_directory / TRANSCRIPT_SEQUENCE_FILE_NAME
     allocated = _read_transcript_sequence(counter) + 1
@@ -653,7 +1077,7 @@ def next_transcript_sequence(transcripts_directory: Path) -> int:
         raise StatePublicationFailure(
             f"{transcripts_directory} has reached the {MAX_TRANSCRIPT_SEQUENCE} transcript ceiling"
         )
-    write_redacted_artifact(counter, f"{allocated}\n")
+    write_redacted_artifact(counter, f"{allocated}\n", target=target)
     return allocated
 
 
@@ -1247,7 +1671,16 @@ class StageStartStore:
         _validate_stage_start_payload(path, payload)
         _create_directory(self.directory)
         reject_symlink_components(path, "The Stage Start artifact")
-        return write_redacted_artifact(path, payload.decode("utf-8"), exclusive=True)
+        # AUTO-018 section 7.4: a governed authority write is descriptor-bound to the verified
+        # hold, and section 7.5: it returns only once durable.
+        target = DurableTarget(
+            lock=lock,
+            storage_root=self.artifact_root,
+            repository_root=self.repository_root,
+            parts=(STAGE_STARTS_DIRECTORY,),
+            name=path.name,
+        )
+        return write_redacted_artifact(path, payload.decode("utf-8"), exclusive=True, target=target)
 
     def publish_authorization(
         self, authorization: StageStartAuthorization, *, lock: RunLock
@@ -1389,6 +1822,29 @@ class RunStateStore:
                 f"The held lock is for {lock.repository_identity}, not for this run's repository "
                 f"{self._repository_id}"
             )
+        # AUTO-018 section 7.4 (R01): `is_held` and an equal identity string are necessary, not
+        # sufficient. The hold must still own this store's canonical storage root (and, when it
+        # binds one, the target repository root); a lock at another root, a released or replaced
+        # hold, or a replaced root refuses here, before any byte is written.
+        lock.verify_ownership(
+            storage_root=self.artifact_root, repository_root=self._repository_root
+        )
+
+    def _held_target(self, lock: RunLock, name: str, *directories: str) -> DurableTarget:
+        """A descriptor-bound target in this run's existing directory, through `lock`'s hold.
+
+        Every shared run-directory writer publishes through this, so its parent descriptors come
+        from the verified ownership context and its success is re-verified after publication.
+        The directories exist by construction (:meth:`pin`), so a missing one stays a refusal.
+        """
+        return DurableTarget(
+            lock=lock,
+            storage_root=self.artifact_root,
+            repository_root=self._repository_root,
+            parts=(self._run_id, *directories),
+            name=name,
+            create_parents=False,
+        )
 
     # -- publication --------------------------------------------------------------------
 
@@ -1404,6 +1860,13 @@ class RunStateStore:
         corrupt. That is the fail-closed outcome, and it is preferred to persisting the secret.
         """
         self._require_lock(lock)
+        if self.lifecycle_present():
+            # INV-018-05: an event-backed run's state.json is a cache of verified events; no
+            # state-only write may advance it.
+            raise StatePublicationFailure(
+                f"Run {self._run_id} is event-backed; only a verified folded projection is "
+                "published for it"
+            )
         if record.repository_identity != self._repository_id:
             raise StatePublicationFailure(
                 f"The record names repository {record.repository_identity}, not this store's "
@@ -1417,6 +1880,7 @@ class RunStateStore:
             self.state_path,
             record.model_dump_json(indent=2),
             relative_path=STATE_FILE_NAME,
+            target=self._held_target(lock, STATE_FILE_NAME),
         )
 
     def publish_policy(
@@ -1426,12 +1890,20 @@ class RunStateStore:
         self._require_lock(lock)
         if policy.repository_identity != self.repository_id:
             raise PolicyDigestMismatch("Policy repository does not match the run store")
+        target = DurableTarget(
+            lock=lock,
+            storage_root=self.artifact_root,
+            repository_root=self._repository_root,
+            parts=(self._run_id,),
+            name=POLICY_FILE_NAME,
+        )
         try:
             return write_redacted_artifact(
                 self.policy_path,
                 policy.canonical_bytes().decode("utf-8"),
                 relative_path=POLICY_FILE_NAME,
                 exclusive=True,
+                target=target,
             )
         except ExclusivePublicationConflict:
             raise PolicyDigestMismatch(
@@ -1462,7 +1934,10 @@ class RunStateStore:
         """
         self._require_lock(lock)
         return write_redacted_artifact(
-            self.plan_snapshot_path, document, relative_path=PLAN_SNAPSHOT_FILE_NAME
+            self.plan_snapshot_path,
+            document,
+            relative_path=PLAN_SNAPSHOT_FILE_NAME,
+            target=self._held_target(lock, PLAN_SNAPSHOT_FILE_NAME),
         )
 
     def record_provider_intent(
@@ -1498,6 +1973,7 @@ class RunStateStore:
             self.provider_intent_path,
             intent.model_dump_json(indent=2),
             relative_path=PROVIDER_INTENT_FILE_NAME,
+            target=self._held_target(lock, PROVIDER_INTENT_FILE_NAME),
         )
         return intent
 
@@ -1542,7 +2018,10 @@ class RunStateStore:
         durable, so the lock is what keeps two runners from allocating the same number.
         """
         self._require_lock(lock)
-        return next_transcript_sequence(self.transcripts_directory)
+        return next_transcript_sequence(
+            self.transcripts_directory,
+            target=self._held_target(lock, TRANSCRIPT_SEQUENCE_FILE_NAME, TRANSCRIPTS_DIRECTORY),
+        )
 
     def write_transcript(
         self,
@@ -1563,8 +2042,13 @@ class RunStateStore:
         """
         self._require_lock(lock)
         reference = transcript_reference(sequence, moment, label, kind)
-        path = self.transcripts_directory / transcript_name(sequence, moment, label, kind)
-        return write_redacted_artifact(path, text, relative_path=reference)
+        name = transcript_name(sequence, moment, label, kind)
+        return write_redacted_artifact(
+            self.transcripts_directory / name,
+            text,
+            relative_path=reference,
+            target=self._held_target(lock, name, TRANSCRIPTS_DIRECTORY),
+        )
 
     def record_redaction_findings(
         self, record: RunRecord, writes: Iterable[RedactedWrite]
@@ -1613,10 +2097,43 @@ class RunStateStore:
     # -- reading ------------------------------------------------------------------------
 
     def exists(self) -> bool:
-        """Whether a published `state.json` is present. An orphan temp file is not one."""
-        return self.state_path.is_file()
+        """Whether a published run is present. An orphan temp file is not one.
 
-    def load(self) -> RunRecord:
+        AUTO-018 section 10.2: an event-backed run is present once its publication witness or its
+        event directory exists, even while `state.json` is absent, so `start` can never create a
+        second run or consume an authorization again in that gap.
+        """
+        return self.state_path.is_file() or self.lifecycle_present()
+
+    @property
+    def witness_path(self) -> Path:
+        return self._run_directory / PUBLICATION_WITNESS_FILE_NAME
+
+    @property
+    def events_directory(self) -> Path:
+        return self._run_directory / EVENTS_DIRECTORY
+
+    def lifecycle_present(self) -> bool:
+        """Whether this run has begun event-backed publication (section 7.1)."""
+        return os.path.lexists(self.witness_path) or os.path.lexists(self.events_directory)
+
+    def load(self, *, verify_authority: bool = True) -> RunRecord:
+        """Read the authoritative record without a lock (AUTO-016 section 11, AUTO-018 section 6).
+
+        An event-backed run returns the verified fold of its chain and writes nothing; a legacy
+        run is read exactly as before.
+        """
+        if self.lifecycle_present():
+            return self.load_lifecycle(verify_authority=verify_authority).record
+        return self._load_legacy()
+
+    def load_held(self, lock: RunLock, *, verify_authority: bool = True) -> RunRecord:
+        """:meth:`load` for a caller already holding the run lock: descriptor-bound, final."""
+        if self.lifecycle_present():
+            return self.load_lifecycle(lock=lock, verify_authority=verify_authority).record
+        return self._load_legacy()
+
+    def _load_legacy(self) -> RunRecord:
         """Read and validate `state.json`, fail-closed at every step (section 11).
 
         Four refusals in order, none of which has a best-effort branch: the file must be a
@@ -1643,6 +2160,13 @@ class RunStateStore:
             raise StateCorrupted(f"{self.state_path} is not a JSON object")
 
         version = document.get("schema_version")
+        if type(version) is int and version == EVENT_BACKED_STATE_SCHEMA_VERSION:
+            # Section 9: complete loss of the event directory for a version-3 record is detected,
+            # never read as a state-only run.
+            raise EventChainBroken(
+                f"{self.state_path} is an event-backed record, but neither its events nor its "
+                "publication witness exist"
+            )
         if type(version) is not int or version not in {1, STATE_SCHEMA_VERSION}:
             raise StateSchemaUnknown(
                 f"{self.state_path} carries schema_version {version!r}; this build understands "
@@ -1665,6 +2189,433 @@ class RunStateStore:
                 raise PolicyBindingMismatch("Governed record does not belong to this run")
             self.load_policy(record)
         return record
+
+    # -- AUTO-018: the event-backed lifecycle -------------------------------------------
+
+    def _open_run_directory(self, lock: RunLock | None) -> tuple[int, int]:
+        """Descriptors for this run's directory and its repository-scoped root, never followed.
+
+        Under a held lock both are derived from the hold's retained, verified root descriptor;
+        otherwise every component from `/` is opened no-follow, exactly as authority reads are.
+        The caller closes both.
+        """
+        if lock is not None:
+            lock.verify_ownership(
+                storage_root=self.artifact_root, repository_root=self._repository_root
+            )
+            root = os.dup(lock.storage_root_descriptor(storage_root=self.artifact_root))
+        else:
+            root = _open_directory_nofollow(self.artifact_root)
+        try:
+            run = os.open(self._run_id, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=root)
+        except OSError:
+            os.close(root)
+            raise EventChainBroken(
+                f"the run directory of {self._run_id} cannot be opened safely"
+            ) from None
+        return run, root
+
+    def _read_snapshot(self, run: int) -> StoredChain:
+        """One bounded read: the ordered events, the witness and the projection bytes."""
+        events: list[tuple[LifecycleEvent, str]] = []
+        try:
+            directory = os.open(
+                EVENTS_DIRECTORY, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=run
+            )
+        except FileNotFoundError:
+            directory = -1
+        except OSError:
+            raise EventChainBroken("the events directory is not a real directory") from None
+        if directory >= 0:
+            try:
+                for _sequence, _event_type, name in _bounded_event_names(directory):
+                    try:
+                        payload = _read_named(directory, name, MAX_LIFECYCLE_DOCUMENT_BYTES)
+                    except EvidenceUnavailable:
+                        raise EventChainBroken(f"event {name} cannot be read safely") from None
+                    assert payload is not None
+                    events.append(parse_event_bytes(name, payload))
+            finally:
+                os.close(directory)
+        try:
+            raw_witness = _read_named(
+                run, PUBLICATION_WITNESS_FILE_NAME, MAX_LIFECYCLE_DOCUMENT_BYTES, optional=True
+            )
+        except EvidenceUnavailable:
+            raise EventChainBroken("the publication witness cannot be read safely") from None
+        try:
+            projection = _read_named(run, STATE_FILE_NAME, MAX_STATE_BYTES, optional=True)
+        except EvidenceUnavailable:
+            projection = b""
+        return StoredChain(
+            events=tuple(events),
+            witness=None if raw_witness is None else parse_witness_bytes(raw_witness),
+            projection=projection,
+        )
+
+    def _writer_active(self) -> bool:
+        """Whether another hold is active on this repository's run lock (read-side probe only).
+
+        A non-blocking shared `flock` on the existing lock file, released at once. It creates
+        nothing and is consulted only after an unlocked reader already saw an inconsistent view.
+        """
+        try:
+            descriptor = os.open(
+                self.artifact_root / RUN_LOCK_FILE_NAME, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK
+            )
+        except OSError:
+            return False
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_SH | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return True
+        except OSError:
+            return False
+        else:
+            fcntl.flock(descriptor, fcntl.LOCK_UN)
+            return False
+        finally:
+            os.close(descriptor)
+
+    def load_lifecycle(
+        self, *, lock: RunLock | None = None, verify_authority: bool = True
+    ) -> "LifecycleView":
+        """Verify the whole chain and return its fold, writing nothing (sections 6, 7.3, 8.3).
+
+        The chain is streamed (R12): each event file is size-checked before it is read, then
+        parsed, hash-verified, folded and cross-checked against its referenced artifacts as it is
+        consumed, and its body is dropped; only bounded :class:`ChainEntry` metadata and the fold
+        state are retained, and the first invalid event stops the read before any later file is
+        opened. Without a lock the read is repeated while the publication witness changes
+        underneath it; an inconsistency seen while a writer holds the lock, or while the witness
+        moved, is a retryable contention refusal, not a corruption verdict. With the lock the
+        verdict is final.
+        """
+        attempts = 1 if lock is not None else 3
+        last: Exception | None = None
+        for _ in range(attempts):
+            run, root = self._open_run_directory(lock)
+            try:
+                before = _read_named_or_none(run, PUBLICATION_WITNESS_FILE_NAME)
+                try:
+                    view = self._stream_verified(run, root, verify_authority=verify_authority)
+                except (EventChainBroken, OperationRecordInvalid) as exc:
+                    if (
+                        lock is None
+                        and _read_named_or_none(run, PUBLICATION_WITNESS_FILE_NAME) != before
+                    ):
+                        last = LifecycleReadContention(
+                            f"run {self._run_id}'s publication witness changed during the read"
+                        )
+                        continue
+                    if lock is None and self._writer_active():
+                        raise LifecycleReadContention(
+                            f"run {self._run_id} is being written; retry the read ({exc})"
+                        ) from None
+                    raise
+                after = _read_named_or_none(run, PUBLICATION_WITNESS_FILE_NAME)
+                if lock is None and before != after:
+                    last = LifecycleReadContention(
+                        f"run {self._run_id}'s publication witness changed during the read"
+                    )
+                    continue
+                return view
+            finally:
+                os.close(run)
+                os.close(root)
+        assert last is not None
+        raise last
+
+    def _stream_verified(self, run: int, root: int, *, verify_authority: bool) -> "LifecycleView":
+        """Stream, verify and fold the chain under `run`, retaining only bounded metadata (R12)."""
+        try:
+            directory = os.open(
+                EVENTS_DIRECTORY, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=run
+            )
+        except FileNotFoundError:
+            raise EventChainBroken(
+                f"run {self._run_id} has begun event-backed publication, but no event survives"
+            ) from None
+        except OSError:
+            raise EventChainBroken("the events directory is not a real directory") from None
+        state: FoldState | None = None
+        entries: list[ChainEntry] = []
+        try:
+            for _sequence, _event_type, name in _bounded_event_names(directory):
+                try:
+                    # Bounded: the size is checked on the descriptor before anything is read.
+                    payload = _read_named(directory, name, MAX_LIFECYCLE_DOCUMENT_BYTES)
+                except EvidenceUnavailable:
+                    raise EventChainBroken(f"event {name} cannot be read safely") from None
+                assert payload is not None
+                event, digest = parse_event_bytes(name, payload)
+                del payload
+                state = fold_step(state, event, digest)
+                if (
+                    state.pins.run_id != self._run_id
+                    or state.pins.repository_identity != self._repository_id
+                ):
+                    raise EventChainBroken("the event chain belongs to another run or repository")
+                entry = ChainEntry.of(event, digest)
+                del event
+                for reference in entry.references:
+                    if reference.root is EvidenceRoot.REPOSITORY and not verify_authority:
+                        continue
+                    artifact = self._verify_reference(reference, run, root, state.pins)
+                    if artifact is not None:
+                        check_operation_artifact(state, reference, artifact)
+                entries.append(entry)
+        finally:
+            os.close(directory)
+        if state is None:
+            raise EventChainBroken(
+                f"run {self._run_id} has begun event-backed publication, but no event survives"
+            )
+        try:
+            raw_witness = _read_named(
+                run, PUBLICATION_WITNESS_FILE_NAME, MAX_LIFECYCLE_DOCUMENT_BYTES, optional=True
+            )
+        except EvidenceUnavailable:
+            raise EventChainBroken("the publication witness cannot be read safely") from None
+        check_witness(state, None if raw_witness is None else parse_witness_bytes(raw_witness))
+        try:
+            projection = _read_named(run, STATE_FILE_NAME, MAX_STATE_BYTES, optional=True)
+        except EvidenceUnavailable:
+            projection = b""
+        status = projection_status(state, projection)
+        for path in state.prospective_paths:
+            _check_prospective_path(run, path)
+        missing: list[str] = []
+        pins = OperationPins.model_validate(state.pins.model_dump())
+        for identifier, (event_id, version, event_sha) in state.causative_events.items():
+            causative = entries[version - 1]
+            if causative.event_id != event_id:
+                raise EventChainBroken("a causative transition is not where the chain says")
+            expected = model_bytes(applied_receipt(pins, identifier, causative, event_sha))
+            try:
+                present = _read_relative(
+                    run,
+                    operation_artifact_path(identifier, APPLIED_FILE_NAME),
+                    MAX_LIFECYCLE_DOCUMENT_BYTES,
+                    optional=True,
+                )
+            except EvidenceUnavailable:
+                raise OperationRecordInvalid(
+                    f"operation {identifier}'s applied receipt cannot be read"
+                ) from None
+            if present is None:
+                missing.append(identifier)
+            elif present != expected:
+                raise OperationRecordConflict(
+                    f"operation {identifier}'s applied receipt contradicts its causative transition"
+                )
+        chain = tuple(entries)
+        return LifecycleView(
+            record=state.record,
+            state=state,
+            chain=chain,
+            projection=status,
+            missing_applied=tuple(missing),
+            reader=lambda: self._reread_events(chain),
+        )
+
+    def _reread_events(self, chain: Sequence[ChainEntry]) -> tuple[tuple[LifecycleEvent, str], ...]:
+        """Diagnostic only: re-read the bodies of an already verified chain, digest-checked.
+
+        No load, fold, append or confirmation uses this; it exists for inspection and tests.
+        """
+        run, root = self._open_run_directory(None)
+        try:
+            directory = os.open(
+                EVENTS_DIRECTORY, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=run
+            )
+            try:
+                events: list[tuple[LifecycleEvent, str]] = []
+                for entry in chain:
+                    try:
+                        payload = _read_named(
+                            directory, entry.file_name, MAX_LIFECYCLE_DOCUMENT_BYTES
+                        )
+                    except EvidenceUnavailable:
+                        raise EventChainBroken(f"event {entry.file_name} is unreadable") from None
+                    assert payload is not None
+                    event, digest = parse_event_bytes(entry.file_name, payload)
+                    if digest != entry.sha256:
+                        raise EventChainBroken(f"event {entry.file_name} changed since verified")
+                    events.append((event, digest))
+                return tuple(events)
+            finally:
+                os.close(directory)
+        finally:
+            os.close(run)
+            os.close(root)
+
+    def _verify_reference(
+        self, reference: DurableEvidenceReference, run: int, root: int, pins: EventPins
+    ) -> MilestoneRunnerModel | None:
+        """Section 8.3: an asserted artifact exists, is safely readable and matches its digest.
+
+        Returns the strictly parsed operation artifact, if the reference names one, so the caller
+        can cross-check its content against the chain's facts (R05).
+        """
+        ceiling = (
+            MAX_ARTIFACT_BYTES
+            if reference.kind in {EvidenceKind.TRANSCRIPT, EvidenceKind.RAW_RESULT}
+            else MAX_LIFECYCLE_DOCUMENT_BYTES
+        )
+        base = run if reference.root is EvidenceRoot.RUN else root
+        try:
+            payload = _read_relative(base, reference.path, ceiling)
+        except EvidenceUnavailable as exc:
+            raise _reference_refusal(
+                reference, f"{reference.path} is missing or unreadable ({exc})"
+            ) from None
+        assert payload is not None
+        if (
+            len(payload) != reference.byte_count
+            or hashlib.sha256(payload).hexdigest() != reference.sha256
+        ):
+            raise _reference_refusal(
+                reference, f"{reference.path} differs from its asserted digest"
+            )
+        match = OPERATION_ARTIFACT_PATH_RE.fullmatch(reference.path)
+        if match is None or reference.kind is EvidenceKind.RAW_RESULT:
+            return None
+        name = match.group("top") or match.group("name")
+        model = ARTIFACT_MODELS[name]
+        try:
+            document = strict_json_loads(payload)
+            if not isinstance(document, dict) or type(document.get("schema_version")) is not int:
+                raise ValueError("not a versioned object")
+            if document["schema_version"] != 1:
+                raise LifecycleSchemaUnknown(f"{reference.path} carries an unknown schema version")
+            artifact = model.model_validate_json(payload)
+        except (UnicodeDecodeError, ValueError, ValidationError, RecursionError):
+            raise OperationRecordInvalid(
+                f"{reference.path} is not a valid operation artifact"
+            ) from None
+        if model_bytes(artifact) != payload:
+            raise OperationRecordInvalid(f"{reference.path} is not canonical")
+        values = artifact.model_dump(mode="json")
+        if values.get("pins") != pins.model_dump(mode="json") or values.get(
+            "operation_id"
+        ) != match.group("operation"):
+            raise OperationRecordInvalid(
+                f"{reference.path} carries foreign pins or another operation id"
+            )
+        if match.group("attempt") is not None and values.get("attempt") != int(
+            match.group("attempt")
+        ):
+            raise OperationRecordInvalid(f"{reference.path} names another attempt")
+        return artifact
+
+    def open_lifecycle(self, lock: RunLock) -> tuple[EventStore, "LifecycleView"]:
+        """Open an event-backed run for a mutating command, under the held lock (section 7.5).
+
+        Verifies the whole chain with a final verdict, confirms the durability of every relied-
+        upon event, the witness and every referenced artifact on the current verified
+        descriptors, repairs a missing, stale or damaged projection from the verified fold, and
+        rebuilds any missing applied receipt from its already-durable causative transition. It
+        executes nothing and never appends an event.
+        """
+        view = self.load_lifecycle(lock=lock)
+        storage = RunLifecycleStorage(self, lock, view.state.pins)
+        storage.prime(view)
+        events = EventStore(storage, pins=view.state.pins)
+        events.adopt(view.chain, view.state)
+        storage.confirm_all(view)
+        if view.projection is not ProjectionStatus.CURRENT:
+            storage.publish_projection(
+                projection_bytes(
+                    view.state.record,
+                    state_version=view.state.sequence,
+                    last_event_id=view.state.event_id,
+                )
+            )
+        for identifier in view.missing_applied:
+            event_id, version, event_sha = view.state.causative_events[identifier]
+            entry = view.chain[version - 1]
+            assert entry.event_id == event_id
+            events.journal.write_applied(identifier, entry, event_sha)
+        return events, view
+
+    def begin_lifecycle(self, lock: RunLock, pins: EventPins) -> EventStore:
+        """An event store for a run with no chain yet: a new start or a legacy snapshot bridge."""
+        if self.lifecycle_present():
+            raise EventConflict(f"run {self._run_id} already has lifecycle evidence")
+        lock.verify_ownership(
+            storage_root=self.artifact_root, repository_root=self._repository_root
+        )
+        storage = RunLifecycleStorage(self, lock, pins)
+        return EventStore(storage, pins=pins)
+
+    def authority_reference(
+        self, kind: EvidenceKind, stage_start_id: str
+    ) -> DurableEvidenceReference:
+        """A digest-bound reference to one immutable AUTO-017 authority artifact, read no-follow."""
+        if kind is EvidenceKind.POLICY:
+            path, root, target = POLICY_FILE_NAME, EvidenceRoot.RUN, self.policy_path
+        else:
+            path = stage_start_reference_path(kind, stage_start_id)
+            root, target = EvidenceRoot.REPOSITORY, self.artifact_root / path
+        payload = read_authority_bytes(target, MAX_STAGE_START_BYTES)
+        assert payload is not None
+        return DurableEvidenceReference(
+            kind=kind,
+            root=root,
+            path=path,
+            sha256=hashlib.sha256(payload).hexdigest(),
+            byte_count=len(payload),
+        )
+
+    def record_bootstrap_evidence(self, events: EventStore, recorded_at: str) -> None:
+        """Append whichever of `STAGE_START_BOUND` / `POLICY_PUBLISHED` the chain still lacks.
+
+        Deterministic in content and timestamp, so an interrupted bootstrap resumes by
+        recognizing exact duplicates rather than by inventing history (sections 7.2, 10.2).
+        """
+        state = events.require_state()
+        identifier = state.pins.stage_start_id
+        if not state.stage_start_bound:
+            events.bind_stage_start(
+                authorization=self.authority_reference(
+                    EvidenceKind.STAGE_START_AUTHORIZATION, identifier
+                ),
+                binding=self.authority_reference(EvidenceKind.STAGE_START_BINDING, identifier),
+                witness=self.authority_reference(EvidenceKind.STAGE_START_WITNESS, identifier),
+                recorded_at=recorded_at,
+            )
+        if not events.require_state().policy_published:
+            events.record_policy(
+                self.authority_reference(EvidenceKind.POLICY, identifier), recorded_at
+            )
+
+    def bridge_snapshot(self, events: EventStore) -> RunRecord:
+        """Import a validated governed v2 snapshot as `RUN_BASELINED` (section 10.1).
+
+        Called under the lock, after every existing authority check, before the first new state
+        of an explicitly requested mutating command. It records only the known snapshot and its
+        exact source-byte digest; it synthesizes no request, receipt, validation or history, and
+        a missing or corrupt snapshot is a refusal, never a fabricated genesis. Its events carry
+        the snapshot's own `updated_at`, so an interrupted bridge is idempotent by run and
+        first-event identity, never by the current time.
+        """
+        raw = read_authority_bytes(self.state_path, MAX_STATE_BYTES)
+        assert raw is not None
+        record = self._load_legacy()
+        document = strict_json_loads(raw)
+        if not isinstance(document, dict) or document.get("schema_version") != STATE_SCHEMA_VERSION:
+            raise StateCorrupted("only a state wire version 2 snapshot is bridged")
+        if not record.is_policy_governed:
+            raise StateCorrupted("only a policy-governed snapshot is bridged")
+        events.baseline(
+            record,
+            source_sha256=hashlib.sha256(raw).hexdigest(),
+            source_byte_count=len(raw),
+            recorded_at=record.updated_at,
+        )
+        self.record_bootstrap_evidence(events, record.updated_at)
+        return events.record
 
     # -- section 13 ---------------------------------------------------------------------
 
@@ -1826,3 +2777,553 @@ class RunStateStore:
             "repeating it repeats no effect.",
             moved,
         )
+
+
+# --------------------------------------------------------------------------------------
+# AUTO-018 -- bounded, no-follow lifecycle reads
+# --------------------------------------------------------------------------------------
+
+#: A bound on one enumeration of the explicitly addressed events directory (section 7.3).
+MAX_EVENT_FILES: Final = 1_000_000
+
+
+def _open_directory_nofollow(path: Path) -> int:
+    """Open `path` as a directory with every component opened relative and no-follow."""
+    absolute = path if path.is_absolute() else Path.cwd() / path
+    descriptor = os.open(absolute.anchor, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        for part in absolute.parts[1:]:
+            child = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=descriptor)
+            os.close(descriptor)
+            descriptor = child
+    except OSError:
+        os.close(descriptor)
+        raise EventChainBroken(f"{path} cannot be opened as a no-follow directory") from None
+    return descriptor
+
+
+def _read_named(directory: int, name: str, ceiling: int, *, optional: bool = False) -> bytes | None:
+    """Read one bounded regular file by exact name inside `directory`, no-follow."""
+    try:
+        descriptor = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory)
+    except FileNotFoundError:
+        if optional:
+            return None
+        raise EvidenceUnavailable(f"{name} is absent") from None
+    except OSError as exc:
+        raise EvidenceUnavailable(f"{name} cannot be opened safely: {exc.strerror}") from None
+    try:
+        return _read_authority_descriptor(descriptor, ceiling)
+    except (AuthorityArtifactInvalid, OSError):
+        raise EvidenceUnavailable(f"{name} is not a bounded regular file") from None
+    finally:
+        os.close(descriptor)
+
+
+def _read_named_or_none(directory: int, name: str) -> bytes | None:
+    try:
+        return _read_named(directory, name, MAX_LIFECYCLE_DOCUMENT_BYTES, optional=True)
+    except EvidenceUnavailable:
+        return b""
+
+
+def _read_relative(
+    base: int, relative: str, ceiling: int, *, optional: bool = False
+) -> bytes | None:
+    """Read a run- or root-relative path, walking every directory component no-follow."""
+    parts = relative.split("/")
+    if any(part in {"", ".", ".."} for part in parts):
+        raise EvidenceUnavailable(f"{relative!r} is not a contained relative path")
+    descriptors: list[int] = []
+    current = base
+    try:
+        for part in parts[:-1]:
+            try:
+                current = os.open(
+                    part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=current
+                )
+            except FileNotFoundError:
+                if optional:
+                    return None
+                raise EvidenceUnavailable(f"{relative} is absent") from None
+            except OSError as exc:
+                raise EvidenceUnavailable(
+                    f"{relative} has an unsafe component: {exc.strerror}"
+                ) from None
+            descriptors.append(current)
+        return _read_named(current, parts[-1], ceiling, optional=optional)
+    finally:
+        for descriptor in reversed(descriptors):
+            os.close(descriptor)
+
+
+def _bounded_event_names(directory: int) -> list[tuple[int, Any, str]]:
+    """The one bounded, non-recursive enumeration of an explicitly addressed `events/` directory.
+
+    AUTO-018 section 7.3 admits exactly this listing in the package besides `plan.py`'s. Names
+    are validated and sorted by sequence, then every event is read by exact name. Only owned
+    namespaced temporary files are ignored; any other entry, a gap, or two files for one sequence
+    fails closed. Nothing is cleaned up, truncated or compacted.
+    """
+    names = os.listdir(directory)
+    if len(names) > MAX_EVENT_FILES:
+        raise EventChainBroken("the events directory exceeds its bounded size")
+    claimed: list[tuple[int, Any, str]] = []
+    for name in names:
+        if name.startswith(TEMP_FILE_PREFIX):
+            continue
+        parsed = parse_event_file_name(name)
+        if parsed is None:
+            raise EventChainBroken(f"the events directory holds an unknown entry {name!r}")
+        claimed.append((parsed[0], parsed[1], name))
+    claimed.sort(key=lambda item: item[0])
+    sequences = [item[0] for item in claimed]
+    if len(set(sequences)) != len(sequences):
+        raise EventChainBroken("two event files claim one sequence")
+    if sequences != list(range(1, len(sequences) + 1)):
+        raise EventChainBroken("the event sequence has a gap or does not begin at 1")
+    return claimed
+
+
+def _check_prospective_path(run: int, path: str) -> None:
+    """Section 8.3 type 1: a pending transcript path is a declaration, not an assertion.
+
+    Its absence is valid. If it is present it must be reachable no-follow and be a regular file;
+    its presence alone proves nothing about execution or completion.
+    """
+    parts = path.split("/")
+    descriptors: list[int] = []
+    current = run
+    try:
+        for part in parts[:-1]:
+            try:
+                current = os.open(
+                    part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=current
+                )
+            except FileNotFoundError:
+                return
+            except OSError:
+                raise OperationRecordInvalid(f"{path} has an unsafe component") from None
+            descriptors.append(current)
+        try:
+            status = os.stat(parts[-1], dir_fd=current, follow_symlinks=False)
+        except FileNotFoundError:
+            return
+        if not stat.S_ISREG(status.st_mode):
+            raise OperationRecordInvalid(f"{path} is present but not a regular file")
+    finally:
+        for descriptor in reversed(descriptors):
+            os.close(descriptor)
+
+
+def _reference_refusal(reference: DurableEvidenceReference, detail: str) -> StateError | Exception:
+    """The typed refusal for a missing or altered asserted artifact (sections 8.3, 9)."""
+    if reference.kind is EvidenceKind.POLICY:
+        return PolicyDigestMismatch(detail)
+    if reference.kind in {
+        EvidenceKind.STAGE_START_AUTHORIZATION,
+        EvidenceKind.STAGE_START_BINDING,
+        EvidenceKind.STAGE_START_WITNESS,
+    }:
+        return LifecycleAuthorityMismatch(detail, stop_reason=StopReason.STAGE_START_ALREADY_BOUND)
+    return OperationRecordInvalid(detail)
+
+
+@dataclass(frozen=True, slots=True)
+class LifecycleView:
+    """What a verified read of an event-backed run established.
+
+    It retains bounded per-event metadata (`chain`), never the event bodies (R12); `events`
+    re-reads them, digest-checked, for diagnostics only.
+    """
+
+    record: RunRecord
+    state: FoldState
+    chain: tuple[ChainEntry, ...]
+    projection: ProjectionStatus
+    missing_applied: tuple[str, ...] = ()
+    reader: Callable[[], tuple[tuple[LifecycleEvent, str], ...]] | None = None
+
+    @property
+    def events(self) -> tuple[tuple[LifecycleEvent, str], ...]:
+        if self.reader is None:
+            raise EventChainBroken("this view retains no reader for its event bodies")
+        return self.reader()
+
+    @property
+    def incomplete(self) -> Any:
+        return self.state.incomplete
+
+
+def _cache_identity(status: os.stat_result) -> tuple[int, ...]:
+    """What a process-local confirmation is keyed on: identity plus change stamps (R07).
+
+    An in-place rewrite keeps the inode but moves the change time, so a confirmed file that was
+    altered afterwards is never acknowledged from the cache.
+    """
+    return (status.st_dev, status.st_ino, status.st_size, status.st_mtime_ns, status.st_ctime_ns)
+
+
+#: A canonical walk's result: the bound directory identities, then the leaf's cache identity.
+_NamespaceBinding = tuple[tuple[tuple[int, int], ...], tuple[int, ...] | None]
+
+
+class RunLifecycleStorage:
+    """Section 7's durable I/O for one run under one verified hold (`events.LifecycleStorage`).
+
+    Every write is descriptor-bound to the hold (section 7.4), goes through
+    :func:`write_redacted_artifact` (section 7.3), and returns only once durable (section 7.5).
+    Confirmations performed under this hold are cached process-locally, keyed by exact address,
+    digest and inode, and never outlive the storage object.
+
+    R02 / R07: every governed directory below the storage root is bound to the identity this hold
+    first reached it at, through a no-follow walk from the retained root descriptor. A cached
+    confirmation is honoured only after the current canonical walk reaches those same
+    directories and the same file, so a parent renamed away and replaced -- by another directory,
+    or by a symlink to the detached original -- is a lost ownership context, never a duplicate
+    acknowledgment.
+    """
+
+    def __init__(self, store: "RunStateStore", lock: RunLock, pins: EventPins) -> None:
+        self._store = store
+        self._lock = lock
+        self._pins = pins
+        self._names: tuple[str, ...] = ()
+        self._witness: bytes | None = None
+        self._directories: dict[tuple[str, ...], tuple[int, int]] = {}
+        self._confirmed: dict[tuple[str, str], _NamespaceBinding] = {}
+
+    def _target(self, root: EvidenceRoot, relative: str) -> DurableTarget:
+        parts = tuple(relative.split("/"))
+        base: tuple[str, ...] = (self._store.run_id,) if root is EvidenceRoot.RUN else ()
+        return DurableTarget(
+            lock=self._lock,
+            storage_root=self._store.artifact_root,
+            repository_root=self._store.repository_root,
+            parts=(*base, *parts[:-1]),
+            name=parts[-1],
+        )
+
+    def _path(self, root: EvidenceRoot, relative: str) -> Path:
+        base = self._store.run_directory if root is EvidenceRoot.RUN else self._store.artifact_root
+        return base / relative
+
+    def prime(self, view: LifecycleView) -> None:
+        self._names = tuple(entry.file_name for entry in view.chain)
+        run, root = self._store._open_run_directory(self._lock)
+        try:
+            self._witness = _read_named_or_none(run, PUBLICATION_WITNESS_FILE_NAME)
+        finally:
+            os.close(run)
+            os.close(root)
+        # R02: bind the verified run, events and referenced-artifact directories now, so a
+        # directory swapped before its first confirmation is refused rather than adopted.
+        bound: set[tuple[EvidenceRoot, str]] = set()
+        addresses = [(EvidenceRoot.RUN, PUBLICATION_WITNESS_FILE_NAME)]
+        for entry in view.chain:
+            addresses.append((EvidenceRoot.RUN, f"{EVENTS_DIRECTORY}/{entry.file_name}"))
+            addresses.extend((reference.root, reference.path) for reference in entry.references)
+        for evidence_root, relative in addresses:
+            parent = (evidence_root, relative.rpartition("/")[0])
+            if parent in bound:
+                continue
+            bound.add(parent)
+            try:
+                self._bind(evidence_root, relative)
+            except EvidenceUnavailable:
+                continue  # never seen, so nothing is bound; confirmation refuses it later
+
+    def _bind(self, root: EvidenceRoot, relative: str) -> _NamespaceBinding:
+        """Walk the canonical namespace of `relative` no-follow and check it against the hold.
+
+        Every directory is opened `O_NOFOLLOW` below the previous descriptor, starting at the
+        hold's retained root descriptor, and must be the very directory this hold first bound at
+        that canonical name; the leaf is stat'ed at its name without following. A directory this
+        hold already bound that is now missing, a symlink, or another inode invalidates the hold
+        (:class:`LockOwnershipLost`). One never bound and absent is :class:`EvidenceUnavailable`.
+        """
+        return self._walk(self._target(root, relative), leaf=True)
+
+    def _bind_parents(self, target: DurableTarget) -> None:
+        """Check the already-bound prefix of `target`'s directories; absent ones are created."""
+        bound = 0
+        while bound < len(target.parts) and target.parts[: bound + 1] in self._directories:
+            bound += 1
+        if bound:
+            self._walk(
+                DurableTarget(
+                    lock=target.lock,
+                    storage_root=target.storage_root,
+                    repository_root=target.repository_root,
+                    parts=target.parts[:bound],
+                    name=".",
+                ),
+                leaf=False,
+            )
+
+    def _bind_directory(self, root: EvidenceRoot, relative: str) -> None:
+        """:meth:`_bind` for a governed directory itself (`relative` empty: the run directory)."""
+        self._walk(self._target(root, f"{relative}/." if relative else "."), leaf=False)
+
+    def _walk(self, target: DurableTarget, *, leaf: bool) -> _NamespaceBinding:
+        if any(part in {"", ".", ".."} for part in target.parts):
+            raise EvidenceUnavailable(f"{target.address} is not a canonical governed address")
+        target.guard()
+        current = self._lock.storage_root_descriptor(storage_root=target.storage_root)
+        descriptors: list[int] = []
+        directories: list[tuple[int, int]] = []
+        try:
+            for index, part in enumerate(target.parts, start=1):
+                prefix = target.parts[:index]
+                try:
+                    opened = os.open(
+                        part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=current
+                    )
+                except OSError as exc:
+                    if prefix in self._directories:
+                        raise self._lock.invalidate(
+                            f"the addressed storage directory {'/'.join(prefix)!r} is no longer "
+                            f"a directory at its canonical name ({exc.strerror})"
+                        ) from None
+                    raise EvidenceUnavailable(
+                        f"{target.address} cannot be reopened safely: {exc.strerror}"
+                    ) from None
+                descriptors.append(opened)
+                current = opened
+                status = os.fstat(opened)
+                directory = (status.st_dev, status.st_ino)
+                if self._directories.setdefault(prefix, directory) != directory:
+                    raise self._lock.invalidate(
+                        f"the addressed storage directory {'/'.join(prefix)!r} was renamed away "
+                        "or replaced since this hold bound it"
+                    )
+                directories.append(directory)
+            identity: tuple[int, ...] | None = None
+            if leaf:
+                try:
+                    identity = _cache_identity(
+                        os.stat(target.name, dir_fd=current, follow_symlinks=False)
+                    )
+                except FileNotFoundError:
+                    pass
+            target.guard(descriptors)
+        except OSError as exc:
+            raise EvidenceUnavailable(
+                f"{target.address} cannot be reopened safely: {exc.strerror}"
+            ) from None
+        finally:
+            for opened in reversed(descriptors):
+                os.close(opened)
+        return tuple(directories), identity
+
+    def read_chain(self) -> StoredChain:
+        self._bind_directory(EvidenceRoot.RUN, EVENTS_DIRECTORY)
+        run, root = self._store._open_run_directory(self._lock)
+        try:
+            chain = self._store._read_snapshot(run)
+        finally:
+            os.close(run)
+            os.close(root)
+        self._bind_directory(EvidenceRoot.RUN, EVENTS_DIRECTORY)
+        return chain
+
+    def check_tip(self, sequence: int, event_sha256: str) -> None:
+        """Section 7.2 step 1: the chain and witness are exactly what this hold last verified.
+
+        R02: the run and events directories read here are first, and again afterwards, proven to
+        be the very ones this hold bound at their canonical names.
+        """
+        self._bind_directory(EvidenceRoot.RUN, EVENTS_DIRECTORY)
+        run, root = self._store._open_run_directory(self._lock)
+        try:
+            witness = _read_named_or_none(run, PUBLICATION_WITNESS_FILE_NAME)
+            try:
+                directory = os.open(
+                    EVENTS_DIRECTORY, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=run
+                )
+            except OSError:
+                raise EventChainBroken("the events directory changed under the hold") from None
+            try:
+                names = tuple(name for _, _, name in _bounded_event_names(directory))
+            finally:
+                os.close(directory)
+        finally:
+            os.close(run)
+            os.close(root)
+        self._bind_directory(EvidenceRoot.RUN, EVENTS_DIRECTORY)
+        if names != self._names or len(names) != sequence or witness != self._witness:
+            raise EventChainBroken(
+                "the event chain or its witness changed outside this hold's own appends"
+            )
+
+    def _write(
+        self,
+        root: EvidenceRoot,
+        relative: str,
+        payload: bytes | str,
+        *,
+        exclusive: bool,
+        structural: bool,
+    ) -> RedactedWrite:
+        text = payload.decode("utf-8") if isinstance(payload, bytes) else payload
+        target = self._target(root, relative)
+        # R02: a governed directory this hold bound and that was since replaced -- even by an
+        # empty one -- refuses before anything is written into the replacement.
+        self._bind_parents(target)
+        write = write_redacted_artifact(
+            self._path(root, relative),
+            text,
+            relative_path=relative,
+            exclusive=exclusive,
+            target=target,
+            refuse_redaction=structural,
+        )
+        assert write.sha256 is not None
+        self._remember(root, relative, write.sha256)
+        return write
+
+    def _remember(self, root: EvidenceRoot, relative: str, sha256: str) -> None:
+        binding = self._bind(root, relative)
+        if binding[1] is not None:
+            self._confirmed[(f"{root.value}:{relative}", sha256)] = binding
+
+    def publish_evidence(
+        self, path: str, text: str, *, structural: bool
+    ) -> DurableEvidenceReference:
+        kind = classify_run_evidence_path(path)
+        if kind is None or OPERATION_ARTIFACT_PATH_RE.fullmatch(path) is None:
+            raise OperationRecordInvalid(f"{path!r} is not an operation artifact path")
+        try:
+            write = self._write(EvidenceRoot.RUN, path, text, exclusive=True, structural=structural)
+        except ExclusivePublicationConflict:
+            raise OperationRecordConflict(
+                f"{path} already holds different evidence; operation evidence is immutable"
+            ) from None
+        assert write.sha256 is not None
+        return DurableEvidenceReference(
+            kind=kind,
+            root=EvidenceRoot.RUN,
+            path=path,
+            sha256=write.sha256,
+            byte_count=write.byte_count,
+        )
+
+    def publish_witness(self, payload: bytes) -> None:
+        self._write(
+            EvidenceRoot.RUN,
+            PUBLICATION_WITNESS_FILE_NAME,
+            payload,
+            exclusive=False,
+            structural=True,
+        )
+        self._witness = payload
+
+    def publish_event(self, name: str, payload: bytes) -> None:
+        try:
+            write = self._write(
+                EvidenceRoot.RUN,
+                f"{EVENTS_DIRECTORY}/{name}",
+                payload,
+                exclusive=True,
+                structural=True,
+            )
+        except ExclusivePublicationConflict:
+            raise EventConflict(f"{name} already exists with other bytes") from None
+        if write.exclusive_outcome is ExclusiveOutcome.IDENTICAL_EXISTS:
+            raise EventConflict(f"{name} already existed outside the verified chain")
+        self._names = (*self._names, name)
+
+    def publish_projection(self, payload: bytes) -> None:
+        self._write(EvidenceRoot.RUN, STATE_FILE_NAME, payload, exclusive=False, structural=True)
+
+    def witness_bytes(self) -> bytes | None:
+        """The witness bytes this hold last verified or published (re-checked by `check_tip`)."""
+        return self._witness
+
+    def _confirm(self, root: EvidenceRoot, relative: str, sha256: str, ceiling: int) -> None:
+        key = (f"{root.value}:{relative}", sha256)
+        # R02 / R07: the current canonical namespace is proven first, on every path; a cached
+        # confirmation is reused only while every directory and the file it depends on are the
+        # very ones it was confirmed through.
+        binding = self._bind(root, relative)
+        if self._confirmed.get(key) == binding:
+            return
+        confirm_durable(self._target(root, relative), expected_sha256=sha256, ceiling=ceiling)
+        self._remember(root, relative, sha256)
+
+    def confirm_event(self, name: str, sha256: str) -> None:
+        try:
+            self._confirm(
+                EvidenceRoot.RUN, f"{EVENTS_DIRECTORY}/{name}", sha256, MAX_LIFECYCLE_DOCUMENT_BYTES
+            )
+        except EvidenceUnavailable as exc:
+            raise EventChainBroken(str(exc)) from None
+
+    def confirm_witness(self, sha256: str) -> None:
+        try:
+            self._confirm(
+                EvidenceRoot.RUN,
+                PUBLICATION_WITNESS_FILE_NAME,
+                sha256,
+                MAX_LIFECYCLE_DOCUMENT_BYTES,
+            )
+        except EvidenceUnavailable as exc:
+            raise EventChainBroken(str(exc)) from None
+
+    def confirm_references(self, references: Sequence[DurableEvidenceReference]) -> None:
+        for reference in references:
+            ceiling = (
+                MAX_ARTIFACT_BYTES
+                if reference.kind in {EvidenceKind.TRANSCRIPT, EvidenceKind.RAW_RESULT}
+                else MAX_LIFECYCLE_DOCUMENT_BYTES
+            )
+            try:
+                self._confirm(reference.root, reference.path, reference.sha256, ceiling)
+            except EvidenceUnavailable as exc:
+                raise _reference_refusal(reference, str(exc)) from None
+
+    def verify_references(
+        self, references: Sequence[DurableEvidenceReference]
+    ) -> list[tuple[DurableEvidenceReference, MilestoneRunnerModel]]:
+        """Verify each asserted artifact; return the parsed operation artifacts (R05)."""
+        if not references:
+            return []
+        artifacts: list[tuple[DurableEvidenceReference, MilestoneRunnerModel]] = []
+        for reference in references:
+            self._bind_directory(reference.root, reference.path.rpartition("/")[0])
+        run, root = self._store._open_run_directory(self._lock)
+        try:
+            for reference in references:
+                artifact = self._store._verify_reference(reference, run, root, self._pins)
+                if artifact is not None:
+                    artifacts.append((reference, artifact))
+        finally:
+            os.close(run)
+            os.close(root)
+        for reference in references:
+            self._bind_directory(reference.root, reference.path.rpartition("/")[0])
+        return artifacts
+
+    def confirm_all(self, view: LifecycleView) -> None:
+        """Section 7.5: confirm the whole relied-upon dependency set under this hold."""
+        for entry in view.chain:
+            self.confirm_event(entry.file_name, entry.sha256)
+            self.confirm_references(entry.references)
+        assert self._witness is not None
+        self.confirm_witness(hashlib.sha256(self._witness).hexdigest())
+        if view.projection is ProjectionStatus.CURRENT:
+            # The relied-upon projection is confirmed too; a lagging one is republished instead.
+            current = projection_bytes(
+                view.state.record,
+                state_version=view.state.sequence,
+                last_event_id=view.state.event_id,
+            )
+            try:
+                self._confirm(
+                    EvidenceRoot.RUN,
+                    STATE_FILE_NAME,
+                    hashlib.sha256(current).hexdigest(),
+                    MAX_STATE_BYTES,
+                )
+            except EvidenceUnavailable as exc:
+                raise EventChainBroken(str(exc)) from None

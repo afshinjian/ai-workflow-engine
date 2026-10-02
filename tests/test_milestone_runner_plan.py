@@ -694,7 +694,13 @@ class TestNoPlanDiscoveryInWorktree:
                     ast.Module(body=node.body, type_ignores=[])
                 ):
                     listing_functions.append((module.name, node.name))
-        assert listing_functions == [("plan.py", "_external_plan_paths")]
+        # OD-AUTO018-01 = A: exactly one more listing is admitted -- AUTO-018 section 7.3's single
+        # bounded listing of the explicitly addressed external `events/` directory. Plan discovery
+        # stays plan.py's external plan-root listing alone.
+        assert listing_functions == [
+            ("plan.py", "_external_plan_paths"),
+            ("state.py", "_bounded_event_names"),
+        ]
 
     def test_a_plan_beside_the_configured_one_is_not_picked_up(
         self, repository: Path, home: Path

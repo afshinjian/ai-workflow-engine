@@ -43,6 +43,7 @@ reported rather than filled by guesswork; the narrower reading is implemented, e
 `models.StopReason` already did for section 15's uncoded checks.
 """
 
+import hashlib
 import json
 import os
 import posixpath
@@ -74,6 +75,30 @@ from ai_workflow_engine.milestone_runner.config import (
     VerificationCommandSettings,
     load_runner_config,
 )
+from ai_workflow_engine.milestone_runner.events import (
+    LEDGER_BY_COMMAND,
+    PUBLICATION_WITNESS_FILE_NAME,
+    ApplicationMutationIncomplete,
+    ApplicationStepEvidence,
+    DurableEvidenceReference,
+    EventPins,
+    EventStore,
+    EvidenceKind,
+    EvidenceRoot,
+    LifecycleError,
+    LifecycleEventType,
+    MutationAction,
+    MutationCommand,
+    OperationRecordInvalid,
+    PlannedChange,
+    RecoveryCommandEvidence,
+    RejectionSource,
+    ResultEvidence,
+    body_digest,
+    integrity_bytes,
+    redact_record,
+    redact_value,
+)
 from ai_workflow_engine.milestone_runner.git_inspect import (
     GitInspectionError,
     GitReadOnlyInspector,
@@ -91,11 +116,21 @@ from ai_workflow_engine.milestone_runner.models import (
     ProviderRole,
     ProviderRunRecord,
     RecoveryCommand,
+    RecoveryLedgerEntry,
     RunRecord,
     RunStatus,
     StopReason,
     VerificationResult,
     normalize_repository_path,
+)
+from ai_workflow_engine.milestone_runner.operations import (
+    AdapterIdentity,
+    ExecutionOutcome,
+    OperationHandle,
+    PersistenceKind,
+    ReceiptKind,
+    ValidationVerdict,
+    provider_step,
 )
 from ai_workflow_engine.milestone_runner.plan import MilestonePlan, MilestonePlanLoader, PlanError
 from ai_workflow_engine.milestone_runner.policy import (
@@ -125,6 +160,7 @@ from ai_workflow_engine.milestone_runner.providers.base import (
     ProviderError,
     ProviderInvocation,
     ProviderInvoker,
+    ProviderRequest,
     retry_permitted,
 )
 from ai_workflow_engine.milestone_runner.providers.claude_cli import ClaudeCLIAdapter
@@ -152,8 +188,10 @@ from ai_workflow_engine.milestone_runner.review import (
 from ai_workflow_engine.milestone_runner.scope import ScopeGuard
 from ai_workflow_engine.milestone_runner.state import (
     AuthorityArtifactInvalid,
+    DurableTarget,
     ExclusivePublicationConflict,
     PolicyDigestMismatch,
+    PublicationUncertain,
     RedactedWrite,
     ResumeAction,
     RunStateStore,
@@ -177,6 +215,7 @@ from ai_workflow_engine.milestone_runner.verification import (
     parse_governance_check_document,
     run_bounded_command,
 )
+from ai_workflow_engine.successor_planning.redaction import RedactionFinding
 
 #: The stop reason recorded for the two stops section 10's closed vocabulary does not name. See
 #: this module's docstring: the narrower reading is implemented and the gap is reported.
@@ -363,6 +402,250 @@ def revise_record(
             )
         payload[name] = _as_document(value)
     return _rebuild(record, payload)
+
+
+# --------------------------------------------------------------------------------------
+# AUTO-018 -- the application's lifecycle writer
+# --------------------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class _Step:
+    """One effect the existing flow computed, in the order it computed it."""
+
+    kind: LifecycleEventType
+    before: RunRecord
+    after: RunRecord
+    operation_id: str | None = None
+    evidence: tuple[DurableEvidenceReference, ...] = ()
+    accepted_result_sha256: str | None = None
+    rejection_source: RejectionSource | None = None
+    verdict: DurableEvidenceReference | None = None
+    diagnostic: str | None = None
+
+
+class _Lifecycle:
+    """How an event-backed run's publications become events (AUTO-018 sections 5.2, 6, 6.1).
+
+    The existing flow still computes proposed records with :func:`transition_to` and
+    :func:`revise_record`; each helper also *notes* the typed effect it computed. At
+    :func:`_publish` the notes on the path from the last committed record to the record being
+    published are replayed as events, in order -- so an intermediate transition is never lost by
+    comparing only the final record. One effect is appended directly; two or more are first
+    declared as one complete, durable `APPLICATION_MUTATION_DECLARED` manifest and only then
+    emitted constituent by constituent. `STATE_TRANSITIONED` is requested only here, through
+    `EventStore.append_transition`: the store verifies and records, and never decides.
+    """
+
+    def __init__(
+        self,
+        store: RunStateStore,
+        events: EventStore,
+        *,
+        command: MutationCommand,
+        published: RunRecord,
+        bridge: bool = False,
+    ) -> None:
+        self.store = store
+        self.events = events
+        self.command = command
+        self.published = published
+        self._bridge = bridge
+        self._steps: list[_Step] = []
+        self._deferred: list[RedactedWrite] = []
+
+    def note(self, step: _Step) -> None:
+        self._steps.append(step)
+
+    def defer_redactions(self, path: str, findings: Sequence[RedactionFinding]) -> None:
+        """Count redactions that fired inside a journal artifact on the next commit (R09).
+
+        Section 7.3: redaction findings remain counted and visible. A validated result's free
+        text is redacted before its digest, so the findings are carried to the next committed
+        record as the same deferred, visible findings a transcript redaction produces.
+        """
+        self._deferred.append(
+            RedactedWrite(path=path, relative_path=path, byte_count=0, findings=list(findings))
+        )
+
+    def _chain(self, final: RunRecord) -> list[_Step]:
+        by_after = {id(step.after): step for step in self._steps}
+        chain: list[_Step] = []
+        current = final
+        while current is not self.published:
+            step = by_after.get(id(current))
+            if step is None:
+                raise ApplicationError(
+                    "An event-backed run can publish only effects the application recorded; this "
+                    "record was not derived from the last committed record through them"
+                )
+            chain.append(step)
+            current = step.before
+        chain.reverse()
+        return chain
+
+    def ensure_chain(self) -> None:
+        """Bridge a historical governed snapshot before the first new state (section 10.1)."""
+        if self._bridge and self.events.state is None:
+            bridged = self.store.bridge_snapshot(self.events)
+            if body_digest(bridged) != body_digest(self.published):
+                raise ApplicationError("The bridged snapshot is not the record this command read")
+            self._bridge = False
+
+    def commit(
+        self,
+        final: RunRecord,
+        writes: Sequence[RedactedWrite] = (),
+        *,
+        description: str = "an existing application step",
+    ) -> RunRecord:
+        chain = self._chain(final)
+        writes = [*writes, *self._deferred]
+        # Section 7.3: free text is redacted before any digest is computed over it. Redaction is
+        # a pure function of each string, so every record on the chain is redacted consistently.
+        redacted: dict[int, RunRecord] = {id(self.published): self.published}
+        findings = []
+        for step in chain:
+            if id(step.after) not in redacted:
+                clean, fired = redact_record(step.after)
+                redacted[id(step.after)] = clean
+                if step.after is final:
+                    findings = fired
+        planned: list[_Step] = []
+        for step in chain:
+            before, after = redacted[id(step.before)], redacted[id(step.after)]
+            if step.kind is LifecycleEventType.RUN_RECORD_UPDATED and body_digest(
+                before
+            ) == body_digest(after):
+                continue
+            planned.append(replace(step, before=before, after=after))
+        last = planned[-1].after if planned else self.published
+        flagged = [write for write in writes if write.findings]
+        if findings:
+            flagged.append(
+                RedactedWrite(
+                    path=STATE_FILE_LABEL,
+                    relative_path=STATE_FILE_LABEL,
+                    byte_count=0,
+                    findings=findings,
+                )
+            )
+        if flagged:
+            recorded = self.store.record_redaction_findings(last, flagged)
+            planned.append(_Step(LifecycleEventType.RUN_RECORD_UPDATED, last, recorded))
+        if not planned:
+            self._steps.clear()
+            return self.published
+        self.ensure_chain()
+        if len(planned) == 1:
+            self._emit_single(planned[0])
+        else:
+            self._emit_declared(planned, description)
+        self.published = self.events.record
+        self._steps.clear()
+        self._deferred.clear()
+        return self.published
+
+    def _emit_single(self, step: _Step) -> None:
+        recorded_at = step.after.updated_at
+        if step.kind is LifecycleEventType.STATE_TRANSITIONED:
+            appended = self.events.append_transition(
+                step.before, step.after, recorded_at, operation_id=step.operation_id
+            )
+            if step.operation_id is not None:
+                self.events.journal.write_applied(
+                    step.operation_id, appended.event, appended.sha256
+                )
+        elif step.kind is LifecycleEventType.RUN_RECORD_UPDATED:
+            self.events.record_update(step.before, step.after, recorded_at, evidence=step.evidence)
+        else:
+            raise ApplicationError(
+                f"{step.kind.value} is persisted only inside a declared mutation"
+            )
+
+    def _emit_declared(self, planned: Sequence[_Step], description: str) -> None:
+        persisted = [
+            step
+            for step in planned
+            if step.kind
+            in {
+                LifecycleEventType.OPERATION_RESULT_ACCEPTED,
+                LifecycleEventType.OPERATION_RESULT_REJECTED,
+            }
+        ]
+        evidence: ResultEvidence | ApplicationStepEvidence
+        if persisted:
+            chosen = persisted[0]
+            accepted = chosen.kind is LifecycleEventType.OPERATION_RESULT_ACCEPTED
+            assert chosen.operation_id is not None
+            evidence = ResultEvidence(
+                kind="RESULT",
+                operation_id=chosen.operation_id,
+                disposition=PersistenceKind.ACCEPTED if accepted else PersistenceKind.REJECTED,
+                verdict=chosen.verdict,
+            )
+            action = (
+                MutationAction.RESULT_ACCEPTANCE if accepted else MutationAction.RESULT_REJECTION
+            )
+        else:
+            evidence = ApplicationStepEvidence(
+                kind="APPLICATION_STEP",
+                description=EventStore.redacted_text(description)[:2000] or "application step",
+            )
+            action = MutationAction.APPLICATION_STEP
+        self.emit(action, evidence, planned)
+
+    def emit(
+        self,
+        action: MutationAction,
+        evidence: RecoveryCommandEvidence | ResultEvidence | ApplicationStepEvidence,
+        planned: Sequence[_Step],
+        *,
+        ledger_entries: Mapping[int, Any] | None = None,
+    ) -> None:
+        """Declare the complete manifest durably, then emit each constituent in order."""
+        changes = [
+            PlannedChange(
+                event_type=step.kind,
+                before=step.before,
+                after=step.after,
+                recorded_at=step.after.updated_at,
+                operation_id=step.operation_id,
+                evidence=step.evidence,
+                ledger_entry=(ledger_entries or {}).get(index),
+                accepted_result_sha256=step.accepted_result_sha256,
+                rejection_source=step.rejection_source,
+                verdict_sha256=None if step.verdict is None else step.verdict.sha256,
+                diagnostic=step.diagnostic,
+            )
+            for index, step in enumerate(planned)
+        ]
+        declaration = self.events.declare(
+            action=action,
+            command=self.command,
+            initiated_at=changes[0].recorded_at,
+            evidence=evidence,
+            changes=changes,
+        )
+        for index, step in enumerate(planned, start=1):
+            if step.kind is LifecycleEventType.STATE_TRANSITIONED:
+                appended = self.events.append_transition(
+                    step.before,
+                    step.after,
+                    step.after.updated_at,
+                    operation_id=step.operation_id,
+                    constituent=(declaration, index),
+                )
+                if step.operation_id is not None:
+                    self.events.journal.write_applied(
+                        step.operation_id, appended.event, appended.sha256
+                    )
+            else:
+                self.events.append_constituent(declaration, index)
+
+
+#: The label a record-level redaction finding names as where the text was neutralized.
+STATE_FILE_LABEL: Final = "state.json"
 
 
 # --------------------------------------------------------------------------------------
@@ -838,6 +1121,12 @@ class StatusReport:
     run_id: str | None
     record: RunRecord | None
     detail: str
+    #: AUTO-018 section 9: when the durable store is untrustworthy, the effective safety stop and
+    #: the typed storage refusal, reported independently of an untrusted record.
+    effective_state: RunStatus | None = None
+    stop_reason: StopReason | None = None
+    #: AUTO-018 section 6.1: a durable declaration with only a proper constituent prefix.
+    incomplete_mutation: Any = None
 
     @property
     def satisfied(self) -> bool:
@@ -846,11 +1135,18 @@ class StatusReport:
 
     def payload(self) -> dict[str, Any]:
         """The record as JSON-shaped data, for `--json`."""
-        return {
+        document: dict[str, Any] = {
             "run_id": self.run_id,
             "detail": self.detail,
             "record": None if self.record is None else json.loads(self.record.model_dump_json()),
         }
+        if self.effective_state is not None:
+            document["effective_state"] = self.effective_state.value
+        if self.stop_reason is not None:
+            document["stop_reason"] = self.stop_reason.value
+        if self.incomplete_mutation is not None:
+            document["incomplete_mutation"] = json.loads(self.incomplete_mutation.model_dump_json())
+        return document
 
 
 @dataclass(frozen=True, slots=True)
@@ -1255,6 +1551,7 @@ def _continuation_authority(
     store: RunStateStore,
     *,
     check_registry: bool = True,
+    lock: RunLock | None = None,
 ) -> EffectiveStageExecutionPolicy | None:
     if config.schema_version == 2:
         # Do not let the legacy state reader traverse a shared authority-root link first.
@@ -1262,7 +1559,13 @@ def _continuation_authority(
             reject_symlink_components(store.run_directory, "policy-governed run directory")
         except StateError:
             _refuse(StopReason.POLICY_DIGEST_MISMATCH, "run policy ancestry is untrusted")
-    record = store.load()
+    # AUTO-018: the AUTO-017 authority checks below keep their own typed refusals, so an event
+    # chain's digest-bound authority references are verified after them, never instead of them.
+    record = (
+        store.load(verify_authority=False)
+        if lock is None
+        else store.load_held(lock, verify_authority=False)
+    )
     if record.is_policy_governed != (config.schema_version == 2):
         _refuse(StopReason.POLICY_BINDING_MISMATCH, "configuration and run modes differ")
     if not record.is_policy_governed:
@@ -1290,6 +1593,11 @@ def _continuation_authority(
                 StopReason.STAGE_START_AUTHORIZATION_CONFLICT,
                 "governed registry disagrees with Stage Start",
             )
+    if store.lifecycle_present():
+        if lock is None:
+            store.load()
+        else:
+            store.load_held(lock)
     return policy
 
 
@@ -1337,6 +1645,8 @@ class RunSession:
     clock: Callable[[], datetime]
     adapter_admissions: tuple[AdapterAdmission, ...] = ()
     start_authorization: StageStartAuthorization | None = None
+    #: AUTO-018: present exactly when the run is event-backed. Never a transition authority.
+    lifecycle: _Lifecycle | None = None
 
     def moment(self) -> datetime:
         return self.clock()
@@ -1354,12 +1664,73 @@ class RunSession:
 
 
 def _publish(
-    session: RunSession, record: RunRecord, writes: Sequence[RedactedWrite] = ()
+    session: RunSession,
+    record: RunRecord,
+    writes: Sequence[RedactedWrite] = (),
+    *,
+    description: str = "an existing application step",
 ) -> RunRecord:
-    """Record every redaction that fired, then publish atomically under the held lock."""
+    """Record every redaction that fired, then publish atomically under the held lock.
+
+    For an event-backed run (AUTO-018) the recorded effects become lifecycle events instead, and
+    what comes back is the verified folded projection -- never the caller's record as such.
+    """
+    if session.lifecycle is not None:
+        return session.lifecycle.commit(record, writes, description=description)
     published = session.store.record_redaction_findings(record, writes)
     session.store.publish(published, lock=session.lock)
     return published
+
+
+def _revise(
+    session: RunSession,
+    record: RunRecord,
+    *,
+    updates: Mapping[str, object],
+    evidence: Sequence[DurableEvidenceReference] = (),
+) -> RunRecord:
+    """:func:`revise_record`, noting the typed effect for an event-backed run."""
+    after = revise_record(record, moment=session.moment(), updates=updates)
+    if session.lifecycle is not None:
+        session.lifecycle.note(
+            _Step(LifecycleEventType.RUN_RECORD_UPDATED, record, after, evidence=tuple(evidence))
+        )
+    return after
+
+
+def _transition(
+    session: RunSession,
+    record: RunRecord,
+    target: RunStatus,
+    *,
+    stop_reason: StopReason | None = None,
+    updates: Mapping[str, object] | None = None,
+    operation: str | None = None,
+) -> RunRecord:
+    """:func:`transition_to`, noting the typed transition for an event-backed run.
+
+    `operation` names the operation whose accepted or rejected result caused this transition.
+    """
+    after = transition_to(
+        record, target, moment=session.moment(), stop_reason=stop_reason, updates=updates
+    )
+    if session.lifecycle is not None:
+        session.lifecycle.note(
+            _Step(LifecycleEventType.STATE_TRANSITIONED, record, after, operation_id=operation)
+        )
+    return after
+
+
+def _effect_boundary(session: RunSession) -> None:
+    """AUTO-018 section 7.4: re-verify the hold immediately before an external effect.
+
+    Only a prerequisite on a call the application was already permitted to make; it changes no
+    verification, provider or Git authority.
+    """
+    if session.lock.binds_repository:
+        session.lock.verify_ownership(
+            storage_root=session.store.artifact_root, repository_root=session.repository_root
+        )
 
 
 def _stop(
@@ -1369,20 +1740,22 @@ def _stop(
     state: RunStatus,
     detail: str,
     stop_reason: StopReason | None = None,
+    operation: str | None = None,
 ) -> RunRecord:
     """Stop the run at `state`, publish it, and leave the worktree exactly as it was found.
 
     Section 5: any tripped gate stops with the tree untouched. Nothing here reverts, restores,
     checks out, resets, stashes or deletes anything, on this path or on any other.
     """
-    stopped = transition_to(
+    stopped = _transition(
+        session,
         record,
         state,
-        moment=session.moment(),
         stop_reason=stop_reason,
         updates={"current_milestone": record.current_milestone},
+        operation=operation,
     )
-    return _publish(session, stopped)
+    return _publish(session, stopped, description=f"stop at {state.value}: {detail}"[:2000])
 
 
 def _latest_checkpoint(record: RunRecord) -> MilestoneCheckpoint | None:
@@ -1417,7 +1790,10 @@ def _boundary(
     """Re-verify section 4 at a milestone boundary or before a provider invocation."""
     _admit_adapters(session.config, session.providers, session.adapter_admissions)
     if record.is_policy_governed or session.config.schema_version == 2:
-        _continuation_authority(session.config, session.store, check_registry=False)
+        _continuation_authority(
+            session.config, session.store, check_registry=False, lock=session.lock
+        )
+    _effect_boundary(session)
     return run_preflight(
         session.config,
         repository_root=session.repository_root,
@@ -1436,16 +1812,16 @@ def _stopped_at_boundary(
     if record.is_policy_governed and record.workflow_state is RunStatus.PREFLIGHT:
         # AUTO-017 §11.3: a bound initial-entry refusal remains resumable once fixed.
         # No execution has begun, so retain PREFLIGHT and its existing outbound edge.
-        return _publish(
-            session,
-            _rebuild(
-                record,
-                {
-                    "updated_at": _now(session.moment()),
-                    "stop_reason": (report.stop_reason or UNNAMED_STOP_REASON).value,
-                },
-            ),
+        refused = _rebuild(
+            record,
+            {
+                "updated_at": _now(session.moment()),
+                "stop_reason": (report.stop_reason or UNNAMED_STOP_REASON).value,
+            },
         )
+        if session.lifecycle is not None:
+            session.lifecycle.note(_Step(LifecycleEventType.RUN_RECORD_UPDATED, record, refused))
+        return _publish(session, refused)
     return _stop(
         session,
         record,
@@ -1460,11 +1836,149 @@ def _stopped_at_boundary(
 # --------------------------------------------------------------------------------------
 
 
+class _Dispatch:
+    """One operation's journal while `_invoke_provider` drives it (AUTO-018 section 8.2).
+
+    An application-owned :class:`~...providers.base.ProviderObserver`: the invoker hands it
+    evidence at the moments only the invoker can observe, and it records that evidence durably.
+    It never decides whether to retry, accept or stop; `_invoke_provider` and its callers do.
+    """
+
+    def __init__(self, session: RunSession, lifecycle: _Lifecycle, handle: OperationHandle) -> None:
+        self._session = session
+        self._lifecycle = lifecycle
+        self.handle = handle
+        self.attempt = 0
+        self.intent_sha256: str | None = None
+        self.fingerprint_sha256: str | None = None
+        self.spawn_entered = False
+        self.received = False
+        self.pre_spawn: DurableEvidenceReference | None = None
+        self.raw_result: DurableEvidenceReference | None = None
+
+    @property
+    def operation_id(self) -> str:
+        return self.handle.operation_id
+
+    def _now(self) -> str:
+        return _now(self._session.moment())
+
+    def before_spawn(self, request: ProviderRequest, pending: ProviderRunRecord) -> None:
+        journal = self._lifecycle.events.journal
+        self.attempt = journal.next_attempt(self.handle)
+        self.spawn_entered = False
+        self.received = False
+        self.pre_spawn = None
+        self.raw_result = None
+        clean_request, _ = redact_value(request.model_dump(mode="json"))
+        clean_argv, _ = redact_value(list(request.argv))
+        if self.fingerprint_sha256 is None:
+            raise ApplicationError("A dispatch intent needs the durable pre-invocation fingerprint")
+        reference = journal.record_intent(
+            self.handle,
+            attempt=self.attempt,
+            provider_request_sha256=hashlib.sha256(integrity_bytes(clean_request)).hexdigest(),
+            argv_sha256=hashlib.sha256(integrity_bytes(clean_argv)).hexdigest(),
+            timeout_seconds=request.timeout_seconds,
+            transcript_label=request.transcript_label,
+            transcript_sequence=pending.sequence,
+            fingerprint_sha256=self.fingerprint_sha256,
+            recorded_at=self._now(),
+        )
+        self.intent_sha256 = reference.sha256
+
+    def at_spawn_entry(self) -> None:
+        _effect_boundary(self._session)
+        self.spawn_entered = True
+
+    def spawned(self, process_id: int, observed_started_at: str) -> None:
+        assert self.intent_sha256 is not None
+        self._lifecycle.events.journal.record_receipt(
+            self.handle,
+            attempt=self.attempt,
+            intent_sha256=self.intent_sha256,
+            kind=ReceiptKind.LOCAL_PROCESS,
+            process_id=process_id,
+            observed_started_at=observed_started_at,
+        )
+        self.received = True
+
+    def spawn_refused(self, detail: str) -> None:
+        assert self.intent_sha256 is not None
+        self.pre_spawn = self._lifecycle.events.journal.record_pre_spawn_failure(
+            self.handle,
+            attempt=self.attempt,
+            intent_sha256=self.intent_sha256,
+            detail=detail,
+            recorded_at=self._now(),
+        )
+
+    def record_result(self, invocation: ProviderInvocation) -> None:
+        """`RESULT_RECEIVED`: raw bytes and execution metadata, never an acceptance."""
+        if not self.received:
+            return
+        self.raw_result = self._lifecycle.events.journal.record_result(
+            self.handle,
+            attempt=self.attempt,
+            raw_text=_result_text(invocation),
+            outcome=ExecutionOutcome(
+                exit_code=invocation.record.exit_code,
+                timed_out=invocation.record.timed_out,
+                failure_class=invocation.record.failure_class,
+                duration_ms=invocation.record.duration_ms,
+                stdout_truncated=invocation.stdout_truncated,
+                stderr_truncated=invocation.stderr_truncated,
+            ),
+            transcripts=_transcript_references(invocation.writes),
+            recorded_at=self._now(),
+        )
+
+    def validate(
+        self,
+        verdict: ValidationVerdict,
+        *,
+        result: Any = None,
+        diagnostics: Sequence[str] = (),
+    ) -> DurableEvidenceReference | None:
+        """`RESULT_VALIDATED` for the attempt that reached a result."""
+        if self.raw_result is None:
+            return None
+        return self._lifecycle.events.journal.record_validation(
+            self.handle,
+            attempt=self.attempt,
+            raw_result_sha256=self.raw_result.sha256,
+            verdict=verdict,
+            result=result,
+            diagnostics=diagnostics,
+            recorded_at=self._now(),
+            on_redaction=self._lifecycle.defer_redactions,
+        )
+
+
+def _transcript_references(writes: Sequence[RedactedWrite]) -> tuple[DurableEvidenceReference, ...]:
+    """Digest-bound references to the transcripts one invocation actually published."""
+    references: list[DurableEvidenceReference] = []
+    for write in writes:
+        if write.relative_path is None or write.sha256 is None:
+            raise ApplicationError(f"{write.path} carries no run-relative digest-bound identity")
+        references.append(
+            DurableEvidenceReference(
+                kind=EvidenceKind.TRANSCRIPT,
+                root=EvidenceRoot.RUN,
+                path=write.relative_path,
+                sha256=write.sha256,
+                byte_count=write.byte_count,
+            )
+        )
+    return tuple(references)
+
+
 @dataclass(frozen=True, slots=True)
 class _Invoked:
     record: RunRecord
     invocation: ProviderInvocation | None
     detail: str
+    dispatch: _Dispatch | None = None
 
 
 def _provider_authority_boundary(session: RunSession, record: RunRecord) -> None:
@@ -1472,7 +1986,9 @@ def _provider_authority_boundary(session: RunSession, record: RunRecord) -> None
     _admit_adapters(session.config, session.providers, session.adapter_admissions)
     if not record.is_policy_governed and session.config.schema_version != 2:
         return
-    policy = _continuation_authority(session.config, session.store, check_registry=False)
+    policy = _continuation_authority(
+        session.config, session.store, check_registry=False, lock=session.lock
+    )
     assert policy is not None
     _, agrees = _registry_evidence(
         session.repository_root, policy.registry_context, policy.stage_id, policy.contract_path
@@ -1523,59 +2039,118 @@ def _invoke_provider(
     provider run claims, which resume reads as "nothing was in flight" -- true, because no process
     ever existed -- whereas the opposite order would leave an in-flight record with no evidence to
     reconcile it against, which is a stop an operator would have to clear by hand.
+
+    For an event-backed run (AUTO-018 section 8.2) the operation is journaled around the same
+    loop: its request before the first dispatch, each attempt's intent after its pending record
+    and before process creation, a true receipt only once the process exists, a positive
+    pre-spawn verdict before any bounded retry, and the raw result once one came back. None of
+    it changes what the loop decides.
     """
     _admit_adapters(session.config, session.providers, session.adapter_admissions)
     if record.is_policy_governed or session.config.schema_version == 2:
-        _continuation_authority(session.config, session.store, check_registry=False)
+        _continuation_authority(
+            session.config, session.store, check_registry=False, lock=session.lock
+        )
     origin = record.workflow_state
     adapter = session.providers.for_role(role)
+    dispatch: _Dispatch | None = None
+    if session.lifecycle is not None:
+        session.lifecycle.ensure_chain()
+        handle = session.lifecycle.events.journal.create_request(
+            step=provider_step(record, role, milestone_id),
+            adapter=AdapterIdentity(
+                provider=adapter.name,
+                adapter_type=f"{type(adapter).__module__}.{type(adapter).__qualname__}",
+            ),
+            invoking_state=origin,
+            repository_root=str(session.repository_root),
+            allowed_environment_variables=list(
+                session.config.providers.allowed_environment_variables
+            ),
+            prompt=prompt,
+            recorded_at=_now(session.moment()),
+        )
+        dispatch = _Dispatch(session, session.lifecycle, handle)
     attempts = 0
     invocation: ProviderInvocation | None = None
     detail = ""
     while True:
         _provider_authority_boundary(session, record)
-        waiting = transition_to(record, RunStatus.PROVIDER_WAIT, moment=session.moment())
+        waiting = _transition(session, record, RunStatus.PROVIDER_WAIT)
         record = _publish(session, waiting)
         started = False
 
         def _began(pending: ProviderRunRecord) -> None:
             nonlocal record, started
-            session.store.record_provider_intent(
+            intent = session.store.record_provider_intent(
                 pending=pending,
                 evidence=session.inspector.evidence(),
                 recorded_at=_now(session.moment()),
                 lock=session.lock,
             )
+            if dispatch is not None:
+                dispatch.fingerprint_sha256 = intent.fingerprint.digest
             record = _publish(
                 session,
-                revise_record(
+                _revise(
+                    session,
                     record,
-                    moment=session.moment(),
                     updates={"provider_runs": [*record.provider_runs, pending]},
                 ),
             )
             started = True
 
         try:
-            invocation = adapter.invoke(
-                session.invoker,
-                role=role,
-                prompt=prompt,
-                milestone_id=milestone_id,
-                on_started=_began,
-            )
+            if dispatch is not None:
+                with session.invoker.observing(dispatch):
+                    invocation = adapter.invoke(
+                        session.invoker,
+                        role=role,
+                        prompt=prompt,
+                        milestone_id=milestone_id,
+                        on_started=_began,
+                    )
+            else:
+                invocation = adapter.invoke(
+                    session.invoker,
+                    role=role,
+                    prompt=prompt,
+                    milestone_id=milestone_id,
+                    on_started=_began,
+                )
         except ProviderError as exc:
-            record = transition_to(record, origin, moment=session.moment())
-            return _Invoked(record=_publish(session, record), invocation=None, detail=str(exc))
+            record = _transition(session, record, origin)
+            return _Invoked(
+                record=_publish(session, record),
+                invocation=None,
+                detail=str(exc),
+                dispatch=dispatch,
+            )
         attempts += 1
+        if dispatch is not None:
+            published = {write.relative_path for write in invocation.writes}
+            declared = {
+                invocation.record.prompt_path,
+                invocation.record.stdout_path,
+                invocation.record.stderr_path,
+            }
+            if not declared <= published:
+                # AUTO-018 section 8.3: a completion is never asserted over transcripts that were
+                # not actually published; it is refused before anything is written.
+                raise OperationRecordInvalid(
+                    f"{adapter.name} reported a completed invocation whose transcripts were not "
+                    "published through the durable boundary"
+                )
+            dispatch.record_result(invocation)
         # The in-flight row and the completed one are the same invocation, so the completion
         # replaces it rather than appending a second row for one attempt. An attempt that never
         # became durable -- refused before the process existed -- is simply appended.
         settled = [*record.provider_runs[:-1]] if started else [*record.provider_runs]
-        record = revise_record(
+        record = _revise(
+            session,
             record,
-            moment=session.moment(),
             updates={"provider_runs": [*settled, invocation.record]},
+            evidence=_transcript_references(invocation.writes) if dispatch is not None else (),
         )
         if invocation.succeeded:
             elapsed = invocation.record.duration_ms
@@ -1585,21 +2160,118 @@ def _invoke_provider(
         named = failure.value if failure else "unknown"
         detail = f"{adapter.name} failed for {role.value}: {named}"
         if failure is not None and retry_permitted(failure, attempts):
-            pending = transition_to(
-                record, RunStatus.PROVIDER_RETRY_PENDING, moment=session.moment()
-            )
+            pending = _transition(session, record, RunStatus.PROVIDER_RETRY_PENDING)
             record = _publish(session, pending)
-            record = transition_to(record, RunStatus.PROVIDER_WAIT, moment=session.moment())
+            record = _transition(session, record, RunStatus.PROVIDER_WAIT)
             record = _publish(session, record)
-            record = transition_to(record, origin, moment=session.moment())
+            record = _transition(session, record, origin)
             record = _publish(session, record)
             continue
         break
-    back = transition_to(record, origin, moment=session.moment())
+    back = _transition(session, record, origin)
     return _Invoked(
         record=_publish(session, back, invocation.writes if invocation else ()),
         invocation=invocation,
         detail=detail,
+        dispatch=dispatch,
+    )
+
+
+def _validated(
+    invoked: _Invoked,
+    verdict: ValidationVerdict,
+    *,
+    result: Any = None,
+    diagnostics: Sequence[str] = (),
+) -> DurableEvidenceReference | None:
+    """Record the attempt's terminal verdict, when the run is event-backed and a result came."""
+    if invoked.dispatch is None:
+        return None
+    return invoked.dispatch.validate(verdict, result=result, diagnostics=diagnostics)
+
+
+def _accept(
+    session: RunSession,
+    record: RunRecord,
+    invoked: _Invoked,
+    verdict: DurableEvidenceReference | None,
+    *,
+    updates: Mapping[str, object],
+) -> RunRecord:
+    """Apply the existing accepted-result effects; for an event-backed run, as an acceptance."""
+    after = revise_record(record, moment=session.moment(), updates=updates)
+    if session.lifecycle is not None and invoked.dispatch is not None:
+        if verdict is None:
+            raise ApplicationError("Only a durably validated result is ever accepted")
+        session.lifecycle.note(
+            _Step(
+                LifecycleEventType.OPERATION_RESULT_ACCEPTED,
+                record,
+                after,
+                operation_id=invoked.dispatch.operation_id,
+                accepted_result_sha256=verdict.sha256,
+                verdict=verdict,
+            )
+        )
+    return after
+
+
+def _reject(
+    session: RunSession,
+    record: RunRecord,
+    invoked: _Invoked,
+    verdict: DurableEvidenceReference | None,
+    *,
+    updates: Mapping[str, object] | None = None,
+) -> RunRecord:
+    """Record the existing failure accounting for an invalid or failed result.
+
+    For a supervised run this is exactly the baseline revision -- or nothing at all when there
+    is no accounting to record. For an event-backed run it is a rejection resting on the
+    attempt's verdict, its last positive pre-spawn verdict, or the runner's own refusal before
+    spawn entry; a successful result or round is never fabricated.
+    """
+    lifecycle = session.lifecycle
+    dispatch = invoked.dispatch
+    if lifecycle is None or dispatch is None:
+        if not updates:
+            return record
+        return revise_record(record, moment=session.moment(), updates=updates)
+    after = revise_record(record, moment=session.moment(), updates=updates or {})
+    if verdict is not None:
+        source, reference = RejectionSource.VALIDATION, verdict
+    elif dispatch.pre_spawn is not None:
+        source, reference = RejectionSource.PRE_SPAWN_FAILURE, dispatch.pre_spawn
+    elif not dispatch.spawn_entered and not dispatch.received:
+        source, reference = RejectionSource.DISPATCH_REFUSED, None
+    else:
+        raise ApplicationError("A rejection must rest on a durable verdict")
+    lifecycle.note(
+        _Step(
+            LifecycleEventType.OPERATION_RESULT_REJECTED,
+            record,
+            after,
+            operation_id=dispatch.operation_id,
+            rejection_source=source,
+            verdict=reference,
+            diagnostic=(
+                EventStore.redacted_text(invoked.detail)[:2000] or "dispatch refused"
+                if source is RejectionSource.DISPATCH_REFUSED
+                else None
+            ),
+        )
+    )
+    return after
+
+
+def _operation_of(invoked: _Invoked) -> str | None:
+    return None if invoked.dispatch is None else invoked.dispatch.operation_id
+
+
+def _failed_invocation_verdict(invoked: _Invoked) -> DurableEvidenceReference | None:
+    """`EXECUTION_FAILED` for an attempt that reached a result but failed as an invocation."""
+    return _validated(
+        invoked, ValidationVerdict.EXECUTION_FAILED, diagnostics=[invoked.detail or "failed"]
     )
 
 
@@ -1665,8 +2337,8 @@ def _enter(
     if record.workflow_state is state:
         if not updates:
             return record
-        return revise_record(record, moment=session.moment(), updates=updates)
-    return transition_to(record, state, moment=session.moment(), updates=updates)
+        return _revise(session, record, updates=updates)
+    return _transition(session, record, state, updates=updates)
 
 
 def _implement_milestone(
@@ -1699,21 +2371,37 @@ def _implement_milestone(
         milestone_id=milestone.milestone_id,
     )
     record = invoked.record
+    operation = _operation_of(invoked)
     if invoked.invocation is None or not invoked.invocation.succeeded:
-        return _stop(session, record, state=RunStatus.MILESTONE_FAILED, detail=invoked.detail)
+        verdict = _failed_invocation_verdict(invoked)
+        record = _reject(session, record, invoked, verdict)
+        return _stop(
+            session,
+            record,
+            state=RunStatus.MILESTONE_FAILED,
+            detail=invoked.detail,
+            operation=operation,
+        )
 
     try:
         result = parse_milestone_result(
             _result_text(invoked.invocation), expected_milestone_id=milestone.milestone_id
         )
     except MalformedResult as exc:
-        return _stop(session, record, state=RunStatus.MILESTONE_FAILED, detail=str(exc))
+        verdict = _validated(invoked, ValidationVerdict.INVALID, diagnostics=[str(exc)])
+        record = _reject(session, record, invoked, verdict)
+        return _stop(
+            session, record, state=RunStatus.MILESTONE_FAILED, detail=str(exc), operation=operation
+        )
+    verdict = _validated(invoked, ValidationVerdict.VALID, result=result)
     if result.status is not MilestoneReportStatus.COMPLETE:
+        record = _reject(session, record, invoked, verdict)
         return _stop(
             session,
             record,
             state=RunStatus.MILESTONE_FAILED,
             detail=f"{milestone.milestone_id} reported {result.status.value}",
+            operation=operation,
         )
 
     boundary = _boundary(session, record, milestone=milestone)
@@ -1721,11 +2409,14 @@ def _implement_milestone(
         return _stopped_at_boundary(session, record, boundary)
     observed = boundary.evidence.changed_paths if boundary.evidence else []
 
-    record = transition_to(
+    if operation is not None:
+        record = _accept(session, record, invoked, verdict, updates={})
+    record = _transition(
+        session,
         record,
         RunStatus.FOCUSED_VERIFYING,
-        moment=session.moment(),
         updates={"changed_paths": list(observed)},
+        operation=operation,
     )
     return _publish(session, record)
 
@@ -1739,6 +2430,7 @@ def _focus_verify_milestone(
     already on disk, and regenerating it would discard finished work for no reason.
     """
     record = _enter(session, record, RunStatus.FOCUSED_VERIFYING)
+    _effect_boundary(session)
     outcomes: list[VerificationOutcome] = [
         session.executor.run(
             entry.command,
@@ -1749,9 +2441,9 @@ def _focus_verify_milestone(
     ]
     configured, _ = _run_verification_set(session, session.config.verification.focused)
     outcomes.extend(configured)
-    record = revise_record(
+    record = _revise(
+        session,
         record,
-        moment=session.moment(),
         updates={
             "verification_results": [
                 *record.verification_results,
@@ -1769,10 +2461,10 @@ def _focus_verify_milestone(
                 f"{len(failed)} focused verification command(s) failed for {milestone.milestone_id}"
             ),
         )
-    record = transition_to(
+    record = _transition(
+        session,
         record,
         RunStatus.MILESTONE_COMPLETE,
-        moment=session.moment(),
         updates={
             "completed_milestones": [*record.completed_milestones, milestone.milestone_id],
             # The durable evidence section 15 check 2 needs for every milestone after this one:
@@ -1799,10 +2491,11 @@ def _final_verify(session: RunSession, record: RunRecord) -> RunRecord:
     """Run the full verification set and land at `REVIEWING`, or stop (sections 16 and 19)."""
     record = _enter(session, record, RunStatus.FINAL_VERIFYING)
     record = _publish(session, record)
+    _effect_boundary(session)
     outcomes, passed = _run_verification_set(session, session.config.verification.final)
-    record = revise_record(
+    record = _revise(
+        session,
         record,
-        moment=session.moment(),
         updates={
             "verification_results": [
                 *record.verification_results,
@@ -1819,7 +2512,7 @@ def _final_verify(session: RunSession, record: RunRecord) -> RunRecord:
             stop_reason=UNNAMED_STOP_REASON,
         )
 
-    record = transition_to(record, RunStatus.REVIEWING, moment=session.moment())
+    record = _transition(session, record, RunStatus.REVIEWING)
     return _publish(session, record)
 
 
@@ -1841,7 +2534,7 @@ def _review(session: RunSession, record: RunRecord) -> RunRecord:
     evidence = boundary.evidence
 
     budget = session.reviewer.record_review_attempt(BudgetLedger.of(record))
-    record = revise_record(record, moment=session.moment(), updates=dict(budget.counter_updates()))
+    record = _revise(session, record, updates=dict(budget.counter_updates()))
 
     prompt = render_review_prompt(
         context=session.context(record),
@@ -1855,29 +2548,33 @@ def _review(session: RunSession, record: RunRecord) -> RunRecord:
         session, record, role=ProviderRole.REVIEW, prompt=prompt, milestone_id=None
     )
     record = invoked.record
+    operation = _operation_of(invoked)
     if invoked.invocation is None or not invoked.invocation.succeeded:
-        return _provider_failure(session, record, invoked.detail)
+        return _provider_failure(session, record, invoked.detail, invoked)
     try:
         review = parse_review_result(
             _result_text(invoked.invocation),
             max_blockers=session.reviewer.policy.max_blockers,
         )
     except MalformedResult as exc:
-        return _provider_failure(session, record, str(exc))
+        return _provider_failure(session, record, str(exc), invoked, invalid=True)
+    verdict = _validated(invoked, ValidationVerdict.VALID, result=review)
 
     decision = session.reviewer.accept_review(
         BudgetLedger.of(record), FindingsLedger.of(record), review
     )
-    record = revise_record(
+    record = _accept(
+        session,
         record,
-        moment=session.moment(),
+        invoked,
+        verdict,
         updates={
             **decision.budget.counter_updates(),
             **decision.findings.record_updates(),
         },
     )
     if decision.outcome is ReviewOutcome.APPROVED:
-        return _ready_for_commit(session, record, decision.reason)
+        return _ready_for_commit(session, record, decision.reason, operation=operation)
     if decision.outcome is not ReviewOutcome.NEEDS_CORRECTION:
         return _stop(
             session,
@@ -1885,8 +2582,9 @@ def _review(session: RunSession, record: RunRecord) -> RunRecord:
             state=RunStatus.HUMAN_INTERVENTION_REQUIRED,
             detail=decision.reason,
             stop_reason=UNNAMED_STOP_REASON,
+            operation=operation,
         )
-    record = transition_to(record, RunStatus.NEEDS_CORRECTION, moment=session.moment())
+    record = _transition(session, record, RunStatus.NEEDS_CORRECTION, operation=operation)
     record = _publish(session, record)
     return _drive_correction(session, record)
 
@@ -1923,18 +2621,20 @@ def _correct(session: RunSession, record: RunRecord) -> RunRecord:
         session, record, role=ProviderRole.CORRECTION, prompt=prompt, milestone_id=None
     )
     record = invoked.record
+    operation = _operation_of(invoked)
     if invoked.invocation is None or not invoked.invocation.succeeded:
-        return _provider_failure(session, record, invoked.detail)
+        return _provider_failure(session, record, invoked.detail, invoked)
     try:
         correction = parse_correction_result(_result_text(invoked.invocation))
     except MalformedResult as exc:
-        return _provider_failure(session, record, str(exc))
+        return _provider_failure(session, record, str(exc), invoked, invalid=True)
+    verdict = _validated(invoked, ValidationVerdict.VALID, result=correction)
 
     decision = session.reviewer.accept_correction(
         BudgetLedger.of(record), FindingsLedger.of(record), correction
     )
-    record = revise_record(
-        record, moment=session.moment(), updates=dict(decision.budget.counter_updates())
+    record = _accept(
+        session, record, invoked, verdict, updates=dict(decision.budget.counter_updates())
     )
     if decision.outcome is not ReviewOutcome.NEEDS_CLOSURE:
         return _stop(
@@ -1943,9 +2643,10 @@ def _correct(session: RunSession, record: RunRecord) -> RunRecord:
             state=RunStatus.HUMAN_INTERVENTION_REQUIRED,
             detail=decision.reason,
             stop_reason=UNNAMED_STOP_REASON,
+            operation=operation,
         )
 
-    record = transition_to(record, RunStatus.CLOSURE_VERIFYING, moment=session.moment())
+    record = _transition(session, record, RunStatus.CLOSURE_VERIFYING, operation=operation)
     return _publish(session, record)
 
 
@@ -1953,10 +2654,11 @@ def _verify_closure(session: RunSession, record: RunRecord) -> RunRecord:
     """The single closure verification section 19 permits, from `CLOSURE_VERIFYING`."""
     record = _enter(session, record, RunStatus.CLOSURE_VERIFYING)
     record = _publish(session, record)
+    _effect_boundary(session)
     outcomes, passed = _run_verification_set(session, session.config.verification.final)
-    record = revise_record(
+    record = _revise(
+        session,
         record,
-        moment=session.moment(),
         updates={
             "verification_results": [
                 *record.verification_results,
@@ -1993,19 +2695,23 @@ def _verify_closure(session: RunSession, record: RunRecord) -> RunRecord:
         session, record, role=ProviderRole.CLOSURE, prompt=prompt, milestone_id=None
     )
     record = invoked.record
+    operation = _operation_of(invoked)
     if invoked.invocation is None or not invoked.invocation.succeeded:
-        return _provider_failure(session, record, invoked.detail)
+        return _provider_failure(session, record, invoked.detail, invoked)
     try:
         closure = parse_closure_result(
             _result_text(invoked.invocation), open_finding_ids=ledger.open_blocker_ids
         )
     except MalformedResult as exc:
-        return _provider_failure(session, record, str(exc))
+        return _provider_failure(session, record, str(exc), invoked, invalid=True)
+    verdict = _validated(invoked, ValidationVerdict.VALID, result=closure)
 
     decision = session.reviewer.accept_closure(BudgetLedger.of(record), ledger, closure)
-    record = revise_record(
+    record = _accept(
+        session,
         record,
-        moment=session.moment(),
+        invoked,
+        verdict,
         updates={
             **decision.budget.counter_updates(),
             **decision.findings.record_updates(),
@@ -2018,8 +2724,9 @@ def _verify_closure(session: RunSession, record: RunRecord) -> RunRecord:
             state=RunStatus.HUMAN_INTERVENTION_REQUIRED,
             detail=decision.reason,
             stop_reason=UNNAMED_STOP_REASON,
+            operation=operation,
         )
-    return _ready_for_commit(session, record, decision.reason)
+    return _ready_for_commit(session, record, decision.reason, operation=operation)
 
 
 def _drive_correction(session: RunSession, record: RunRecord) -> RunRecord:
@@ -2030,22 +2737,41 @@ def _drive_correction(session: RunSession, record: RunRecord) -> RunRecord:
     return _verify_closure(session, record)
 
 
-def _provider_failure(session: RunSession, record: RunRecord, detail: str) -> RunRecord:
-    """Count one provider failure -- which consumes no review budget -- and stop (section 19)."""
+def _provider_failure(
+    session: RunSession,
+    record: RunRecord,
+    detail: str,
+    invoked: _Invoked,
+    *,
+    invalid: bool = False,
+) -> RunRecord:
+    """Count one provider failure -- which consumes no review budget -- and stop (section 19).
+
+    Malformed discovery stays the baseline provider-failure route (AUTO-018 section 8.2); for an
+    event-backed run the failure accounting is a rejection resting on the result's verdict.
+    """
+    verdict = (
+        _validated(invoked, ValidationVerdict.INVALID, diagnostics=[detail])
+        if invalid
+        else _failed_invocation_verdict(invoked)
+    )
     budget = BudgetLedger.of(record).with_provider_failure()
-    record = revise_record(record, moment=session.moment(), updates=dict(budget.counter_updates()))
+    record = _reject(session, record, invoked, verdict, updates=dict(budget.counter_updates()))
     return _stop(
         session,
         record,
         state=RunStatus.HUMAN_INTERVENTION_REQUIRED,
         detail=detail,
         stop_reason=UNNAMED_STOP_REASON,
+        operation=_operation_of(invoked),
     )
 
 
-def _ready_for_commit(session: RunSession, record: RunRecord, detail: str) -> RunRecord:
+def _ready_for_commit(
+    session: RunSession, record: RunRecord, detail: str, *, operation: str | None = None
+) -> RunRecord:
     """Section 31: the run's own terminal state with the shipped defaults, and it stops there."""
-    record = transition_to(record, RunStatus.READY_FOR_COMMIT_APPROVAL, moment=session.moment())
+    record = _transition(session, record, RunStatus.READY_FOR_COMMIT_APPROVAL, operation=operation)
     return _publish(session, record)
 
 
@@ -2090,11 +2816,9 @@ def _leave_provider_excursion(session: RunSession, record: RunRecord) -> RunReco
     edge the closed table gives it -- resuming a bounded retry resumes the retry, and nothing else.
     """
     if record.workflow_state is RunStatus.PROVIDER_RETRY_PENDING:
-        record = _publish(
-            session, transition_to(record, RunStatus.PROVIDER_WAIT, moment=session.moment())
-        )
+        record = _publish(session, _transition(session, record, RunStatus.PROVIDER_WAIT))
     origin = _provider_origin(session, record)
-    return _publish(session, transition_to(record, origin, moment=session.moment()))
+    return _publish(session, _transition(session, record, origin))
 
 
 def _drive(session: RunSession, record: RunRecord) -> RunRecord:
@@ -2205,6 +2929,54 @@ def _resume_from(session: RunSession, record: RunRecord) -> RunRecord:
     return _drive(session, record)
 
 
+def _event_pins(store: RunStateStore, stage_id: str, record: RunRecord) -> EventPins:
+    """Section 5.1's six pins for `record`'s run. None is resolved here; all are already frozen."""
+    if record.policy_digest is None or record.stage_start_id is None:
+        raise ApplicationError("Only a policy-governed run is event-backed")
+    return EventPins(
+        repository_identity=store.repository_id,
+        stage_id=stage_id,
+        run_id=store.run_id,
+        contract_sha256=record.contract_sha256,
+        policy_digest=record.policy_digest,
+        stage_start_id=record.stage_start_id,
+    )
+
+
+def open_run_lifecycle(
+    store: RunStateStore, lock: RunLock, command: MutationCommand
+) -> _Lifecycle | None:
+    """Open a policy-governed run's lifecycle for one mutating command, under its lock.
+
+    An event-backed run is verified with a final verdict, its whole relied-upon dependency set
+    is durability-confirmed, and a lagging projection is repaired -- all before any further
+    execution. A durable declaration with only a proper constituent prefix refuses with
+    `APPLICATION_MUTATION_INCOMPLETE`: ST-02 neither completes nor rolls it back. A historical
+    governed v2 snapshot stays untouched here and is bridged only when this command first
+    publishes new state (section 10.1). A supervised run has no lifecycle.
+    """
+    if not store.lifecycle_present():
+        record = store.load_held(lock)
+        if not record.is_policy_governed:
+            return None
+        policy = store.load_policy(record)
+        events = store.begin_lifecycle(lock, _event_pins(store, policy.stage_id, record))
+        return _Lifecycle(store, events, command=command, published=record, bridge=True)
+    events, view = store.open_lifecycle(lock)
+    incomplete = view.incomplete
+    if incomplete is not None:
+        raise ApplicationMutationIncomplete(
+            f"Run {store.run_id} carries declared mutation {incomplete.mutation_id} with "
+            f"{incomplete.applied_prefix_length} of {len(incomplete.declaration.constituents)} "
+            "constituents durable. Its original evidence is preserved; ST-02 does not complete, "
+            "roll back or choose a recovery for it (effective state HUMAN_INTERVENTION_REQUIRED)",
+            mutation=incomplete,
+        )
+    if not events.require_state().bootstrapped:
+        store.record_bootstrap_evidence(events, view.chain[0].recorded_at)
+    return _Lifecycle(store, events, command=command, published=events.record)
+
+
 def start_run(session: RunSession, *, moment: datetime) -> RunReport:
     """Publish the initial state and drive section 5's flow to its first stop.
 
@@ -2244,11 +3016,26 @@ def start_run(session: RunSession, *, moment: datetime) -> RunReport:
         updated_at=now,
         changed_paths=list(evidence.changed_paths) if evidence else [],
     )
-    record = transition_to(record, RunStatus.PREFLIGHT, moment=moment)
-    record = _publish(session, record)
+    if authorization is not None:
+        # AUTO-018 section 10.2: the authority artifacts are already immutable and primary;
+        # these events attest their publication, then the ordinary IDLE -> PREFLIGHT follows.
+        events = session.store.begin_lifecycle(
+            session.lock, _event_pins(session.store, authorization.stage_id, record)
+        )
+        events.initialize(record, record.created_at)
+        session.store.record_bootstrap_evidence(events, record.created_at)
+        lifecycle = _Lifecycle(
+            session.store, events, command=MutationCommand.START, published=events.record
+        )
+        session = replace(session, lifecycle=lifecycle)
+        record = lifecycle.published
+    preflight = transition_to(record, RunStatus.PREFLIGHT, moment=moment)
+    if session.lifecycle is not None:
+        session.lifecycle.note(_Step(LifecycleEventType.STATE_TRANSITIONED, record, preflight))
+    record = _publish(session, preflight)
     # The run is real from here on, so it becomes findable from here on: a crash anywhere below
     # still leaves `resume` and `status` a pointer to follow (section 9).
-    record_latest_run(session.store.artifact_root, session.store.run_id)
+    record_latest_run(session.store.artifact_root, session.store.run_id, lock=session.lock)
     if authorization is not None:
         try:
             session = replace(
@@ -2302,10 +3089,10 @@ def resume_run(session: RunSession, *, moment: datetime) -> RunReport:
     list instead of the verdict would carry those straight into a re-invocation. No budget is
     touched on this path -- the run stops where it stands, with the worktree as it was found.
     """
-    record = session.store.load()
+    record = session.lifecycle.published if session.lifecycle is not None else session.store.load()
     _admit_adapters(session.config, session.providers, session.adapter_admissions)
     if record.is_policy_governed or session.config.schema_version == 2:
-        _continuation_authority(session.config, session.store)
+        _continuation_authority(session.config, session.store, lock=session.lock)
     if record.workflow_state in _TERMINAL_STATES:
         raise RunRefused(
             f"Run {record.run_id} is {record.workflow_state.value}; a terminal state has no "
@@ -2329,6 +3116,7 @@ def resume_run(session: RunSession, *, moment: datetime) -> RunReport:
             "nothing.",
         )
 
+    _effect_boundary(session)
     report = run_preflight(
         session.config,
         repository_root=session.repository_root,
@@ -2417,7 +3205,7 @@ def new_run_id(moment: datetime) -> str:
     return f"{_RUN_ID_PREFIX}-{stamp}-{secrets.token_hex(4)}"
 
 
-def record_latest_run(artifact_root: Path, run_id: str) -> None:
+def record_latest_run(artifact_root: Path, run_id: str, *, lock: RunLock | None = None) -> None:
     """Name `run_id` as this repository's current run, at the artifact root (section 9).
 
     Written the moment a run's initial state is published, so a crash mid-drive still leaves a
@@ -2428,13 +3216,36 @@ def record_latest_run(artifact_root: Path, run_id: str) -> None:
     The pointer is a convenience, never an authority: :func:`latest_run_id` re-checks that the run
     it names actually carries a published `state.json` before returning it, so a stale or
     hand-edited pointer produces `None` rather than a run that is not there.
+
+    AUTO-018 section 7.4 (R01): the driven flow passes its `lock`, so the pointer is published
+    through that hold's verified ownership context -- a lock at another storage root, a released
+    or replaced hold, or a replaced root refuses before the write, and a loss detected after the
+    replace prevents success. Without a lock only an unheld fixture write remains possible; no
+    application command calls it that way.
     """
     if _RUN_ID_RE.fullmatch(run_id) is None:
         raise RunRefused(f"{run_id!r} is not a milestone-runner run id")
+    target = None
+    if lock is not None:
+        if not lock.is_held or lock.artifact_root != artifact_root:
+            raise RunRefused(
+                f"The latest-run pointer at {artifact_root} is published only under its own "
+                "held repository run lock"
+            )
+        lock.verify_ownership(storage_root=artifact_root, repository_root=lock.repository_root)
+        target = DurableTarget(
+            lock=lock,
+            storage_root=artifact_root,
+            repository_root=lock.repository_root,
+            parts=(),
+            name=LATEST_RUN_POINTER,
+            create_parents=False,
+        )
     write_redacted_artifact(
         artifact_root / LATEST_RUN_POINTER,
         json.dumps({"run_id": run_id}, indent=2, sort_keys=True),
         relative_path=LATEST_RUN_POINTER,
+        target=target,
     )
 
 
@@ -2462,7 +3273,9 @@ def latest_run_id(artifact_root: Path) -> str | None:
     run_id = payload.get("run_id")
     if not isinstance(run_id, str) or _RUN_ID_RE.fullmatch(run_id) is None:
         return None
-    return run_id if (artifact_root / run_id / "state.json").is_file() else None
+    run = artifact_root / run_id
+    present = (run / "state.json").is_file() or os.path.lexists(run / PUBLICATION_WITNESS_FILE_NAME)
+    return run_id if present else None
 
 
 class MilestoneRunnerApplication:
@@ -2537,7 +3350,10 @@ class MilestoneRunnerApplication:
                 return None
             state_path = self.artifact_root / identifier / "state.json"
             reject_symlink_components(state_path, "policy-governed run state")
-            return identifier if state_path.is_file() else None
+            witness = state_path.parent / PUBLICATION_WITNESS_FILE_NAME
+            # AUTO-018 section 10.2: a witness alone already makes the run present.
+            present = state_path.is_file() or os.path.lexists(witness)
+            return identifier if present else None
         except StateError:
             _refuse(StopReason.POLICY_DIGEST_MISMATCH, "run pointer ancestry is untrusted")
         except (UnicodeDecodeError, json.JSONDecodeError):
@@ -2570,12 +3386,15 @@ class MilestoneRunnerApplication:
         plan: MilestonePlan,
         *,
         authorization: StageStartAuthorization | None = None,
+        lifecycle: _Lifecycle | None = None,
     ) -> RunSession:
         if self.config.schema_version == 2:
             frozen = (
                 authorization.effective_policy
                 if authorization is not None
-                else store.load_policy(store.load())
+                else store.load_policy(
+                    lifecycle.published if lifecycle is not None else store.load()
+                )
             )
             review_policy = ReviewPolicy(
                 max_full_reviews=1,
@@ -2595,7 +3414,7 @@ class MilestoneRunnerApplication:
             lock=lock,
             inspector=self._inspector,
             guard=ScopeGuard.from_config(self._config),
-            executor=VerificationExecutor(
+            executor=_OwnedVerificationExecutor(
                 store=store,
                 lock=lock,
                 repository_root=self._repository_root,
@@ -2614,6 +3433,7 @@ class MilestoneRunnerApplication:
             clock=self._clock,
             adapter_admissions=self._adapter_admissions,
             start_authorization=authorization,
+            lifecycle=lifecycle,
         )
 
     def _authority_store(self) -> StageStartStore:
@@ -2642,7 +3462,9 @@ class MilestoneRunnerApplication:
                 continue
             store = self._read_store(run_id)
             raw = read_authority_bytes(store.state_path, 1 << 24, optional=True)
-            if raw is not None and store.load().stage_start_id == stage_start_id:
+            if (raw is not None or store.lifecycle_present()) and (
+                store.load().stage_start_id == stage_start_id
+            ):
                 return True
         return False
 
@@ -2802,6 +3624,10 @@ class MilestoneRunnerApplication:
                     "publication failed integrity verification",
                 )
             return StageStartReceipt.of(existing)
+        except PublicationUncertain:
+            # AUTO-018 section 7.5: visible but unconfirmed bytes are never relabelled as
+            # an authority refusal or a no-effect failure.
+            raise
         except StateError:
             _refuse(StopReason.STAGE_START_INPUT_CONFLICT, "Stage Start publication refused")
         finally:
@@ -2840,9 +3666,10 @@ class MilestoneRunnerApplication:
                 _refuse(StopReason.STAGE_START_ALREADY_BOUND, "consumption evidence unavailable")
         if witness is not None:
             try:
-                published = read_authority_bytes(
-                    self._read_store(witness.run_id).state_path, 1 << 24, optional=True
-                )
+                consuming = self._read_store(witness.run_id)
+                published = read_authority_bytes(consuming.state_path, 1 << 24, optional=True)
+                if published is None and consuming.lifecycle_present():
+                    published = b"event-backed run present"
             except StateError:
                 _refuse(StopReason.STAGE_START_ALREADY_BOUND, "consuming run state is untrusted")
             if published is not None:
@@ -2892,6 +3719,10 @@ class MilestoneRunnerApplication:
                     raise AuthorityArtifactInvalid("consumption changed before binding")
                 if authority_store.read_binding(authorization.stage_start_id) is None:
                     authority_store.publish_binding(binding, lock=lock)
+            except PublicationUncertain:
+                # AUTO-018 section 7.5: visible but unconfirmed bytes are never relabelled as
+                # an authority refusal or a no-effect failure.
+                raise
             except StateError:
                 _refuse(
                     StopReason.STAGE_START_ALREADY_BOUND,
@@ -2900,6 +3731,10 @@ class MilestoneRunnerApplication:
             store = self._store(run_id)
             try:
                 store.publish_policy(authorization.effective_policy, lock=lock)
+            except PublicationUncertain:
+                # AUTO-018 section 7.5: visible but unconfirmed bytes are never relabelled as
+                # an authority refusal or a no-effect failure.
+                raise
             except StateError:
                 _refuse(
                     StopReason.POLICY_DIGEST_MISMATCH,
@@ -2918,7 +3753,7 @@ class MilestoneRunnerApplication:
             run_id=run_id,
             repository_identity=self._config.repository.identity,
             artifact_root=self.artifact_root,
-        )
+        ).bind_repository_root(self._repository_root)
         try:
             lock.acquire()
         except LockContention as exc:
@@ -2966,10 +3801,43 @@ class MilestoneRunnerApplication:
                     f"No milestone-runner run is recorded for {self._config.repository.identity}"
                 ),
             )
+        store = self._read_store(run_id)
+        incomplete = None
         try:
-            record = self._read_store(run_id).load()
+            if store.lifecycle_present():
+                view = store.load_lifecycle()
+                record = view.record
+                incomplete = view.incomplete
+            else:
+                record = store.load()
+        except LifecycleError as exc:
+            reason = exc.stop_reason
+            return StatusReport(
+                run_id=run_id,
+                record=None,
+                detail=(
+                    f"{reason.value if reason else 'LIFECYCLE'}: {exc}; effective state "
+                    f"{exc.effective_state.value}"
+                ),
+                effective_state=exc.effective_state,
+                stop_reason=reason,
+            )
         except StateError as exc:
             return StatusReport(run_id=run_id, record=None, detail=str(exc))
+        if incomplete is not None:
+            return StatusReport(
+                run_id=run_id,
+                record=record,
+                detail=(
+                    f"{record.workflow_state.value} with incomplete declared mutation "
+                    f"{incomplete.mutation_id} ({incomplete.applied_prefix_length} of "
+                    f"{len(incomplete.declaration.constituents)} constituents durable); "
+                    "effective state HUMAN_INTERVENTION_REQUIRED"
+                ),
+                effective_state=RunStatus.HUMAN_INTERVENTION_REQUIRED,
+                stop_reason=StopReason.APPLICATION_MUTATION_INCOMPLETE,
+                incomplete_mutation=incomplete,
+            )
         return StatusReport(
             run_id=run_id,
             record=record,
@@ -3042,7 +3910,14 @@ class MilestoneRunnerApplication:
             store = self._store(run_id)
             plan = MilestonePlanLoader(self._config, self._repository_root).load()
             self._pre_mutation(run_id, admit=True)
-            return resume_run(self._session(store, lock, plan), moment=self._clock())
+            lifecycle = (
+                open_run_lifecycle(store, lock, MutationCommand.RESUME)
+                if self.config.schema_version == 2
+                else None
+            )
+            return resume_run(
+                self._session(store, lock, plan, lifecycle=lifecycle), moment=self._clock()
+            )
         finally:
             lock.release()
 
@@ -3053,11 +3928,21 @@ class MilestoneRunnerApplication:
         lock = self._locked(run_id)
         try:
             store = self._store(run_id)
-            _continuation_authority(self.config, store)
-            record = store.load()
+            _continuation_authority(self.config, store, lock=lock)
+            lifecycle = (
+                open_run_lifecycle(store, lock, MutationCommand.ABORT)
+                if self.config.schema_version == 2
+                else None
+            )
+            if lifecycle is None:
+                record = store.load()
+                aborted = transition_to(record, RunStatus.ABORTED, moment=self._clock())
+                store.publish(aborted, lock=lock)
+                return RunReport.of(aborted, f"Aborted: {reason}")
+            record = lifecycle.published
             aborted = transition_to(record, RunStatus.ABORTED, moment=self._clock())
-            store.publish(aborted, lock=lock)
-            return RunReport.of(aborted, f"Aborted: {reason}")
+            lifecycle.note(_Step(LifecycleEventType.STATE_TRANSITIONED, record, aborted))
+            return RunReport.of(lifecycle.commit(aborted), f"Aborted: {reason}")
         finally:
             lock.release()
 
@@ -3070,7 +3955,8 @@ class MilestoneRunnerApplication:
                 reason=reason,
                 result_path=coordinator.recorded_result_transcript(record, milestone),
                 context=context,
-            )
+            ),
+            MutationCommand.RECONCILE_MILESTONE,
         )
 
     def reopen_milestone(self, *, milestone: str, reason: str) -> RecoveryReport:
@@ -3087,7 +3973,8 @@ class MilestoneRunnerApplication:
                 reason=reason,
                 human_owner_scope_ruling=reason,
                 context=context,
-            )
+            ),
+            MutationCommand.REOPEN_MILESTONE,
         )
 
     def recover_failed_review(self, *, classification: str, ruling: str) -> RecoveryReport:
@@ -3099,7 +3986,8 @@ class MilestoneRunnerApplication:
                 human_owner_ruling=ruling,
                 reason=ruling,
                 context=context,
-            )
+            ),
+            MutationCommand.RECOVER_FAILED_REVIEW,
         )
 
     def revalidate_correction(self) -> RecoveryReport:
@@ -3109,7 +3997,8 @@ class MilestoneRunnerApplication:
                 record,
                 reason="revalidate-correction: the post-correction verification failure is cleared",
                 context=context,
-            )
+            ),
+            MutationCommand.REVALIDATE_CORRECTION,
         )
 
     def approve_commit(self, *, confirmation: str | None = None) -> ApprovalReport:
@@ -3126,6 +4015,7 @@ class MilestoneRunnerApplication:
     def _recover(
         self,
         act: Callable[[RecoveryCoordinator, RunRecord, RecoveryContext], RecoveryOutcome],
+        command: MutationCommand,
     ) -> RecoveryReport:
         """Run one of section 13's four recovery commands under the run lock, and publish it.
 
@@ -3138,12 +4028,20 @@ class MilestoneRunnerApplication:
         lock = self._locked(run_id)
         try:
             store = self._store(run_id)
-            _continuation_authority(self.config, store)
-            record = store.load()
+            _continuation_authority(self.config, store, lock=lock)
+            lifecycle = (
+                open_run_lifecycle(store, lock, command)
+                if self.config.schema_version == 2
+                else None
+            )
+            record = lifecycle.published if lifecycle is not None else store.load()
             evidence = self._inspector.evidence()
             context = RecoveryContext.observed(evidence, self._clock())
             outcome = act(RecoveryCoordinator(store), record, context)
-            store.publish(outcome.record, lock=lock)
+            if lifecycle is None:
+                store.publish(outcome.record, lock=lock)
+            else:
+                _publish_recovery(lifecycle, record, outcome)
             return RecoveryReport(
                 command=outcome.command,
                 run_id=record.run_id,
@@ -3182,8 +4080,21 @@ class MilestoneRunnerApplication:
         lock = self._locked(run_id)
         try:
             store = self._store(run_id)
-            _continuation_authority(self.config, store)
-            record = store.load()
+            _continuation_authority(self.config, store, lock=lock)
+            lifecycle = (
+                open_run_lifecycle(
+                    store,
+                    lock,
+                    (
+                        MutationCommand.APPROVE_COMMIT
+                        if operation is ApprovalOperation.COMMIT
+                        else MutationCommand.APPROVE_PUSH
+                    ),
+                )
+                if self.config.schema_version == 2
+                else None
+            )
+            record = lifecycle.published if lifecycle is not None else store.load()
             if record.workflow_state is not required_state:
                 raise RunRefused(
                     f"Run {run_id} is {record.workflow_state.value}; the {operation.value} gate is "
@@ -3198,6 +4109,7 @@ class MilestoneRunnerApplication:
                     "was ever recorded, so whether it took effect is not knowable from the record. "
                     "A human has to reconcile it; nothing here repeats an approved act."
                 )
+            _verify_hold(lock, store)
             report = run_preflight(
                 self._config,
                 repository_root=self._repository_root,
@@ -3216,7 +4128,20 @@ class MilestoneRunnerApplication:
             if evidence is None:  # pragma: no cover - a satisfied report carries evidence
                 raise ApprovalRefused("The preflight report carries no repository observation")
             moment = self._clock()
-            facade = ApprovalGit.from_config(self._config, self._repository_root)
+
+            class _OwnedApprovalGit(ApprovalGit):
+                """The approval facade with the hold re-verified before every Git vector (R03).
+
+                AUTO-018 section 7.4: continuing ownership is a prerequisite on each already
+                permitted, already gated vector -- re-checked immediately before *every* one, so
+                a hold lost after vector N runs no vector N+1. No gate, argv or policy changes.
+                """
+
+                def _run(self, argv: tuple[str, ...]) -> str:
+                    _verify_hold(lock, store)
+                    return super()._run(argv)
+
+            facade = _OwnedApprovalGit.from_config(self._config, self._repository_root)
             # Section 20: the typed confirmation is asked for at the point of use and only when
             # the configuration flip is on. With the shipped defaults nothing is prompted, because
             # nothing could execute whatever the answer were.
@@ -3234,12 +4159,19 @@ class MilestoneRunnerApplication:
 
             def _attempting(pending: CommitApproval) -> None:
                 nonlocal record, attempted
-                record = revise_record(
+                attempt = revise_record(
                     record,
                     moment=moment,
                     updates={"approvals": [*record.approvals, pending.record]},
                 )
-                store.publish(record, lock=lock)
+                if lifecycle is None:
+                    store.publish(attempt, lock=lock)
+                    record = attempt
+                else:
+                    lifecycle.note(_Step(LifecycleEventType.RUN_RECORD_UPDATED, record, attempt))
+                    record = lifecycle.commit(attempt, description="approval execution attempt")
+                # AUTO-018 section 7.4: the hold is re-verified immediately before the gated act.
+                _verify_hold(lock, store)
                 attempted = True
 
             if operation is ApprovalOperation.COMMIT:
@@ -3270,12 +4202,16 @@ class MilestoneRunnerApplication:
             # The attempt row and the consumption are one approval, so the consumption replaces
             # the row the attempt published rather than adding a second one for one act.
             settled = [*record.approvals[:-1]] if attempted else [*record.approvals]
+            before = record
             record = revise_record(
                 record,
                 moment=moment,
                 updates={"approvals": [*settled, recorded.record]},
             )
+            if lifecycle is not None:
+                lifecycle.note(_Step(LifecycleEventType.RUN_RECORD_UPDATED, before, record))
             if execution.executed:
+                before = record
                 record = transition_to(
                     record,
                     (
@@ -3285,7 +4221,12 @@ class MilestoneRunnerApplication:
                     ),
                     moment=moment,
                 )
-            store.publish(record, lock=lock)
+                if lifecycle is not None:
+                    lifecycle.note(_Step(LifecycleEventType.STATE_TRANSITIONED, before, record))
+            if lifecycle is None:
+                store.publish(record, lock=lock)
+            else:
+                record = lifecycle.commit(record, description="approval settlement")
             return ApprovalReport(
                 execution=execution,
                 approval=recorded,
@@ -3294,6 +4235,113 @@ class MilestoneRunnerApplication:
             )
         finally:
             lock.release()
+
+
+class _OwnedVerificationExecutor(VerificationExecutor):
+    """The verification executor with the hold re-verified before every command (R03).
+
+    AUTO-018 section 7.4: every verification command -- focused, configured, final, and each
+    individual governance/preflight check -- enters through :meth:`VerificationExecutor.run`, so
+    re-verifying continuing ownership there, immediately before each entry, means a hold lost
+    after command N reaches no command N+1. It is only a prerequisite on an already permitted
+    call: argv, timeout, environment, classification and the set's run-every-command policy are
+    the baseline executor's, unchanged.
+    """
+
+    def run(
+        self,
+        argv: Sequence[str],
+        *,
+        timeout_seconds: int,
+        purpose: str | None = None,
+    ) -> VerificationOutcome:
+        if self._lock.binds_repository:
+            self._lock.verify_ownership(
+                storage_root=self._store.artifact_root,
+                repository_root=self._store.repository_root,
+            )
+        return super().run(argv, timeout_seconds=timeout_seconds, purpose=purpose)
+
+
+def _verify_hold(lock: RunLock, store: RunStateStore) -> None:
+    """AUTO-018 section 7.4 before an effect reached outside a driven session."""
+    if lock.binds_repository:
+        lock.verify_ownership(
+            storage_root=store.artifact_root, repository_root=store.repository_root
+        )
+
+
+def _redacted_entry(entry: RecoveryLedgerEntry) -> RecoveryLedgerEntry:
+    document, _ = redact_value(json.loads(entry.model_dump_json()))
+    return RecoveryLedgerEntry.model_validate_json(json.dumps(document))
+
+
+def _publish_recovery(lifecycle: _Lifecycle, record: RunRecord, outcome: RecoveryOutcome) -> None:
+    """Record one recovery command as one declared mutation (AUTO-018 section 6.1, R01).
+
+    The recovery coordinator already computed and validated the whole outcome; nothing here
+    observes anything afresh. Its original evidence -- the complete ledger entry with its reason,
+    classification, ruling, observed branch and `HEAD`, the original ledger length and the budget
+    deltas -- is declared durably before any constituent: the budget delta (if any), then the
+    one ledger append, then the one transition. The final record must be exactly the outcome.
+    """
+    lifecycle.ensure_chain()
+    base = lifecycle.published
+    entry = _redacted_entry(outcome.entry)
+    ledger = LEDGER_BY_COMMAND[entry.command]
+    steps: list[_Step] = []
+    current = base
+    counters = {name: getattr(base, name) + delta for name, delta in entry.budgets_touched.items()}
+    if counters:
+        after = _rebuild(current, counters)
+        steps.append(_Step(LifecycleEventType.RUN_RECORD_UPDATED, current, after))
+        current = after
+    appended = _rebuild(
+        current,
+        {
+            ledger.value: [
+                *json.loads(current.model_dump_json())[ledger.value],
+                json.loads(entry.model_dump_json()),
+            ]
+        },
+    )
+    steps.append(_Step(LifecycleEventType.RECOVERY_LEDGER_APPENDED, current, appended))
+    current = appended
+    final = _rebuild(
+        current,
+        {
+            "workflow_state": outcome.record.workflow_state.value,
+            "stop_reason": None,
+            "current_milestone": outcome.record.current_milestone,
+            "updated_at": outcome.record.updated_at,
+        },
+    )
+    if (current.workflow_state, final.workflow_state) not in ALLOWED_RUN_TRANSITIONS:
+        raise TransitionRefused("A recovery outcome names a transition the table does not admit")
+    expected, _ = redact_record(outcome.record)
+    if body_digest(final) != body_digest(expected):
+        raise ApplicationError("The recovery decomposition does not reproduce its outcome exactly")
+    steps.append(_Step(LifecycleEventType.STATE_TRANSITIONED, current, final))
+    summary = EventStore.redacted_text(outcome.summary)[:2000] or "recovery"
+    evidence = RecoveryCommandEvidence(
+        kind="RECOVERY_COMMAND",
+        command=entry.command,
+        ledger=ledger,
+        entry=entry,
+        original_ledger_length=len(getattr(base, ledger.value)),
+        budgets_touched=dict(entry.budgets_touched),
+        summary=summary,
+        reconstructed_from_verified_evidence=outcome.reconstructed_from_verified_evidence,
+        evidence_digest=outcome.evidence_digest,
+    )
+    ledger_index = [step.kind for step in steps].index(LifecycleEventType.RECOVERY_LEDGER_APPENDED)
+    lifecycle.emit(
+        MutationAction.RECOVERY_COMMAND,
+        evidence,
+        steps,
+        ledger_entries={ledger_index: entry},
+    )
+    lifecycle.published = lifecycle.events.record
 
 
 def _provider_failure_class(value: str) -> ProviderFailureClass:

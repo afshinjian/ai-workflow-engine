@@ -67,6 +67,16 @@ class MilestoneRunnerModel(StrictModel):
 #: refusal (`STATE_SCHEMA_UNKNOWN`), never a best-effort read.
 STATE_SCHEMA_VERSION = 2
 
+#: AUTO-018 section 10.1: the event-backed state document is runner state wire version 3. It is a
+#: state-document revision only -- configuration, policy and Stage Start stay version 2 and the
+#: plan stays version 1 -- and it is never a global constant change: supervised publication keeps
+#: writing :data:`STATE_SCHEMA_VERSION`, and version 3 is dispatched explicitly by `state.py`.
+EVENT_BACKED_STATE_SCHEMA_VERSION = 3
+
+#: AUTO-018 section 5.1: one run's gap-free sequence, and therefore its state version, is bounded.
+#: Exhaustion refuses; it never wraps or overwrites.
+MAX_STATE_VERSION = 99_999_999
+
 #: Section 14: the milestone plan is a versioned schema whose unknown versions are rejected.
 PLAN_SCHEMA_VERSION = 1
 
@@ -257,6 +267,18 @@ class StopReason(StrEnum):
     STAGE_START_NOT_CONFIRMED = "STAGE_START_NOT_CONFIRMED"
     POLICY_BINDING_MISMATCH = "POLICY_BINDING_MISMATCH"
     LIVE_PROVIDER_NOT_ENABLED = "LIVE_PROVIDER_NOT_ENABLED"
+
+    # AUTO-018 section 9 adds exactly these eight storage refusals. They are refusals of an
+    # untrustworthy or ambiguous durable store, never OWNER decision kinds, and none of them adds
+    # an edge to `ALLOWED_RUN_TRANSITIONS`.
+    EVENT_CHAIN_BROKEN = "EVENT_CHAIN_BROKEN"
+    EVENT_CONFLICT = "EVENT_CONFLICT"
+    OPERATION_RECORD_INVALID = "OPERATION_RECORD_INVALID"
+    OPERATION_RECORD_CONFLICT = "OPERATION_RECORD_CONFLICT"
+    LIFECYCLE_SCHEMA_UNKNOWN = "LIFECYCLE_SCHEMA_UNKNOWN"
+    APPLICATION_MUTATION_INCOMPLETE = "APPLICATION_MUTATION_INCOMPLETE"
+    LOCK_OWNERSHIP_LOST = "LOCK_OWNERSHIP_LOST"
+    PUBLICATION_UNCERTAIN = "PUBLICATION_UNCERTAIN"
 
     STAGE_ID_NOT_AUTHORIZED = "STAGE_ID_NOT_AUTHORIZED"
     REPOSITORY_IDENTITY_MISMATCH = "REPOSITORY_IDENTITY_MISMATCH"
@@ -1311,3 +1333,94 @@ class RunRecord(MilestoneRunnerModel):
                 if entry.command is not command:
                     raise ValueError(f"{ledger_name} must contain only {command} entries")
         return self
+
+
+# --------------------------------------------------------------------------------------
+# AUTO-018 section 10.1 -- the event-backed state document (runner state wire version 3)
+# --------------------------------------------------------------------------------------
+
+#: The two projection-managed fields wire version 3 adds to the run-record body. They exist only
+#: on the event-backed document; neither may be smuggled into a version 1 or 2 record, which
+#: `RunRecord`'s closed schema already refuses.
+EVENT_BACKED_TIP_FIELDS: frozenset[str] = frozenset({"state_version", "last_event_id"})
+
+
+class EventBackedStateTip(MilestoneRunnerModel):
+    """The tip a version 3 projection claims: which verified event it was folded through.
+
+    `state_version` equals the sequence of `last_event_id` (AUTO-018 section 5.1). Both are
+    mandatory; a version 3 document without them is not an event-backed document at all.
+    """
+
+    schema_version: int
+    state_version: int
+    last_event_id: str
+
+    @field_validator("schema_version")
+    @classmethod
+    def _validate_schema_version(cls, value: int) -> int:
+        if value != EVENT_BACKED_STATE_SCHEMA_VERSION:
+            raise ValueError(
+                f"an event-backed state document is schema_version "
+                f"{EVENT_BACKED_STATE_SCHEMA_VERSION}, not {value}"
+            )
+        return value
+
+    @field_validator("state_version")
+    @classmethod
+    def _validate_state_version(cls, value: int) -> int:
+        if not 1 <= value <= MAX_STATE_VERSION:
+            raise ValueError(f"state_version must be within 1..{MAX_STATE_VERSION}")
+        return value
+
+    @field_validator("last_event_id")
+    @classmethod
+    def _validate_last_event_id(cls, value: str) -> str:
+        return _sha256_hex(value, "last_event_id")
+
+
+def event_backed_state_document(
+    record: RunRecord, *, state_version: int, last_event_id: str
+) -> dict[str, Any]:
+    """The version 3 document for `record` folded through `last_event_id` (section 10.1).
+
+    The record body keeps every field it has; only `schema_version` names the wire revision, and
+    the two tip fields are added. A supervised record can never become one: both policy pins are
+    mandatory here, so version 3 is never interpretable as a supervised run.
+    """
+    if not record.is_policy_governed:
+        raise ValueError("only a policy-governed run is event-backed")
+    tip = EventBackedStateTip(
+        schema_version=EVENT_BACKED_STATE_SCHEMA_VERSION,
+        state_version=state_version,
+        last_event_id=last_event_id,
+    )
+    document: dict[str, Any] = json.loads(record.model_dump_json())
+    document.update(tip.model_dump(mode="json"))
+    return document
+
+
+def split_event_backed_state_document(
+    document: dict[str, Any],
+) -> tuple[RunRecord, EventBackedStateTip]:
+    """Validate a version 3 document and return its record body and claimed tip.
+
+    The body is validated by the unchanged closed `RunRecord` schema under its own body version,
+    so no version 3 field reaches a historical validator and no historical field is relaxed.
+    """
+    if type(document.get("schema_version")) is not int:
+        raise ValueError("schema_version must be an exact integer")
+    tip = EventBackedStateTip.model_validate_json(
+        json.dumps(
+            {
+                name: document.get(name)
+                for name in ("schema_version", *sorted(EVENT_BACKED_TIP_FIELDS))
+            }
+        )
+    )
+    body = {name: value for name, value in document.items() if name not in EVENT_BACKED_TIP_FIELDS}
+    body["schema_version"] = STATE_SCHEMA_VERSION
+    record = RunRecord.model_validate_json(json.dumps(body))
+    if not record.is_policy_governed:
+        raise ValueError("an event-backed state document must carry both policy pins")
+    return record, tip

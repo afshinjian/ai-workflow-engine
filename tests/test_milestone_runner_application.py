@@ -18,8 +18,10 @@ The named classes this milestone requires are all present: `TestSoleTransitionAu
 """
 
 import ast
+import hashlib
 import json
 import os
+import stat
 import subprocess
 import sys
 from collections.abc import Iterator
@@ -89,6 +91,7 @@ from ai_workflow_engine.milestone_runner.state import (
     ProviderInvocationIntent,
     ResumeAction,
     RunStateStore,
+    TranscriptKind,
 )
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
@@ -1334,7 +1337,8 @@ class TestMutatingGitOnlyInApprovalGitModule:
 
     def test_the_other_eighteen_package_files_name_no_mutating_subcommand(self) -> None:
         sources = package_sources(exclude=frozenset({"approval_git.py"}))
-        assert len(sources) == 19, [source.name for source in sources]
+        # AUTO-018 section 11 adds events.py and operations.py to the nineteen.
+        assert len(sources) == 21, [source.name for source in sources]
         offenders: dict[str, list[str]] = {}
         for source in sources:
             hits = sorted(
@@ -3407,12 +3411,26 @@ def test_auto017_registry_withdrawal_refuses_spawn_failed_retry(v2_application, 
     prepared_policy_run(application)
     calls = []
 
-    def spawn_failed(*args, **kwargs):
+    def spawn_failed(invoker, **kwargs):
         calls.append(True)
         assert len(calls) == 1, "a second provider attempt crossed withdrawn authority"
         path = application.repository_root / "registry.md"
         path.write_text(path.read_text().replace("AUTHORIZED", "NOT_STARTED"))
+        # AUTO-018 section 8.3: a completion is asserted only over transcripts that were really
+        # published, so this scripted fake publishes its three through the durable boundary.
+        moment = datetime(2026, 8, 6, 11, 59, tzinfo=UTC)
+        writes = [
+            invoker._store.write_transcript(
+                sequence=1, label="fake", kind=kind, text=text, moment=moment, lock=invoker._lock
+            )
+            for kind, text in (
+                (TranscriptKind.PROMPT, "prompt"),
+                (TranscriptKind.STDOUT, ""),
+                (TranscriptKind.STDERR, "spawn failed"),
+            )
+        ]
         return ProviderInvocation(
+            writes=writes,
             record=ProviderRunRecord(
                 sequence=1,
                 role=ProviderRole.IMPLEMENTATION,
@@ -3552,9 +3570,9 @@ def test_auto017_remediation_witness_first(v2_application, monkeypatch, run_id):
     writes = []
     original = module.publish_exclusively
 
-    def observe(path, payload):
+    def observe(path, payload, **kwargs):
         writes.append(path.name)
-        return original(path, payload)
+        return original(path, payload, **kwargs)
 
     monkeypatch.setattr(module, "publish_exclusively", observe)
     report = application.start()
@@ -3776,7 +3794,9 @@ def test_auto017_remediation_witness_crash_recovery(v2_application, monkeypatch,
                 "before-b0": (state_module.StageStartStore, "publish_witness"),
                 "after-b0": (state_module.StageStartStore, "publish_binding"),
                 "after-b1": (RunStateStore, "publish_policy"),
-                "after-b2": (RunStateStore, "publish"),
+                # AUTO-018 section 10.2: a governed run's first state publication is its genesis
+                # event, so "after B-2, before the first state" is before lifecycle evidence.
+                "after-b2": (RunStateStore, "begin_lifecycle"),
             }[boundary]
             fault.setattr(cls, method, crash)
         with pytest.raises(RuntimeError, match="crash boundary"):
@@ -3990,3 +4010,966 @@ def test_auto017_remediation_stage_start_cannot_repair_consumed_binding(
         StopReason.STAGE_START_INPUT_CONFLICT,
         monkeypatch,
     )
+
+
+# ======================================================================================
+# AUTO-018: event-backed governed runs (sections 6.1, 7.4, 7.5, 8.3, 10 and 12)
+# ======================================================================================
+
+import shutil as _shutil  # noqa: E402
+
+from ai_workflow_engine.milestone_runner.events import (  # noqa: E402
+    EVENTS_DIRECTORY,
+    ApplicationMutationIncomplete,
+    EventChainBroken,
+    EventStore,
+    LifecycleEventType,
+    MutationAction,
+    OperationRecordInvalid,
+    RecoveryCommandEvidence,
+)
+from ai_workflow_engine.milestone_runner.lock import LockOwnershipLost  # noqa: E402
+from ai_workflow_engine.milestone_runner.state import (  # noqa: E402
+    PublicationUncertain,
+    RunLifecycleStorage,
+    StatePublicationFailure,
+)
+
+
+def governed_store(application: MilestoneRunnerApplication) -> RunStateStore:
+    run_id = application._run_id or application._latest_run_id()
+    assert run_id is not None
+    return application._read_store(run_id)
+
+
+def events_snapshot(store: RunStateStore) -> dict[str, bytes]:
+    directory = store.run_directory / EVENTS_DIRECTORY
+    if not directory.exists():
+        return {}
+    return {path.name: path.read_bytes() for path in sorted(directory.iterdir())}
+
+
+def restore_tree(source: Path, destination: Path) -> None:
+    _shutil.rmtree(destination)
+    _shutil.copytree(source, destination, symlinks=True)
+
+
+def fault_envelopes(monkeypatch: pytest.MonkeyPatch, predicate: Any) -> None:
+    """Crash, deterministically, immediately before publishing the first matching envelope."""
+    original = EventStore.publish_envelope
+
+    def faulty(self: EventStore, envelope: Any, **kwargs: Any) -> Any:
+        if predicate(self, envelope):
+            raise RuntimeError("injected crash before this event")
+        return original(self, envelope, **kwargs)
+
+    monkeypatch.setattr(EventStore, "publish_envelope", faulty)
+
+
+RECOVERY_COMMANDS = (
+    "reconcile_milestone",
+    "reopen_milestone",
+    "recover_failed_review",
+    "revalidate_correction",
+)
+
+
+class TestAuto018MutationPrefix:
+    """T-MUTATION-PREFIX (R01): every durable prefix of every recovery mutation is either free
+    of constituent effects or an explicitly identifiable incomplete mutation carrying its
+    complete original evidence; nothing ever completes or recomputes it."""
+
+    @pytest.mark.parametrize("command", RECOVERY_COMMANDS)
+    def test_every_constituent_boundary_of_a_recovery_mutation(
+        self, v2_application, monkeypatch, tmp_path, command
+    ):
+        application = v2_application(clock=lambda: MOMENT)
+        _, prepared = prepared_policy_run(application, command=command)
+        root = application.artifact_root
+        pristine = tmp_path / "pristine-artifact-root"
+        _shutil.copytree(root, pristine, symlinks=True)
+        act = command_action(application, command)
+
+        # The original outcome, captured once: the declaration, its evidence, the final record.
+        report = act()
+        store = governed_store(application)
+        full = store.load_lifecycle()
+        declared = [
+            event
+            for event, _ in full.events
+            if event.event_type is LifecycleEventType.APPLICATION_MUTATION_DECLARED
+        ]
+        assert len(declared) == 1
+        declaration = declared[0].payload.declaration
+        evidence = declaration.evidence
+        assert isinstance(evidence, RecoveryCommandEvidence)
+        assert declaration.action is MutationAction.RECOVERY_COMMAND
+        ledger = evidence.ledger.value
+        assert getattr(full.record, ledger) == [evidence.entry]
+        assert evidence.entry.pre_state is prepared.workflow_state
+        assert evidence.entry.post_state is report.post_state is full.record.workflow_state
+        assert evidence.original_ledger_length == 0
+        assert evidence.budgets_touched == dict(report.budgets_touched)
+        types = [constituent.event_type for constituent in declaration.constituents]
+        assert types[-2:] == [
+            LifecycleEventType.RECOVERY_LEDGER_APPENDED,
+            LifecycleEventType.STATE_TRANSITIONED,
+        ]
+        assert len(types) == (3 if evidence.budgets_touched else 2)
+        for counter, delta in evidence.budgets_touched.items():
+            assert getattr(full.record, counter) == getattr(prepared, counter) + delta
+        final_digest = declaration.final_body_digest
+
+        for applied in range(-1, len(declaration.constituents)):
+            restore_tree(pristine, root)
+            with monkeypatch.context() as fault:
+                if applied < 0:
+                    fault_envelopes(
+                        fault,
+                        lambda store, envelope: envelope.event_type
+                        is LifecycleEventType.APPLICATION_MUTATION_DECLARED,
+                    )
+                else:
+                    fault_envelopes(
+                        fault,
+                        lambda store, envelope, applied=applied: envelope.mutation_index
+                        == applied + 1,
+                    )
+                with pytest.raises(RuntimeError, match="injected crash"):
+                    act()
+            view = governed_store(application).load_lifecycle()
+            if applied < 0:
+                # Before the declaration: no authoritative constituent effect exists at all.
+                assert view.incomplete is None
+                assert not [
+                    event
+                    for event, _ in view.events
+                    if event.event_type is LifecycleEventType.APPLICATION_MUTATION_DECLARED
+                ]
+                assert getattr(view.record, ledger) == []
+                assert view.record.workflow_state is prepared.workflow_state
+                continue
+            incomplete = view.incomplete
+            assert incomplete is not None, applied
+            # The same complete typed declaration, evidence, intended transition and prior tip.
+            assert incomplete.declaration == declaration
+            assert incomplete.mutation_id == declaration.mutation_id
+            assert incomplete.applied_prefix_length == applied
+            assert incomplete.intended_transitions == declaration.transitions
+            assert incomplete.prior_event_id == declaration.prior_event_id
+            assert incomplete.declaration.final_body_digest == final_digest
+            # The prefix is folded as recorded, never as a completed mutation.
+            ledger_index = types.index(LifecycleEventType.RECOVERY_LEDGER_APPENDED)
+            assert len(getattr(view.record, ledger)) == (1 if applied > ledger_index else 0)
+            assert view.record.workflow_state is prepared.workflow_state
+            status = application.status()
+            assert status.effective_state is RunStatus.HUMAN_INTERVENTION_REQUIRED
+            assert status.stop_reason is StopReason.APPLICATION_MUTATION_INCOMPLETE
+            assert status.incomplete_mutation == incomplete
+
+            # A later invocation with a changed clock and changed repository observations:
+            # nothing recomputes the evidence, completes the prefix or reports it complete.
+            before = events_snapshot(governed_store(application))
+            later = MOMENT + timedelta(hours=1)
+            application._clock = lambda later=later: later
+            (application.repository_root / "unrelated-observation.txt").write_text("changed\n")
+            try:
+                with pytest.raises(ApplicationMutationIncomplete) as refused:
+                    act()
+            finally:
+                (application.repository_root / "unrelated-observation.txt").unlink()
+                application._clock = lambda: MOMENT
+            assert refused.value.stop_reason is StopReason.APPLICATION_MUTATION_INCOMPLETE
+            assert refused.value.mutation.declaration == declaration
+            assert events_snapshot(governed_store(application)) == before
+
+        # After the last constituent: one complete mutation, applied exactly once.
+        restore_tree(pristine, root)
+        act()
+        complete = governed_store(application).load_lifecycle()
+        assert complete.incomplete is None
+        assert getattr(complete.record, ledger) == [evidence.entry]
+        assert complete.record == full.record
+        from ai_workflow_engine.milestone_runner.recovery import RecoveryRefused
+
+        with pytest.raises(RecoveryRefused):
+            act()
+        assert getattr(governed_store(application).load(), ledger) == [evidence.entry]
+
+    def test_a_failed_declaration_publication_leaves_no_constituent_effect(
+        self, v2_application, monkeypatch
+    ):
+        application = v2_application(clock=lambda: MOMENT)
+        prepared_policy_run(application, command="reopen_milestone")
+        act = command_action(application, "reopen_milestone")
+        import ai_workflow_engine.milestone_runner.state as state_module
+
+        original = RunLifecycleStorage.publish_event
+
+        def failing(self, name, payload):
+            if "APPLICATION_MUTATION_DECLARED" in name:
+                raise StatePublicationFailure("the declaration could not be published")
+            return original(self, name, payload)
+
+        with monkeypatch.context() as fault:
+            fault.setattr(RunLifecycleStorage, "publish_event", failing)
+            with pytest.raises(StatePublicationFailure):
+                act()
+        del state_module
+        # The witness named the declaration it never linked: the load stops, and ST-02 invents
+        # no event and applies no constituent.
+        with pytest.raises(EventChainBroken):
+            governed_store(application).load()
+
+    def test_projection_lag_inside_a_mutation_is_still_an_incomplete_mutation(
+        self, v2_application, monkeypatch
+    ):
+        application = v2_application(clock=lambda: MOMENT)
+        prepared_policy_run(application, command="reopen_milestone")
+        act = command_action(application, "reopen_milestone")
+        original = RunLifecycleStorage.publish_projection
+
+        def lagging(self, payload):
+            if json.loads(payload)["state_version"] == 5:
+                raise StatePublicationFailure("projection replace failed")
+            return original(self, payload)
+
+        with monkeypatch.context() as fault:
+            fault.setattr(RunLifecycleStorage, "publish_projection", lagging)
+            with pytest.raises(StatePublicationFailure):
+                act()
+        view = governed_store(application).load_lifecycle()
+        assert view.projection.value == "STALE"
+        assert view.incomplete is not None and view.incomplete.applied_prefix_length == 1
+        with pytest.raises(ApplicationMutationIncomplete):
+            act()
+        repaired = governed_store(application).load_lifecycle()
+        assert repaired.projection.value == "CURRENT"
+        assert repaired.incomplete is not None and repaired.incomplete.applied_prefix_length == 1
+
+    def test_a_result_acceptance_shares_the_declaration_rule(self, v2_application, monkeypatch):
+        application = v2_application(clock=lambda: MOMENT)
+        authorize_v2(application)
+        with monkeypatch.context() as fault:
+            fault_envelopes(
+                fault,
+                lambda store, envelope: envelope.event_type is LifecycleEventType.STATE_TRANSITIONED
+                and envelope.mutation_index == 2
+                and store.state is not None
+                and store.state.open_mutation is not None
+                and store.state.open_mutation.declaration.action
+                is MutationAction.RESULT_ACCEPTANCE,
+            )
+            with pytest.raises(RuntimeError, match="injected crash"):
+                application.start()
+        view = governed_store(application).load_lifecycle()
+        incomplete = view.incomplete
+        assert incomplete is not None
+        assert incomplete.declaration.action is MutationAction.RESULT_ACCEPTANCE
+        assert incomplete.applied_prefix_length == 1
+        assert [c.event_type for c in incomplete.declaration.constituents] == [
+            LifecycleEventType.OPERATION_RESULT_ACCEPTED,
+            LifecycleEventType.STATE_TRANSITIONED,
+        ]
+        assert view.record.workflow_state is RunStatus.IMPLEMENTING
+        before = events_snapshot(governed_store(application))
+        with pytest.raises(ApplicationMutationIncomplete):
+            application.resume()
+        assert events_snapshot(governed_store(application)) == before
+
+
+class TestAuto018Ledgers:
+    """T-LEDGERS: each recovery command's entry and transition exactly once; history immutable."""
+
+    @pytest.mark.parametrize("command", RECOVERY_COMMANDS)
+    def test_one_entry_one_transition_and_unchanged_budget_semantics(self, v2_application, command):
+        application = v2_application(clock=lambda: MOMENT)
+        _, prepared = prepared_policy_run(application, command=command)
+        report = command_action(application, command)()
+        view = governed_store(application).load_lifecycle()
+        transitions = [
+            event
+            for event, _ in view.events
+            if event.event_type is LifecycleEventType.STATE_TRANSITIONED
+        ]
+        ledgers = [
+            event
+            for event, _ in view.events
+            if event.event_type is LifecycleEventType.RECOVERY_LEDGER_APPENDED
+        ]
+        assert len(transitions) == len(ledgers) == 1
+        assert transitions[0].payload.from_state is prepared.workflow_state
+        assert transitions[0].payload.to_state is report.post_state
+        counters = (
+            "review_attempts",
+            "successful_review_rounds",
+            "provider_failure_count",
+            "correction_round",
+            "closure_round",
+        )
+        for counter in counters:
+            expected = getattr(prepared, counter) + dict(report.budgets_touched).get(counter, 0)
+            assert getattr(view.record, counter) == expected
+        # The historical snapshot is the bridge's genesis, never rewritten by the recovery.
+        genesis = view.events[0][0]
+        assert genesis.event_type is LifecycleEventType.RUN_BASELINED
+        assert genesis.payload.record == prepared
+
+
+def replace_lock_file(application: MilestoneRunnerApplication) -> Path:
+    """Rename the held lock inode away and put a fresh lock file at the canonical path."""
+    lock_path = application.artifact_root / "run.lock"
+    lock_path.rename(lock_path.with_name("run.lock.renamed-away"))
+    lock_path.write_bytes(b"")
+    lock_path.chmod(0o600)
+    return lock_path
+
+
+class TestAuto018StaleHolder:
+    """T-LOCK-IDENTITY (R02) at the application's publication and effect boundaries."""
+
+    def test_a_replaced_lock_at_the_spawn_boundary_stops_before_any_process(
+        self, v2_application, monkeypatch
+    ):
+        application = v2_application(clock=lambda: MOMENT)
+        authorize_v2(application)
+        spawned: list[Any] = []
+        original_popen = subprocess.Popen
+        rival: list[RunLock] = []
+
+        def counting_popen(args: Any, *positional: Any, **keyword: Any) -> Any:
+            if isinstance(args, list) and len(args) == 5 and args[1].endswith("fake_provider.py"):
+                spawned.append(args)
+            return original_popen(args, *positional, **keyword)
+
+        from ai_workflow_engine.milestone_runner.operations import OperationJournal
+
+        original_intent = OperationJournal.record_intent
+
+        def replace_after_intent(self, *args: Any, **kwargs: Any) -> Any:
+            reference = original_intent(self, *args, **kwargs)
+            replace_lock_file(application)
+            # A simultaneous apparent holder, on the replacement inode.
+            holder = RunLock(
+                run_id="rival-run",
+                repository_identity=IDENTITY,
+                artifact_root=application.artifact_root,
+            )
+            holder.acquire()
+            rival.append(holder)
+            return reference
+
+        monkeypatch.setattr(subprocess, "Popen", counting_popen)
+        monkeypatch.setattr(OperationJournal, "record_intent", replace_after_intent)
+        try:
+            with pytest.raises(LockOwnershipLost) as lost:
+                application.start()
+            assert lost.value.stop_reason is StopReason.LOCK_OWNERSHIP_LOST
+            assert spawned == []
+            store = governed_store(application)
+            before = events_snapshot(store)
+            view = store.load_lifecycle(lock=rival[0])
+            last = view.events[-1][0]
+            assert last.event_type is LifecycleEventType.OPERATION_DISPATCH_INTENT
+            assert events_snapshot(store) == before
+        finally:
+            for holder in rival:
+                holder.release()
+        # The stale release never unlinked or damaged the replacement lock.
+        assert (application.artifact_root / "run.lock").exists()
+        assert (application.artifact_root / "run.lock.renamed-away").exists()
+
+    def test_a_replaced_lock_before_a_publication_publishes_nothing(
+        self, v2_application, monkeypatch
+    ):
+        application = v2_application(clock=lambda: MOMENT)
+        authorize_v2(application)
+        calls = {"count": 0}
+        original = EventStore.publish_envelope
+
+        def replace_then_publish(self: EventStore, envelope: Any, **kwargs: Any) -> Any:
+            calls["count"] += 1
+            if calls["count"] == 6:
+                replace_lock_file(application)
+            return original(self, envelope, **kwargs)
+
+        monkeypatch.setattr(EventStore, "publish_envelope", replace_then_publish)
+        with pytest.raises(LockOwnershipLost):
+            application.start()
+        store = governed_store(application)
+        assert len(events_snapshot(store)) == 5
+
+    def test_a_replacement_detected_after_the_link_prevents_acknowledgment(
+        self, v2_application, monkeypatch
+    ):
+        import ai_workflow_engine.milestone_runner.state as state_module
+
+        application = v2_application(clock=lambda: MOMENT, run_id="post-link-race-run")
+        authorize_v2(application)
+        original_link = state_module.os.link
+
+        def link_then_replace(*args: Any, **kwargs: Any) -> None:
+            original_link(*args, **kwargs)
+            destination = args[1] if len(args) > 1 else kwargs.get("dst")
+            if isinstance(destination, str) and destination.startswith("00000004-"):
+                replace_lock_file(application)
+
+        monkeypatch.setattr(state_module.os, "link", link_then_replace)
+        with pytest.raises(LockOwnershipLost):
+            application.start()
+        # The bytes linked before detection stay as uncertain evidence; nothing followed them.
+        store = governed_store(application)
+        assert sorted(events_snapshot(store))[-1].startswith("00000004-")
+        assert not (store.run_directory / "operations").exists()
+
+    def test_a_valid_second_writer_gets_ordinary_contention(self, v2_application):
+        application = v2_application(clock=lambda: MOMENT)
+        authorize_v2(application)
+        application.start()
+        run_id = governed_store(application).run_id
+        holder = application._locked(run_id)
+        try:
+            with pytest.raises(RunRefused, match="Another runner holds"):
+                application.abort(reason="while another holder is active")
+        finally:
+            holder.release()
+        assert application.abort(reason="after release").state is RunStatus.ABORTED
+
+
+class TestAuto018PublicationUncertain:
+    """T-PUBLICATION-UNCERTAIN (R03) across invocations: visible bytes are never durable success
+    until the correct barriers succeed under a later valid hold."""
+
+    @staticmethod
+    def _failing_directory_fsync(monkeypatch, directory: Path, after: Any) -> dict[str, bool]:
+        real = os.fsync
+        state = {"armed": False}
+
+        def fsync(descriptor: int) -> None:
+            if state["armed"] and os.fstat(descriptor).st_ino == directory.stat().st_ino:
+                raise OSError(5, "Input/output error")
+            real(descriptor)
+
+        monkeypatch.setattr(os, "fsync", fsync)
+        after(state)
+        return state
+
+    def test_an_exclusive_authority_artifact(self, v2_application, monkeypatch):
+        """policy.json: linked, then its directory barrier fails; start retries later."""
+        application = v2_application(clock=lambda: MOMENT, run_id="uncertain-policy-run")
+        authorize_v2(application)
+        run_directory = application.artifact_root / "uncertain-policy-run"
+        real_link = os.link
+        spawned: list[Any] = []
+
+        with monkeypatch.context() as fault:
+            state = {"armed": False}
+            real_fsync = os.fsync
+
+            def link(*args: Any, **kwargs: Any) -> None:
+                real_link(*args, **kwargs)
+                if (args[1] if len(args) > 1 else "") == "policy.json":
+                    state["armed"] = True
+
+            def fsync(descriptor: int) -> None:
+                if state["armed"] and os.fstat(descriptor).st_ino == run_directory.stat().st_ino:
+                    raise OSError(5, "Input/output error")
+                real_fsync(descriptor)
+
+            fault.setattr(os, "link", link)
+            fault.setattr(os, "fsync", fsync)
+            fault.setattr(
+                application._providers.implementation, "invoke", lambda *a, **k: spawned.append(1)
+            )
+            with pytest.raises(PublicationUncertain) as uncertain:
+                application.start()
+            assert uncertain.value.stop_reason is StopReason.PUBLICATION_UNCERTAIN
+            policy = run_directory / "policy.json"
+            before = (policy.read_bytes(), policy.stat().st_mtime_ns)
+            # A later holder, barrier still failing: the identical-existing branch is uncertain.
+            with pytest.raises(PublicationUncertain):
+                application.start()
+            assert spawned == []
+            assert (policy.read_bytes(), policy.stat().st_mtime_ns) == before
+        # The barrier recovers: confirmed without rewriting a byte or an mtime.
+        report = application.start()
+        assert report.state is RunStatus.READY_FOR_COMMIT_APPROVAL
+        assert (policy.read_bytes(), policy.stat().st_mtime_ns) == before
+
+    def test_operation_evidence(self, v2_application, monkeypatch):
+        """request.json: linked, its directory barrier fails, resume confirms before dispatch."""
+        application = v2_application(clock=lambda: MOMENT)
+        authorize_v2(application)
+        spawned: list[Any] = []
+        original_invoke = application._providers.implementation.invoke
+
+        def counting(*args: Any, **kwargs: Any) -> Any:
+            spawned.append(1)
+            return original_invoke(*args, **kwargs)
+
+        monkeypatch.setattr(application._providers.implementation, "invoke", counting)
+        real_link = os.link
+        real_fsync = os.fsync
+        state: dict[str, Any] = {"directory": None}
+
+        def link(*args: Any, **kwargs: Any) -> None:
+            real_link(*args, **kwargs)
+            if (args[1] if len(args) > 1 else "") == "request.json":
+                state["directory"] = os.fstat(kwargs["dst_dir_fd"]).st_ino
+
+        def fsync(descriptor: int) -> None:
+            if state["directory"] is not None and os.fstat(descriptor).st_ino == state["directory"]:
+                raise OSError(5, "Input/output error")
+            real_fsync(descriptor)
+
+        with monkeypatch.context() as fault:
+            fault.setattr(os, "link", link)
+            fault.setattr(os, "fsync", fsync)
+            with pytest.raises(PublicationUncertain):
+                application.start()
+            assert spawned == []
+            with pytest.raises(PublicationUncertain):
+                application.resume()
+            assert spawned == []
+        store = governed_store(application)
+        request = next((store.run_directory / "operations").iterdir()) / "request.json"
+        before = (request.read_bytes(), request.stat().st_mtime_ns)
+        report = application.resume()
+        assert report.state is RunStatus.READY_FOR_COMMIT_APPROVAL
+        assert (request.read_bytes(), request.stat().st_mtime_ns) == before
+        # Exactly one dispatch, and only after the relied-upon request was confirmed durable.
+        assert spawned == [1]
+
+    def test_a_projection_barrier_failure_is_confirmed_by_a_later_holder(
+        self, v2_application, monkeypatch
+    ):
+        application = v2_application(clock=lambda: MOMENT)
+        authorize_v2(application)
+        application.start()
+        store = governed_store(application)
+        real_fsync = os.fsync
+        state_inode = store.state_path.stat().st_ino
+
+        def fsync(descriptor: int) -> None:
+            if os.fstat(descriptor).st_ino == state_inode:
+                raise OSError(5, "Input/output error")
+            real_fsync(descriptor)
+
+        before = events_snapshot(store)
+        with monkeypatch.context() as fault:
+            fault.setattr(os, "fsync", fsync)
+            with pytest.raises(PublicationUncertain):
+                application.abort(reason="while the projection cannot be confirmed")
+        assert events_snapshot(store) == before
+        assert application.abort(reason="confirmed now").state is RunStatus.ABORTED
+
+    def test_read_only_reload_confers_no_execution_readiness(self, v2_application, monkeypatch):
+        application = v2_application(clock=lambda: MOMENT)
+        authorize_v2(application)
+        application.start()
+        store = governed_store(application)
+        before = events_snapshot(store)
+        lock_inode = (application.artifact_root / "run.lock").stat().st_ino
+        real_fsync = os.fsync
+
+        def failing(descriptor: int) -> None:
+            # The lock's own diagnostic metadata is not lifecycle evidence; everything else fails.
+            if os.fstat(descriptor).st_ino == lock_inode:
+                return real_fsync(descriptor)
+            raise OSError(5, "Input/output error")
+
+        with monkeypatch.context() as fault:
+            fault.setattr(os, "fsync", failing)
+            # A read needs no barrier and reports the verified fold ...
+            assert application.status().record is not None
+            # ... but an effecting command must confirm under its own hold, or refuse.
+            with pytest.raises(PublicationUncertain):
+                application.abort(reason="no confirmation available")
+        assert events_snapshot(store) == before
+
+
+class TestAuto018ProspectiveReferences:
+    """T-PROSPECTIVE-REFERENCE (R04): pending paths are declarations; asserted evidence is not."""
+
+    def test_a_pending_row_before_spawn_is_a_valid_prefix(self, v2_application, monkeypatch):
+        from ai_workflow_engine.milestone_runner.operations import OperationJournal
+
+        application = v2_application(clock=lambda: MOMENT)
+        authorize_v2(application)
+
+        def stop_at_intent(self, *args: Any, **kwargs: Any) -> Any:
+            raise RuntimeError("stopped before spawn")
+
+        monkeypatch.setattr(OperationJournal, "record_intent", stop_at_intent)
+        with pytest.raises(RuntimeError, match="stopped before spawn"):
+            application.start()
+        store = governed_store(application)
+        view = store.load_lifecycle()
+        pending = view.record.provider_runs[-1]
+        assert pending.completed_at is None
+        for path in (pending.stdout_path, pending.stderr_path):
+            assert not (store.run_directory / path).exists()
+        assert (store.run_directory / pending.prompt_path).exists()
+        assert view.state.prospective_paths == (pending.stdout_path, pending.stderr_path)
+        assert not [
+            event
+            for event, _ in view.events
+            if event.event_type is LifecycleEventType.OPERATION_DISPATCH_RECEIVED
+        ]
+
+    @pytest.mark.parametrize("artifact", ["prompt", "stdout", "stderr", "raw", "validated"])
+    @pytest.mark.parametrize("damage", ["delete", "corrupt"])
+    def test_asserted_evidence_can_never_be_downgraded(self, v2_application, artifact, damage):
+        application = v2_application(clock=lambda: MOMENT)
+        authorize_v2(application)
+        application.start()
+        store = governed_store(application)
+        row = store.load().provider_runs[0]
+        operation = next((store.run_directory / "operations").iterdir())
+        attempt = operation / "attempts" / "0001"
+        target = {
+            "prompt": store.run_directory / row.prompt_path,
+            "stdout": store.run_directory / row.stdout_path,
+            "stderr": store.run_directory / row.stderr_path,
+            "raw": attempt / "result.raw",
+            "validated": attempt / "result.validated.json",
+        }[artifact]
+        if damage == "delete":
+            target.unlink()
+        else:
+            target.write_bytes(target.read_bytes() + b" tampered")
+        with pytest.raises(OperationRecordInvalid) as refused:
+            store.load()
+        assert refused.value.stop_reason is StopReason.OPERATION_RECORD_INVALID
+        before = events_snapshot(store)
+        with pytest.raises(OperationRecordInvalid):
+            application.abort(reason="must refuse")
+        assert events_snapshot(store) == before
+        assert not target.exists() or damage == "corrupt"
+
+    def test_an_empty_output_is_a_published_empty_artifact(self, v2_application):
+        application = v2_application(clock=lambda: MOMENT)
+        authorize_v2(application)
+        application.start()
+        store = governed_store(application)
+        view = store.load_lifecycle()
+        stderr_references = [
+            reference
+            for event, _ in view.events
+            if event.event_type is LifecycleEventType.OPERATION_RESULT_RECEIVED
+            for reference in event.payload.transcripts
+            if reference.path.endswith("stderr.txt")
+        ]
+        assert stderr_references
+        empty = hashlib.sha256(b"").hexdigest()
+        assert all(reference.sha256 == empty for reference in stderr_references)
+        assert all((store.run_directory / r.path).read_bytes() == b"" for r in stderr_references)
+
+    def test_a_historical_pending_row_bridges_without_fabricated_digests(self, v2_application):
+        application = v2_application(clock=lambda: MOMENT)
+        _, prepared = prepared_policy_run(application, command="abort")
+        pending = ProviderRunRecord(
+            sequence=1,
+            role=ProviderRole.IMPLEMENTATION,
+            provider="fake",
+            milestone_id=MILESTONE_ID,
+            started_at="2026-08-06T11:59:00Z",
+            duration_ms=0,
+            prompt_path="transcripts/0001-20260806T115900Z-fake-implementation.prompt.md",
+            stdout_path="transcripts/0001-20260806T115900Z-fake-implementation.stdout.txt",
+            stderr_path="transcripts/0001-20260806T115900Z-fake-implementation.stderr.txt",
+        )
+        historical = prepared.model_copy(update={"provider_runs": [pending]})
+        store = application._store(prepared.run_id)
+        lock = application._locked(prepared.run_id)
+        try:
+            store.state_path.unlink()
+            store.publish(historical, lock=lock)
+        finally:
+            lock.release()
+        application.abort(reason="bridge a pending historical row")
+        view = store.load_lifecycle()
+        assert view.events[0][0].event_type is LifecycleEventType.RUN_BASELINED
+        assert view.events[0][0].payload.record.provider_runs == [pending]
+        assert not [
+            event for event, _ in view.events if event.event_type.value.startswith("OPERATION_")
+        ]
+        assert view.record.workflow_state is RunStatus.ABORTED
+
+
+class TestAuto018AuthorityStaysPrimary:
+    """T-AUTHORITY: events never heal, replace or legitimize an authority artifact."""
+
+    @pytest.mark.parametrize(
+        "artifact, reason",
+        [
+            ("policy", StopReason.POLICY_DIGEST_MISMATCH),
+            ("binding", StopReason.STAGE_START_ALREADY_BOUND),
+            ("witness", StopReason.STAGE_START_ALREADY_BOUND),
+        ],
+    )
+    @pytest.mark.parametrize("damage", ["delete", "tamper"])
+    def test_tamper_or_loss_is_refused_and_never_repaired(
+        self, v2_application, monkeypatch, artifact, reason, damage
+    ):
+        application = v2_application(clock=lambda: MOMENT)
+        receipt = authorize_v2(application)
+        application.start()
+        store = governed_store(application)
+        path = {
+            "policy": store.policy_path,
+            "binding": authority_path(application, receipt, "binding"),
+            "witness": witness_path_for(application, receipt),
+        }[artifact]
+        if damage == "delete":
+            path.unlink()
+        else:
+            path.write_bytes(path.read_bytes().replace(b"{", b"{ ", 1))
+        before = events_snapshot(store)
+        with pytest.raises(WorkflowEngineError) as refused:
+            application.abort(reason="authority is damaged")
+        assert refused.value.stop_reason is reason
+        assert events_snapshot(store) == before
+        assert (not path.exists()) if damage == "delete" else True
+
+
+class TestAuto018BaselineBridge:
+    """T-BASELINE-BRIDGE: one historical snapshot, its exact bytes, nothing synthesized."""
+
+    def test_the_bridge_records_the_exact_snapshot_once(self, v2_application):
+        application = v2_application(clock=lambda: MOMENT)
+        _, prepared = prepared_policy_run(application, command="abort")
+        store = application._read_store(prepared.run_id)
+        source = store.state_path.read_bytes()
+        # Reading a historical governed v2 snapshot writes nothing and invents no history.
+        assert store.load() == prepared and not store.lifecycle_present()
+        application.abort(reason="first mutating command")
+        view = store.load_lifecycle()
+        genesis = view.events[0][0]
+        assert genesis.event_type is LifecycleEventType.RUN_BASELINED
+        assert genesis.payload.source_sha256 == hashlib.sha256(source).hexdigest()
+        assert genesis.payload.source_byte_count == len(source)
+        assert genesis.payload.record == prepared
+        assert [event.event_type for event, _ in view.events] == [
+            LifecycleEventType.RUN_BASELINED,
+            LifecycleEventType.STAGE_START_BOUND,
+            LifecycleEventType.POLICY_PUBLISHED,
+            LifecycleEventType.STATE_TRANSITIONED,
+        ]
+        assert json.loads(store.state_path.read_bytes())["schema_version"] == 3
+
+    def test_an_interrupted_bridge_resumes_by_duplicate_recognition(
+        self, v2_application, monkeypatch
+    ):
+        application = v2_application(clock=lambda: MOMENT)
+        _, prepared = prepared_policy_run(application, command="abort")
+        with monkeypatch.context() as fault:
+            fault_envelopes(
+                fault,
+                lambda store, envelope: envelope.event_type is LifecycleEventType.STAGE_START_BOUND,
+            )
+            with pytest.raises(RuntimeError):
+                application.abort(reason="crash inside the bridge")
+        store = application._read_store(prepared.run_id)
+        first = events_snapshot(store)
+        assert len(first) == 1
+        application.abort(reason="retry after the crash")
+        second = events_snapshot(store)
+        assert {name: second[name] for name in first} == first
+        assert store.load_lifecycle().events[0][0].event_type is LifecycleEventType.RUN_BASELINED
+
+    def test_projection_loss_never_triggers_a_second_genesis(self, v2_application):
+        application = v2_application(clock=lambda: MOMENT)
+        _, prepared = prepared_policy_run(application, command="resume")
+        application.abort(reason="bridge")
+        store = application._read_store(prepared.run_id)
+        before = events_snapshot(store)
+        store.state_path.unlink()
+        assert store.exists()
+        assert store.load().workflow_state is RunStatus.ABORTED
+        assert events_snapshot(store) == before
+
+    def test_a_crash_after_genesis_never_permits_a_second_start(self, v2_application, monkeypatch):
+        application = v2_application(clock=lambda: MOMENT, run_id="genesis-gap-run")
+        authorize_v2(application)
+        with monkeypatch.context() as fault:
+            fault_envelopes(
+                fault,
+                lambda store, envelope: envelope.event_type is LifecycleEventType.STAGE_START_BOUND,
+            )
+            with pytest.raises(RuntimeError):
+                application.start()
+        store = application._read_store("genesis-gap-run")
+        store.state_path.unlink()
+        assert store.exists()
+        with pytest.raises(RunRefused):
+            application.start()
+
+
+class TestAuto018ConfirmationOwnership:
+    """R02 x R03: a hold whose ownership changes during confirmation never reports durability."""
+
+    def test_a_replacement_during_confirmation_refuses_without_success(
+        self, v2_application, monkeypatch
+    ):
+        application = v2_application(clock=lambda: MOMENT)
+        authorize_v2(application)
+        application.start()
+        store = governed_store(application)
+        before = events_snapshot(store)
+        real_fsync = os.fsync
+        lock_inode = (application.artifact_root / "run.lock").stat().st_ino
+        state = {"replaced": False}
+
+        def replacing(descriptor: int) -> None:
+            status = os.fstat(descriptor)
+            if (
+                not state["replaced"]
+                and status.st_ino != lock_inode
+                and stat.S_ISREG(status.st_mode)
+            ):
+                state["replaced"] = True
+                replace_lock_file(application)
+            real_fsync(descriptor)
+
+        with monkeypatch.context() as fault:
+            fault.setattr(os, "fsync", replacing)
+            with pytest.raises(LockOwnershipLost):
+                application.abort(reason="confirmation must fail closed")
+        assert state["replaced"]
+        assert events_snapshot(store) == before
+        assert store.load().workflow_state is RunStatus.READY_FOR_COMMIT_APPROVAL
+
+
+def test_auto018_an_event_backed_run_refuses_a_supervised_configuration(
+    v2_application, config_factory, providers
+):
+    application = v2_application(clock=lambda: MOMENT)
+    authorize_v2(application)
+    report = application.start()
+    supervised = MilestoneRunnerApplication(
+        load_runner_config(config_factory()), providers=providers, run_id=report.run_id
+    )
+    store = governed_store(application)
+    before = events_snapshot(store)
+    with pytest.raises(WorkflowEngineError) as refused:
+        supervised.abort(reason="mode mixing")
+    assert refused.value.stop_reason is StopReason.POLICY_BINDING_MISMATCH
+    assert events_snapshot(store) == before
+
+
+# ======================================================================================
+# AUTO-018 remediation cycle 1 -- AUTO018-IMPL-R03: ownership before every command entry
+# ======================================================================================
+
+
+def _marker(name: str) -> dict[str, Any]:
+    return {
+        "command": [sys.executable, "-c", f"print({name!r})"],
+        "timeout_seconds": 120,
+        "purpose": name,
+    }
+
+
+class TestAuto018R03PerCommandOwnership:
+    """AUTO018-IMPL-R03: a hold lost after command N reaches no command N+1.
+
+    Continuing ownership is re-verified immediately before every verification and Git executor
+    entry reached through the application, not once per batch. Verification and Git policy are
+    unchanged: only the prerequisite is enforced per command.
+    """
+
+    @staticmethod
+    def _count_commands(
+        monkeypatch: pytest.MonkeyPatch, application: Any, lose_after: str | int
+    ) -> list[list[str]]:
+        import ai_workflow_engine.milestone_runner.verification as verification_module
+
+        calls: list[list[str]] = []
+        real = verification_module.run_bounded_command
+
+        def counting(*, argv: Any, **kwargs: Any) -> Any:
+            calls.append(list(argv))
+            outcome = real(argv=argv, **kwargs)
+            hit = (
+                len(calls) == lose_after
+                if isinstance(lose_after, int)
+                else any(lose_after in part for part in argv)
+            )
+            if hit:
+                replace_lock_file(application)
+            return outcome
+
+        monkeypatch.setattr(verification_module, "run_bounded_command", counting)
+        return calls
+
+    def test_the_preflight_governance_batch_stops_after_the_command_that_lost_it(
+        self, application_factory, monkeypatch
+    ):  # type: ignore[no-untyped-def]
+        application = application_factory()
+        calls = self._count_commands(monkeypatch, application, 1)
+        with pytest.raises(LockOwnershipLost) as lost:
+            application.start()
+        assert lost.value.stop_reason is StopReason.LOCK_OWNERSHIP_LOST
+        assert len(calls) == 1, calls
+
+    def test_the_focused_set_stops_after_the_command_that_lost_it(
+        self, application_factory, monkeypatch
+    ):  # type: ignore[no-untyped-def]
+        application = application_factory(
+            overrides={"verification": {"focused": [_marker("focused-1"), _marker("focused-2")]}}
+        )
+        calls = self._count_commands(monkeypatch, application, "focused-1")
+        with pytest.raises(LockOwnershipLost):
+            application.start()
+        markers = [argv for argv in calls if any("focused" in part for part in argv)]
+        assert len(markers) == 1 and "focused-1" in markers[0][-1], calls
+        assert calls[-1] == markers[0], "nothing ran after the command that lost the hold"
+
+    def test_the_configured_final_set_stops_after_the_command_that_lost_it(
+        self, application_factory, config_factory, monkeypatch
+    ):  # type: ignore[no-untyped-def]
+        base = yaml.safe_load(config_factory().read_text())["verification"]["final"]
+        application = application_factory(
+            overrides={"verification": {"final": [*base, _marker("final-1"), _marker("final-2")]}}
+        )
+        calls = self._count_commands(monkeypatch, application, "final-1")
+        with pytest.raises(LockOwnershipLost):
+            application.start()
+        assert any("final-1" in argv[-1] for argv in calls)
+        assert not any("final-2" in argv[-1] for argv in calls), calls
+        assert "final-1" in calls[-1][-1]
+
+    def test_a_valid_hold_runs_every_command_of_the_set(
+        self, application_factory, config_factory, monkeypatch
+    ):  # type: ignore[no-untyped-def]
+        """Control: the per-command check changes nothing while the hold stays valid."""
+        base = yaml.safe_load(config_factory().read_text())["verification"]["final"]
+        application = application_factory(
+            overrides={"verification": {"final": [*base, _marker("final-1"), _marker("final-2")]}}
+        )
+        calls = self._count_commands(monkeypatch, application, "never-matches")
+        application.start()
+        assert any("final-1" in argv[-1] for argv in calls)
+        assert any("final-2" in argv[-1] for argv in calls)
+
+    def test_the_git_vectors_stop_after_the_vector_that_lost_it(
+        self, application_factory, worktree, monkeypatch
+    ):  # type: ignore[no-untyped-def]
+        committing = application_factory(overrides={"git": {"execute_commit": True}})
+        committing.start()
+        baseline = git(worktree, "rev-parse", "HEAD")
+        vectors: list[tuple[str, ...]] = []
+        real_run = ApprovalGit._run
+
+        def capturing(self: ApprovalGit, argv: tuple[str, ...]) -> str:
+            vectors.append(argv)
+            output = real_run(self, argv)
+            replace_lock_file(committing)
+            return output
+
+        monkeypatch.setattr(ApprovalGit, "_run", capturing)
+        with pytest.raises(LockOwnershipLost):
+            committing.approve_commit(confirmation=COMMIT_CONFIRMATION)
+        assert [vector[0] for vector in vectors] == ["add"], vectors
+        assert git(worktree, "rev-parse", "HEAD") == baseline, "the commit vector never ran"

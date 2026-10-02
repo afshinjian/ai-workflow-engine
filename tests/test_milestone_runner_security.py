@@ -654,7 +654,8 @@ class TestMutatingGitOnlyInApprovalGitModule:
 
     def test_the_other_eighteen_files_name_no_mutating_subcommand(self) -> None:
         sources = package_sources(exclude=frozenset({"approval_git.py"}))
-        assert len(sources) == 19, [source.name for source in sources]
+        # AUTO-018 section 11 adds events.py and operations.py.
+        assert len(sources) == 21, [source.name for source in sources]
         offenders = {
             source.name: mutating_git_tokens(parsed(source))
             for source in sources
@@ -1634,7 +1635,10 @@ class TestNoPlanDiscoveryInsideTheRepository:
             for source in package_sources()
             if enumeration_sites(parsed(source))
         }
-        assert sites == {"plan.py": ["listdir"]}, sites
+        # AUTO-018 section 7.3 admits exactly one more: the bounded listing of an explicitly
+        # addressed external `events/` directory in state.py. Plan discovery stays plan.py's
+        # single external-root listing, and the worktree is never enumerated (see below).
+        assert sites == {"plan.py": ["listdir"], "state.py": ["listdir"]}, sites
 
     def test_the_detector_flags_a_module_that_scans(self, tmp_path: Path) -> None:
         found = enumeration_sites(
@@ -2057,7 +2061,10 @@ class TestAuto017NoEnumeration:
                 if name.rsplit(".", 1)[-1] in ENUMERATION_CALLS:
                     sites.append((str(source.relative_to(PACKAGE_ROOT)), scope, ast.unparse(node)))
         assert sites == [
-            ("plan.py", ("MilestonePlanLoader", "_external_plan_paths"), "os.listdir(root)")
+            ("plan.py", ("MilestonePlanLoader", "_external_plan_paths"), "os.listdir(root)"),
+            # AUTO-018 section 7.3's narrow amendment: one bounded, non-recursive listing of the
+            # explicitly addressed external events directory, in state.py's event helper only.
+            ("state.py", ("_bounded_event_names",), "os.listdir(directory)"),
         ]
 
     def test_aliases_bare_glob_and_repeated_listings_are_detected(self, tmp_path: Path) -> None:
@@ -2286,16 +2293,245 @@ AUTO016_UNCHANGED_MODULES: Final[Mapping[str, str]] = {
     "review.py": "21805cdbc40e9a8e0adafd5af1c6091c0c78195f918df86451d70c65667e4cb7",
     "approval_git.py": "6a5f61c6939bffd67d6fe03cd66edafc0fb015058635d43013f221f0cc6ecd59",
     "recovery.py": "5afb170155ddc36074630c6e1a3c4702f88e431d042c9a6363437926a53712a0",
-    "lock.py": "cef2c3dfb924c1647a19b4acd876b45a0393ddbbdb02770aeededdd9f18a112b",
     "results.py": "bd4a78d46bedb946d049478a777e2c07dd71b380cc8aa42cec089c15a3cf6819",
     "scope.py": "d678241596de41f2da64613f9e61bab1bbac1dfe24c6fd99157366764d8d5525",
     "verification.py": "b08cbc196a266edafe40d4a771a919a275107e5938ba3b9771a782f7dd1fab95",
     "git_inspect.py": "edd9a5835de3d91fd053760541dc97e6eee0bd39d15ee06e8c9774cab94be04d",
     "__init__.py": "4976e32965a6485653bd9607001ee2c08fa35e6ec3ac871c95b32849702ff146",
     "providers/__init__.py": "27edb2358ebb1d6842eb3da7f0c2c6ab37d209a2642f5ec66342522d3f4795a0",
-    "providers/base.py": "4ebe4f39f48fdc8cfd6ddff79573243a48ae980135047c55c0ce751e046638e6",
     "providers/claude_cli.py": "ff226ecb592c518077eda54db3ab9b31b32249a6eb89fc8bf7e0a5f87b40395d",
     "providers/codex_cli.py": "bd64791106af480e0947db57e04f869f310d7e5c9dec6722f84af5a5dfa8abd8",
+}
+
+
+# AUTO-018 section 11 permits exactly two instrumented edits to AUTO-016/017 byte-pinned modules:
+# lock.py (R02 ownership context only) and providers/base.py (the narrow observer seam, spawn-entry
+# ownership check and cleanup on observer failure). Every *other* top-level node of those files is
+# pinned here to digests computed from the frozen planning baseline
+# acd517ef4ea852f7f4dcab610f8c34e93a9c3ce4 with `node_snapshots` -- never from the candidate --
+# so argv, sandbox, environment, timeout, retry classification, the flock domain and the lock
+# metadata/release helpers are proven unchanged node by node.
+AUTO018_RETAINED_NODE_SNAPSHOTS: Final[Mapping[str, tuple[str, str]]] = {
+    "lock.py:LOCK_DIRECTORY_MODE": (
+        "f2b5b123e4c26ed570942fabbaa9f6bf5c06a5e6ab5af27977b036ef022fd6d7",
+        "9e87ffbdf3f6c7fde042eb822e6fe3ec64bbe38eb1012288f36139cf50fc15b1",
+    ),
+    "lock.py:LOCK_FILE_MODE": (
+        "74f5cd44fd842ea1371225cb295fb7c80c31d0ba35541774c6639e6510923ce1",
+        "857026d9d07d344d34b278649a1258a01a281b03b2fe600462cc268f653d814e",
+    ),
+    "lock.py:LockContention": (
+        "a37f6ca6c96c61bad4bfda96561ae576209fa768fad854f30649dda776ca3d56",
+        "1b1eb7ac22e3b911c742675bf1dcc916eeccf18be3f6ed4822a74370d76940b3",
+    ),
+    "lock.py:LockError": (
+        "7c8925480d412ea3f9538f779fe8ba13e27284270c4a78bc794bfcdb698a40ac",
+        "18fef3686178e599c8c58249ae6be60188e667e6fc5215967da09b918fa235ea",
+    ),
+    "lock.py:LockHolder": (
+        "8c5cd861e6379136fbb3f1f243371d28bbaf395953027bf421f48061804eeaaf",
+        "8e97c192c458da20d44d9e0899ce625ff680ff8c46eafac0feef3ecfa9481095",
+    ),
+    "lock.py:LockPathRefused": (
+        "0d2c8f43b25ccce7264426ddfb09c92e1225954447e80463c1bde007221aa586",
+        "fc5299c9577171d8b40acfe575fe507f9c30473c3d088651be370f9eca56027e",
+    ),
+    "lock.py:LockStateError": (
+        "2b7e3486610f10f48eec99904e83bb598278ce7a5adbfb33a8f437cd909a4c8a",
+        "cfc2370f192ca8ff5311ccd8a54b11bbea6a76414363cd41c8ebfc94496a234c",
+    ),
+    "lock.py:MAX_LOCK_METADATA_BYTES": (
+        "b3fdd47963aa7027e085102f570ae520afc3b8297dd6135b8191a6430a6ff8e8",
+        "e1b2f1155572da1d3849d1cda4c39f44a7e6c83c37da03dd5daeb27fd87d8390",
+    ),
+    "lock.py:RUN_LOCK_FILE_NAME": (
+        "4ef31c882203d0c7a7a0d5d432f4a3029961240782cc21366cbd4f9619fce5ae",
+        "92baa02be608930dd4e8171f84b253d2a66d54b4b940d7ce16888565bd68b2f8",
+    ),
+    "lock.py:_RUN_ID_RE": (
+        "b83b6454da9358971d053316351fc091affc9b69c2fda1de169ac3bb93b50400",
+        "049b67028a83c83095b1be200c97333dba5eba90b3b6eff5642a56c9338e943a",
+    ),
+    "lock.py:_SYMLINK_REFUSED_ERRNOS": (
+        "9489ed8b61e14c1680da224b20d471699706cc202abc739e34536b5685b92727",
+        "fbef6832b9d7c1a444cc8027907560c446eae19427ef1ad0f593400632354b41",
+    ),
+    "lock.py:_UTC_TIMESTAMP_RE": (
+        "ba819b02a996ede49058fe113ddebade9c6b0263081d6c7903ad79ac31eb841b",
+        "dfa97ec11154590339feaaf0d53d3c54ee7c7808cabfb198472bacb14ea8c6b9",
+    ),
+    "lock.py:_open_directory_component": (
+        "201aea6719257c761ee2d9d312b34e1dc9b47c1f87139a7ff691300b8b773898",
+        "1effa70a18fbfc91401bf9e6466ee41449a22d98a214b8cd421d440ce985eab1",
+    ),
+    "lock.py:_open_lock_file_component": (
+        "cb73be5b7be21723217154d6add38d5c7669f5408bd4281faca458cfcf54740b",
+        "cbb1e5213ae4734109d01dfdf20978f3e69ebb6d01e4ccb1abbf3516d0a516d1",
+    ),
+    "lock.py:_refused_symlink": (
+        "77371d0282eac9c70329f54dcf0fa9ecd8a285378bddf6f9cb1746dd7e6c937c",
+        "fb7bc0a68a8066e3527b9100c9095450ca35b97624789952c8da3c20736275ad",
+    ),
+    "lock.py:_write_all": (
+        "954a8f10ee7d9d4bd9b5e5ce78ee3b82992f40979c2b7cf0c0093fe5999d938d",
+        "2becd57f090013e8d7e8b0a912410bca3d7dcc12fbd83c29c0352cc3b948fe2d",
+    ),
+    "providers/base.py:ArgvSlot": (
+        "e366858b7c4fe35d0e676e7acf689b97a8aac44180a744c64687e7dc24cebe46",
+        "1a115a53270f0a86fa39479a07488e2ca278efcd49b1614269c5bca81e0b7ce1",
+    ),
+    "providers/base.py:InvocationPhase": (
+        "3a2c1ae2c525a9c2419e4051807186a1b90ee59a3354e4962fade4043a4470b9",
+        "3286aebcd5dc5164e08ed996821ea8efd1e7173d67227fcf68bf71acdd9d6923",
+    ),
+    "providers/base.py:MAX_CAPTURED_STDERR_BYTES": (
+        "93ad9a2663029a93b743d953366d3d0646850e73687efb1f4be4fbb9d8a1c396",
+        "a884e21de1f701e7f0d0cc34a87fc3e8907f4323f6f9e2592d00fb471ff51f18",
+    ),
+    "providers/base.py:MAX_CAPTURED_STDOUT_BYTES": (
+        "f54da28449bd3a670c4024538e8b6be61ffeeae5d104e4c59d1c4e5abda6fd26",
+        "72b061ac7bd718fb6b0bbb7a933190390e84a7811d30cd8a8ae3a2188c51e00a",
+    ),
+    "providers/base.py:MAX_LAST_MESSAGE_BYTES": (
+        "c89b4cb5eda9bce97783f5b917b4a1dbd5055dc1b24e9c9c1cbac71a01332f6a",
+        "fa0bf806a818e029a2e52a035bf290c23cca2b582e68f80d0244ec3b9f2711de",
+    ),
+    "providers/base.py:MAX_PROMPT_BYTES": (
+        "a5d03c3ae39d7302a2507a3dd61150b65c1aa410497bcef19a80d0a58e1724ba",
+        "096a75d8baafcc50324809f49e361ec47329c95255238b74b148f633920f51d5",
+    ),
+    "providers/base.py:MAX_SPAWN_RETRY_ATTEMPTS": (
+        "1e8a0608221f83aac7ff1546aa083b3239f3851b2e7f682f26d94c4bd3913615",
+        "a0ec62090c21d343eba6c10cad4489960cbb50b9f12fac5493b326c15489698a",
+    ),
+    "providers/base.py:ProcessOutcome": (
+        "9e8152efaa4793b87f6447c3180ccf5fea8bace8bb9291ab014648e90513123b",
+        "b23cca540cbba6fca2eb42e0c4b1f134da3bf9e9de14da588fb0890197e475c0",
+    ),
+    "providers/base.py:ProviderAdapter": (
+        "50e237a2a2b718af024047078d08a37b5aeefcf92553cd85837d804033a815db",
+        "9f3a10a55e0f27c7b5358e591eb63b8da48d5ad4bec7da9e421daf4636b86e05",
+    ),
+    "providers/base.py:ProviderArgvRefused": (
+        "ca84cccb07065831e6278976e44e630f23499106c5fcedb73fedc36afee6c28d",
+        "6b494756080930725592f92dc836d60bb6d2b28e186e61c81f40b697a2ead98e",
+    ),
+    "providers/base.py:ProviderEnvironmentRefused": (
+        "9c2099973a24a3ceb03629bb90d11c1485fe15d9548dda938292512d3b597901",
+        "8603df9ff71d5e7bd1a9af325a1464c0394ae3bb8bff06ef96bd3e9752c299c3",
+    ),
+    "providers/base.py:ProviderError": (
+        "16169734f03b9d7792d222c7a503dab5edf00657b41f096b115ea69d5c831a18",
+        "84f4f750306ad62e19c05786997d279e1f63728484f2e9cfb5974d849554f0be",
+    ),
+    "providers/base.py:ProviderInvocation": (
+        "db70a81218dc1fe596a68106df3802585cc6bd2d949b854dcea96bf7f3143d10",
+        "91cb127367475fcafdfb9aebb30488c3124b15f8beb11f4bc22d8b4a23d2fb53",
+    ),
+    "providers/base.py:ProviderRequest": (
+        "4692da36b420e89a8d04ab0e5a5609693b6b766833b78f30ef7603e02fb48a95",
+        "e9f5fbc4d19aeee34ee0156dad0efa0473d22d195bf74a1bd7d4e2f96c05f046",
+    ),
+    "providers/base.py:ProviderStartedHook": (
+        "ed8bc25396cff1ca40597cc0dde82b43a71805f005bd9a3a98e006a4be276e2b",
+        "e47fded74b1aaf5660451ee88507a5c3d2935bd0f4237e6b87e08916b1bad77e",
+    ),
+    "providers/base.py:READ_CHUNK_BYTES": (
+        "2697f92e0bacf0c7ff615412b127cdf7c09d57dba11523ce1862dd91603c3bbc",
+        "66b4d2c663379433901f75ca9b77622d92bee8a5193ad5618919f2bcc116b9a5",
+    ),
+    "providers/base.py:RecursiveProviderInvocation": (
+        "bfd5058e253d411d92c77f6b2218bb7803ebb21c910fa59e1d783e49c8ff013c",
+        "c51531cf7f9f16979acfce7669f67f528c4f5c625c013c4f75d2eee22fd16ba6",
+    ),
+    "providers/base.py:TERMINATION_GRACE_SECONDS": (
+        "59c324047ac8dabbc6fc745d9e524516dfe84d0f2eb2d2e225c78c709e1bb2a9",
+        "b91c572d1debfab443923b468f4dd3dc279e56ee368f4f905dc70e4eb9843c71",
+    ),
+    "providers/base.py:_BoundedReader": (
+        "bae7a18560fe9f8e8889cfecbb312255bbe84e165f4bdd8ede1067c8a5c33c2d",
+        "5afd6f03fdbe82c43cd3f99e32e89dc0689946fa4343aca2198b16fe430fd640",
+    ),
+    "providers/base.py:_CREDENTIAL_SHAPED_NAME_RE": (
+        "832fdc91eabdb8dd9be1d60a87a5ed0d037ce9f87a74286c6a6c807c4c7835cb",
+        "086d773f657f4bd04daa69a0139c7b3f45ecc6f97786fec32681fb4b4bdd510e",
+    ),
+    "providers/base.py:_ENVIRONMENT_NAME_RE": (
+        "c72ce7a6d3628c37d031149cd1d856be5e3f6393c0e50236682c69d5a1fbd061",
+        "1ceefb18e379d9c3f097dcb662ead7ca59840a14aac490d241a9138c27a0713f",
+    ),
+    "providers/base.py:_FAILURE_CLASS_BY_PHASE": (
+        "e1111c5ff517a57a250afde9596f721c19d0397359e93be4b16237d10ffb4631",
+        "1950b54eca7ca21ccc2f8e277ffb94947564422c1e873677b0ead0d1278bf493",
+    ),
+    "providers/base.py:_SLOT_BY_TEMPLATE_ELEMENT": (
+        "ef7e914c42bd27de2f83ae8e46be6a1fefc4cd32ef8d259e9be107a64b95111a",
+        "7f19e1a62a7544dd4b15777baea4e6b1b70f06384234734191fe15a6a8d8df8a",
+    ),
+    "providers/base.py:_TIMESTAMP_FORMAT": (
+        "f8aa3b167ca3ae66e127dcb89d7e32b333292d0384c0fb7cb7504df7771a7873",
+        "a670b47ce305cda2a9963fc7b8994d046053a367602d403daef0c22849204b98",
+    ),
+    "providers/base.py:_TRANSCRIPT_LABEL_RE": (
+        "97e36e6285947cac7110fec4c82cdb75e43d8e4c355255ad071ad3455e625ab5",
+        "d79fb62281d8cf18cdb6c4345e52ab5c11b4795a2989c5e94c4296e319c4f1ba",
+    ),
+    "providers/base.py:_is_scratch_answer_path": (
+        "3a9eb81907b973a3827c13bce2c031dbee3ff6f8a6a379ad10c1c277f9b75b5c",
+        "279b629f9c7bb5b7e3f9a13a230614c086c70d8db8ad619620f7a6dee31f08fd",
+    ),
+    "providers/base.py:_pending_record": (
+        "1fd32ad1eda9e050994b64f5a6bb8ba5e2b3a97357f2d6995e8bb091d2522519",
+        "552211a52b9f2f2fd75f35a7e3f2c778732d0c0b0be28c680d55dabfecf4142f",
+    ),
+    "providers/base.py:_reference": (
+        "0743286f80b3b2784347886c576832fab5538520b78d006a9891725b28d99492",
+        "1aa19ad1b655a5d2f8ffece7ad582c2459f32c10f00cb1ab75fd4b93ee8c174a",
+    ),
+    "providers/base.py:_remove_scratch": (
+        "d727bb4130df1a18e45aac914a7876d120fe9717cca8e59569018d85ca683aa3",
+        "83059ff33ea0dd8744ecfd68813785fdf04b16385d2d30753a7331b8146124b5",
+    ),
+    "providers/base.py:_send_prompt_to_stdin": (
+        "cb587542c1d5edbd069e06c4b8aa794cdc546b603eab25008d5d85c1c2379193",
+        "9db2581b29b24f802329c75cb688a4f5c39190007a516d8b483ee8c40d9a093b",
+    ),
+    "providers/base.py:_temporary_root": (
+        "7f1d3aa62b04ede6a068f366617360a53a04c50b4c427e13c4e92213a12eb604",
+        "a86dab99d228322026ac484f360bde4c264cf09f74e069b172a2043d7c8c2576",
+    ),
+    "providers/base.py:_terminate_process_group": (
+        "02d7e17728747ae48ae8eff54e36dd6654f475105e0ca823470cbcc8528aba42",
+        "a1c43803022a4a6c2a88cb430d2951421672899eea36046361012cbf2384ec20",
+    ),
+    "providers/base.py:build_provider_environment": (
+        "f536c1b165b05e048494b57174f56d64c945490c39cc63bd6360b1148e2c4b78",
+        "7fdfc9d21253f32815e56eb5e962f935cceb316fc9ab6513d475bbb970863f97",
+    ),
+    "providers/base.py:classify_invocation_failure": (
+        "b6ece6250681d85b757d9fa3a9835e975e0507c4b3ae7698020aec3ca7b28c51",
+        "670bc7109b771a2f988c7aed0f3f13a2d444c9acfcf398d53fd8a2017b65d1a0",
+    ),
+    "providers/base.py:render_argv": (
+        "020c322a2ea477176b414f971b6c10d5b76abf6a752c8d5e7cb7cc881040566c",
+        "406a72102d5036e47c294cb6de3b0160557b6b0a60e79f69ef8dcb93879f1fc2",
+    ),
+    "providers/base.py:retry_permitted": (
+        "b1975d490b5792a3356f11799b919e623cfd58035f064cf451545d7c29c15be5",
+        "d615d3ff549c530ceaf004fc7847e9bfa1c67cd876a9c937ed4da7ff9435e080",
+    ),
+    "providers/base.py:transcript_label_for": (
+        "c61acca491d4cd3ffa5ec3c7583c2fc057f007e962a4c98d34c56768cc0600b5",
+        "c5cbf9e1cd3a8151c65d60b7d59cd9a3ddbc8a2caeb0cf50dd5ccc37da237bdd",
+    ),
+}
+
+#: The only top-level nodes of those two modules AUTO-018 may change or add.
+AUTO018_INSTRUMENTED_NODES: Final[Mapping[str, frozenset[str]]] = {
+    "lock.py": frozenset({"RunLock", "LockOwnershipLost", "_Identity", "_Ownership"}),
+    "providers/base.py": frozenset(
+        {"ProviderInvoker", "run_provider_process", "ProviderObserver", "SpawnedHook"}
+    ),
 }
 
 
@@ -2364,6 +2600,24 @@ class TestAuto017TransitionsAndBudgetsUnchanged:
             AUTO016_UNCHANGED_MODULES[module]
         )
 
+    @pytest.mark.parametrize("identity", AUTO018_RETAINED_NODE_SNAPSHOTS)
+    def test_auto018_instrumented_modules_retain_every_other_baseline_node(
+        self, identity: str
+    ) -> None:
+        module, name = identity.split(":")
+        snapshots = node_snapshots((PACKAGE_ROOT / module).read_text(encoding="utf-8"))
+        assert snapshots[name] == AUTO018_RETAINED_NODE_SNAPSHOTS[identity], identity
+
+    @pytest.mark.parametrize("module", sorted(AUTO018_INSTRUMENTED_NODES))
+    def test_auto018_instrumentation_is_confined_to_its_named_nodes(self, module: str) -> None:
+        present = set(node_snapshots((PACKAGE_ROOT / module).read_text(encoding="utf-8")))
+        retained = {
+            identity.split(":", 1)[1]
+            for identity in AUTO018_RETAINED_NODE_SNAPSHOTS
+            if identity.split(":", 1)[0] == module
+        }
+        assert present == retained | AUTO018_INSTRUMENTED_NODES[module]
+
     def test_all_runtime_ceiling_constants_are_in_the_snapshot(self) -> None:
         observed = {
             f"{source.name}:{name}"
@@ -2398,10 +2652,11 @@ class TestAuto017TransitionsAndBudgetsUnchanged:
         assert found != AUTO016_NODE_SNAPSHOTS["models.py:ALLOWED_RUN_TRANSITIONS"][0]
 
 
+# AUTO-018 section 10.1 mandates `state_version` and `last_event_id` on the wire-version-3
+# event-backed state document, so they leave this AUTO-017 exclusion list and are instead bounded
+# to the modules that own that wire revision (`AUTO018_TIP_FIELD_MODULES`, asserted below).
 EXCLUDED_AUTO017_SYMBOLS: Final = frozenset(
     {
-        "state_version",
-        "last_event_id",
         "OWNER_DECISION_REQUIRED",
         "PendingDecision",
         "AMBIGUOUS_RECOVERY",
@@ -2432,6 +2687,11 @@ EXCLUDED_AUTO017_SYMBOLS: Final = frozenset(
         "telegram",
         "hermes",
     }
+)
+AUTO018_TIP_FIELDS: Final = frozenset({"state_version", "last_event_id"})
+# operations.py: the section 8.2 applied receipt names its causative event's version.
+AUTO018_TIP_FIELD_MODULES: Final = frozenset(
+    {"models.py", "events.py", "state.py", "operations.py"}
 )
 FROZEN_WITHOUT_RUNTIME_EFFECT: Final = frozenset(
     {"max_remediation_cycles", "max_owner_extensions", "on_retry_exhausted", "roles"}
@@ -2483,13 +2743,28 @@ class TestAuto017DeferredFeaturesStayAbsent:
         for source in package_sources():
             assert excluded_policy_symbols(parsed(source)) == set(), source.name
 
+    def test_auto018_tip_fields_stay_inside_the_wire_revision_modules(self) -> None:
+        """The two v3 tip fields exist only where section 10.1's wire revision is owned."""
+        for source in package_sources():
+            tree = parsed(source)
+            names = set(code_string_literals(tree)) | {
+                node.id if isinstance(node, ast.Name) else node.attr
+                for node in ast.walk(tree)
+                if isinstance(node, ast.Name | ast.Attribute)
+            }
+            if source.name not in AUTO018_TIP_FIELD_MODULES:
+                assert not names & AUTO018_TIP_FIELDS, source.name
+
     def test_execution_never_consumes_fields_frozen_for_later_stages(self) -> None:
         for source in package_sources(exclude=frozenset({"policy.py", "config.py"})):
             if source.relative_to(PACKAGE_ROOT).as_posix() == "providers/base.py":
                 # The baseline adapter's supported-role check is unrelated to policy.roles.
-                # Exact module identity prevents this exception admitting new policy dispatch.
-                assert hashlib.sha256(source.read_bytes()).hexdigest() == (
-                    AUTO016_UNCHANGED_MODULES["providers/base.py"]
+                # AUTO-018 instruments this module, so its exact identity is now proved node by
+                # node: the adapter holding the `roles` read is pinned to the frozen baseline.
+                snapshots = node_snapshots(source.read_text(encoding="utf-8"))
+                assert (
+                    snapshots["ProviderAdapter"]
+                    == AUTO018_RETAINED_NODE_SNAPSHOTS["providers/base.py:ProviderAdapter"]
                 )
                 assert runtime_frozen_field_reads(parsed(source)) == {"roles"}
             else:
@@ -2524,3 +2799,318 @@ def _no_prototype_access(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
 
     monkeypatch.setattr(os, "open", guarded)
     yield
+
+
+# --------------------------------------------------------------------------------------
+# AUTO-018 section 12: T-AUTHORITY-AST and T-BOUNDARY-AST
+# --------------------------------------------------------------------------------------
+
+#: The modules allowed to *name* the transition vocabulary at all: events.py defines and folds
+#: it, and application.py -- the sole transition authority -- requests it (INV-018-01).
+TRANSITION_VOCABULARY_MODULES: Final = frozenset({"events.py", "application.py"})
+TRANSITION_TOKENS: Final = frozenset(
+    {"STATE_TRANSITIONED", "append_transition", "StateTransitionedPayload", "_TRANSITION_AUTHORITY"}
+)
+
+
+def transition_authority_sites(tree: ast.AST) -> list[tuple[tuple[str, ...], str]]:
+    """Every place a module names, calls or dynamically reaches the transition append path.
+
+    Aliases are resolved, string literals (including `getattr` names and `LifecycleEventType(...)`
+    construction) are inspected, and the `_authority=` capability keyword is reported wherever it
+    is passed, so a wrapper, an alias or a dynamic-type bypass is as visible as a direct call.
+    """
+    aliases = import_aliases(tree)
+    found: list[tuple[tuple[str, ...], str]] = []
+    literals = set(code_string_literals(tree))
+    for scope, node in scoped_nodes(tree):
+        if isinstance(node, ast.Attribute) and node.attr in TRANSITION_TOKENS:
+            found.append((scope, node.attr))
+        elif isinstance(node, ast.Name) and node.id in TRANSITION_TOKENS:
+            found.append((scope, node.id))
+        elif isinstance(node, ast.Name) and aliases.get(node.id, "").rsplit(".", 1)[-1] in (
+            TRANSITION_TOKENS
+        ):
+            found.append((scope, aliases[node.id].rsplit(".", 1)[-1]))
+        elif (
+            isinstance(node, ast.Constant)
+            and isinstance(node.value, str)
+            and node.value in literals
+        ):
+            if any(token in node.value for token in TRANSITION_TOKENS) or (
+                "transition" in node.value.lower().replace(" ", "_")
+                and node.value.startswith("append")
+            ):
+                found.append((scope, f"literal:{node.value}"))
+        elif isinstance(node, ast.keyword) and node.arg == "_authority":
+            found.append((scope, "_authority="))
+    return found
+
+
+class TestAuto018TransitionAuthorityAst:
+    """T-AUTHORITY-AST: only the application requests a transition append; only state.py holds
+    state/evidence write primitives (the lock-metadata exception is unchanged)."""
+
+    def test_only_the_application_and_the_event_module_name_the_transition_path(self) -> None:
+        for source in package_sources():
+            sites = transition_authority_sites(parsed(source))
+            if source.name not in TRANSITION_VOCABULARY_MODULES:
+                assert sites == [], (source.name, sites)
+
+    def test_only_the_application_calls_append_transition(self) -> None:
+        callers: list[str] = []
+        for source in package_sources():
+            for node in ast.walk(parsed(source)):
+                if (
+                    isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Attribute)
+                    and node.func.attr == "append_transition"
+                ):
+                    callers.append(source.name)
+        assert set(callers) == {"application.py"} and callers
+
+    def test_the_payload_is_built_only_inside_the_store_transition_helper(self) -> None:
+        tree = parsed(PACKAGE_ROOT / "events.py")
+        builders = {
+            scope
+            for scope, node in scoped_nodes(tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "StateTransitionedPayload"
+        }
+        assert builders == {("_transition_payload",)}
+
+    def test_the_transition_capability_never_leaves_the_event_module(self) -> None:
+        for source in package_sources():
+            tree = parsed(source)
+            passes = [
+                scope
+                for scope, node in scoped_nodes(tree)
+                if isinstance(node, ast.keyword) and node.arg == "_authority"
+            ]
+            if source.name != "events.py":
+                assert passes == [], source.name
+        events_tree = parsed(PACKAGE_ROOT / "events.py")
+        passes = {
+            scope
+            for scope, node in scoped_nodes(events_tree)
+            if isinstance(node, ast.keyword)
+            and node.arg == "_authority"
+            and isinstance(node.value, ast.Name)
+            and node.value.id == "_TRANSITION_AUTHORITY"
+        }
+        assert passes == {("EventStore", "append_transition")}
+
+    @pytest.mark.parametrize(
+        "body, token",
+        [
+            ("store.append_transition(a, b, c)", "append_transition"),
+            ("getattr(store, 'append_transition')(a, b, c)", "literal:append_transition"),
+            ("Kind('STATE_TRANSITIONED')", "literal:STATE_TRANSITIONED"),
+            ("store.publish_envelope(envelope, _authority=token)", "_authority="),
+            ("append(Kind.STATE_TRANSITIONED)", "STATE_TRANSITIONED"),
+            ("wrap = Payload\n    wrap()", "StateTransitionedPayload"),
+        ],
+    )
+    def test_alias_wrapper_and_dynamic_bypasses_are_detected(
+        self, tmp_path: Path, body: str, token: str
+    ) -> None:
+        tree = offending(
+            tmp_path,
+            "transition_offender.py",
+            "from ai_workflow_engine.milestone_runner.events import "
+            "LifecycleEventType as Kind, StateTransitionedPayload as Payload\n"
+            "def bypass(store, a, b, c, envelope, token, append):\n    " + body + "\n",
+        )
+        assert token in {found for _, found in transition_authority_sites(tree)}
+
+    def test_new_modules_hold_no_filesystem_primitive_at_all(self) -> None:
+        for name in ("events.py", "operations.py"):
+            tree = parsed(PACKAGE_ROOT / name)
+            imported = {
+                alias.name.split(".")[0]
+                for node in ast.walk(tree)
+                if isinstance(node, ast.Import)
+                for alias in node.names
+            }
+            assert not imported & {"os", "shutil", "subprocess", "fcntl", "tempfile"}, name
+            assert not [
+                node
+                for node in ast.walk(tree)
+                if isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id == "open"
+            ], name
+
+    def test_every_lifecycle_write_goes_through_the_single_boundary(self) -> None:
+        tree = parsed(PACKAGE_ROOT / "state.py")
+        storage = next(
+            node
+            for node in tree.body
+            if isinstance(node, ast.ClassDef) and node.name == "RunLifecycleStorage"
+        )
+        boundary_calls = [
+            node
+            for node in ast.walk(storage)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "write_redacted_artifact"
+        ]
+        assert len(boundary_calls) == 1
+        assert {keyword.arg for keyword in boundary_calls[0].keywords} >= {
+            "target",
+            "refuse_redaction",
+            "exclusive",
+        }
+
+
+#: Digests of the resume policy, computed with `ast_snapshot_digest` from the frozen planning
+#: baseline acd517ef4ea852f7f4dcab610f8c34e93a9c3ce4 -- never from the candidate. Section 9:
+#: `_reconcile` and `_resume_from` must not branch on phase, fingerprint, stored result or receipt.
+AUTO018_UNCHANGED_RESUME_POLICY: Final[Mapping[str, str]] = {
+    "application.py:_resume_from": (
+        "20e22e04db584d2de5a0be8d570b3c4c0fe7ce66edf2fb8ef2af35a90d96d4a3"
+    ),
+    "state.py:RunStateStore._reconcile": (
+        "b4db5769d58d7f0f62b9cf19ff401da1e3f10e3762aeac7625a54bf8f60b46e8"
+    ),
+    "state.py:RunStateStore.resume": (
+        "0ea87dc39b30568aed54530ca1901ee6d977431f783cdb18b95b4c496e7cb843"
+    ),
+}
+
+#: Successor-stage vocabulary that may not arrive early as an executable placeholder (sections
+#: 5.2, 9 and 14). Checked as identifiers and code string literals, never as prose.
+AUTO018_SUCCESSOR_VOCABULARY: Final = frozenset(
+    {
+        "APPLY_STORED_RESULT",
+        "REVALIDATE_STORED_RESULT",
+        "ESCALATE_TO_OWNER",
+        "PendingDecision",
+        "RecoveryReconciler",
+        "AMBIGUOUS_RECOVERY",
+        "OWNER_DECISION_REQUIRED",
+        "DecisionRequest",
+        "RETRY_CYCLE",
+        "CYCLE_SCHEDULED",
+        "GIT_OPERATION",
+        "GitOperation",
+        "GIT_DISPATCH",
+        "ModelProvenance",
+        "RunEnvelope",
+        "ExecutionPort",
+        "ProviderCatalog",
+    }
+)
+
+
+def _method_node(tree: ast.Module, qualified: str) -> ast.AST:
+    parts = qualified.split(".")
+    nodes: list[ast.stmt] = tree.body
+    found: ast.AST | None = None
+    for part in parts:
+        found = next(
+            node
+            for node in nodes
+            if isinstance(node, ast.FunctionDef | ast.ClassDef) and node.name == part
+        )
+        nodes = found.body if isinstance(found, ast.ClassDef) else []
+    assert found is not None
+    return found
+
+
+class TestAuto018BoundaryAst:
+    """T-BOUNDARY-AST: no phase-driven resume or recovery, no successor vocabulary, no legacy
+    workflow authority imports, and event enumeration confined as section 7.3 fixes it."""
+
+    @pytest.mark.parametrize("identity", AUTO018_UNCHANGED_RESUME_POLICY)
+    def test_the_resume_policy_is_the_frozen_baseline(self, identity: str) -> None:
+        module, qualified = identity.split(":")
+        node = _method_node(parsed(PACKAGE_ROOT / module), qualified)
+        assert ast_snapshot_digest(node) == AUTO018_UNCHANGED_RESUME_POLICY[identity]
+
+    def test_resume_never_reads_operation_phase_evidence(self) -> None:
+        tree = parsed(PACKAGE_ROOT / "application.py")
+        for name in ("_resume_from", "resume_run", "_leave_provider_excursion", "_provider_origin"):
+            node = _method_node(tree, name)
+            names = {
+                inner.attr if isinstance(inner, ast.Attribute) else inner.id
+                for inner in ast.walk(node)
+                if isinstance(inner, ast.Attribute | ast.Name)
+            }
+            assert not names & {
+                "operations",
+                "highest_phase",
+                "OperationPhase",
+                "attempts",
+                "causative_events",
+                "incomplete",
+                "open_mutation",
+            }, name
+
+    def test_no_successor_vocabulary_arrives_early(self) -> None:
+        for source in package_sources():
+            tree = parsed(source)
+            names = set(code_string_literals(tree)) | {
+                node.id if isinstance(node, ast.Name) else node.attr
+                for node in ast.walk(tree)
+                if isinstance(node, ast.Name | ast.Attribute)
+            }
+            names |= {
+                node.name
+                for node in ast.walk(tree)
+                if isinstance(node, ast.ClassDef | ast.FunctionDef)
+            }
+            assert not names & AUTO018_SUCCESSOR_VOCABULARY, source.name
+
+    def test_the_operation_step_vocabulary_is_provider_only(self) -> None:
+        from ai_workflow_engine.milestone_runner.operations import OperationStepKind
+
+        assert {member.value for member in OperationStepKind} == {"provider"}
+
+    def test_no_legacy_workflow_authority_is_imported(self) -> None:
+        forbidden = (
+            "agentos_workflow",
+            "agentos_dashboard",
+            "ai_workflow_engine.workflow",
+            "ai_workflow_engine.schema",
+        )
+        for source in package_sources():
+            for node in ast.walk(parsed(source)):
+                modules: list[str] = []
+                if isinstance(node, ast.Import):
+                    modules = [alias.name for alias in node.names]
+                elif isinstance(node, ast.ImportFrom) and node.module is not None:
+                    modules = [node.module]
+                for module in modules:
+                    assert not module.startswith(forbidden), (source.name, module)
+
+    def test_the_event_enumeration_never_touches_the_worktree(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from ai_workflow_engine.milestone_runner import state as state_module
+
+        listed: list[str] = []
+        real = state_module.os.listdir
+
+        def watched(path: Any = ".") -> list[str]:
+            listed.append(str(path))
+            return real(path)
+
+        events = tmp_path / "external-run" / "events"
+        events.mkdir(parents=True)
+        descriptor = os.open(events, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            monkeypatch.setattr(state_module.os, "listdir", watched)
+            assert state_module._bounded_event_names(descriptor) == []
+        finally:
+            os.close(descriptor)
+        # One listing, of the descriptor it was handed, and nothing else.
+        assert listed == [str(descriptor)]
+
+    def test_the_closed_event_vocabulary_has_no_reserved_placeholder(self) -> None:
+        from ai_workflow_engine.milestone_runner.events import LifecycleEventType
+
+        names = {member.value for member in LifecycleEventType}
+        assert len(names) == 16
+        assert not {name for name in names if any(w in name for w in ("GIT", "CYCLE", "DECISION"))}

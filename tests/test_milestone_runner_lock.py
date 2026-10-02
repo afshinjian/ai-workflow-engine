@@ -493,3 +493,176 @@ class TestLockModuleBoundary:
                         "write_bytes",
                         "writelines",
                     }, f"{node.name} must not write to the filesystem"
+
+
+# --------------------------------------------------------------------------------------
+# AUTO-018 section 7.4 (R02): continuing ownership, bound to canonical storage
+# --------------------------------------------------------------------------------------
+
+
+from ai_workflow_engine.milestone_runner.lock import LockOwnershipLost  # noqa: E402
+
+
+@pytest.fixture
+def repository(tmp_path: Path) -> Path:
+    root = tmp_path / "worktree"
+    root.mkdir()
+    return root
+
+
+def bound_lock(artifact_root: Path, repository: Path, run_id: str = "auto018-run-0001") -> RunLock:
+    return lock_for(artifact_root, run_id).bind_repository_root(repository)
+
+
+class TestLockOwnershipIdentity:
+    """T-LOCK-IDENTITY: a held flock authorizes only its own canonical root, lock inode and
+    repository; every replacement invalidates the stale holder before any further effect."""
+
+    def test_an_intact_hold_verifies(self, artifact_root: Path, repository: Path) -> None:
+        with bound_lock(artifact_root, repository) as held:
+            held.verify_ownership(storage_root=artifact_root, repository_root=repository)
+            assert held.is_held
+
+    def test_the_same_identity_under_another_root_is_not_authority(
+        self, artifact_root: Path, repository: Path, tmp_path: Path
+    ) -> None:
+        other = tmp_path / "other-home" / ".ai-workflow-engine" / "milestone-runs"
+        other = other / REPOSITORY_IDENTITY
+        other.parent.mkdir(parents=True)
+        with bound_lock(artifact_root, repository) as held:
+            with pytest.raises(LockOwnershipLost) as lost:
+                held.verify_ownership(storage_root=other, repository_root=repository)
+            assert lost.value.stop_reason is StopReason.LOCK_OWNERSHIP_LOST
+            assert not held.is_held
+            # Invalidation lasts for the rest of the invocation, even for the right root.
+            with pytest.raises(LockOwnershipLost):
+                held.verify_ownership(storage_root=artifact_root, repository_root=repository)
+
+    def test_another_repository_root_is_not_authority(
+        self, artifact_root: Path, repository: Path, tmp_path: Path
+    ) -> None:
+        elsewhere = tmp_path / "another-worktree"
+        elsewhere.mkdir()
+        with bound_lock(artifact_root, repository) as held:
+            with pytest.raises(LockOwnershipLost):
+                held.verify_ownership(storage_root=artifact_root, repository_root=elsewhere)
+
+    def test_lock_file_replacement_with_a_simultaneous_apparent_holder(
+        self, artifact_root: Path, repository: Path
+    ) -> None:
+        stale = bound_lock(artifact_root, repository)
+        stale.acquire()
+        lock_path = artifact_root / RUN_LOCK_FILE_NAME
+        lock_path.rename(artifact_root / "run.lock.moved")
+        rival = bound_lock(artifact_root, repository, "auto018-rival-0001")
+        rival.acquire()  # the replacement inode is free: two apparent holders now exist
+        try:
+            with pytest.raises(LockOwnershipLost):
+                stale.verify_ownership(storage_root=artifact_root, repository_root=repository)
+            rival.verify_ownership(storage_root=artifact_root, repository_root=repository)
+            replacement = lock_path.stat().st_ino
+            stale.release()
+            # Releasing the stale hold never unlinks or damages the replacement lock.
+            assert lock_path.stat().st_ino == replacement
+            assert (artifact_root / "run.lock.moved").exists()
+            with pytest.raises(LockContention):
+                bound_lock(artifact_root, repository, "auto018-third-0001").acquire()
+        finally:
+            rival.release()
+            stale.release()
+
+    def test_repository_scoped_root_replacement(
+        self, artifact_root: Path, repository: Path
+    ) -> None:
+        with bound_lock(artifact_root, repository) as held:
+            artifact_root.rename(artifact_root.with_name("renamed-away-root"))
+            artifact_root.mkdir()
+            with pytest.raises(LockOwnershipLost, match="storage root"):
+                held.verify_ownership(storage_root=artifact_root, repository_root=repository)
+            assert list(artifact_root.iterdir()) == []
+
+    def test_storage_ancestor_replacement(self, artifact_root: Path, repository: Path) -> None:
+        with bound_lock(artifact_root, repository) as held:
+            runs = artifact_root.parent
+            runs.rename(runs.with_name("milestone-runs-renamed"))
+            runs.mkdir()
+            (runs / REPOSITORY_IDENTITY).mkdir()
+            with pytest.raises(LockOwnershipLost):
+                held.verify_ownership(storage_root=artifact_root, repository_root=repository)
+
+    def test_storage_ancestor_replaced_by_a_symlink(
+        self, artifact_root: Path, repository: Path, tmp_path: Path
+    ) -> None:
+        with bound_lock(artifact_root, repository) as held:
+            runs = artifact_root.parent
+            moved = runs.with_name("milestone-runs-moved")
+            runs.rename(moved)
+            runs.symlink_to(moved, target_is_directory=True)
+            with pytest.raises(LockOwnershipLost):
+                held.verify_ownership(storage_root=artifact_root, repository_root=repository)
+
+    def test_target_repository_root_replacement(
+        self, artifact_root: Path, repository: Path
+    ) -> None:
+        with bound_lock(artifact_root, repository) as held:
+            repository.rename(repository.with_name("worktree-renamed-away"))
+            repository.mkdir()
+            with pytest.raises(LockOwnershipLost, match="target repository"):
+                held.verify_ownership(storage_root=artifact_root, repository_root=repository)
+
+    def test_a_released_hold_owns_nothing(self, artifact_root: Path, repository: Path) -> None:
+        held = bound_lock(artifact_root, repository)
+        held.acquire()
+        held.release()
+        with pytest.raises(LockOwnershipLost, match="not held"):
+            held.verify_ownership(storage_root=artifact_root)
+
+    def test_the_retained_descriptor_is_the_verified_root(
+        self, artifact_root: Path, repository: Path
+    ) -> None:
+        with bound_lock(artifact_root, repository) as held:
+            descriptor = held.storage_root_descriptor(storage_root=artifact_root)
+            assert os.fstat(descriptor).st_ino == artifact_root.stat().st_ino
+
+    def test_ordinary_contention_is_unchanged_and_clears_after_release(
+        self, artifact_root: Path, repository: Path
+    ) -> None:
+        first = bound_lock(artifact_root, repository)
+        first.acquire()
+        try:
+            with pytest.raises(LockContention):
+                bound_lock(artifact_root, repository, "auto018-second-0001").acquire()
+        finally:
+            first.release()
+        second = bound_lock(artifact_root, repository, "auto018-second-0001")
+        second.acquire()
+        second.verify_ownership(storage_root=artifact_root, repository_root=repository)
+        second.release()
+
+    def test_binding_a_repository_root_is_once_and_before_acquisition(
+        self, artifact_root: Path, repository: Path
+    ) -> None:
+        held = bound_lock(artifact_root, repository)
+        with pytest.raises(LockStateError):
+            held.bind_repository_root(repository)
+        plain = lock_for(artifact_root)
+        plain.acquire()
+        try:
+            with pytest.raises(LockStateError):
+                plain.bind_repository_root(repository)
+        finally:
+            plain.release()
+
+    def test_no_lease_expiry_or_pid_recovery_was_introduced(self) -> None:
+        """Identifiers only: the module docstring deliberately *explains* the PID probe it
+        refuses, so this checks code, never prose."""
+        tree = ast.parse(LOCK_SOURCE.read_text(encoding="utf-8"))
+        names = {
+            node.id if isinstance(node, ast.Name) else node.attr
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Name | ast.Attribute)
+        }
+        functions = {node.name for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)}
+        assert not {"kill", "LOCK_SH", "getpgid"} & names
+        words = {part for name in names | functions for part in name.lower().split("_")}
+        assert not words & {"lease", "leases", "expiry", "expires", "expire", "ttl"}

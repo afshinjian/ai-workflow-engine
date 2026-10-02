@@ -48,6 +48,18 @@ counter and the review budget. :func:`retry_permitted` encodes both halves of th
 durable, and durable state belongs to the run record, so the loop is the application's to run
 through `PROVIDER_RETRY_PENDING` (section 10) rather than a silent in-adapter repetition.
 
+The dispatch observer (AUTO-018 section 8.2)
+-------------------------------------------
+`on_started` runs before the process exists, so calling it a dispatch receipt would be false
+evidence. :class:`ProviderObserver` is the narrow seam AUTO-018 adds: `before_spawn` after the
+prompt transcript and pending record are fixed (the durable intent), `at_spawn_entry` immediately
+before `Popen` (where the invoker also re-verifies the run lock's continuing ownership),
+`spawned` immediately after successful process creation and before waiting (the true receipt),
+and `spawn_refused` only when the operating system positively refused process creation. An
+observer that fails after the process exists stops everything: the child's process group is
+terminated with the existing handling and nothing is retried. Argv, sandbox, environment,
+timeout and retry classification are unchanged.
+
 Evidence is never destroyed
 ---------------------------
 Every invocation writes its prompt, stdout and stderr transcript -- a spawn failure and a timeout
@@ -66,11 +78,12 @@ import tempfile
 import threading
 import time
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
-from typing import IO, ClassVar, Final
+from typing import IO, ClassVar, Final, Protocol
 
 from pydantic import Field, field_validator, model_validator
 
@@ -467,6 +480,11 @@ def _terminate_process_group(process: "subprocess.Popen[bytes]") -> None:
             continue
 
 
+#: AUTO-018: called immediately after `Popen` returned, with the child's PID and the observed UTC
+#: start, before anything waits on the process.
+SpawnedHook = Callable[[int, str], None]
+
+
 def run_provider_process(
     *,
     argv: Sequence[str],
@@ -476,6 +494,9 @@ def run_provider_process(
     timeout_seconds: int,
     stdout_ceiling: int = MAX_CAPTURED_STDOUT_BYTES,
     stderr_ceiling: int = MAX_CAPTURED_STDERR_BYTES,
+    spawn_guard: Callable[[], None] | None = None,
+    on_spawned: SpawnedHook | None = None,
+    on_spawn_refused: Callable[[str], None] | None = None,
 ) -> ProcessOutcome:
     """Run one provider process under the whole of section 17's discipline.
 
@@ -509,6 +530,9 @@ def run_provider_process(
             f"The prompt is {len(payload)} bytes, above the {MAX_PROMPT_BYTES}-byte ceiling"
         )
 
+    if spawn_guard is not None:
+        # AUTO-018 section 7.4: the continuing-ownership check at actual spawn entry.
+        spawn_guard()
     started_ns = time.monotonic_ns()
     try:
         process = subprocess.Popen(
@@ -524,10 +548,28 @@ def run_provider_process(
     except OSError as exc:
         # No process ever existed, so no side effect can have occurred: this is the one class
         # section 17 permits a bounded retry for.
-        return ProcessOutcome(
+        refused = ProcessOutcome(
             spawn_error=f"{vector[0]}: {exc}",
             duration_ms=(time.monotonic_ns() - started_ns) // 1_000_000,
         )
+        if on_spawn_refused is not None:
+            on_spawn_refused(refused.spawn_error or "process creation refused")
+        return refused
+
+    if on_spawned is not None:
+        try:
+            on_spawned(process.pid, datetime.now(UTC).strftime(_TIMESTAMP_FORMAT))
+        except BaseException:
+            # The receipt could not be made durable after the process exists: stop, end the
+            # child's whole process group with the existing handling, and never retry.
+            _terminate_process_group(process)
+            for stream in (process.stdin, process.stdout, process.stderr):
+                if stream is not None:
+                    try:
+                        stream.close()
+                    except OSError:
+                        pass
+            raise
 
     stdin_stream, stdout_stream, stderr_stream = process.stdin, process.stdout, process.stderr
     if stdin_stream is None or stdout_stream is None or stderr_stream is None:
@@ -712,6 +754,25 @@ class ProviderInvocation(MilestoneRunnerModel):
 ProviderStartedHook = Callable[[ProviderRunRecord], None]
 
 
+class ProviderObserver(Protocol):
+    """Application-owned journal callbacks around one attempt (AUTO-018 section 8.2).
+
+    Observers carry evidence to the application; a provider never appends a transition.
+    """
+
+    def before_spawn(self, request: ProviderRequest, pending: ProviderRunRecord) -> None:
+        """The attempt's durable intent, after its pending record exists and before spawn."""
+
+    def at_spawn_entry(self) -> None:
+        """Immediately before process creation. Raising here creates no process."""
+
+    def spawned(self, process_id: int, observed_started_at: str) -> None:
+        """Immediately after successful process creation, before waiting for completion."""
+
+    def spawn_refused(self, detail: str) -> None:
+        """Only when the operating system positively refused process creation."""
+
+
 def _pending_record(
     request: ProviderRequest, *, sequence: int, moment: datetime
 ) -> ProviderRunRecord:
@@ -779,10 +840,31 @@ class ProviderInvoker:
             dict(os.environ) if source_environment is None else dict(source_environment)
         )
         self._in_flight = False
+        self._observer: ProviderObserver | None = None
 
     @property
     def repository_root(self) -> Path:
         return self._repository_root
+
+    @contextmanager
+    def observing(self, observer: ProviderObserver) -> Iterator[None]:
+        """Attach application journal callbacks for the invocations made inside the block."""
+        if self._observer is not None:
+            raise RecursiveProviderInvocation("An observer is already attached to this invoker")
+        self._observer = observer
+        try:
+            yield
+        finally:
+            self._observer = None
+
+    def _spawn_entry(self) -> None:
+        """AUTO-018 section 7.4: re-verify the hold at spawn entry, then tell the observer."""
+        if self._lock.binds_repository:
+            self._lock.verify_ownership(
+                storage_root=self._store.artifact_root, repository_root=self._repository_root
+            )
+        if self._observer is not None:
+            self._observer.at_spawn_entry()
 
     @property
     def in_flight(self) -> bool:
@@ -834,8 +916,12 @@ class ProviderInvoker:
         # provider has started therefore leaves a record naming an invocation with no
         # `completed_at`, which is the persisted operation evidence `MACHINE_GATES.md` section 2a
         # requires resume to reconcile against before repeating anything.
+        pending = _pending_record(request, sequence=sequence, moment=moment)
         if on_started is not None:
-            on_started(_pending_record(request, sequence=sequence, moment=moment))
+            on_started(pending)
+        observer = self._observer
+        if observer is not None:
+            observer.before_spawn(request, pending)
 
         environment = build_provider_environment(
             self._allowed_environment_variables, self._source_environment
@@ -846,6 +932,9 @@ class ProviderInvoker:
             cwd=self._repository_root,
             environment=environment,
             timeout_seconds=request.timeout_seconds,
+            spawn_guard=self._spawn_entry,
+            on_spawned=None if observer is None else observer.spawned,
+            on_spawn_refused=None if observer is None else observer.spawn_refused,
         )
         completed = datetime.now(UTC)
 

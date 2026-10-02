@@ -551,7 +551,8 @@ class TestProviderSpawnOnlyFromProvidersSubpackage:
         assert observed == {name: set(targets) for name, targets in SPAWN_CAPABILITIES.items()}
 
     def test_every_other_module_of_section_eight_spawns_nothing(self) -> None:
-        """Sixteen of the twenty files, including policy.py, hold no spawn capability."""
+        """Eighteen of the twenty-two files, including policy.py and AUTO-018's events.py and
+        operations.py, hold no spawn capability."""
         every = {path.relative_to(PACKAGE_ROOT).as_posix() for path in package_sources()}
         silent = {
             path.relative_to(PACKAGE_ROOT).as_posix()
@@ -559,7 +560,7 @@ class TestProviderSpawnOnlyFromProvidersSubpackage:
             if not any(target in SPAWN_PRIMITIVES for target in call_targets(tree))
         }
         assert silent == every - set(SPAWN_CAPABILITIES)
-        assert len(silent) == 16
+        assert len(silent) == 18
 
     def test_the_provider_capability_is_the_subpackage_and_nothing_else(self) -> None:
         """Invariant 20 stated as ownership: `subprocess.Popen` is the provider spawn."""
@@ -2065,6 +2066,9 @@ def test_the_package_has_no_module_beyond_the_contracts_surface() -> None:
         "recovery.py",
         "prompts.py",
         "application.py",
+        # AUTO-018 section 11 admits exactly these two new modules.
+        "events.py",
+        "operations.py",
     }
     present = {path.name for path in PACKAGE_ROOT.glob("*.py")}
     assert present <= section_8_files, present - section_8_files
@@ -2110,3 +2114,175 @@ def test_no_focused_verification_command_is_a_shell_string() -> None:
                 "os.popen",
             }:
                 pytest.fail(f"{path} builds a shell command")
+
+
+# --------------------------------------------------------------------------------------
+# AUTO-018 section 8.2: the dispatch observer seam (T-OP-ORDER, T-OP-SPAWN at the invoker)
+# --------------------------------------------------------------------------------------
+
+
+SLOW_CHILD = "import sys, time\nsys.stdin.read()\ntime.sleep(120)\n"
+QUICK_CHILD = "import sys\nsys.stdin.read()\nsys.stdout.write('done')\n"
+
+
+def observed_request(argv: list[str]) -> ProviderRequest:
+    return ProviderRequest(
+        provider="fake",
+        role=ProviderRole.IMPLEMENTATION,
+        argv=argv,
+        prompt="An observed prompt.",
+        timeout_seconds=60,
+        transcript_label=transcript_label_for("fake", ProviderRole.IMPLEMENTATION),
+        milestone_id="AUTO-016-M01",
+    )
+
+
+class RecordingObserver:
+    """Records the order of observer calls and, at each, whether the child exists yet."""
+
+    def __init__(self) -> None:
+        self.calls: list[str] = []
+        self.process_id: int | None = None
+        self.alive_at_receipt: bool | None = None
+        self.fail_receipt = False
+
+    def before_spawn(self, request: ProviderRequest, pending: ProviderRunRecord) -> None:
+        assert pending.completed_at is None
+        self.calls.append("before_spawn")
+
+    def at_spawn_entry(self) -> None:
+        self.calls.append("at_spawn_entry")
+
+    def spawned(self, process_id: int, observed_started_at: str) -> None:
+        self.calls.append("spawned")
+        self.process_id = process_id
+        try:
+            os.kill(process_id, 0)
+            self.alive_at_receipt = True
+        except ProcessLookupError:
+            self.alive_at_receipt = False
+        if self.fail_receipt:
+            raise OSError(28, "the receipt could not be made durable")
+
+    def spawn_refused(self, detail: str) -> None:
+        self.calls.append("spawn_refused")
+
+
+class TestDispatchObserverSeam:
+    """The observer fires pre-spawn, at spawn entry, and after creation -- never conflated."""
+
+    def test_the_receipt_is_observed_after_creation_and_before_completion(
+        self, invoker: ProviderInvoker, tmp_path: Path
+    ) -> None:
+        script = tmp_path / "quick.py"
+        script.write_text(QUICK_CHILD)
+        observer = RecordingObserver()
+        started: list[str] = []
+        with invoker.observing(observer):
+            invocation = invoker.invoke(
+                observed_request([sys.executable, str(script)]),
+                on_started=lambda pending: started.append("on_started"),
+            )
+        assert invocation.succeeded
+        assert started == ["on_started"]
+        assert observer.calls == ["before_spawn", "at_spawn_entry", "spawned"]
+        assert observer.alive_at_receipt is True
+        assert observer.process_id is not None and observer.process_id > 0
+
+    def test_a_positive_os_refusal_is_observed_and_is_never_a_receipt(
+        self, invoker: ProviderInvoker, tmp_path: Path
+    ) -> None:
+        observer = RecordingObserver()
+        with invoker.observing(observer):
+            invocation = invoker.invoke(observed_request([str(tmp_path / "no-such-provider")]))
+        assert invocation.failure_class is ProviderFailureClass.SPAWN_FAILED
+        assert observer.calls == ["before_spawn", "at_spawn_entry", "spawn_refused"]
+
+    @pytest.mark.parametrize("child", ["exit 3", "timeout"])
+    def test_nonzero_exit_and_timeout_are_receipts_not_pre_spawn_failures(
+        self, store: RunStateStore, held_lock: RunLock, worktree: Path, tmp_path: Path, child: str
+    ) -> None:
+        script = tmp_path / "child.py"
+        script.write_text(
+            "import sys\nsys.stdin.read()\nraise SystemExit(3)\n"
+            if child == "exit 3"
+            else SLOW_CHILD
+        )
+        invoker = ProviderInvoker(
+            store=store,
+            lock=held_lock,
+            repository_root=worktree,
+            allowed_environment_variables=ALLOWED_ENVIRONMENT,
+        )
+        observer = RecordingObserver()
+        request = observed_request([sys.executable, str(script)])
+        if child == "timeout":
+            request = request.model_copy(update={"timeout_seconds": 1})
+        with invoker.observing(observer):
+            invocation = invoker.invoke(request)
+        assert not invocation.succeeded
+        assert invocation.failure_class is not ProviderFailureClass.SPAWN_FAILED
+        assert observer.calls == ["before_spawn", "at_spawn_entry", "spawned"]
+
+    def test_a_receipt_failure_stops_cleans_up_the_child_and_never_retries(
+        self, invoker: ProviderInvoker, tmp_path: Path
+    ) -> None:
+        script = tmp_path / "slow.py"
+        script.write_text(SLOW_CHILD)
+        observer = RecordingObserver()
+        observer.fail_receipt = True
+        started = time.monotonic()
+        with invoker.observing(observer):
+            with pytest.raises(OSError, match="receipt could not be made durable"):
+                invoker.invoke(observed_request([sys.executable, str(script)]))
+        assert time.monotonic() - started < 60, "the child was waited on instead of stopped"
+        assert observer.calls == ["before_spawn", "at_spawn_entry", "spawned"]
+        assert observer.process_id is not None
+        with pytest.raises(ProcessLookupError):
+            os.kill(observer.process_id, 0)
+        assert not invoker.in_flight
+
+    def test_spawn_entry_reverifies_continuing_lock_ownership(
+        self, store: RunStateStore, worktree: Path, tmp_path: Path
+    ) -> None:
+        from ai_workflow_engine.milestone_runner.lock import LockOwnershipLost
+
+        script = tmp_path / "quick.py"
+        script.write_text(QUICK_CHILD)
+        lock = RunLock(
+            run_id=store.run_id,
+            repository_identity=store.repository_id,
+            artifact_root=store.artifact_root,
+        ).bind_repository_root(worktree)
+        lock.acquire()
+        try:
+            invoker = ProviderInvoker(
+                store=store,
+                lock=lock,
+                repository_root=worktree,
+                allowed_environment_variables=ALLOWED_ENVIRONMENT,
+            )
+
+            class ReplacingObserver(RecordingObserver):
+                def before_spawn(
+                    self, request: ProviderRequest, pending: ProviderRunRecord
+                ) -> None:
+                    super().before_spawn(request, pending)
+                    lock_path = store.artifact_root / "run.lock"
+                    lock_path.rename(lock_path.with_name("run.lock.moved"))
+                    lock_path.write_bytes(b"")
+
+            observer = ReplacingObserver()
+            with invoker.observing(observer):
+                with pytest.raises(LockOwnershipLost):
+                    invoker.invoke(observed_request([sys.executable, str(script)]))
+            # The check fires before the observer's own spawn-entry hook and before Popen.
+            assert observer.calls == ["before_spawn"]
+        finally:
+            lock.release()
+
+    def test_an_observer_cannot_be_attached_twice(self, invoker: ProviderInvoker) -> None:
+        with invoker.observing(RecordingObserver()):
+            with pytest.raises(RecursiveProviderInvocation):
+                with invoker.observing(RecordingObserver()):
+                    pass

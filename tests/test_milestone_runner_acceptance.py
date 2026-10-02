@@ -2341,8 +2341,9 @@ class TestWheelContainsMilestoneRunner:
             if "__pycache__" not in source.parts
         }
         assert shipped == expected
-        # AUTO-017 adds policy.py to the nineteen baseline modules.
-        assert len(expected) == 20, sorted(expected)
+        # AUTO-017 adds policy.py to the nineteen baseline modules; AUTO-018 section 11 adds
+        # exactly events.py and operations.py.
+        assert len(expected) == 22, sorted(expected)
 
     def test_the_wheel_still_carries_the_three_top_level_packages(self, built_wheel: Path) -> None:
         with zipfile.ZipFile(built_wheel) as archive:
@@ -2654,3 +2655,686 @@ class TestLiveProviderSmokeAcceptance:
         # DEC-016-006, against the snapshot taken before the run rather than against a second
         # reading of the same moment, which would compare nothing.
         assert prototype_snapshot() == prototype_before
+
+
+# ======================================================================================
+# AUTO-018: event-backed Tier 1 (T-TIER1, G-7) and the operation ladder end to end
+# ======================================================================================
+
+from ai_workflow_engine.milestone_runner.events import (  # noqa: E402
+    EVENTS_DIRECTORY,
+    PUBLICATION_WITNESS_FILE_NAME,
+    LifecycleEventType,
+    MutationAction,
+    RejectionSource,
+    fold,
+    projection_bytes,
+)
+from ai_workflow_engine.milestone_runner.operations import (  # noqa: E402
+    OperationJournal,
+    OperationPhase,
+    PersistenceKind,
+    ValidationVerdict,
+)
+from ai_workflow_engine.milestone_runner.state import RunLifecycleStorage  # noqa: E402
+
+GOVERNED_CLOCK = datetime(2026, 9, 30, 12, 0, tzinfo=UTC)
+
+
+class SpawnRefusedAdapter(ScriptedAdapter):
+    """A scripted double whose executable does not exist: the OS refuses process creation."""
+
+    def build_request(
+        self, *, role: ProviderRole, prompt: str, milestone_id: str | None = None
+    ) -> ProviderRequest:
+        request = super().build_request(role=role, prompt=prompt, milestone_id=milestone_id)
+        return request.model_copy(
+            update={"argv": [str(self._program.with_name("no-such-provider")), *request.argv[1:]]}
+        )
+
+
+@dataclass
+class ProjectionAudit:
+    """G-7: after every committed step, the fold of the durable chain equals the published bytes."""
+
+    comparisons: int = 0
+    mismatches: list[int] = field(default_factory=list)
+
+
+@pytest.fixture
+def projection_audit(monkeypatch: pytest.MonkeyPatch) -> ProjectionAudit:
+    audit = ProjectionAudit()
+    original = RunLifecycleStorage.publish_projection
+
+    def audited(self: RunLifecycleStorage, payload: bytes) -> None:
+        original(self, payload)
+        chain = self.read_chain()
+        state = fold(chain.events)
+        folded = projection_bytes(
+            state.record, state_version=state.sequence, last_event_id=state.event_id
+        )
+        audit.comparisons += 1
+        if folded != payload or chain.projection != payload:
+            audit.mismatches.append(state.sequence)
+
+    monkeypatch.setattr(RunLifecycleStorage, "publish_projection", audited)
+    return audit
+
+
+GovernedFactory = Callable[..., MilestoneRunnerApplication]
+
+
+@pytest.fixture
+def governed_factory(
+    config_factory: ConfigFactory, tmp_path: Path, program: Path
+) -> GovernedFactory:
+    """An event-backed AUTO-017 policy run, admitting exactly this suite's audited doubles."""
+    counter = {"value": 0}
+
+    def factory(
+        *,
+        script: Mapping[str, Any] | None = None,
+        adapter_type: type[ScriptedAdapter] = ScriptedAdapter,
+        config_overrides: Mapping[str, Any] | None = None,
+        authorize: bool = True,
+    ) -> MilestoneRunnerApplication:
+        path = config_factory(
+            schema_version=2,
+            stage={
+                "registry_path": None,
+                "execution_ceilings": {"max_remediation_cycles": 3, "max_blockers": 3},
+            },
+            **dict(config_overrides or {}),
+        )
+        document = yaml.safe_load(path.read_text(encoding="utf-8"))
+        document.pop("review_policy", None)
+        path.write_text(yaml.safe_dump(document, sort_keys=True), encoding="utf-8")
+        counter["value"] += 1
+        script_path = tmp_path / f"governed-script-{counter['value']}.json"
+        script_path.write_text(
+            json.dumps(dict(script or happy_path_script()), sort_keys=True), encoding="utf-8"
+        )
+        adapter = adapter_type(program, script_path)
+        application = MilestoneRunnerApplication(
+            load_runner_config(path),
+            providers=ProviderBinding(implementation=adapter, review=adapter),
+            adapter_admissions=(
+                AdapterAdmission(
+                    adapter=adapter,
+                    concrete_type=adapter_type,
+                    kind=AdapterAdmissionKind.TEST_DOUBLE,
+                ),
+            ),
+            clock=lambda: GOVERNED_CLOCK,
+        )
+        application.artifact_root.mkdir(parents=True, exist_ok=True)
+        (application.artifact_root / "project-defaults.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": 2,
+                    "roles": {
+                        role.value: {
+                            "provider_id": "unknown-provider",
+                            "model_id": "unknown/model",
+                            "timeout_seconds": 60,
+                        }
+                        for role in ProviderRole
+                    },
+                },
+                sort_keys=True,
+            ),
+            encoding="utf-8",
+        )
+        if authorize:
+            application.stage_start(stage_id=STAGE_ID, confirmation=f"START_STAGE {STAGE_ID}")
+        return application
+
+    return factory
+
+
+def governed_view(application: MilestoneRunnerApplication) -> Any:
+    run_id = application._latest_run_id()
+    assert run_id is not None
+    return application._read_store(run_id).load_lifecycle()
+
+
+def assert_verified_chain(application: MilestoneRunnerApplication, audit: ProjectionAudit) -> Any:
+    """G-7: a verified chain whose fold equals state.json byte for byte, after every step."""
+    view = governed_view(application)
+    store = application._read_store(view.record.run_id)
+    state = fold(view.events)
+    assert store.state_path.read_bytes() == projection_bytes(
+        state.record, state_version=state.sequence, last_event_id=state.event_id
+    )
+    assert view.projection.value == "CURRENT"
+    assert view.incomplete is None
+    assert audit.comparisons >= len(view.events) - 1, (audit.comparisons, len(view.events))
+    assert audit.mismatches == []
+    for identifier, operation in view.state.operations.items():
+        if operation.transition_event_id is not None:
+            applied = store.run_directory / "operations" / identifier / "applied.json"
+            assert applied.is_file()
+    assert view.events[0][0].event_type is LifecycleEventType.RUN_INITIALIZED
+    return view
+
+
+def operation_events(view: Any, identifier: str) -> list[tuple[int, str]]:
+    """(sequence, type) of every event belonging to one operation, including its persistence and
+    causative transition."""
+    found: list[tuple[int, str]] = []
+    for event, _ in view.events:
+        payload = event.payload
+        if getattr(payload, "operation_id", None) == identifier:
+            found.append((event.sequence, event.event_type.value))
+        elif event.event_type is LifecycleEventType.APPLICATION_MUTATION_DECLARED:
+            evidence = payload.declaration.evidence
+            if getattr(evidence, "operation_id", None) == identifier:
+                found.append((event.sequence, "DECLARED"))
+    return found
+
+
+TIER1_SCENARIOS: Mapping[str, Mapping[str, Any]] = {
+    "happy-path": {"script": "happy", "state": RunStatus.READY_FOR_COMMIT_APPROVAL},
+    "disjoint-scopes": {
+        "script": "happy",
+        "disjoint": True,
+        "state": RunStatus.READY_FOR_COMMIT_APPROVAL,
+    },
+    "correction-and-closure": {
+        "script": "closed",
+        "state": RunStatus.READY_FOR_COMMIT_APPROVAL,
+    },
+    "open-blocker-stop": {"script": "open", "state": RunStatus.HUMAN_INTERVENTION_REQUIRED},
+    "malformed-implementation": {"script": "malformed", "state": RunStatus.MILESTONE_FAILED},
+    "provider-exit-failure": {"script": "exit", "state": RunStatus.MILESTONE_FAILED},
+    "malformed-review": {
+        "script": "malformed-review",
+        "state": RunStatus.HUMAN_INTERVENTION_REQUIRED,
+    },
+    "focused-verification-failure": {
+        "script": "happy",
+        "failing_focused": True,
+        "state": RunStatus.MILESTONE_FAILED,
+    },
+    "scope-violation": {"script": "scope", "state": RunStatus.HUMAN_INTERVENTION_REQUIRED},
+    "post-correction-verification-failure": {
+        "script": "closed",
+        "canary": True,
+        "state": RunStatus.HUMAN_INTERVENTION_REQUIRED,
+    },
+}
+
+
+def tier1_script(kind: str) -> dict[str, Any]:
+    if kind == "happy":
+        return happy_path_script()
+    if kind == "closed":
+        return blocked_review_script(closure={"R-1": "CLOSED"})
+    if kind == "open":
+        return blocked_review_script(closure={"R-1": "OPEN"})
+    if kind == "malformed":
+        script = happy_path_script()
+        script["results"]["IMPLEMENTATION:AUTO-099-M01"] = "no result block at all\n"
+        return script
+    if kind == "exit":
+        script = happy_path_script()
+        script["exit_codes"] = {"IMPLEMENTATION": 3}
+        return script
+    if kind == "malformed-review":
+        script = happy_path_script()
+        script["results"]["REVIEW"] = "the reviewer wrote prose and no result block\n"
+        return script
+    assert kind == "scope"
+    return scope_violation_script(MILESTONE_FILES["AUTO-099-M02"])
+
+
+class TestAuto018EventBackedTier1:
+    """T-TIER1 / G-7: event-backed equivalents of the recorded Tier 1 scenarios."""
+
+    @pytest.mark.parametrize("scenario", sorted(TIER1_SCENARIOS))
+    def test_every_tier1_scenario_is_a_verified_chain_equal_to_its_projection(
+        self,
+        governed_factory: GovernedFactory,
+        projection_audit: ProjectionAudit,
+        plan_root: Path,
+        tmp_path: Path,
+        worktree: Path,
+        spawns: SpawnLog,
+        scenario: str,
+    ) -> None:
+        case = TIER1_SCENARIOS[scenario]
+        if case.get("disjoint") or case.get("failing_focused"):
+            write_plan(
+                plan_root,
+                disjoint_scopes=bool(case.get("disjoint")),
+                failing_focused=["AUTO-099-M01"] if case.get("failing_focused") else (),
+            )
+        overrides = (
+            {"verification": closure_canary_verification(tmp_path)} if case.get("canary") else {}
+        )
+        application = governed_factory(
+            script=tier1_script(case["script"]), config_overrides=overrides
+        )
+        evidence = repository_evidence(worktree)
+        spawns.clear()
+        report = application.start()
+        assert report.state is case["state"], report.detail
+        view = assert_verified_chain(application, projection_audit)
+        assert view.record.workflow_state is case["state"]
+        assert spawns.provider_processes == [] and spawns.mutating_git == []
+        assert repository_evidence(worktree) == evidence
+        # Every operation that reached a verdict either has exactly one persisted outcome, or --
+        # when an existing safety gate stopped the run before the result could be accepted --
+        # keeps its VALID verdict as evidence with nothing fabricated after it.
+        for operation in view.state.operations.values():
+            if not operation.attempts or operation.attempts[-1].verdict is None:
+                continue
+            if operation.persisted is not None:
+                assert operation.highest_phase is OperationPhase.TRANSITION_APPLIED
+            else:
+                assert operation.attempts[-1].verdict is ValidationVerdict.VALID
+                assert operation.highest_phase is OperationPhase.RESULT_VALIDATED
+                assert view.record.workflow_state is RunStatus.HUMAN_INTERVENTION_REQUIRED
+                assert view.record.stop_reason is StopReason.OUT_OF_MILESTONE_SCOPE
+
+    def test_explicit_recovery_commands_continue_the_same_verified_chain(
+        self,
+        governed_factory: GovernedFactory,
+        projection_audit: ProjectionAudit,
+        plan_root: Path,
+        tmp_path: Path,
+    ) -> None:
+        write_plan(plan_root, failing_focused=["AUTO-099-M01"])
+        application = governed_factory()
+        assert application.start().state is RunStatus.MILESTONE_FAILED
+        report = application.reopen_milestone(milestone="AUTO-099-M01", reason="ruled reopened")
+        assert report.post_state is RunStatus.IMPLEMENTING
+        view = assert_verified_chain(application, projection_audit)
+        declared = [
+            event.payload.declaration
+            for event, _ in view.events
+            if event.event_type is LifecycleEventType.APPLICATION_MUTATION_DECLARED
+            and event.payload.declaration.action is MutationAction.RECOVERY_COMMAND
+        ]
+        assert len(declared) == 1 and view.record.reopenings == [declared[0].evidence.entry]
+
+    def test_reconcile_milestone_continues_a_scope_stopped_chain(
+        self, governed_factory: GovernedFactory, projection_audit: ProjectionAudit
+    ) -> None:
+        application = governed_factory(script=tier1_script("scope"))
+        assert application.start().stop_reason is StopReason.OUT_OF_MILESTONE_SCOPE
+        report = application.reconcile_milestone(
+            milestone="AUTO-099-M01", reason="reconciled against its own transcript"
+        )
+        assert report.post_state is RunStatus.FOCUSED_VERIFYING
+        view = assert_verified_chain(application, projection_audit)
+        assert len(view.record.reconciliations) == 1
+
+    def test_resume_terminal_refusal_and_read_only_commands(
+        self,
+        governed_factory: GovernedFactory,
+        projection_audit: ProjectionAudit,
+        worktree: Path,
+    ) -> None:
+        application = governed_factory()
+        assert application.start().state is RunStatus.READY_FOR_COMMIT_APPROVAL
+        root = application.artifact_root
+
+        def snapshot() -> dict[str, tuple[bytes, int]]:
+            return {
+                path.relative_to(root).as_posix(): (path.read_bytes(), path.stat().st_mtime_ns)
+                for path in sorted(root.rglob("*"))
+                if path.is_file() and path.name != "run.lock"
+            }
+
+        before = snapshot()
+        assert application.resume().state is RunStatus.READY_FOR_COMMIT_APPROVAL
+        assert application.status().record is not None
+        application.verify()
+        application.doctor()
+        application.plan()
+        assert snapshot() == before, "a no-op resume and the read-only commands wrote nothing"
+        # The manual Git gate is unchanged: printed, never executed, and the chain records only
+        # the approval evidence the baseline already recorded.
+        head = git(worktree, "rev-parse", "HEAD")
+        gate = application.approve_commit()
+        assert not gate.execution.executed
+        assert git(worktree, "rev-parse", "HEAD") == head
+        assert application.abort(reason="done").state is RunStatus.ABORTED
+        with pytest.raises(RunRefused):
+            application.resume()
+        assert_verified_chain(application, projection_audit)
+
+    def test_lock_contention_is_unchanged_for_an_event_backed_run(
+        self, governed_factory: GovernedFactory
+    ) -> None:
+        application = governed_factory()
+        application.start()
+        run_id = application._latest_run_id()
+        assert run_id is not None
+        holder = RunLock(
+            run_id="another-holder",
+            repository_identity=IDENTITY,
+            artifact_root=application.artifact_root,
+        )
+        holder.acquire()
+        try:
+            before = sorted((application.artifact_root / run_id / EVENTS_DIRECTORY).iterdir())
+            with pytest.raises(RunRefused, match="Another runner holds"):
+                application.abort(reason="contended")
+            assert (
+                sorted((application.artifact_root / run_id / EVENTS_DIRECTORY).iterdir()) == before
+            )
+        finally:
+            holder.release()
+
+
+class TestAuto018OperationLadder:
+    """T-OP-ORDER, T-OP-SPAWN, T-OP-INVALID and T-OP-GAPS against the real application."""
+
+    def test_every_role_is_journaled_in_order_and_durably_before_spawn(
+        self,
+        governed_factory: GovernedFactory,
+        projection_audit: ProjectionAudit,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        application = governed_factory(script=blocked_review_script(closure={"R-1": "CLOSED"}))
+        spawned: list[str] = []
+        real_popen = subprocess.Popen
+
+        class CountingPopen(real_popen):  # type: ignore[misc,valid-type]
+            def __init__(self, args: Any, *positional: Any, **keyword: Any) -> None:
+                if (
+                    isinstance(args, list)
+                    and len(args) == 5
+                    and args[1].endswith("fake_provider.py")
+                ):
+                    run_id = application._run_id or application._latest_run_id()
+                    run = application.artifact_root / str(run_id)
+                    latest = sorted((run / EVENTS_DIRECTORY).iterdir())[-1]
+                    witness = json.loads((run / PUBLICATION_WITNESS_FILE_NAME).read_bytes())
+                    # The intent is the tip, and the witness names it, before the process exists.
+                    assert latest.name.endswith("-OPERATION_DISPATCH_INTENT.json"), latest.name
+                    assert witness["sequence"] == int(latest.name[:8])
+                    spawned.append(args[3])
+                super().__init__(args, *positional, **keyword)
+
+        monkeypatch.setattr(subprocess, "Popen", CountingPopen)
+        application._run_id = None
+        report = application.start()
+        assert report.state is RunStatus.READY_FOR_COMMIT_APPROVAL, report.detail
+        assert spawned == ["IMPLEMENTATION"] * 3 + ["REVIEW", "CORRECTION", "CLOSURE"]
+        view = assert_verified_chain(application, projection_audit)
+        roles = {operation.role.value for operation in view.state.operations.values()}
+        assert roles == {"IMPLEMENTATION", "REVIEW", "CORRECTION", "CLOSURE"}
+        for identifier, operation in view.state.operations.items():
+            kinds = [kind for _, kind in operation_events(view, identifier)]
+            assert kinds == [
+                "OPERATION_REQUEST_CREATED",
+                "OPERATION_DISPATCH_INTENT",
+                "OPERATION_DISPATCH_RECEIVED",
+                "OPERATION_RESULT_RECEIVED",
+                "OPERATION_RESULT_VALIDATED",
+                "DECLARED",
+                "OPERATION_RESULT_ACCEPTED",
+                "STATE_TRANSITIONED",
+            ], (operation.role, kinds)
+            assert operation.persisted is PersistenceKind.ACCEPTED
+            assert operation.highest_phase is OperationPhase.TRANSITION_APPLIED
+
+    def test_a_positive_os_refusal_retries_in_the_same_operation(
+        self, governed_factory: GovernedFactory, projection_audit: ProjectionAudit
+    ) -> None:
+        application = governed_factory(adapter_type=SpawnRefusedAdapter)
+        assert application.start().state is RunStatus.MILESTONE_FAILED
+        view = assert_verified_chain(application, projection_audit)
+        ((identifier, operation),) = view.state.operations.items()
+        assert [attempt.attempt for attempt in operation.attempts] == [1, 2, 3]
+        assert all(attempt.pre_spawn_failure_sha256 for attempt in operation.attempts)
+        assert not any(attempt.receipt_sha256 for attempt in operation.attempts)
+        kinds = [kind for _, kind in operation_events(view, identifier)]
+        assert kinds == [
+            "OPERATION_REQUEST_CREATED",
+            *["OPERATION_DISPATCH_INTENT", "OPERATION_PRE_SPAWN_FAILED"] * 3,
+            "DECLARED",
+            "OPERATION_RESULT_REJECTED",
+            "STATE_TRANSITIONED",
+        ]
+        rejected = next(
+            event.payload
+            for event, _ in view.events
+            if event.event_type is LifecycleEventType.OPERATION_RESULT_REJECTED
+        )
+        assert rejected.source is RejectionSource.PRE_SPAWN_FAILURE
+        # Each verdict is durable before the next attempt's intent: retries are spaced by it.
+        sequences = [
+            sequence
+            for sequence, kind in operation_events(view, identifier)
+            if kind in {"OPERATION_DISPATCH_INTENT", "OPERATION_PRE_SPAWN_FAILED"}
+        ]
+        assert sequences == sorted(sequences)
+
+    @pytest.mark.parametrize("script_kind", ["exit", "malformed", "malformed-review"])
+    def test_failed_and_invalid_results_are_never_pre_spawn_or_accepted(
+        self,
+        governed_factory: GovernedFactory,
+        projection_audit: ProjectionAudit,
+        script_kind: str,
+    ) -> None:
+        application = governed_factory(script=tier1_script(script_kind))
+        application.start()
+        view = assert_verified_chain(application, projection_audit)
+        store = application._read_store(view.record.run_id)
+        types = [event.event_type for event, _ in view.events]
+        assert LifecycleEventType.OPERATION_PRE_SPAWN_FAILED not in types
+        failed = [
+            operation
+            for operation in view.state.operations.values()
+            if operation.persisted is PersistenceKind.REJECTED
+        ]
+        assert len(failed) == 1
+        last = failed[0].attempts[-1]
+        expected = (
+            ValidationVerdict.EXECUTION_FAILED
+            if script_kind == "exit"
+            else ValidationVerdict.INVALID
+        )
+        assert last.verdict is expected and last.receipt_sha256 is not None
+        raw = (
+            store.run_directory
+            / "operations"
+            / failed[0].operation_id
+            / "attempts"
+            / "0001"
+            / "result.raw"
+        )
+        assert hashlib.sha256(raw.read_bytes()).hexdigest() == last.raw_result_sha256
+        validated = json.loads(raw.with_name("result.validated.json").read_bytes())
+        assert validated["verdict"] == expected.value and validated["diagnostics"]
+        assert validated["milestone_result"] is None and validated["review_result"] is None
+        if script_kind == "malformed-review":
+            assert view.record.provider_failure_count == 1
+            assert view.record.successful_review_rounds == 0
+        else:
+            assert view.record.provider_failure_count == 0
+
+    @pytest.mark.parametrize("role", ["IMPLEMENTATION", "REVIEW", "CORRECTION", "CLOSURE"])
+    @pytest.mark.parametrize(
+        "boundary, prior_phase",
+        [
+            ("create_request", None),
+            ("record_intent", OperationPhase.REQUEST_CREATED),
+            ("record_receipt", OperationPhase.DISPATCH_INTENT),
+            ("record_result", OperationPhase.DISPATCH_RECEIPT),
+            ("record_validation", OperationPhase.RESULT_RECEIVED),
+        ],
+    )
+    def test_a_stop_at_every_boundary_leaves_exactly_its_durable_prefix(
+        self,
+        governed_factory: GovernedFactory,
+        monkeypatch: pytest.MonkeyPatch,
+        role: str,
+        boundary: str,
+        prior_phase: OperationPhase | None,
+    ) -> None:
+        application = governed_factory(script=blocked_review_script(closure={"R-1": "CLOSED"}))
+        spawned: list[str] = []
+        real_popen = subprocess.Popen
+
+        class CountingPopen(real_popen):  # type: ignore[misc,valid-type]
+            def __init__(self, args: Any, *positional: Any, **keyword: Any) -> None:
+                if (
+                    isinstance(args, list)
+                    and len(args) == 5
+                    and args[1].endswith("fake_provider.py")
+                ):
+                    spawned.append(args[3])
+                super().__init__(args, *positional, **keyword)
+
+        original = getattr(OperationJournal, boundary)
+
+        def stop(self: OperationJournal, *args: Any, **kwargs: Any) -> Any:
+            step = kwargs["step"] if boundary == "create_request" else args[0].step
+            if step.role.value == role:
+                raise RuntimeError(f"stopped at {boundary}")
+            return original(self, *args, **kwargs)
+
+        monkeypatch.setattr(subprocess, "Popen", CountingPopen)
+        monkeypatch.setattr(OperationJournal, boundary, stop)
+        with pytest.raises(RuntimeError, match=f"stopped at {boundary}"):
+            application.start()
+        view = governed_view(application)
+        ours = [op for op in view.state.operations.values() if op.role.value == role]
+        if prior_phase is None:
+            assert ours == []
+        else:
+            assert len(ours) == 1 and ours[0].highest_phase is prior_phase
+            assert ours[0].persisted is None
+        # A receipt that is absent never means no spawn: the process was created.
+        assert spawned.count(role) == (
+            1 if boundary in {"record_receipt", "record_result", "record_validation"} else 0
+        )
+        # No automatic recovery is exercised or claimed: nothing persisted the stopped
+        # operation's result and no transition names it as its cause.
+        if ours:
+            assert not [
+                event
+                for event, _ in view.events
+                if getattr(event.payload, "operation_id", None) == ours[0].operation_id
+                and event.event_type
+                in {
+                    LifecycleEventType.OPERATION_RESULT_ACCEPTED,
+                    LifecycleEventType.OPERATION_RESULT_REJECTED,
+                    LifecycleEventType.STATE_TRANSITIONED,
+                }
+            ]
+
+
+class TestAuto018EndToEndRedaction:
+    """T-REDACTION end to end: no secret reaches any persisted byte of an event-backed run."""
+
+    SECRET = "ghp_" + "Z" * 36
+
+    def test_secrets_in_prompt_result_stdout_stderr_and_diagnostic_never_persist(
+        self,
+        governed_factory: GovernedFactory,
+        projection_audit: ProjectionAudit,
+        plan_root: Path,
+    ) -> None:
+        # The prompt carries a secret too: the milestone objective is rendered into it.
+        first = plan_root / "AUTO-099-M01.yaml"
+        first.write_text(
+            first.read_text(encoding="utf-8").replace(
+                "Write one file inside this milestone's own scope.",
+                f"Write one file; the operator pasted {self.SECRET} here.",
+            ),
+            encoding="utf-8",
+        )
+        script = happy_path_script()
+        script["stderr"] = f"debug token {self.SECRET}\n"
+        script["results"]["IMPLEMENTATION:AUTO-099-M01"] = (
+            f"I used {self.SECRET} while working.\n"
+            + script["results"]["IMPLEMENTATION:AUTO-099-M01"]
+        )
+        script["results"]["REVIEW"] = f"prose with {self.SECRET} and no result block\n"
+        application = governed_factory(script=script)
+        application.start()
+        view = assert_verified_chain(application, projection_audit)
+        root = application.artifact_root
+        # Every byte the runner persisted; the external plan root is operator-authored input.
+        leaked = [
+            path.relative_to(root).as_posix()
+            for path in root.rglob("*")
+            if path.is_file()
+            and path.relative_to(root).parts[0] != "plans"
+            and self.SECRET.encode() in path.read_bytes()
+        ]
+        assert leaked == []
+        requests = [json.loads(path.read_bytes()) for path in root.rglob("request.json")]
+        first = next(request for request in requests if request["milestone_id"] == "AUTO-099-M01")
+        assert "[REDACTED:github_token]" in first["prompt"]
+        findings = [
+            f for f in view.record.deferred_findings if f.finding_id.startswith("redaction-")
+        ]
+        assert findings, "redaction is counted and visible, never silent"
+
+
+class TestAuto018R09TypedResultSecretsEndToEnd:
+    """AUTO018-IMPL-R09 end to end: every role's otherwise-valid result carrying secret-shaped
+    free text is accepted, its free text is redacted before the verdict's digest, the redaction
+    is counted on the record, and no persisted byte keeps the secret."""
+
+    SECRET = "ghp_" + "Q7" * 18
+
+    def test_all_four_roles_accept_redacted_free_text(
+        self,
+        governed_factory: GovernedFactory,
+        projection_audit: ProjectionAudit,
+    ) -> None:
+        leaked = f"token={self.SECRET}"
+        script = blocked_review_script(closure={"R-1": "CLOSED"})
+        script["results"]["IMPLEMENTATION:AUTO-099-M01"] = script["results"][
+            "IMPLEMENTATION:AUTO-099-M01"
+        ].replace(
+            "END_AUTO016_MILESTONE_RESULT",
+            f"verification:\n  - command: pytest {leaked}\n    result: PASS\n"
+            "END_AUTO016_MILESTONE_RESULT",
+        )
+        script["results"]["REVIEW"] = review_block(
+            verdict="BLOCKED", blockers=[{**HIGH_BLOCKER, "summary": f"It leaks {leaked}."}]
+        )
+        script["results"]["CORRECTION"] = correction_block(addressed=["R-1"]).replace(
+            "The correction round addressed it.", f"Rotated {leaked}."
+        )
+        script["results"]["CLOSURE"] = closure_block({"R-1": "CLOSED"}).replace(
+            "Closure verification ruled on it.", f"Verified {leaked} was rotated."
+        )
+        application = governed_factory(script=script)
+        report = application.start()
+        assert report.state is RunStatus.READY_FOR_COMMIT_APPROVAL, report.detail
+        view = assert_verified_chain(application, projection_audit)
+        root = application.artifact_root
+        persisted = [
+            path.relative_to(root).as_posix()
+            for path in root.rglob("*")
+            if path.is_file()
+            and path.relative_to(root).parts[0] != "plans"
+            and self.SECRET.encode() in path.read_bytes()
+        ]
+        assert persisted == []
+        validated = [json.loads(path.read_bytes()) for path in root.rglob("result.validated.json")]
+        roles = {document["role"] for document in validated if document["verdict"] == "VALID"}
+        assert roles == {"IMPLEMENTATION", "REVIEW", "CORRECTION", "CLOSURE"}
+        redacted_roles = {
+            document["role"]
+            for document in validated
+            if document["verdict"] == "VALID" and "[REDACTED:" in json.dumps(document)
+        }
+        assert redacted_roles == {"IMPLEMENTATION", "REVIEW", "CORRECTION", "CLOSURE"}
+        counted = [
+            finding
+            for finding in view.record.deferred_findings
+            if finding.finding_id.startswith("redaction-")
+            and "result.validated.json" in finding.summary
+        ]
+        assert len(counted) >= 4, "each role's redaction is counted and visible on the record"
