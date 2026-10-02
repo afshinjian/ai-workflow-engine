@@ -130,7 +130,6 @@ every later roadmap phase remain unauthorized. Completion report:
 
 | Task | Title | Status |
 |---|---|---|
-| AUTO-018 | Durable Lifecycle / Event Foundation (alias AWE-AUTO-ST-02) | Current |
 | AUTO-019 | Resume / Crash Recovery (alias AWE-AUTO-ST-03) | Planned |
 | AUTO-020 | 1..3 Bounded Remediation Cycles (alias AWE-AUTO-ST-04) | Planned |
 | AUTO-021 | OWNER Decision API (alias AWE-AUTO-ST-05) | Planned |
@@ -434,3 +433,13 @@ not run.
 This governance step grants no scope expansion, contract amendment, later-stage behavior,
 frozen-artifact edits or Git mutation authority, including staging, commit, push, tag, merge and
 reset/rebase/checkout/switch. AUTO-019 … AUTO-026 remain unauthorized and `Planned`.
+
+## AUTO-018 committed-state closeout — 2026-10-02
+
+AUTO-018 is COMPLETE / Done, CLOSED and FROZEN at implementation commit
+`e964cea54ffe8a67721c964a682c1adf2db92eee` and has been removed from the remaining-work table.
+There are zero Current tasks. Prior implementation closure PASS and OWNER acceptance stand;
+AUTO018-IMPL-R01 through AUTO018-IMPL-R12 remain CLOSED, and OD-AUTO018-01 through
+OD-AUTO018-04 remain A. Closeout markers and frozen contract, report and corpus identities:
+`docs/DECISION_LOG.md`. The authorization section above is historical. AUTO-019 remains
+NOT_STARTED / Planned and unauthorized; no successor preparation was authorized.

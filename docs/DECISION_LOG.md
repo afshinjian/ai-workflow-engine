@@ -13,6 +13,39 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-10-02 — OWNER committed-state closeout of AUTO-018 / AWE-AUTO-ST-02
+
+**Decision and effect.** Under the OWNER's bounded closeout authority, record
+`AUTO_018_COMMITTED_STATE_VERIFIED`, `AUTO_018_OWNER_ACCEPTED`, `AUTO_018_CLOSED` and
+`AUTO_018_FROZEN`. AUTO-018 is COMPLETE / Done, CLOSED and FROZEN at implementation commit
+`e964cea54ffe8a67721c964a682c1adf2db92eee`. Registry `AUTHORIZED → COMPLETE` and task
+`Current → Done`; the Current set is empty. This records the actual previously recorded
+registry state without inventing intermediate lifecycle acts. The 2026-09-30 authorization
+entry and the frozen implementation report's uncommitted-candidate statements remain
+historical; this entry governs current status.
+
+**Committed-state baseline.** Before editing, branch `main` was clean, the index was empty,
+`git diff --check` passed, and HEAD and `origin/main` both equaled the implementation commit
+above. The three frozen artifacts matched their stated SHA-256 identities:
+
+| Frozen artifact | Path | SHA-256 |
+|---|---|---|
+| Contract | `docs/workflow-automation/stage-prompts/AUTO-018.md` | `75033788e08a6c3e6b9f7f79a48d1b33043018ed646857f059bf9916b3593751` |
+| Completion report | `docs/reports/workflow-automation/AUTO-018-completion-report.md` | `ed574426ac93a945581fe490f67a225684e073c8fb221de083eca509e0fc78a4` |
+| v2 compatibility corpus | `tests/milestone_runner_state_v2_corpus.json` | `8c8abcd787a43cd349e38524534eff433b527a2fa6225bbb96755f60d444d6fe` |
+
+**Preserved acceptance.** Independent closure verdict `AUTO_018_IMPLEMENTATION_CLOSURE_PASS`
+and OWNER acceptance `AUTO_018_IMPLEMENTATION_OWNER_ACCEPTED` stand. Every frozen finding
+AUTO018-IMPL-R01 through AUTO018-IMPL-R12 remains CLOSED. OWNER dispositions remain
+OD-AUTO018-01 = A, OD-AUTO018-02 = A, OD-AUTO018-03 = A and OD-AUTO018-04 = A. No
+review, remediation or production validation is reopened by this closeout.
+
+**Boundary.** AUTO-019 remains `NOT_STARTED` / `Planned` and unauthorized. This closeout
+prepares no successor contract or implementation. Changes are limited to the task queue,
+its two mirrors, project state, the AUTO registry, this decision log and the repository
+and program changelogs. No frozen artifact, production code or test is edited; nothing is
+staged, committed or pushed by this closeout.
+
 ## 2026-09-30 — OWNER authorized AUTO-018 / AWE-AUTO-ST-02 implementation and the Stage Start inputs were prepared
 
 **Decision (OWNER).** "I authorize AUTO-018 / AWE-AUTO-ST-02 implementation against the frozen

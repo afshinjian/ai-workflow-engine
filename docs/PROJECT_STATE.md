@@ -7,7 +7,25 @@ so keep the version line's wording exact if you edit it.
 
 Current Version: 1.0.0
 
-## Latest governance activity — AUTO-018 implementation authorization recorded
+## Latest governance activity — AUTO-018 committed-state closeout
+
+On 2026-10-02, the OWNER closed and froze AUTO-018 / AWE-AUTO-ST-02 as **COMPLETE / Done** at
+implementation commit `e964cea54ffe8a67721c964a682c1adf2db92eee`. Markers:
+`AUTO_018_COMMITTED_STATE_VERIFIED`, `AUTO_018_OWNER_ACCEPTED`, `AUTO_018_CLOSED`,
+`AUTO_018_FROZEN`. Registry `AUTHORIZED → COMPLETE`; task `Current → Done`; zero Current tasks.
+
+Prior `AUTO_018_IMPLEMENTATION_CLOSURE_PASS` and `AUTO_018_IMPLEMENTATION_OWNER_ACCEPTED`
+stand. AUTO018-IMPL-R01 through AUTO018-IMPL-R12 remain CLOSED; OD-AUTO018-01 through
+OD-AUTO018-04 remain A. The contract SHA-256 is
+`75033788e08a6c3e6b9f7f79a48d1b33043018ed646857f059bf9916b3593751`; completion-report
+SHA-256 is `ed574426ac93a945581fe490f67a225684e073c8fb221de083eca509e0fc78a4`; v2
+compatibility-corpus SHA-256 is
+`8c8abcd787a43cd349e38524534eff433b527a2fa6225bbb96755f60d444d6fe`.
+All three frozen artifacts remain unchanged. AUTO-019 remains `NOT_STARTED` / `Planned` and
+unauthorized, with no successor preparation. The prior activity sections below are historical;
+full committed-state evidence and authority: `docs/DECISION_LOG.md`, 2026-10-02.
+
+## Prior governance activity — AUTO-018 implementation authorization recorded
 
 **OWNER authorization (2026-09-30): `AUTO_018_IMPLEMENTATION_AUTHORIZED`.** AUTO-018 /
 AWE-AUTO-ST-02 is `AUTHORIZED` in `docs/workflow-automation/STAGE_REGISTRY.md` and the sole

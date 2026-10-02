@@ -5,7 +5,7 @@
 | **Title** | AgentOS Workflow Automation — Changelog |
 | **Purpose** | Program-level changelog, newest first. |
 | **Status** | Draft |
-| **Version** | 2.25 |
+| **Version** | 2.26 |
 | **Owner** | Documentation & Governance session |
 | **Dependencies** | None |
 | **Related Documents** | `docs/CHANGELOG.md` (repository-level; cross-posted there) |
@@ -13,6 +13,16 @@
 ## [Unreleased]
 
 ### Added
+- AUTO-018 / AWE-AUTO-ST-02 committed-state OWNER closeout (2026-10-02): registry
+  `AUTHORIZED → COMPLETE`, task `Current → Done`, zero Current tasks. Implementation commit
+  `e964cea54ffe8a67721c964a682c1adf2db92eee`; markers
+  `AUTO_018_COMMITTED_STATE_VERIFIED`, `AUTO_018_OWNER_ACCEPTED`, `AUTO_018_CLOSED`,
+  `AUTO_018_FROZEN`. Prior `AUTO_018_IMPLEMENTATION_CLOSURE_PASS` and
+  `AUTO_018_IMPLEMENTATION_OWNER_ACCEPTED` stand; AUTO018-IMPL-R01 through
+  AUTO018-IMPL-R12 remain CLOSED; OD-AUTO018-01 through OD-AUTO018-04 remain A.
+  Contract, completion report and v2 corpus retain their frozen identities
+  (`docs/DECISION_LOG.md`). AUTO-019 remains NOT_STARTED / Planned and unauthorized;
+  no successor preparation, staging, commit or push.
 - AUTO-018 / AWE-AUTO-ST-02 implementation authorization recorded and Stage Start inputs prepared
   (OWNER, 2026-09-30): `AUTO_018_IMPLEMENTATION_AUTHORIZED`. `STAGE_REGISTRY.md` v7.4 records
   `NOT_STARTED → AUTHORIZED` and the contract's named branch

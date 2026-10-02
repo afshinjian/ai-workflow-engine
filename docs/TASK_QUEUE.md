@@ -2445,10 +2445,25 @@ their lifecycle, uncommitted-candidate and pending-verification statements for c
 
 ## AUTO-018 — Durable Lifecycle / Event Foundation
 
-Status: Current
+Status: Done
 
-Alias `AWE-AUTO-ST-02`. Registered 2026-09-28 (OD-GSE-07); **AUTHORIZED, implementation not begun**
-(OWNER, 2026-09-30; `AUTO_018_IMPLEMENTATION_AUTHORIZED`).
+Alias `AWE-AUTO-ST-02`. Registered 2026-09-28 (OD-GSE-07); **COMPLETE, OWNER-accepted,
+CLOSED / FROZEN** (OWNER closeout, 2026-10-02), implementation commit
+`e964cea54ffe8a67721c964a682c1adf2db92eee`.
+
+The OWNER records `AUTO_018_COMMITTED_STATE_VERIFIED`, `AUTO_018_OWNER_ACCEPTED`,
+`AUTO_018_CLOSED` and `AUTO_018_FROZEN` against the clean committed implementation HEAD above.
+Registry `AUTHORIZED → COMPLETE`; task `Current → Done`; the Current set is empty. Prior
+`AUTO_018_IMPLEMENTATION_CLOSURE_PASS` and `AUTO_018_IMPLEMENTATION_OWNER_ACCEPTED` stand;
+AUTO018-IMPL-R01 through AUTO018-IMPL-R12 remain **CLOSED**. OWNER dispositions
+OD-AUTO018-01 = A, OD-AUTO018-02 = A, OD-AUTO018-03 = A and OD-AUTO018-04 = A remain unchanged.
+The frozen contract retains its identity below; the unchanged completion report has SHA-256
+`ed574426ac93a945581fe490f67a225684e073c8fb221de083eca509e0fc78a4`, and the unchanged
+v2 compatibility corpus has SHA-256
+`8c8abcd787a43cd349e38524534eff433b527a2fa6225bbb96755f60d444d6fe`.
+The authorization record below is historical; this closeout controls current status. AUTO-019
+remains `NOT_STARTED` / `Planned` and unauthorized, with no successor preparation. Full
+committed-state record: `docs/DECISION_LOG.md`, 2026-10-02.
 - **Execution predecessor (OD-GSE-12):** AUTO-017 (`COMPLETE` / Done, CLOSED and FROZEN).
 - **Open OWNER decisions or external prerequisites that block this stage:** none.
 - **Scope, exclusions and acceptance criteria:** the stage section in `docs/workflow-automation/successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`.

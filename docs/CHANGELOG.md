@@ -7,6 +7,15 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- AUTO-018 / AWE-AUTO-ST-02 committed-state OWNER closeout (2026-10-02): COMPLETE / Done,
+  CLOSED / FROZEN at implementation commit `e964cea54ffe8a67721c964a682c1adf2db92eee`.
+  Markers: `AUTO_018_COMMITTED_STATE_VERIFIED`, `AUTO_018_OWNER_ACCEPTED`,
+  `AUTO_018_CLOSED`, `AUTO_018_FROZEN`. AUTO018-IMPL-R01 through AUTO018-IMPL-R12 remain
+  CLOSED; OD-AUTO018-01 through OD-AUTO018-04 remain A. Prior implementation closure PASS
+  and OWNER acceptance stand. Frozen contract, completion report and v2 corpus identities
+  remain unchanged (`docs/DECISION_LOG.md`). Zero Current tasks; AUTO-019 remains
+  NOT_STARTED / Planned and unauthorized. Governance documentation only; nothing staged,
+  committed or pushed.
 - AUTO-018 / AWE-AUTO-ST-02 implementation authorization recorded and Stage Start inputs prepared
   (OWNER, 2026-09-30): `AUTO_018_IMPLEMENTATION_AUTHORIZED`. Registry `NOT_STARTED → AUTHORIZED`
   (v7.4) with branch `feature/auto-018-durable-lifecycle-events` registered, not created; task
