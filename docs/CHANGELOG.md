@@ -7,6 +7,8 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- On 2026-11-20 the OWNER authorized AUTO-019 implementation against the frozen contract.
+  Registry §5 and the task record the decision. AUTO-019 is AUTHORIZED and the sole Current task.
 - The OWNER accepted and froze the AUTO-019 Resume / Crash Recovery contract on 2026-11-20.
   The accepted digest and independent review are recorded in `docs/DECISION_LOG.md`.
   AUTO-019 remains NOT_STARTED / Planned.

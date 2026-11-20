@@ -130,7 +130,7 @@ every later roadmap phase remain unauthorized. Completion report:
 
 | Task | Title | Status |
 |---|---|---|
-| AUTO-019 | Resume / Crash Recovery (alias AWE-AUTO-ST-03) | Planned |
+| AUTO-019 | Resume / Crash Recovery (alias AWE-AUTO-ST-03) | Current |
 | AUTO-020 | 1..3 Bounded Remediation Cycles (alias AWE-AUTO-ST-04) | Planned |
 | AUTO-021 | OWNER Decision API (alias AWE-AUTO-ST-05) | Planned |
 | AUTO-022 | Per-role AI / Provider / Model Selection (alias AWE-AUTO-ST-06) | Planned |
@@ -441,5 +441,10 @@ AUTO-018 is COMPLETE / Done, CLOSED and FROZEN at implementation commit
 There are zero Current tasks. Prior implementation closure PASS and OWNER acceptance stand;
 AUTO018-IMPL-R01 through AUTO018-IMPL-R12 remain CLOSED, and OD-AUTO018-01 through
 OD-AUTO018-04 remain A. Closeout markers and frozen contract, report and corpus identities:
-`docs/DECISION_LOG.md`. The authorization section above is historical. AUTO-019 remains
-NOT_STARTED / Planned and unauthorized; no successor preparation was authorized.
+`docs/DECISION_LOG.md`. The authorization section above is historical. At the AUTO-018 closeout, AUTO-019 was
+NOT_STARTED / Planned.
+
+## AUTO-019 implementation authorization — 2026-11-20
+
+AUTO-019 is AUTHORIZED and the sole Current task. Registry §5 and the AUTO-019 task entry
+record the written OWNER authorization against the frozen Resume / Crash Recovery contract.

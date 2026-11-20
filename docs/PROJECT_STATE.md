@@ -7,7 +7,14 @@ so keep the version line's wording exact if you edit it.
 
 Current Version: 1.0.0
 
-## Latest governance activity — AUTO-019 contract freeze
+## Latest governance activity — AUTO-019 implementation authorization
+
+On 2026-11-20 the OWNER authorized AUTO-019 against the frozen contract published at
+`2e37525e0c347f2954803c7be9dfcc4cbdb9e6e3`. The registry records AUTHORIZED and the queue lists
+AUTO-019 as the sole Current task. The working branch is `main`. Native Stage Start
+and implementation remain pending. Registry §5 and the AUTO-019 task record the decision.
+
+## Prior governance activity — AUTO-019 contract freeze
 
 On 2026-11-20, the OWNER accepted and froze the reviewed Resume / Crash Recovery contract
 at SHA-256 `11f32edda73e8c2c9a28813ad2de246bbb76a37fddf6855a37b2a1931dac7bfa`.

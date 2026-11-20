@@ -5,7 +5,7 @@
 | **Title** | AgentOS Workflow Automation — Changelog |
 | **Purpose** | Program-level changelog, newest first. |
 | **Status** | Draft |
-| **Version** | 2.27 |
+| **Version** | 2.28 |
 | **Owner** | Documentation & Governance session |
 | **Dependencies** | None |
 | **Related Documents** | `docs/CHANGELOG.md` (repository-level; cross-posted there) |
@@ -13,6 +13,8 @@
 ## [Unreleased]
 
 ### Added
+- On 2026-11-20 the OWNER authorized AUTO-019 implementation against the frozen contract.
+  Registry §5 and the task record the decision. AUTO-019 is AUTHORIZED and the sole Current task.
 - On 2026-11-20 the OWNER froze the AUTO-019 contract after a first-pass independent review.
   Registry §4 now points to `stage-prompts/AUTO-019.md`. The stage remains NOT_STARTED / Planned.
   See `docs/DECISION_LOG.md` for the accepted digest and review receipt.

@@ -2297,8 +2297,8 @@ reconciled accordingly. Correction record: `docs/DECISION_LOG.md`, 2026-09-28.
 
 Registered on 2026-09-28 by OWNER decision OD-GSE-07 at `main` /
 `e7dbb31a1469a8b371a7571a6d85424f20f0226a`, with the `Current` set empty. **Registration alone authorized
-none of these stages.** AUTO-017's and AUTO-018's subsequent OWNER authorizations are recorded in
-their task entries below; AUTO-019 … AUTO-026 remain unauthorized.
+none of these stages.** The task entries below record subsequent OWNER authorizations for AUTO-017 through AUTO-019.
+AUTO-020 … AUTO-026 remain unauthorized.
 
 The order of acts for each stage is fixed by `docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 3a
 (v7.0):
@@ -2461,8 +2461,8 @@ The frozen contract retains its identity below; the unchanged completion report 
 `ed574426ac93a945581fe490f67a225684e073c8fb221de083eca509e0fc78a4`, and the unchanged
 v2 compatibility corpus has SHA-256
 `8c8abcd787a43cd349e38524534eff433b527a2fa6225bbb96755f60d444d6fe`.
-The authorization record below is historical; this closeout controls current status. AUTO-019
-remains `NOT_STARTED` / `Planned` and unauthorized, with no successor preparation. Full
+The authorization record below is historical; this closeout controls AUTO-018's status. At that closeout, AUTO-019
+was `NOT_STARTED` / `Planned` and unauthorized. Full
 committed-state record: `docs/DECISION_LOG.md`, 2026-10-02.
 - **Execution predecessor (OD-GSE-12):** AUTO-017 (`COMPLETE` / Done, CLOSED and FROZEN).
 - **Open OWNER decisions or external prerequisites that block this stage:** none.
@@ -2518,16 +2518,21 @@ committed-state record: `docs/DECISION_LOG.md`, 2026-10-02.
 
 ## AUTO-019 — Resume / Crash Recovery
 
-Status: Planned
+Status: Current
 
-Alias `AWE-AUTO-ST-03`. Registered 2026-09-28 (OD-GSE-07); **not authorized**.
+Alias `AWE-AUTO-ST-03`. Registered 2026-09-28 (OD-GSE-07).
 - **Execution predecessor (OD-GSE-12):** AUTO-018.
 - **Open OWNER decisions or external prerequisites that block this stage:** none.
 - **Scope, exclusions and acceptance criteria:** the stage section in `docs/workflow-automation/successor-planning/AWE-GOVERNED-AUTONOMOUS-STAGE-EXECUTION-MASTER-PLAN.md`.
 - **Stage contract:** The OWNER accepted and froze `docs/workflow-automation/stage-prompts/AUTO-019.md`
   on 2026-11-20 at SHA-256 `11f32edda73e8c2c9a28813ad2de246bbb76a37fddf6855a37b2a1931dac7bfa`.
   The independent contract review passed with zero findings. The decision and review evidence are in
-  `docs/DECISION_LOG.md`. Stage Start and implementation require separate OWNER authorization.
+  `docs/DECISION_LOG.md`.
+- **Written OWNER authorization (2026-11-20).** "I authorize implementation of AUTO-019 against frozen contract SHA-256 11f32edda73e8c2c9a28813ad2de246bbb76a37fddf6855a37b2a1931dac7bfa, published at commit 2e37525e0c347f2954803c7be9dfcc4cbdb9e6e3."
+  Marker `AUTO_019_IMPLEMENTATION_AUTHORIZED`. Registry §5 records the same directive. AUTO-019
+  is `AUTHORIZED` and the sole Current task. The registered branch name is
+  `feature/auto-019-resume-crash-recovery`. Branch creation, native Stage Start, implementation work
+  and Hermes submission are outside this recording step.
 
 ## AUTO-021 — OWNER Decision API
 

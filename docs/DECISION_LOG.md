@@ -13,6 +13,21 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-11-20 — OWNER authorized AUTO-019 implementation / AWE-AUTO-ST-03
+
+**Written OWNER decision.** "I authorize implementation of AUTO-019 against frozen contract SHA-256 11f32edda73e8c2c9a28813ad2de246bbb76a37fddf6855a37b2a1931dac7bfa, published at commit 2e37525e0c347f2954803c7be9dfcc4cbdb9e6e3."
+
+Registry §5 and the AUTO-019 task entry record `AUTO_019_IMPLEMENTATION_AUTHORIZED`.
+The verified contract is `docs/workflow-automation/stage-prompts/AUTO-019.md`.
+Before recording the decision, clean local `main` and published `origin/main` both
+matched the specified commit. AUTO-018 was COMPLETE / Done, the Current set was empty,
+and the task listed no blocking OWNER decision or external prerequisite.
+
+Registry §4 moves AUTO-019 from NOT_STARTED to AUTHORIZED and the queue moves it from
+Planned to Current. The registered branch name `feature/auto-019-resume-crash-recovery` follows
+the registry naming convention. This step records the authorization only. Branch creation,
+native Stage Start, implementation work and Hermes submission remain pending.
+
 ## 2026-11-20 — OWNER accepted and froze the AUTO-019 contract / AWE-AUTO-ST-03
 
 The OWNER accepted and froze the reviewed Resume / Crash Recovery contract.
