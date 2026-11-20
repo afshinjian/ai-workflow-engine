@@ -13,6 +13,33 @@ appending a new, dated entry that names what it corrects — a Governance Correc
 (`docs/workflow-automation/STAGE_REGISTRY.md` §3 rule 18) where the correction concerns an
 AUTO-00x matter, or an equivalent plainly-labeled corrective entry otherwise.
 
+## 2026-11-20 — OWNER accepted and froze the AUTO-019 contract / AWE-AUTO-ST-03
+
+The OWNER accepted and froze the reviewed Resume / Crash Recovery contract.
+This entry records `AUTO_019_CONTRACT_OWNER_ACCEPTED` and `AUTO_019_CONTRACT_FROZEN`.
+
+| Field | Accepted identity |
+|---|---|
+| Path | `docs/workflow-automation/stage-prompts/AUTO-019.md` |
+| SHA-256 | `11f32edda73e8c2c9a28813ad2de246bbb76a37fddf6855a37b2a1931dac7bfa` |
+| Size | 21,443 bytes, 111 lines |
+| Reviewed private candidate | `4330aec25b92a00ade7856e862eb7a71abec7ae3` |
+| Target baseline | `14ca2459f20a9459eaf91cf55b8df320a82d8614` |
+
+The adopted file matches the candidate byte-for-byte, including its historical draft label
+and E8/E9 appendix. This decision governs the acceptance status of those exact bytes.
+
+**Review evidence.** The Hermes receipt in the sibling workflow repository is
+`work/development-attempt-3/awe-019-contract-draft/state.json`. Author session
+`20261120_140252_0353b0` and reviewer session `20261120_140503_0df026` both used
+`openai-codex`. The reviewer returned PASS on the candidate above with zero findings,
+bound to criteria digest `9f4ff9bd7bed1237ff1e72f93402da621b55de164ddc53462d7184b980c2e7d0`.
+The documentation acceptance test exited 0. No fix round was used.
+
+**Stage authority.** AUTO-019 remains `NOT_STARTED` in the registry and `Planned` in
+the queue. The Current set is empty. Stage Start and implementation each require separate
+OWNER authorization. Runtime crash-recovery testing remains future implementation work.
+
 ## 2026-10-02 — OWNER committed-state closeout of AUTO-018 / AWE-AUTO-ST-02
 
 **Decision and effect.** Under the OWNER's bounded closeout authority, record

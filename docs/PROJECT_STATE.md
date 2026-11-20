@@ -7,7 +7,15 @@ so keep the version line's wording exact if you edit it.
 
 Current Version: 1.0.0
 
-## Latest governance activity — AUTO-018 committed-state closeout
+## Latest governance activity — AUTO-019 contract freeze
+
+On 2026-11-20, the OWNER accepted and froze the reviewed Resume / Crash Recovery contract
+at SHA-256 `11f32edda73e8c2c9a28813ad2de246bbb76a37fddf6855a37b2a1931dac7bfa`.
+The AUTO-019 entry in `docs/DECISION_LOG.md` binds the contract to the reviewed candidate.
+AUTO-019 remains `NOT_STARTED` / `Planned` with zero Current tasks. Stage Start and
+implementation each await separate OWNER authorization.
+
+## Prior governance activity — AUTO-018 committed-state closeout
 
 On 2026-10-02, the OWNER closed and froze AUTO-018 / AWE-AUTO-ST-02 as **COMPLETE / Done** at
 implementation commit `e964cea54ffe8a67721c964a682c1adf2db92eee`. Markers:

@@ -7,6 +7,9 @@ release-versioning cadence beyond the milestone numbering in `docs/milestones.md
 ## [Unreleased]
 
 ### Added
+- The OWNER accepted and froze the AUTO-019 Resume / Crash Recovery contract on 2026-11-20.
+  The accepted digest and independent review are recorded in `docs/DECISION_LOG.md`.
+  AUTO-019 remains NOT_STARTED / Planned.
 - AUTO-018 / AWE-AUTO-ST-02 committed-state OWNER closeout (2026-10-02): COMPLETE / Done,
   CLOSED / FROZEN at implementation commit `e964cea54ffe8a67721c964a682c1adf2db92eee`.
   Markers: `AUTO_018_COMMITTED_STATE_VERIFIED`, `AUTO_018_OWNER_ACCEPTED`,
